@@ -278,6 +278,58 @@ permission_classes = [IsAuthenticated, IsPoolManager, IsSameTenant]
 
 **Manually verified:** a `pool_manager` test user gets `200` from the pool-manager-only endpoint and `403` from the finance-only endpoint; a `finance_maker` test user gets `200` from the finance-only endpoint and `403` from the pool-manager-only endpoint; no token at all gets `401`.
 
+## Error Handling, Logging & Audit Trail
+
+### Standard error format
+
+All exceptions raised through DRF (`ValidationError`, `NotAuthenticated`, `PermissionDenied`, `NotFound`, unhandled exceptions, etc.) are converted by `apps/core/exceptions.py` (`custom_exception_handler`, wired via `REST_FRAMEWORK["EXCEPTION_HANDLER"]`) into one consistent shape:
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "Validation failed.",
+    "details": { "password": ["This field is required."] }
+  }
+}
+```
+
+- `code` — a stable, machine-readable string (`validation_error`, `not_authenticated`, `permission_denied`, `not_found`, `internal_server_error`, etc.).
+- `message` — a single human-readable summary.
+- `details` — the original DRF error payload (e.g. field → list of errors) when available, otherwise `null`.
+- Unhandled exceptions (bugs, DB errors) are logged with a full traceback and returned as a generic `500 internal_server_error` rather than leaking a stack trace.
+
+Note: a few endpoints written before this handler existed (`/auth/login/`, `/auth/mfa/setup/`, `/auth/mfa/verify/`, `TenantMiddleware`'s 403s) return manually-constructed `{"detail": "..."}` responses rather than raising a DRF exception, so they are **not yet** converted to this shape — the exception handler only intercepts raised exceptions, not directly returned `Response` objects. New endpoints should raise the appropriate DRF exception (or `serializer.is_valid(raise_exception=True)`) to get the standard format for free.
+
+### Logging
+
+Configured in `config/settings/base.py` (`LOGGING`): a console handler for local development plus a rotating file handler writing to `backend/logs/app.log` (5 MB per file, 5 backups kept). Format: `{timestamp} {level} {module} {message}`. Two loggers are configured — `django` (framework logs, e.g. request/response lines) and `apps` (for application code — use `logging.getLogger("apps")` in any `apps.*` module). `logs/` is gitignored.
+
+### Audit Trail
+
+`apps.core.AuditLog` is an **append-only** record of significant actions — it deliberately does not inherit `BaseModel` (no `is_active`/soft-delete concept) and overrides `save()`/`delete()` to raise `ValueError` if called on an existing row: entries can only ever be created, never updated or deleted, including from the Django admin (`AuditLogAdmin` disables add/change/delete entirely — it's view-only).
+
+Fields: `tenant` (nullable, for system-level actions), `actor` (nullable, for automated actions), `action` (e.g. `"create"`, `"approve"`, `"reject"`), `model_name`, `object_id`, `changes` (JSON, e.g. before/after values), `reason` (free text — required context for approvals), `ip_address`, `created_at`.
+
+Use the `log_action()` helper (`apps/core/audit.py`) from any business module (BE-007+) whenever an action worth auditing happens:
+
+```python
+from apps.core.audit import log_action
+
+log_action(
+    tenant=pool.tenant,
+    actor=request.user,
+    action="approve",
+    model_name="AllocationRun",
+    object_id=str(allocation_run.id),
+    changes={"status": {"before": "pending", "after": "approved"}},
+    reason="Variance within tolerance",
+    request=request,  # optional - IP address is extracted from it if provided
+)
+```
+
+**Manual testing:** run `python manage.py test_audit_log` — it creates a few entries via `log_action()`, then attempts to update and delete one of them, confirming both are rejected.
+
 ## Data Model
 
 Backend models are documented here as they are added.
@@ -287,6 +339,7 @@ Backend models are documented here as they are added.
 - **`apps.tenants.LegalEntity`** — a legal entity under a `Tenant` (`tenant` FK, `name`, `registration_number`, `jurisdiction`, `base_currency`, `timezone`).
 - **`apps.core.TenantScopedModel`** (abstract, inherits `BaseModel`) — adds a required `tenant` FK and swaps in `TenantScopedManager` as the default manager. All future business models (Product, Pool, etc.) should inherit from this instead of `BaseModel` directly.
 - **`apps.accounts.User`** (`AUTH_USER_MODEL`, extends `AbstractUser`) — email-based login (`USERNAME_FIELD = "email"`), `full_name`, `role` (one of the BRD roles: platform super admin, product manager, pool manager, finance maker/checker, Shariah secretariat/board, risk & compliance, auditor, investor/member), `tenant` FK (nullable, for platform super admins), `totp_secret`, `mfa_enabled`.
+- **`apps.core.AuditLog`** — append-only audit trail, not derived from `BaseModel`; see [Error Handling, Logging & Audit Trail](#error-handling-logging--audit-trail).
 
 ## Multi-Tenancy
 
