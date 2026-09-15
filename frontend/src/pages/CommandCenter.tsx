@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
+import { PageHeader } from "../components/PageHeader"
 import { getHealthStatus } from "../api/health"
 
 type ConnectionState = "loading" | "connected" | "error"
@@ -26,15 +27,18 @@ export function CommandCenter() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold text-white">Command Center</h1>
+      <PageHeader
+        title="Executive Command Center"
+        subtitle="Enterprise visibility across all pool models"
+      />
       <Card title="Backend Connection">
         {state === "loading" && (
-          <p className="text-sm text-gray-400">Checking backend connection...</p>
+          <p className="text-sm text-ink-secondary">Checking backend connection...</p>
         )}
         {state === "connected" && (
           <div className="flex items-center gap-2">
             <Badge variant="emerald">Connected</Badge>
-            <span className="text-sm text-gray-300">
+            <span className="text-sm text-ink-secondary">
               GET /health/ responded with status: "{status}"
             </span>
           </div>
@@ -42,7 +46,7 @@ export function CommandCenter() {
         {state === "error" && (
           <div className="flex items-center gap-2">
             <Badge variant="gold">Disconnected</Badge>
-            <span className="text-sm text-gray-300">{errorMessage}</span>
+            <span className="text-sm text-ink-secondary">{errorMessage}</span>
           </div>
         )}
       </Card>

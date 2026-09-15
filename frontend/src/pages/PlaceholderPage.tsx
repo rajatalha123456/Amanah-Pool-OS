@@ -1,4 +1,5 @@
 import { Card } from "../components/Card"
+import { PageHeader } from "../components/PageHeader"
 
 interface PlaceholderPageProps {
   title: string
@@ -7,9 +8,9 @@ interface PlaceholderPageProps {
 export function PlaceholderPage({ title }: PlaceholderPageProps) {
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-semibold text-white">{title}</h1>
+      <PageHeader title={title} />
       <Card>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-ink-secondary">
           Content for {title} will be added here.
         </p>
       </Card>

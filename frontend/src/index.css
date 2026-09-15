@@ -1,15 +1,15 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
 
   /* Navy - primary background / header color */
-  --color-navy-950: #0a0f1f;
-  --color-navy-900: #0f1729;
-  --color-navy-800: #16213a;
-  --color-navy-700: #1f2d4d;
-  --color-navy-600: #2c3e63;
+  --color-navy-950: #070c18;
+  --color-navy-900: #0b1220;
+  --color-navy-800: #101a2e;
+  --color-navy-700: #1a2740;
+  --color-navy-600: #26374f;
   --color-navy-500: #3d5480;
 
   /* Emerald - interactive controls, buttons, active states */
@@ -25,11 +25,21 @@
   --color-gold-500: #d4af37;
   --color-gold-400: #e6c65c;
   --color-gold-100: #fdf3d7;
+
+  /* Violet - AI / copilot signals */
+  --color-violet-600: #7c3aed;
+  --color-violet-500: #8b5cf6;
+
+  /* Semantic text colors on dark surfaces */
+  --color-ink-primary: #f3f4f6;
+  --color-ink-secondary: #9ca3af;
+  --color-ink-muted: #6b7280;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
   background-color: var(--color-navy-950);
-  color: #e5e7eb;
+  color: var(--color-ink-primary);
+  -webkit-font-smoothing: antialiased;
 }

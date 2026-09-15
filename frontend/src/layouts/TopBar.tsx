@@ -1,17 +1,16 @@
-import { Badge } from "../components/Badge"
-
 export function TopBar() {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-navy-700 bg-navy-950 px-6">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-white">Amanah Capital</span>
-        <Badge variant="gold">Tenant</Badge>
+    <header className="flex h-16 items-center justify-between border-b border-white/5 bg-navy-950 px-6">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-ink-primary">Amanah Capital</span>
+        <span className="text-ink-muted">•</span>
+        <span className="text-sm text-ink-secondary">Tenant</span>
       </div>
       <div className="flex items-center gap-4">
         <button
           type="button"
           aria-label="Notifications"
-          className="rounded-full p-2 text-gray-300 hover:bg-navy-800 hover:text-white"
+          className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -32,7 +31,7 @@ export function TopBar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-medium text-white">
             U
           </div>
-          <span className="text-sm text-gray-300">User Placeholder</span>
+          <span className="text-sm text-ink-secondary">User Placeholder</span>
         </div>
       </div>
     </header>
