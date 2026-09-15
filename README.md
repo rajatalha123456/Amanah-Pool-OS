@@ -353,6 +353,8 @@ Backend models are documented here as they are added.
 - **`apps.products.ShariahDecision`** (`TenantScopedModel`) — a Shariah ruling (`decision_code` unique, `title`, `description`, `status`: draft/approved/superseded, `effective_date`, `approved_by` FK to `User`).
 - **`apps.products.ContractTemplate`** (`TenantScopedModel`) — `name`, `contract_type` (mudarabah unrestricted/restricted, musharakah, wakalah, qard), `version`, `clauses` (JSON), `shariah_decision` FK (nullable), `status` (draft/approved/retired).
 - **`apps.products.Product`** (`TenantScopedModel`) — `name`, `code` (unique per tenant), `operating_model` (bank pool/investment pool/community circle), `contract_template` FK, `status` (draft/shariah_review/approved/active/retired), `base_currency`.
+- **`apps.pools.Pool`** (`TenantScopedModel`) — `name`, `code` (unique per tenant), `product` FK, `status` (draft/approved/open/allocation/closed/archived), `effective_date`, `closed_date`; see [Pool Lifecycle](#pool-lifecycle).
+- **`apps.pools.PoolVersion`** (`TenantScopedModel`) — `pool` FK (`related_name="versions"`), `version_number`, `snapshot` (JSON), `created_by`, `is_current`.
 
 ## Products API
 
@@ -374,6 +376,32 @@ All create/approve/submit-for-review actions write an `AuditLog` entry via `log_
 **Manually verified end-to-end** with `pool_manager`, `product_manager`, `shariah_board`, and `shariah_secretariat` test users (`create_test_user --role ...`): every cross-role action correctly returns `403`; the full lifecycle (create `ShariahDecision` → approve it → create `ContractTemplate` referencing it → create `Product` → `submit-for-review` → attempt `approve` while the contract template is still `draft`, which correctly fails BR-001 → approve the `ContractTemplate` → retry `approve` on the product, which then succeeds) works as designed; a second tenant's `X-Tenant-Code` correctly sees an empty product list, confirming tenant isolation holds for real business data (not just the `TenantIsolationTestRecord` used to validate `TenantScopedManager` in isolation).
 
 **Implementation note:** DRF `ModelViewSet`s in this app use `get_queryset()` (a method) rather than a class-level `queryset = Model.objects.all()` attribute. With `TenantScopedManager`, a class-level queryset gets evaluated once at import time — before any request (and its tenant context) exists — and Django bakes that "no tenant → empty" result permanently into the queryset object; a later `.all()` at request time does not undo it. Any new tenant-scoped ViewSet should follow the same `get_queryset()` pattern.
+
+## Pool Lifecycle
+
+`apps.pools` adds `Pool` and `PoolVersion` (both `TenantScopedModel`) on top of an approved `Product`.
+
+- **`Pool`** — `name`, `code` (unique per tenant, same `UniqueConstraint` pattern as `Product.code`), `product` FK, `status` (draft/approved/open/allocation/closed/archived), `effective_date`, `closed_date`.
+- **`PoolVersion`** (`related_name="versions"` on `Pool`) — `version_number`, `snapshot` (JSON — currently just the product/contract-template config at the time of versioning, since weightage/PSR don't exist yet), `created_by`, `is_current`.
+
+**Important:** once a Pool reaches `open` or later, its configuration must never be edited directly — any config change should produce a new `PoolVersion` instead. Only the structure and the very first version (created automatically on `open`) exist so far; the actual change-request/versioning workflow for an already-open pool is a future task.
+
+**Endpoints** (`/api/v1/pools/pools/`, tenant-scoped, role-gated):
+
+| Action | Endpoint | Role | Transition | Guard |
+|---|---|---|---|---|
+| Create | `POST /` | `IsPoolManager` | — creates in `draft` | — |
+| List versions | `GET /{id}/versions/` | any authenticated | — (read-only) | — |
+| Submit for approval | `POST /{id}/submit-for-approval/` | `IsPoolManager` | `draft` → `approved` | Pool must be `draft`; `Pool.product.status` must be `approved` ("Product must be approved first.") |
+| Approve | `POST /{id}/approve/` | `IsShariahBoard` | none (formal sign-off only) | Pool must already be `approved`. The substantive Shariah approval happened at the Product level (BR-001); this only records a Pool-specific `AuditLog` sign-off entry. |
+| Open | `POST /{id}/open/` | `IsPoolManager` | `approved` → `open` | Pool must be `approved`. Automatically creates `PoolVersion` #1 with a snapshot of the product/contract template. |
+| Close | `POST /{id}/close/` | `IsFinanceChecker` | `open` or `allocation` → `closed` | Sets `closed_date` to today. |
+
+Every transition (and `create`) writes an `AuditLog` entry via `log_action()`.
+
+**Seeding for manual testing:** `python manage.py seed_demo_product` creates a fully-approved demo `ShariahDecision` → `ContractTemplate` → `Product` chain under `NOVU-DEMO`; `python manage.py seed_demo_pool` then creates a `draft` `Pool` from that product.
+
+**Manually verified end-to-end** with `pool_manager`, `shariah_board`, and `finance_checker` test users: attempting `open` directly on a `draft` pool correctly fails with a `400 validation_error` (state machine enforced); every cross-role action on every action correctly returns `403`; the full happy path (`submit-for-approval` → `approve` → `open`, which auto-creates `PoolVersion` #1 with the expected product/contract snapshot, confirmed via `GET /versions/` → `close`, which sets `closed_date`) works exactly as designed; confirmed an `AuditLog` entry exists for every one of these steps with the correct actor.
 
 ## Multi-Tenancy
 
