@@ -355,6 +355,8 @@ Backend models are documented here as they are added.
 - **`apps.products.Product`** (`TenantScopedModel`) — `name`, `code` (unique per tenant), `operating_model` (bank pool/investment pool/community circle), `contract_template` FK, `status` (draft/shariah_review/approved/active/retired), `base_currency`.
 - **`apps.pools.Pool`** (`TenantScopedModel`) — `name`, `code` (unique per tenant), `product` FK, `status` (draft/approved/open/allocation/closed/archived), `effective_date`, `closed_date`; see [Pool Lifecycle](#pool-lifecycle).
 - **`apps.pools.PoolVersion`** (`TenantScopedModel`) — `pool` FK (`related_name="versions"`), `version_number`, `snapshot` (JSON), `created_by`, `is_current`.
+- **`apps.allocation.WeightageBand`** (`TenantScopedModel`) — `pool` FK (`related_name="weightage_bands"`), `participant_class`, `weightage`, `effective_from`, `effective_to`, `status` (draft/approved); see [Weightage & PSR Setup](#weightage--psr-setup).
+- **`apps.allocation.ProfitSharingRatio`** (`TenantScopedModel`) — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved).
 
 ## Products API
 
@@ -402,6 +404,38 @@ Every transition (and `create`) writes an `AuditLog` entry via `log_action()`.
 **Seeding for manual testing:** `python manage.py seed_demo_product` creates a fully-approved demo `ShariahDecision` → `ContractTemplate` → `Product` chain under `NOVU-DEMO`; `python manage.py seed_demo_pool` then creates a `draft` `Pool` from that product.
 
 **Manually verified end-to-end** with `pool_manager`, `shariah_board`, and `finance_checker` test users: attempting `open` directly on a `draft` pool correctly fails with a `400 validation_error` (state machine enforced); every cross-role action on every action correctly returns `403`; the full happy path (`submit-for-approval` → `approve` → `open`, which auto-creates `PoolVersion` #1 with the expected product/contract snapshot, confirmed via `GET /versions/` → `close`, which sets `closed_date`) works exactly as designed; confirmed an `AuditLog` entry exists for every one of these steps with the correct actor.
+
+## Weightage & PSR Setup
+
+`apps.allocation` adds effective-dated economics to a `Pool`: `WeightageBand` (per participant class) and `ProfitSharingRatio`/PSR (depositor vs. mudarib split), both `TenantScopedModel`.
+
+- **`WeightageBand`** — `pool` FK (`related_name="weightage_bands"`), `participant_class` (free text, e.g. `"savings_tier_a"` — not a choices field, so new classes don't need a migration), `weightage`, `effective_from`, `effective_to` (nullable = open-ended), `status` (draft/approved).
+- **`ProfitSharingRatio`** — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved). `clean()` (called from `save()`) enforces `depositor_share + mudarib_share == 100.00`, raising `ValidationError` otherwise.
+
+### BR-002: no overlapping effective-dated records
+
+`apps/allocation/validators.py` (`check_no_overlap`) is a reusable check called from both serializers' `validate()`: for a given `pool` (and, for `WeightageBand`, the same `participant_class` via `extra_filter`), a new record's `[effective_from, effective_to]` range must not overlap any existing record's range for that same pool/class. `effective_to = null` means open-ended (overlaps everything from `effective_from` onward). Overlap is:
+
+```
+(new_from <= existing_to OR existing_to is null)
+AND
+(new_to >= existing_from OR new_to is null)
+```
+
+Violating this raises a `400 validation_error` naming the conflicting record. Different `participant_class` values never conflict with each other — only overlap *within the same class* (or, for PSR, within the same pool) is rejected.
+
+**Endpoints** (tenant-scoped, role-gated, filterable by `?pool={pool_id}`):
+
+| Endpoint | Create/Update | Approve |
+|---|---|---|
+| `/api/v1/allocation/weightage-bands/` | `IsPoolManager` | `POST /{id}/approve/` — `IsShariahBoard`, `draft` → `approved` |
+| `/api/v1/allocation/psr-schedules/` | `IsPoolManager` | `POST /{id}/approve/` — `IsShariahBoard`, `draft` → `approved` |
+
+Every create/approve writes an `AuditLog` entry via `log_action()`.
+
+**Seeding for manual testing:** `python manage.py seed_demo_weightage_psr` (after `seed_demo_pool`) creates the BRD example values against the demo pool — `WeightageBand`s for `savings_tier_a` (1.00), `term_tier_b` (1.20), `institutional` (1.25), all pre-approved, plus an approved 70/30 `ProfitSharingRatio`, all effective from the pool's `effective_date`.
+
+**Manually verified end-to-end**: created a `draft` `WeightageBand` and approved it; creating a second band for the *same* `participant_class` with an overlapping (open-ended) date range correctly failed with `400` and named the conflicting record (BR-002); creating a band for a *different* `participant_class` with the exact same dates correctly succeeded (`201`); a PSR with `depositor_share + mudarib_share != 100` correctly failed validation; a valid 70/30 PSR on a pool with no existing PSR succeeded and was approved; a `pool_manager` attempting `approve` (Shariah-Board-only) correctly got `403`. Also caught and fixed a real bug while testing: `ProfitSharingRatio.clean()` compared `depositor_share`/`mudarib_share` without coercing to `Decimal` first — when values arrive as plain strings (e.g. from a management command's `defaults={...}` dict, before Django's field-level casting runs), `"70.00" + "30.00"` is Python string concatenation (`"70.0030.00"`), not addition, so the check always failed. Fixed by explicitly wrapping both values in `Decimal(...)` inside `clean()`.
 
 ## Multi-Tenancy
 
