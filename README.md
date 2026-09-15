@@ -210,6 +210,35 @@ Backend models are documented here as they are added.
 - **`apps.core.BaseModel`** (abstract) — shared base for all models: UUID primary key, `created_at`, `updated_at`, and `is_active` (soft state only — no physical deletes, per BRD).
 - **`apps.tenants.Tenant`** — a customer organization (`name`, unique `code`, unique `domain`, `data_residency`, `is_suspended`).
 - **`apps.tenants.LegalEntity`** — a legal entity under a `Tenant` (`tenant` FK, `name`, `registration_number`, `jurisdiction`, `base_currency`, `timezone`).
+- **`apps.core.TenantScopedModel`** (abstract, inherits `BaseModel`) — adds a required `tenant` FK and swaps in `TenantScopedManager` as the default manager. All future business models (Product, Pool, etc.) should inherit from this instead of `BaseModel` directly.
+
+## Multi-Tenancy
+
+Every API request (except the exempt paths below) must include an `X-Tenant-Code` header identifying which tenant the request is for:
+
+```
+X-Tenant-Code: NOVU-DEMO
+```
+
+- `apps/core/middleware.py` (`TenantMiddleware`) reads this header, looks up the matching `Tenant` (must exist, `is_active=True`, `is_suspended=False`), and attaches it to `request.tenant` and to a request-scoped contextvar (`apps/core/context.py`).
+- Missing header → `403 {"detail": "X-Tenant-Code header is required."}`
+- Unknown or suspended tenant → `403 {"detail": "Unknown or suspended tenant."}`
+- **Exempt paths** (no tenant header required): `/api/v1/health/` and `/admin/`.
+- Any model inheriting `apps.core.TenantScopedModel` is automatically filtered to the current tenant via `TenantScopedManager` — if no tenant context is set, it returns an empty queryset rather than leaking data across tenants.
+
+**Manual testing:**
+
+```bash
+# No header -> 403
+curl http://localhost:8000/api/v1/<some-endpoint>/
+
+# With header -> scoped to that tenant
+curl -H "X-Tenant-Code: NOVU-DEMO" http://localhost:8000/api/v1/<some-endpoint>/
+```
+
+Run `python manage.py test_tenant_isolation` to see an end-to-end demonstration: two tenants are created, each gets its own scoped record, and the command proves that switching the tenant context only ever surfaces that tenant's data.
+
+**Frontend note:** once real authentication (BE-004) is in place, the frontend must send `X-Tenant-Code` on every API request after login (e.g. as a default header on the shared axios instance, populated from the logged-in user's tenant).
 
 ## Notes
 
