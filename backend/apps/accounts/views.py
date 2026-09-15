@@ -11,6 +11,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .authentication import issue_pending_mfa_token, resolve_pending_mfa_user
+from .permissions import HasAnyRole, IsPoolManager
 from .serializers import (
     LoginSerializer,
     MfaSetupSerializer,
@@ -120,3 +121,21 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class PoolManagerOnlyTestView(APIView):
+    """Temporary endpoint to demonstrate IsPoolManager. Remove once real endpoints exist."""
+
+    permission_classes = [IsAuthenticated, IsPoolManager]
+
+    def get(self, request):
+        return Response({"detail": "Hello, pool manager."})
+
+
+class FinanceOnlyTestView(APIView):
+    """Temporary endpoint to demonstrate HasAnyRole. Remove once real endpoints exist."""
+
+    permission_classes = [IsAuthenticated, HasAnyRole(["finance_maker", "finance_checker"])]
+
+    def get(self, request):
+        return Response({"detail": "Hello, finance."})

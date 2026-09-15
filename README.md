@@ -235,9 +235,48 @@ Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://p
 
 **Token lifetimes** (`SIMPLE_JWT` in `config/settings/base.py`): access tokens 20 minutes, refresh tokens 7 days.
 
-**Manual testing:** run `python manage.py create_test_user` to create a `pool_manager` user under the `NOVU-DEMO` tenant and print its email/password, then walk through the flow above with curl.
+**Manual testing:** run `python manage.py create_test_user --role pool_manager` (or any other role — see [Permissions](#permissions-rbacabac)) to create a test user under the `NOVU-DEMO` tenant and print its email/password, then walk through the flow above with curl.
 
 **Frontend integration:** the frontend (`frontend/src/pages/auth/`, `frontend/src/api/auth.tsx`, `frontend/src/api/axios.ts`) is now connected to this flow — see [Authentication (connected)](#authentication-connected) above.
+
+## Permissions (RBAC/ABAC)
+
+Role checks (RBAC) and tenant-ownership checks (ABAC) are implemented as DRF permission classes in `apps/accounts/permissions.py`.
+
+**Role-based permission classes** — one per BRD role, each allows only an authenticated user whose `user.role` matches:
+
+- `IsPlatformSuperAdmin`, `IsProductManager`, `IsPoolManager`, `IsFinanceMaker`, `IsFinanceChecker`, `IsShariahSecretariat`, `IsShariahBoard`, `IsRiskCompliance`, `IsAuditor`, `IsInvestorOrMember`
+
+Use them like any DRF permission class:
+
+```python
+class SomeView(APIView):
+    permission_classes = [IsAuthenticated, IsPoolManager]
+```
+
+**`HasAnyRole(roles)`** — a factory for endpoints that should allow more than one role, without writing a new class per combination:
+
+```python
+from apps.accounts.permissions import HasAnyRole
+
+class SomeView(APIView):
+    permission_classes = [IsAuthenticated, HasAnyRole(["pool_manager", "finance_checker"])]
+```
+
+**`IsSameTenant`** — an object-level (ABAC) permission for tenant-scoped models. `has_permission` only requires the user to be authenticated; `has_object_permission` checks `obj.tenant_id == request.user.tenant_id`. There's no real tenant-scoped business model yet (see `apps.core.TenantScopedModel`, [Multi-Tenancy](#multi-tenancy)) — this is ready for BE-007+ endpoints that use DRF's object-level permission checks (e.g. `get_object()` on a `RetrieveAPIView`/`ModelViewSet`), combined with a role permission:
+
+```python
+permission_classes = [IsAuthenticated, IsPoolManager, IsSameTenant]
+```
+
+**`validate_maker_checker(maker_user, checker_user)`** (`apps/accounts/workflow.py`) — raises `ValidationError` if the same user is passed as both maker and checker. No approval workflow model exists yet; this helper is ready for BE-013 (approval workflows — journal batch review, allocation run approval, etc.) to import and call before persisting a checker decision.
+
+**Test endpoints** (temporary, `apps/accounts/views.py` — to be removed once real business endpoints exist):
+
+- `GET /api/v1/auth/test-permissions/pool-manager-only/` — `IsPoolManager` only.
+- `GET /api/v1/auth/test-permissions/finance-only/` — `HasAnyRole(["finance_maker", "finance_checker"])`.
+
+**Manually verified:** a `pool_manager` test user gets `200` from the pool-manager-only endpoint and `403` from the finance-only endpoint; a `finance_maker` test user gets `200` from the finance-only endpoint and `403` from the pool-manager-only endpoint; no token at all gets `401`.
 
 ## Data Model
 

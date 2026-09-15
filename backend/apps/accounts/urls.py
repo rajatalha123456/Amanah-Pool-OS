@@ -1,7 +1,14 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import LoginView, MeView, MfaSetupView, MfaVerifyView
+from .views import (
+    FinanceOnlyTestView,
+    LoginView,
+    MeView,
+    MfaSetupView,
+    MfaVerifyView,
+    PoolManagerOnlyTestView,
+)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
@@ -9,4 +16,14 @@ urlpatterns = [
     path("mfa/verify/", MfaVerifyView.as_view(), name="auth-mfa-verify"),
     path("refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
     path("me/", MeView.as_view(), name="auth-me"),
+    path(
+        "test-permissions/pool-manager-only/",
+        PoolManagerOnlyTestView.as_view(),
+        name="test-pool-manager-only",
+    ),
+    path(
+        "test-permissions/finance-only/",
+        FinanceOnlyTestView.as_view(),
+        name="test-finance-only",
+    ),
 ]
