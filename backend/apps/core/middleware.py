@@ -4,6 +4,7 @@ from .context import set_current_tenant
 
 EXEMPT_PATHS = (
     "/api/v1/health/",
+    "/api/v1/auth/",
     "/admin/",
 )
 

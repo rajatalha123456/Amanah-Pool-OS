@@ -203,6 +203,35 @@ All apps live under `backend/apps/`. After creating a new app:
 
 **This is mock auth only.** Once the real authentication API is available (BE-004), replace the mock `login()`/`logout()` calls in `SignIn.tsx` / `VerifyMfa.tsx` with real API calls and token handling.
 
+## Authentication
+
+Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://pypi.org/project/pyotp/), compatible with Google Authenticator / Authy — no external SMS/email service required). Real access/refresh tokens (JWT, via `djangorestframework-simplejwt`) are only issued after MFA is verified.
+
+**Flow:**
+
+1. **`POST /api/v1/auth/login/`** — body: `{"email": "...", "password": "..."}`.
+   - Wrong credentials → `401`.
+   - Correct credentials, MFA not yet set up (`user.mfa_enabled == False`) → `{"mfa_setup_required": true, "pending_token": "..."}`.
+   - Correct credentials, MFA already set up → `{"mfa_required": true, "pending_token": "..."}`.
+   - `pending_token` is a short-lived (5 min) JWT carrying only `user_id` and `pending_mfa: true` — it cannot be used to access any protected endpoint other than the two below.
+
+2. **`POST /api/v1/auth/mfa/setup/`** — body: `{"pending_token": "..."}`. First-time only: generates a TOTP secret for the user (stored on `user.totp_secret`), returns `{"secret": "...", "qr_code_base64": "data:image/png;base64,..."}`. Scan the QR with an authenticator app, or use the raw `secret` (also printed server-side to the console) to generate codes manually for testing:
+   ```bash
+   python -c "import pyotp; print(pyotp.TOTP('<secret>').now())"
+   ```
+
+3. **`POST /api/v1/auth/mfa/verify/`** — body: `{"pending_token": "...", "code": "123456"}`. Verifies the 6-digit TOTP code. On success: sets `user.mfa_enabled = True` (if this was first-time setup) and returns real tokens: `{"access": "...", "refresh": "..."}`.
+
+4. **`POST /api/v1/auth/refresh/`** — body: `{"refresh": "..."}` → returns a new `{"access": "..."}` (`djangorestframework-simplejwt`'s built-in `TokenRefreshView`).
+
+5. **`GET /api/v1/auth/me/`** — requires `Authorization: Bearer <access>` → returns the logged-in user's profile (`id`, `email`, `full_name`, `role`, `tenant`, `mfa_enabled`).
+
+**Token lifetimes** (`SIMPLE_JWT` in `config/settings/base.py`): access tokens 20 minutes, refresh tokens 7 days.
+
+**Manual testing:** run `python manage.py create_test_user` to create a `pool_manager` user under the `NOVU-DEMO` tenant and print its email/password, then walk through the flow above with curl.
+
+**Frontend note (FE-002):** the mock auth described above must be replaced with real calls to this flow — `SignIn.tsx` should call `/auth/login/`, `VerifyMfa.tsx` should call `/auth/mfa/setup/` (if `mfa_setup_required`) then `/auth/mfa/verify/`, and the resulting `access`/`refresh` tokens should be stored and attached as `Authorization: Bearer <access>` on all subsequent API requests (with `/auth/refresh/` used to renew the access token before it expires).
+
 ## Data Model
 
 Backend models are documented here as they are added.
@@ -211,6 +240,7 @@ Backend models are documented here as they are added.
 - **`apps.tenants.Tenant`** — a customer organization (`name`, unique `code`, unique `domain`, `data_residency`, `is_suspended`).
 - **`apps.tenants.LegalEntity`** — a legal entity under a `Tenant` (`tenant` FK, `name`, `registration_number`, `jurisdiction`, `base_currency`, `timezone`).
 - **`apps.core.TenantScopedModel`** (abstract, inherits `BaseModel`) — adds a required `tenant` FK and swaps in `TenantScopedManager` as the default manager. All future business models (Product, Pool, etc.) should inherit from this instead of `BaseModel` directly.
+- **`apps.accounts.User`** (`AUTH_USER_MODEL`, extends `AbstractUser`) — email-based login (`USERNAME_FIELD = "email"`), `full_name`, `role` (one of the BRD roles: platform super admin, product manager, pool manager, finance maker/checker, Shariah secretariat/board, risk & compliance, auditor, investor/member), `tenant` FK (nullable, for platform super admins), `totp_secret`, `mfa_enabled`.
 
 ## Multi-Tenancy
 
@@ -223,7 +253,7 @@ X-Tenant-Code: NOVU-DEMO
 - `apps/core/middleware.py` (`TenantMiddleware`) reads this header, looks up the matching `Tenant` (must exist, `is_active=True`, `is_suspended=False`), and attaches it to `request.tenant` and to a request-scoped contextvar (`apps/core/context.py`).
 - Missing header → `403 {"detail": "X-Tenant-Code header is required."}`
 - Unknown or suspended tenant → `403 {"detail": "Unknown or suspended tenant."}`
-- **Exempt paths** (no tenant header required): `/api/v1/health/` and `/admin/`.
+- **Exempt paths** (no tenant header required): `/api/v1/health/`, `/api/v1/auth/` (login happens before the client knows its tenant context), and `/admin/`.
 - Any model inheriting `apps.core.TenantScopedModel` is automatically filtered to the current tenant via `TenantScopedManager` — if no tenant context is set, it returns an empty queryset rather than leaking data across tenants.
 
 **Manual testing:**
