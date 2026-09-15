@@ -53,6 +53,15 @@ def _extract_message_and_details(exc_detail):
 
 
 def custom_exception_handler(exc, context):
+    # DRF's default handler normalizes Http404 -> NotFound and Django's
+    # PermissionDenied -> DRF's PermissionDenied internally, but only for
+    # building the response - it doesn't mutate `exc` itself. Normalize
+    # here too so `exc.detail` below is always safe to access.
+    if isinstance(exc, Http404):
+        exc = drf_exceptions.NotFound(*exc.args)
+    elif isinstance(exc, DjangoPermissionDenied):
+        exc = drf_exceptions.PermissionDenied(*exc.args)
+
     response = drf_exception_handler(exc, context)
 
     if response is None:

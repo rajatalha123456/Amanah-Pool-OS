@@ -309,6 +309,8 @@ All exceptions raised through DRF (`ValidationError`, `NotAuthenticated`, `Permi
 
 Note: a few endpoints written before this handler existed (`/auth/login/`, `/auth/mfa/setup/`, `/auth/mfa/verify/`, `TenantMiddleware`'s 403s) return manually-constructed `{"detail": "..."}` responses rather than raising a DRF exception, so they are **not yet** converted to this shape — the exception handler only intercepts raised exceptions, not directly returned `Response` objects. New endpoints should raise the appropriate DRF exception (or `serializer.is_valid(raise_exception=True)`) to get the standard format for free.
 
+(Fixed while building the Products API: `custom_exception_handler` originally crashed with `AttributeError: 'Http404' object has no attribute 'detail'` on any genuine 404/`PermissionDenied`, because DRF's default handler normalizes those internally only for the *response* it builds, not for the `exc` object passed back to custom handlers. It now normalizes `Http404`/Django's `PermissionDenied` into their DRF equivalents itself before reading `.detail`.)
+
 ### Logging
 
 Configured in `config/settings/base.py` (`LOGGING`): a console handler for local development plus a rotating file handler writing to `backend/logs/app.log` (5 MB per file, 5 backups kept). Format: `{timestamp} {level} {module} {message}`. Two loggers are configured — `django` (framework logs, e.g. request/response lines) and `apps` (for application code — use `logging.getLogger("apps")` in any `apps.*` module). `logs/` is gitignored.
@@ -348,6 +350,30 @@ Backend models are documented here as they are added.
 - **`apps.core.TenantScopedModel`** (abstract, inherits `BaseModel`) — adds a required `tenant` FK and swaps in `TenantScopedManager` as the default manager. All future business models (Product, Pool, etc.) should inherit from this instead of `BaseModel` directly.
 - **`apps.accounts.User`** (`AUTH_USER_MODEL`, extends `AbstractUser`) — email-based login (`USERNAME_FIELD = "email"`), `full_name`, `role` (one of the BRD roles: platform super admin, product manager, pool manager, finance maker/checker, Shariah secretariat/board, risk & compliance, auditor, investor/member), `tenant` FK (nullable, for platform super admins), `totp_secret`, `mfa_enabled`.
 - **`apps.core.AuditLog`** — append-only audit trail, not derived from `BaseModel`; see [Error Handling, Logging & Audit Trail](#error-handling-logging--audit-trail).
+- **`apps.products.ShariahDecision`** (`TenantScopedModel`) — a Shariah ruling (`decision_code` unique, `title`, `description`, `status`: draft/approved/superseded, `effective_date`, `approved_by` FK to `User`).
+- **`apps.products.ContractTemplate`** (`TenantScopedModel`) — `name`, `contract_type` (mudarabah unrestricted/restricted, musharakah, wakalah, qard), `version`, `clauses` (JSON), `shariah_decision` FK (nullable), `status` (draft/approved/retired).
+- **`apps.products.Product`** (`TenantScopedModel`) — `name`, `code` (unique per tenant), `operating_model` (bank pool/investment pool/community circle), `contract_template` FK, `status` (draft/shariah_review/approved/active/retired), `base_currency`.
+
+## Products API
+
+CRUD endpoints for the models above, all tenant-scoped (require `X-Tenant-Code`, see [Multi-Tenancy](#multi-tenancy)) and role-gated (see [Permissions](#permissions-rbacabac)):
+
+| Endpoint | Create | Notes |
+|---|---|---|
+| `/api/v1/products/shariah-decisions/` | `IsShariahBoard` or `IsShariahSecretariat` | Standard CRUD + `POST {id}/approve/` (same roles) |
+| `/api/v1/products/contract-templates/` | `IsProductManager` | Standard CRUD + `POST {id}/approve/` (`IsShariahBoard` only) |
+| `/api/v1/products/products/` | `IsProductManager` | Standard CRUD + two custom actions below |
+
+**Custom Product actions:**
+
+- **`POST /api/v1/products/products/{id}/submit-for-review/`** — `IsProductManager` only. Moves `draft` → `shariah_review`. Fails with a `400 validation_error` if the product isn't currently `draft`.
+- **`POST /api/v1/products/products/{id}/approve/`** — `IsShariahBoard` only. Moves `shariah_review` → `approved`. Enforces **BR-001**: fails with `400 validation_error` unless the product's `contract_template.status == "approved"` — a pool/product cannot be approved without an approved contract.
+
+All create/approve/submit-for-review actions write an `AuditLog` entry via `log_action()`.
+
+**Manually verified end-to-end** with `pool_manager`, `product_manager`, `shariah_board`, and `shariah_secretariat` test users (`create_test_user --role ...`): every cross-role action correctly returns `403`; the full lifecycle (create `ShariahDecision` → approve it → create `ContractTemplate` referencing it → create `Product` → `submit-for-review` → attempt `approve` while the contract template is still `draft`, which correctly fails BR-001 → approve the `ContractTemplate` → retry `approve` on the product, which then succeeds) works as designed; a second tenant's `X-Tenant-Code` correctly sees an empty product list, confirming tenant isolation holds for real business data (not just the `TenantIsolationTestRecord` used to validate `TenantScopedManager` in isolation).
+
+**Implementation note:** DRF `ModelViewSet`s in this app use `get_queryset()` (a method) rather than a class-level `queryset = Model.objects.all()` attribute. With `TenantScopedManager`, a class-level queryset gets evaluated once at import time — before any request (and its tenant context) exists — and Django bakes that "no tenant → empty" result permanently into the queryset object; a later `.all()` at request time does not undo it. Any new tenant-scoped ViewSet should follow the same `get_queryset()` pattern.
 
 ## Multi-Tenancy
 
