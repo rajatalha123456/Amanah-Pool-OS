@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../api/auth"
+import { TenantSwitcher } from "../components/TenantSwitcher"
 
 export function TopBar() {
   const navigate = useNavigate()
@@ -27,10 +28,9 @@ export function TopBar() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/5 bg-navy-950 px-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-ink-primary">Amanah Capital</span>
-        <span className="text-ink-muted">•</span>
-        <span className="text-sm text-ink-secondary">Tenant</span>
+        <TenantSwitcher />
       </div>
       <div className="flex items-center gap-4">
         <button

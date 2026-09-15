@@ -210,6 +210,14 @@ All apps live under `backend/apps/`. After creating a new app:
 
 Note: `access` tokens expire after 20 minutes (see [Authentication](#authentication)) and this frontend does not yet call `POST /auth/refresh/` automatically — a future task should add refresh-on-401 handling.
 
+### Tenant Switcher (single-tenant display for now)
+
+`TopBar.tsx` shows a `TenantSwitcher` (`src/components/TenantSwitcher.tsx`) — a small pill in the top bar with the current tenant's code and a dropdown arrow. Clicking it opens a list showing the current tenant with a checkmark.
+
+This is a **display-only** component for now: the backend's `apps.accounts.User` model supports only one `tenant` per user (see [Data Model](#data-model)), so there is nothing to actually switch between yet. The dropdown UI is built ahead of that backend capability, sourcing its single item from `useAuth().user.tenant_code`.
+
+Once the backend supports multiple tenants per user, `TenantSwitcher.tsx` (see the `TODO(multi-tenant)` comment in the file) should: fetch the real list of tenants available to the current user from an API instead of using `user.tenant_code` directly; on selecting a different tenant, write the new code to `localStorage` under `TENANT_CODE_KEY` (`src/api/axios.ts`) so it's sent as `X-Tenant-Code` on subsequent requests; and trigger a reload/refetch of tenant-scoped data, since nearly everything in the app is tenant-scoped.
+
 ## Authentication
 
 Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://pypi.org/project/pyotp/), compatible with Google Authenticator / Authy — no external SMS/email service required). Real access/refresh tokens (JWT, via `djangorestframework-simplejwt`) are only issued after MFA is verified.
