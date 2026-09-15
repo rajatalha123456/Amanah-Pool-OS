@@ -1,6 +1,6 @@
 # Amanah Pool OS
 
-Backend for the Amanah Pool Management System, built with Django + Django REST Framework.
+Amanah Pool Management System — backend built with Django + Django REST Framework, frontend built with React (Vite) + TypeScript.
 
 ## Project Structure
 
@@ -31,15 +31,28 @@ pool management system/
 │   ├── requirements.txt
 │   ├── .env                    # Local secrets (not committed)
 │   └── .env.example            # Template for required env vars
-└── frontend/                   # (to be added later)
+└── frontend/                   # React (Vite) + TypeScript frontend
+    ├── src/
+    │   ├── api/                 # Axios instance + API call functions
+    │   ├── components/          # Reusable UI components (Button, Card, Table, Badge)
+    │   ├── layouts/              # Sidebar + TopBar shell layout, nav items
+    │   ├── pages/                # Screen-level components (one per sidebar item)
+    │   ├── types/                 # Shared TypeScript interfaces
+    │   ├── App.tsx
+    │   ├── main.tsx
+    │   └── index.css              # Tailwind import + design tokens
+    ├── .env                     # Local env vars (not committed)
+    ├── .env.example             # Template for required env vars
+    └── package.json
 ```
 
 ## Prerequisites
 
 - Python 3.11+
 - PostgreSQL (running locally, or a Supabase project)
+- Node.js 18+ and npm
 
-## Setup
+## Backend Setup
 
 1. **Clone the repository and go to the backend folder**
 
@@ -135,7 +148,57 @@ All apps live under `backend/apps/`. After creating a new app:
 1. Add it to `LOCAL_APPS` in `config/settings/base.py` as `"apps.<app_name>"`.
 2. Make sure its `apps.py` `name` attribute is set to `"apps.<app_name>"`.
 
+## Frontend Setup
+
+1. **Go to the frontend folder**
+
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Create your `.env` file**
+
+   Copy `.env.example` to `.env`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Description |
+   |---|---|
+   | `VITE_API_BASE_URL` | Base URL of the backend API (defaults to `http://localhost:8000/api/v1/`) |
+
+4. **Run the development server**
+
+   ```bash
+   npm run dev
+   ```
+
+   The app runs at [http://localhost:5173](http://localhost:5173).
+
+5. **Verify frontend-backend connection**
+
+   With the Django backend also running (see Backend Setup above), open the app — the **Command Center** page (the default route) calls `GET /api/v1/health/` and shows a "Connected" badge with the response status once it succeeds.
+
+### Frontend Stack
+
+- **Vite + React + TypeScript**
+- **React Router** for client-side routing — one placeholder route per sidebar navigation item (Command Center, Products & Pools, Daily Operations, Allocation Engine, Investments, Community Circles, Shariah Governance, Risk & Compliance, Finance & Ledger, AI & Analytics, Reports, Administration).
+- **Axios** for API calls, configured via `src/api/axios.ts` using `VITE_API_BASE_URL`.
+- **Tailwind CSS v4** (CSS-first config via `@theme` in `src/index.css`) with custom design tokens:
+  - `navy` — primary background / header color
+  - `emerald` — interactive controls, buttons, active states
+  - `gold` — governance/approval signals, highlights, badges
+  - Font: **Inter** (institutional, clean sans-serif)
+
 ## Notes
 
-- Never commit `.env` — it's already in `.gitignore`.
+- Never commit `.env` (backend or frontend) — both are already in `.gitignore`.
 - `db.sqlite3` is ignored too, in case it's accidentally generated (this project uses PostgreSQL).
+- `node_modules/` and `dist/` are ignored in the frontend.
