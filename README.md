@@ -197,6 +197,14 @@ All apps live under `backend/apps/`. After creating a new app:
   - `gold` — governance/approval signals, highlights, badges
   - Font: **Inter** (institutional, clean sans-serif)
 
+## Data Model
+
+Backend models are documented here as they are added.
+
+- **`apps.core.BaseModel`** (abstract) — shared base for all models: UUID primary key, `created_at`, `updated_at`, and `is_active` (soft state only — no physical deletes, per BRD).
+- **`apps.tenants.Tenant`** — a customer organization (`name`, unique `code`, unique `domain`, `data_residency`, `is_suspended`).
+- **`apps.tenants.LegalEntity`** — a legal entity under a `Tenant` (`tenant` FK, `name`, `registration_number`, `jurisdiction`, `base_currency`, `timezone`).
+
 ## Notes
 
 - Never commit `.env` (backend or frontend) — both are already in `.gitignore`.
