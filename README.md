@@ -357,6 +357,8 @@ Backend models are documented here as they are added.
 - **`apps.pools.PoolVersion`** (`TenantScopedModel`) — `pool` FK (`related_name="versions"`), `version_number`, `snapshot` (JSON), `created_by`, `is_current`.
 - **`apps.allocation.WeightageBand`** (`TenantScopedModel`) — `pool` FK (`related_name="weightage_bands"`), `participant_class`, `weightage`, `effective_from`, `effective_to`, `status` (draft/approved); see [Weightage & PSR Setup](#weightage--psr-setup).
 - **`apps.allocation.ProfitSharingRatio`** (`TenantScopedModel`) — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved).
+- **`apps.pools.Asset`** (`TenantScopedModel`) — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off); see [Asset Assignment](#asset-assignment).
+- **`apps.pools.AssetAssignment`** (`TenantScopedModel`) — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date`, `assigned_by`.
 
 ## Products API
 
@@ -436,6 +438,32 @@ Every create/approve writes an `AuditLog` entry via `log_action()`.
 **Seeding for manual testing:** `python manage.py seed_demo_weightage_psr` (after `seed_demo_pool`) creates the BRD example values against the demo pool — `WeightageBand`s for `savings_tier_a` (1.00), `term_tier_b` (1.20), `institutional` (1.25), all pre-approved, plus an approved 70/30 `ProfitSharingRatio`, all effective from the pool's `effective_date`.
 
 **Manually verified end-to-end**: created a `draft` `WeightageBand` and approved it; creating a second band for the *same* `participant_class` with an overlapping (open-ended) date range correctly failed with `400` and named the conflicting record (BR-002); creating a band for a *different* `participant_class` with the exact same dates correctly succeeded (`201`); a PSR with `depositor_share + mudarib_share != 100` correctly failed validation; a valid 70/30 PSR on a pool with no existing PSR succeeded and was approved; a `pool_manager` attempting `approve` (Shariah-Board-only) correctly got `403`. Also caught and fixed a real bug while testing: `ProfitSharingRatio.clean()` compared `depositor_share`/`mudarib_share` without coercing to `Decimal` first — when values arrive as plain strings (e.g. from a management command's `defaults={...}` dict, before Django's field-level casting runs), `"70.00" + "30.00"` is Python string concatenation (`"70.0030.00"`), not addition, so the check always failed. Fixed by explicitly wrapping both values in `Decimal(...)` inside `clean()`.
+
+## Asset Assignment
+
+`apps.pools` also has `Asset` and `AssetAssignment` (both `TenantScopedModel`), tracking which physical/financial assets back which pool.
+
+- **`Asset`** — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off).
+- **`AssetAssignment`** — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date` (nullable = still active), `assigned_by`.
+
+### One active assignment per asset (BR-003-style rule)
+
+An asset can only be actively assigned to one pool at a time. `AssetAssignmentSerializer.validate()` checks — on create only — whether the asset already has an assignment with `unassigned_date__isnull=True`; if so, it raises `400 validation_error`: *"Asset already assigned to another pool. Unassign first."*
+
+Creating an assignment sets `asset.status = "assigned"`; calling the `unassign` action sets `unassigned_date` to today and reverts `asset.status = "available"`, freeing it to be assigned elsewhere.
+
+**Endpoints** (tenant-scoped, `?pool={pool_id}` filter on assignments):
+
+| Endpoint | Create/Update | Notes |
+|---|---|---|
+| `/api/v1/pools/assets/` | `IsPoolManager` or `IsFinanceMaker` | Standard CRUD |
+| `/api/v1/pools/asset-assignments/` | `IsPoolManager` | Standard CRUD + `POST /{id}/unassign/` (`IsPoolManager` only) |
+
+Every create/unassign writes an `AuditLog` entry via `log_action()`.
+
+**Seeding for manual testing:** `python manage.py seed_demo_asset` (after `seed_demo_pool`) creates three demo assets (`available`) and assigns the first one to the demo pool.
+
+**Manually verified end-to-end**: created an asset (`available`) as `finance_maker`; assigned it to a pool as `pool_manager`, confirming `asset.status` flipped to `assigned` and `assigned_by` was set; attempting to assign the *same* asset to a different pool correctly failed with the exact spec'd message; `unassign` correctly set `unassigned_date` and reverted `asset.status` to `available`; the same asset could then be assigned to a *different* pool successfully; both a `finance_maker` (assignment create) and a `shariah_board` user (asset create) attempting actions outside their allowed roles correctly got `403`.
 
 ## Multi-Tenancy
 

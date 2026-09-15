@@ -5,12 +5,12 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsFinanceChecker, IsPoolManager, IsShariahBoard
+from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsPoolManager, IsShariahBoard
 from apps.core.audit import log_action
 from apps.products.models import ProductStatus
 
-from .models import Pool, PoolStatus, PoolVersion
-from .serializers import PoolSerializer, PoolVersionSerializer
+from .models import Asset, AssetAssignment, AssetStatus, Pool, PoolStatus, PoolVersion
+from .serializers import AssetAssignmentSerializer, AssetSerializer, PoolSerializer, PoolVersionSerializer
 
 
 def _build_pool_snapshot(pool):
@@ -187,3 +187,82 @@ class PoolViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(pool).data)
+
+
+class AssetViewSet(viewsets.ModelViewSet):
+    serializer_class = AssetSerializer
+
+    def get_queryset(self):
+        return Asset.objects.all()
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(tenant=self.request.user.tenant)
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="create",
+            model_name="Asset",
+            object_id=str(instance.id),
+            request=self.request,
+        )
+
+
+class AssetAssignmentViewSet(viewsets.ModelViewSet):
+    serializer_class = AssetAssignmentSerializer
+
+    def get_queryset(self):
+        queryset = AssetAssignment.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "unassign"):
+            return [IsAuthenticated(), IsPoolManager()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(tenant=self.request.user.tenant, assigned_by=self.request.user)
+
+        instance.asset.status = AssetStatus.ASSIGNED
+        instance.asset.save(update_fields=["status", "updated_at"])
+
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="create",
+            model_name="AssetAssignment",
+            object_id=str(instance.id),
+            changes={"asset_status": {"before": AssetStatus.AVAILABLE, "after": AssetStatus.ASSIGNED}},
+            request=self.request,
+        )
+
+    @action(detail=True, methods=["post"])
+    def unassign(self, request, pk=None):
+        assignment = self.get_object()
+
+        if assignment.unassigned_date is not None:
+            raise ValidationError("This assignment has already been unassigned.")
+
+        assignment.unassigned_date = timezone.localdate()
+        assignment.save(update_fields=["unassigned_date", "updated_at"])
+
+        assignment.asset.status = AssetStatus.AVAILABLE
+        assignment.asset.save(update_fields=["status", "updated_at"])
+
+        log_action(
+            tenant=assignment.tenant,
+            actor=request.user,
+            action="unassign",
+            model_name="AssetAssignment",
+            object_id=str(assignment.id),
+            changes={"asset_status": {"before": AssetStatus.ASSIGNED, "after": AssetStatus.AVAILABLE}},
+            request=request,
+        )
+        return Response(self.get_serializer(assignment).data)

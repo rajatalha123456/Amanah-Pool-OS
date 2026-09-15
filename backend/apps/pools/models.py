@@ -57,3 +57,48 @@ class PoolVersion(TenantScopedModel):
 
     def __str__(self):
         return f"{self.pool.name} v{self.version_number}"
+
+
+class AssetType(models.TextChoices):
+    MURABAHAH = "murabahah", "Murabahah"
+    IJARAH = "ijarah", "Ijarah"
+    DIMINISHING_MUSHARAKAH = "diminishing_musharakah", "Diminishing Musharakah"
+    OTHER = "other", "Other"
+
+
+class AssetStatus(models.TextChoices):
+    AVAILABLE = "available", "Available"
+    ASSIGNED = "assigned", "Assigned"
+    MATURED = "matured", "Matured"
+    WRITTEN_OFF = "written_off", "Written Off"
+
+
+class Asset(TenantScopedModel):
+    reference_code = models.CharField(max_length=50)
+    asset_type = models.CharField(max_length=30, choices=AssetType.choices)
+    description = models.CharField(max_length=255)
+    face_value = models.DecimalField(max_digits=18, decimal_places=2)
+    status = models.CharField(max_length=20, choices=AssetStatus.choices, default=AssetStatus.AVAILABLE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "reference_code"], name="unique_asset_reference_code_per_tenant"
+            ),
+        ]
+
+    def __str__(self):
+        return self.reference_code
+
+
+class AssetAssignment(TenantScopedModel):
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="assignments")
+    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name="asset_assignments")
+    assigned_date = models.DateField()
+    unassigned_date = models.DateField(null=True, blank=True)
+    assigned_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    def __str__(self):
+        return f"{self.asset.reference_code} -> {self.pool.name}"

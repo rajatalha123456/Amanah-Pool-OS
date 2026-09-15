@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.products.serializers import ContractTemplateBasicSerializer
 
-from .models import Pool, PoolVersion
+from .models import Asset, AssetAssignment, Pool, PoolVersion
 
 
 class ProductBasicSerializer(serializers.Serializer):
@@ -60,3 +60,50 @@ class PoolVersionSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = fields
+
+
+class AssetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Asset
+        fields = (
+            "id",
+            "tenant",
+            "reference_code",
+            "asset_type",
+            "description",
+            "face_value",
+            "status",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "tenant", "status", "created_at", "updated_at")
+
+
+class AssetAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssetAssignment
+        fields = (
+            "id",
+            "tenant",
+            "asset",
+            "pool",
+            "assigned_date",
+            "unassigned_date",
+            "assigned_by",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "tenant", "unassigned_date", "assigned_by", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        # Only relevant on create - unassign is a separate action, and
+        # updates to an existing assignment shouldn't re-trigger this.
+        if self.instance is None:
+            asset = attrs.get("asset")
+            if asset is not None and asset.assignments.filter(unassigned_date__isnull=True).exists():
+                raise serializers.ValidationError(
+                    "Asset already assigned to another pool. Unassign first."
+                )
+        return attrs
