@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom"
 import { AuthLayout } from "../../layouts/AuthLayout"
 import { Card } from "../../components/Card"
 import { Button } from "../../components/Button"
+import { Spinner } from "../../components/Spinner"
+import { login } from "../../api/authApi"
+import { extractErrorMessage } from "../../api/errors"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -11,8 +14,9 @@ export function SignIn() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
 
     if (!EMAIL_PATTERN.test(email)) {
@@ -26,7 +30,22 @@ export function SignIn() {
     }
 
     setError("")
-    navigate("/verify-mfa")
+    setIsSubmitting(true)
+
+    try {
+      const response = await login(email, password)
+
+      navigate("/verify-mfa", {
+        state: {
+          pendingToken: response.pending_token,
+          isFirstTimeSetup: Boolean(response.mfa_setup_required),
+        },
+      })
+    } catch (err) {
+      setError(extractErrorMessage(err, "Unable to sign in. Please try again."))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -51,7 +70,8 @@ export function SignIn() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@amanahcapital.com"
-              className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none"
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none disabled:opacity-60"
             />
           </div>
 
@@ -68,14 +88,15 @@ export function SignIn() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none"
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none disabled:opacity-60"
             />
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <Button type="submit" variant="primary" className="w-full">
-            Sign In
+          <Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner className="h-4 w-4" /> : "Sign In"}
           </Button>
         </form>
       </Card>

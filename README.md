@@ -197,11 +197,18 @@ All apps live under `backend/apps/`. After creating a new app:
   - `gold` — governance/approval signals, highlights, badges
   - Font: **Inter** (institutional, clean sans-serif)
 
-### Authentication (mock)
+### Authentication (connected)
 
-`/login` (SignIn) and `/verify-mfa` (VerifyMfa) implement the sign-in flow UI only, backed by a placeholder `isAuthenticated` flag (`src/api/auth.tsx`, persisted in `localStorage`). No real credentials or OTP codes are checked — any non-empty password and any 6-digit code are accepted. All other routes are wrapped in `ProtectedRoute` and redirect to `/login` when unauthenticated.
+`/login` (SignIn) and `/verify-mfa` (VerifyMfa) are connected to the real backend auth flow described in [Authentication](#authentication) below:
 
-**This is mock auth only.** Once the real authentication API is available (BE-004), replace the mock `login()`/`logout()` calls in `SignIn.tsx` / `VerifyMfa.tsx` with real API calls and token handling.
+- `SignIn.tsx` calls `POST /auth/login/`. Depending on the response it navigates to `/verify-mfa` with route state `{ pendingToken, isFirstTimeSetup }`.
+- `VerifyMfa.tsx` calls `POST /auth/mfa/setup/` first when `isFirstTimeSetup` is true (showing the returned QR code), then always calls `POST /auth/mfa/verify/` with the entered code. On success it stores the returned `access`/`refresh` tokens and fetches `GET /auth/me/`.
+- `src/api/auth.tsx` (`AuthProvider`/`useAuth`) holds `accessToken` and `user` in state, persisting `access`/`refresh` tokens and the user's `tenant_code` to `localStorage`.
+- `src/api/axios.ts` attaches `Authorization: Bearer <access_token>` and `X-Tenant-Code: <tenant_code>` to every request automatically via a request interceptor, when those values are present in `localStorage`.
+- `ProtectedRoute` checks for a real access token (via `useAuth().isAuthenticated`, derived from `localStorage`) and redirects to `/login` when absent.
+- Logout (TopBar → user menu → Logout) clears all stored tokens/tenant code and redirects to `/login`.
+
+Note: `access` tokens expire after 20 minutes (see [Authentication](#authentication)) and this frontend does not yet call `POST /auth/refresh/` automatically — a future task should add refresh-on-401 handling.
 
 ## Authentication
 
@@ -224,13 +231,13 @@ Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://p
 
 4. **`POST /api/v1/auth/refresh/`** — body: `{"refresh": "..."}` → returns a new `{"access": "..."}` (`djangorestframework-simplejwt`'s built-in `TokenRefreshView`).
 
-5. **`GET /api/v1/auth/me/`** — requires `Authorization: Bearer <access>` → returns the logged-in user's profile (`id`, `email`, `full_name`, `role`, `tenant`, `mfa_enabled`).
+5. **`GET /api/v1/auth/me/`** — requires `Authorization: Bearer <access>` → returns the logged-in user's profile (`id`, `email`, `full_name`, `role`, `tenant`, `tenant_code`, `mfa_enabled`). `tenant_code` is included specifically so the frontend can send it back as the `X-Tenant-Code` header (see [Multi-Tenancy](#multi-tenancy)).
 
 **Token lifetimes** (`SIMPLE_JWT` in `config/settings/base.py`): access tokens 20 minutes, refresh tokens 7 days.
 
 **Manual testing:** run `python manage.py create_test_user` to create a `pool_manager` user under the `NOVU-DEMO` tenant and print its email/password, then walk through the flow above with curl.
 
-**Frontend note (FE-002):** the mock auth described above must be replaced with real calls to this flow — `SignIn.tsx` should call `/auth/login/`, `VerifyMfa.tsx` should call `/auth/mfa/setup/` (if `mfa_setup_required`) then `/auth/mfa/verify/`, and the resulting `access`/`refresh` tokens should be stored and attached as `Authorization: Bearer <access>` on all subsequent API requests (with `/auth/refresh/` used to renew the access token before it expires).
+**Frontend integration:** the frontend (`frontend/src/pages/auth/`, `frontend/src/api/auth.tsx`, `frontend/src/api/axios.ts`) is now connected to this flow — see [Authentication (connected)](#authentication-connected) above.
 
 ## Data Model
 

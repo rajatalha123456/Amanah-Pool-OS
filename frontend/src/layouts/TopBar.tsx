@@ -1,4 +1,30 @@
+import { useEffect, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../api/auth"
+
 export function TopBar() {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  function handleLogout() {
+    logout()
+    navigate("/login", { replace: true })
+  }
+
+  const initial = user?.full_name?.[0]?.toUpperCase() ?? "U"
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/5 bg-navy-950 px-6">
       <div className="flex items-center gap-2">
@@ -27,11 +53,32 @@ export function TopBar() {
             />
           </svg>
         </button>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-medium text-white">
-            U
-          </div>
-          <span className="text-sm text-ink-secondary">User Placeholder</span>
+
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-white/5"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-medium text-white">
+              {initial}
+            </div>
+            <span className="text-sm text-ink-secondary">
+              {user?.full_name ?? "User"}
+            </span>
+          </button>
+
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-44 rounded-md border border-white/8 bg-navy-900 py-1 shadow-lg">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="block w-full px-3 py-2 text-left text-sm text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

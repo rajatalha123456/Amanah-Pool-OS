@@ -20,6 +20,8 @@ class MfaVerifySerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    tenant_code = serializers.CharField(source="tenant.code", read_only=True, default=None)
+
     class Meta:
         model = User
         fields = (
@@ -28,5 +30,6 @@ class UserSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "tenant",
+            "tenant_code",
             "mfa_enabled",
         )

@@ -1,8 +1,21 @@
+import { useEffect } from "react"
 import { Outlet } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
+import { useAuth } from "../api/auth"
 
 export function AppLayout() {
+  const { user, loadCurrentUser } = useAuth()
+
+  useEffect(() => {
+    if (!user) {
+      loadCurrentUser().catch(() => {
+        // Swallow errors here; individual pages handle their own API failures.
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="flex h-screen bg-navy-950">
       <Sidebar />
