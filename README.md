@@ -197,6 +197,12 @@ All apps live under `backend/apps/`. After creating a new app:
   - `gold` — governance/approval signals, highlights, badges
   - Font: **Inter** (institutional, clean sans-serif)
 
+### Authentication (mock)
+
+`/login` (SignIn) and `/verify-mfa` (VerifyMfa) implement the sign-in flow UI only, backed by a placeholder `isAuthenticated` flag (`src/api/auth.tsx`, persisted in `localStorage`). No real credentials or OTP codes are checked — any non-empty password and any 6-digit code are accepted. All other routes are wrapped in `ProtectedRoute` and redirect to `/login` when unauthenticated.
+
+**This is mock auth only.** Once the real authentication API is available (BE-004), replace the mock `login()`/`logout()` calls in `SignIn.tsx` / `VerifyMfa.tsx` with real API calls and token handling.
+
 ## Data Model
 
 Backend models are documented here as they are added.
