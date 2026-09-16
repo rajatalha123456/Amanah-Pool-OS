@@ -1,13 +1,26 @@
 import { isAxiosError } from "axios"
 
 function firstStringFromDetails(details: unknown): string | null {
-  if (!details || typeof details !== "object") {
+  if (!details) {
     return null
   }
-  // `details` is field -> [messages] (e.g. {"non_field_errors": ["Effective
-  // date range overlaps..."]} or {"code": ["A pool with this code already
-  // exists."]}). Prefer non_field_errors first (whole-object validation,
-  // e.g. BR-002 overlap checks), then fall back to the first field found.
+
+  // `details` can itself be a plain array of message strings (e.g. a
+  // ValidationError raised with a single string, like the allocation
+  // engine's ValueErrors: {"details": ["No DailyBalance records found..."]}).
+  if (Array.isArray(details)) {
+    return typeof details[0] === "string" ? details[0] : null
+  }
+
+  if (typeof details !== "object") {
+    return null
+  }
+
+  // Otherwise `details` is field -> [messages] (e.g.
+  // {"non_field_errors": ["Effective date range overlaps..."]} or
+  // {"code": ["A pool with this code already exists."]}). Prefer
+  // non_field_errors first (whole-object validation, e.g. BR-002 overlap
+  // checks), then fall back to the first field found.
   const record = details as Record<string, unknown>
   const keys = ["non_field_errors", ...Object.keys(record).filter((k) => k !== "non_field_errors")]
   for (const key of keys) {

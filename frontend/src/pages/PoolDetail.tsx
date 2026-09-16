@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useLocation, useParams } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -43,6 +43,8 @@ const TABS: { key: DetailTab; label: string }[] = [
 
 export function PoolDetail() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
 
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
@@ -138,6 +140,8 @@ export function PoolDetail() {
           </button>
         ))}
       </div>
+
+      {successMessage && <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>}
 
       {activeTab === "overview" && (
         <>

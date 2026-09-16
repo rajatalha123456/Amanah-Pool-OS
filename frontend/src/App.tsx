@@ -8,6 +8,7 @@ import { PoolDetail } from "./pages/PoolDetail"
 import { NewPoolWizard } from "./pages/NewPoolWizard"
 import { AssetRegistry } from "./pages/AssetRegistry"
 import { BalanceImport } from "./pages/BalanceImport"
+import { AllocationSimulator } from "./pages/AllocationSimulator"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -18,6 +19,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/products-pools": <ProductCatalogue />,
   "/risk-compliance": <AssetRegistry />,
   "/daily-operations": <BalanceImport />,
+  "/allocation-engine": <AllocationSimulator />,
 }
 
 function App() {
@@ -37,6 +39,7 @@ function App() {
         <Route path="pools" element={<PoolCatalogue />} />
         <Route path="pools/new" element={<NewPoolWizard />} />
         <Route path="pools/:id" element={<PoolDetail />} />
+        <Route path="allocation-simulator" element={<AllocationSimulator />} />
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (

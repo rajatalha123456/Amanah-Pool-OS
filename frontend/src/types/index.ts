@@ -273,3 +273,50 @@ export interface BalanceImportResult {
   status: string
   errors: string[]
 }
+
+export interface AllocationLine {
+  id?: string
+  participant_class: string
+  daily_funds: string
+  weightage: string
+  weighted_funds: string
+  allocated_amount: string
+}
+
+export interface AllocationRunInput {
+  pool: string
+  value_date: string
+  gross_income: string
+  direct_expenses?: string
+}
+
+export interface SimulateAllocationResult {
+  distributable: string
+  total_weighted_funds: string
+  depositor_pool_share: string
+  mudarib_share: string
+  lines: AllocationLine[]
+}
+
+export interface AllocationRun {
+  id: string
+  tenant: string
+  pool: string
+  value_date: string
+  gross_income: string
+  direct_expenses: string
+  distributable_amount: string
+  total_weighted_funds: string
+  depositor_pool_share: string
+  mudarib_share: string
+  status: string
+  calculation_hash: string | null
+  created_by: number | null
+  checked_by: number | null
+  checked_at: string | null
+  rejection_reason: string | null
+  lines: AllocationLine[]
+  journal_batch: unknown | null
+  created_at: string
+  updated_at: string
+}
