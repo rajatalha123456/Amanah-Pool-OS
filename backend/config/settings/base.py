@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config, Csv
+from corsheaders.defaults import default_headers
 
 # BASE_DIR points to backend/ (three levels up from this file)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -162,6 +163,9 @@ SIMPLE_JWT = {
 # CORS
 
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+# Custom header used for multi-tenant scoping (see apps.core.middleware.TenantMiddleware);
+# not in django-cors-headers' default allow-list, so the browser preflight rejects it otherwise.
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-tenant-code"]
 
 
 # Exception handling
