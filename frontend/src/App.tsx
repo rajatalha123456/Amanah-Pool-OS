@@ -6,6 +6,8 @@ import { ProductCatalogue } from "./pages/ProductCatalogue"
 import { PoolCatalogue } from "./pages/PoolCatalogue"
 import { PoolDetail } from "./pages/PoolDetail"
 import { NewPoolWizard } from "./pages/NewPoolWizard"
+import { AssetRegistry } from "./pages/AssetRegistry"
+import { BalanceImport } from "./pages/BalanceImport"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -14,6 +16,8 @@ import { navItems } from "./layouts/navItems"
 
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/products-pools": <ProductCatalogue />,
+  "/risk-compliance": <AssetRegistry />,
+  "/daily-operations": <BalanceImport />,
 }
 
 function App() {

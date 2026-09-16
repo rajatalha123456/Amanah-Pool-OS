@@ -14,9 +14,13 @@ import {
   submitPoolForApproval,
 } from "../api/pools"
 import { extractErrorMessage } from "../api/errors"
+import { WeightageBandsSection } from "./pool-detail/WeightageBandsSection"
+import { PSRSection } from "./pool-detail/PSRSection"
+import { AssignedAssetsSection } from "./pool-detail/AssignedAssetsSection"
 import type { BadgeVariant, Pool, PoolVersion } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
+type DetailTab = "overview" | "economics" | "assets"
 
 const POOL_STATUS_BADGE: Record<string, BadgeVariant> = {
   draft: "neutral",
@@ -31,6 +35,12 @@ function poolStatusBadgeVariant(status: string): BadgeVariant {
   return POOL_STATUS_BADGE[status] ?? "neutral"
 }
 
+const TABS: { key: DetailTab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "economics", label: "Weightage & PSR" },
+  { key: "assets", label: "Assets" },
+]
+
 export function PoolDetail() {
   const { id } = useParams<{ id: string }>()
 
@@ -38,6 +48,7 @@ export function PoolDetail() {
   const [pageError, setPageError] = useState("")
   const [pool, setPool] = useState<Pool | null>(null)
   const [versions, setVersions] = useState<PoolVersion[]>([])
+  const [activeTab, setActiveTab] = useState<DetailTab>("overview")
 
   const [actionError, setActionError] = useState("")
   const [isActionPending, setIsActionPending] = useState(false)
@@ -95,7 +106,7 @@ export function PoolDetail() {
     )
   }
 
-  if (pageState === "error" || !pool) {
+  if (pageState === "error" || !pool || !id) {
     return (
       <Card>
         <p className="text-sm text-red-400">{pageError || "Pool not found"}</p>
@@ -111,66 +122,96 @@ export function PoolDetail() {
         actions={<Badge variant={poolStatusBadgeVariant(pool.status)}>{pool.status}</Badge>}
       />
 
-      {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
-
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card title="Product">
-          <p className="text-sm text-ink-primary">{pool.product_detail?.name ?? "—"}</p>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Contract: {pool.product_detail?.contract_template?.name ?? "—"} (
-            {pool.product_detail?.contract_template?.contract_type ?? "—"})
-          </p>
-        </Card>
-
-        <Card title="Pool Info">
-          <p className="text-sm text-ink-secondary">Effective Date: {pool.effective_date}</p>
-          {pool.closed_date && (
-            <p className="mt-1 text-sm text-ink-secondary">Closed Date: {pool.closed_date}</p>
-          )}
-          <p className="mt-1 text-sm text-ink-secondary">Status: {pool.status}</p>
-        </Card>
+      <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-1 pb-2 font-medium transition-colors ${
+              activeTab === tab.key
+                ? "border-b-2 border-emerald-500 text-ink-primary"
+                : "text-ink-secondary hover:text-ink-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <Card title="Actions" className="mb-6">
-        {pool.status === "draft" && (
-          <Button
-            variant="primary"
-            disabled={isActionPending}
-            onClick={() => runAction(submitPoolForApproval, "Unable to submit pool for approval.")}
-          >
-            {isActionPending ? <Spinner className="h-4 w-4" /> : "Submit for Approval"}
-          </Button>
-        )}
-        {pool.status === "approved" && (
-          <Button
-            variant="primary"
-            disabled={isActionPending}
-            onClick={() => runAction(openPool, "Unable to open pool.")}
-          >
-            {isActionPending ? <Spinner className="h-4 w-4" /> : "Open Pool"}
-          </Button>
-        )}
-        {(pool.status === "open" || pool.status === "allocation") && (
-          <Button
-            variant="primary"
-            disabled={isActionPending}
-            onClick={() => runAction(closePool, "Unable to close pool.")}
-          >
-            {isActionPending ? <Spinner className="h-4 w-4" /> : "Close Pool"}
-          </Button>
-        )}
-        {(pool.status === "closed" || pool.status === "archived") && (
-          <p className="text-sm text-ink-secondary">Pool is closed</p>
-        )}
-      </Card>
+      {activeTab === "overview" && (
+        <>
+          {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
 
-      <Card title="Version History">
-        {versions.length === 0 ? (
-          <p className="text-sm text-ink-secondary">No versions yet</p>
-        ) : (
-          <Table columns={versionColumns} data={versions} keyField={(version) => version.id} />
-        )}
-      </Card>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card title="Product">
+              <p className="text-sm text-ink-primary">{pool.product_detail?.name ?? "—"}</p>
+              <p className="mt-1 text-sm text-ink-secondary">
+                Contract: {pool.product_detail?.contract_template?.name ?? "—"} (
+                {pool.product_detail?.contract_template?.contract_type ?? "—"})
+              </p>
+            </Card>
+
+            <Card title="Pool Info">
+              <p className="text-sm text-ink-secondary">Effective Date: {pool.effective_date}</p>
+              {pool.closed_date && (
+                <p className="mt-1 text-sm text-ink-secondary">Closed Date: {pool.closed_date}</p>
+              )}
+              <p className="mt-1 text-sm text-ink-secondary">Status: {pool.status}</p>
+            </Card>
+          </div>
+
+          <Card title="Actions" className="mb-6">
+            {pool.status === "draft" && (
+              <Button
+                variant="primary"
+                disabled={isActionPending}
+                onClick={() => runAction(submitPoolForApproval, "Unable to submit pool for approval.")}
+              >
+                {isActionPending ? <Spinner className="h-4 w-4" /> : "Submit for Approval"}
+              </Button>
+            )}
+            {pool.status === "approved" && (
+              <Button
+                variant="primary"
+                disabled={isActionPending}
+                onClick={() => runAction(openPool, "Unable to open pool.")}
+              >
+                {isActionPending ? <Spinner className="h-4 w-4" /> : "Open Pool"}
+              </Button>
+            )}
+            {(pool.status === "open" || pool.status === "allocation") && (
+              <Button
+                variant="primary"
+                disabled={isActionPending}
+                onClick={() => runAction(closePool, "Unable to close pool.")}
+              >
+                {isActionPending ? <Spinner className="h-4 w-4" /> : "Close Pool"}
+              </Button>
+            )}
+            {(pool.status === "closed" || pool.status === "archived") && (
+              <p className="text-sm text-ink-secondary">Pool is closed</p>
+            )}
+          </Card>
+
+          <Card title="Version History">
+            {versions.length === 0 ? (
+              <p className="text-sm text-ink-secondary">No versions yet</p>
+            ) : (
+              <Table columns={versionColumns} data={versions} keyField={(version) => version.id} />
+            )}
+          </Card>
+        </>
+      )}
+
+      {activeTab === "economics" && (
+        <div className="space-y-6">
+          <WeightageBandsSection poolId={id} />
+          <PSRSection poolId={id} />
+        </div>
+      )}
+
+      {activeTab === "assets" && <AssignedAssetsSection poolId={id} />}
     </div>
   )
 }

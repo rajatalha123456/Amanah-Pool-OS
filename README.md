@@ -277,6 +277,35 @@ Once the backend supports multiple tenants per user, `TenantSwitcher.tsx` (see t
 
 **Manually verified the entire lifecycle end-to-end via real HTTP requests** (the same endpoints, same headers `PoolDetail.tsx` calls): created a draft pool, confirmed `fetchPoolVersions()` returns `[]` before it's opened; `submitPoolForApproval()` → `status: "approved"`; `openPool()` → `status: "open"`, and `fetchPoolVersions()` then returned exactly one version whose `snapshot.product.name`/`status` and `snapshot.contract_template.name`/`version` match what `PoolDetail.tsx`'s version-summary accessor reads; a `pool_manager` attempting `closePool()` correctly got `403` in the `{"error": {"message": ...}}` shape; a `finance_checker` then closed it successfully, with `closed_date` set. `tsc --noEmit`, `npm run build`, and Vite module serving are all clean.
 
+### Weightage & PSR (connected — manageable from Pool Detail)
+
+`PoolDetail.tsx`'s **"Weightage & PSR"** tab lets Pool Managers add draft `WeightageBand`/`ProfitSharingRatio` records and Shariah Board users approve them, without leaving the pool's page:
+
+- `src/pages/pool-detail/WeightageBandsSection.tsx` — lists bands (`fetchWeightageBands(poolId)`) in a `Table` (participant class, weightage, effective from/to, status `Badge`: draft→gray, approved→emerald), a compact inline "+ Add Band" form beneath it (`createWeightageBand()`), and an "Approve" link on each `draft` row (`approveWeightageBand()`).
+- `src/pages/pool-detail/PSRSection.tsx` — identical pattern for `ProfitSharingRatio` (`fetchPSRSchedules()`, `createPSR()`, `approvePSR()`).
+
+**Backend UX gap found and fixed while testing this task:** `extractErrorMessage()` previously only read the generic top-level `message` field from `{"error": {...}}` responses — for a `validation_error`, that's almost always the unhelpful literal `"Validation failed."`, while the actually useful text (e.g. a BR-002 overlap message, or "depositor_share and mudarib_share must add up to 100.00.") lives one level deeper in `details.non_field_errors` or a named field. Fixed by having `extractErrorMessage()` prefer the first string found in `details` (checking `non_field_errors` first, then any other field) whenever `code === "validation_error"`, falling back to the generic `message` otherwise. Verified against three real captured error payloads (a BR-002 overlap, a duplicate pool code, and a `permission_denied` with no `details`) that each now surfaces the right text.
+
+**Manually verified via real HTTP requests:** `fetchWeightageBands()`/`fetchPSRSchedules()` return data matching their TypeScript interfaces exactly; `createWeightageBand()` creates a `draft` record; a `pool_manager` attempting `approveWeightageBand()` correctly `403`s (`IsShariahBoard` only) and a `shariah_board` user then approves it successfully; creating an overlapping band for the same `participant_class` reproduces the real BR-002 error, now shown in full via the `extractErrorMessage()` fix above; an invalid PSR (shares not summing to 100) shows its specific message the same way.
+
+### Asset Registry (new page, connected)
+
+`src/pages/AssetRegistry.tsx` (routed at `/risk-compliance` — the closest existing sidebar nav item, per this task's own suggestion) lists all `Asset`s (`fetchAssets()`) in a `Table` (reference code, asset type, face value, status `Badge`: available→emerald, assigned→gold, matured/written_off→navy) with a **"+ New Asset"** modal (`createAsset()`).
+
+`PoolDetail.tsx`'s **"Assets"** tab (`src/pages/pool-detail/AssignedAssetsSection.tsx`) shows the current pool's active assignments (`fetchAssetAssignments(poolId)`, filtered client-side to `unassigned_date === null`), joining each assignment's `asset` UUID against a full `fetchAssets()` call to show the readable reference code/type. **"+ Assign Asset"** opens a modal (`src/pages/pool-detail/AssignAssetModal.tsx`) whose dropdown is filtered to `status === "available"` assets only (via `fetchAssets()`, client-side filter — same pattern as `fetchApprovedProducts()` in the New Pool Wizard, since neither endpoint supports a `?status=` query param). Each row has an "Unassign" action (`unassignAsset()`).
+
+**Manually verified via real HTTP requests:** `fetchAssets()` and `createAsset()` match the `Asset` interface exactly (`status: "available"` on creation); `assignAsset()` creates an assignment with `unassigned_date: null`, matching the "active assignment" filter; `fetchAssetAssignments()` returns assignments keyed by asset UUID, confirming the join logic in `AssignedAssetsSection.tsx` works; `unassignAsset()` sets `unassigned_date` to today.
+
+### Balance Import & Validation (new page, connected)
+
+`src/pages/BalanceImport.tsx` (routed at `/daily-operations`, matching the BRD catalogue's own screen placement) is a standalone page (not part of `PoolDetail.tsx`, since it needs its own pool selector and a wide multi-row form) with:
+
+- A **Pool** dropdown (`fetchPools()`), **Value Date**, optional **Control Total Expected**, and dynamic **participant_class / balance_amount** rows (**"+ Add Row"**, minimum 1 row, each row removable except the last).
+- **Import** calls `importBalances()` and renders an **Import Summary** card: total/matched/exception counts, a status `Badge` (`balanced`→emerald, `exception`→gold), and — when present — the backend's `errors` array rendered as a red bulleted list (not folded into a single string), so multiple duplicate-skip messages are all visible at once.
+- An **Import History** table below (`fetchImportHistory(poolId)`), re-fetched after every import.
+
+**Manually verified via real HTTP requests:** a 3-record import with a matching control total returns `status: "balanced"` with an empty `errors` array; re-importing the same `value_date` + `participant_class` returns `status: "exception"` with the exact duplicate-skip message in `errors`, confirming the list-rendering path is exercised by a real backend response rather than just a hardcoded example; `fetchImportHistory()` returns entries matching the `BalanceImportBatch` interface exactly, in the shape the history table's columns read.
+
 ## Authentication
 
 Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://pypi.org/project/pyotp/), compatible with Google Authenticator / Authy — no external SMS/email service required). Real access/refresh tokens (JWT, via `djangorestframework-simplejwt`) are only issued after MFA is verified.

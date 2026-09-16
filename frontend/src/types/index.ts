@@ -137,3 +137,139 @@ export interface PoolVersion {
   is_current: boolean
   created_at: string
 }
+
+export interface WeightageBand {
+  id: string
+  tenant: string
+  pool: string
+  participant_class: string
+  weightage: string
+  effective_from: string
+  effective_to: string | null
+  status: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateWeightageBandInput {
+  pool: string
+  participant_class: string
+  weightage: string
+  effective_from: string
+  effective_to?: string | null
+}
+
+export interface PSR {
+  id: string
+  tenant: string
+  pool: string
+  depositor_share: string
+  mudarib_share: string
+  effective_from: string
+  effective_to: string | null
+  status: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePSRInput {
+  pool: string
+  depositor_share: string
+  mudarib_share: string
+  effective_from: string
+  effective_to?: string | null
+}
+
+export interface Asset {
+  id: string
+  tenant: string
+  reference_code: string
+  asset_type: string
+  description: string
+  face_value: string
+  status: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateAssetInput {
+  reference_code: string
+  asset_type: string
+  description: string
+  face_value: string
+}
+
+export interface AssetAssignment {
+  id: string
+  tenant: string
+  asset: string
+  pool: string
+  assigned_date: string
+  unassigned_date: string | null
+  assigned_by: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignAssetInput {
+  asset: string
+  pool: string
+  assigned_date: string
+}
+
+export interface DailyBalance {
+  id: string
+  tenant: string
+  pool: string
+  participant_class: string
+  value_date: string
+  balance_amount: string
+  source: string
+  status: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface BalanceImportBatch {
+  id: string
+  tenant: string
+  pool: string
+  value_date: string
+  total_records: number
+  matched_records: number
+  exception_count: number
+  control_total_expected: string | null
+  control_total_actual: string | null
+  status: string
+  imported_by: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BalanceImportRecordInput {
+  participant_class: string
+  balance_amount: string
+}
+
+export interface BalanceImportInput {
+  pool: string
+  value_date: string
+  control_total_expected?: string | null
+  records: BalanceImportRecordInput[]
+}
+
+export interface BalanceImportResult {
+  id: string
+  total_records: number
+  matched_records: number
+  exception_count: number
+  control_total_expected: string | null
+  control_total_actual: string | null
+  status: string
+  errors: string[]
+}
