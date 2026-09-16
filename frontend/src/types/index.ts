@@ -66,6 +66,28 @@ export interface ProductBasic {
   contract_template: ContractTemplateBasic
 }
 
+export interface ContractTemplate {
+  id: string
+  tenant: string
+  name: string
+  contract_type: string
+  version: string
+  clauses: Record<string, unknown>
+  shariah_decision: string | null
+  shariah_decision_code: string | null
+  status: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProductInput {
+  name: string
+  code: string
+  operating_model: string
+  contract_template: string
+}
+
 export interface Pool {
   id: string
   tenant: string
