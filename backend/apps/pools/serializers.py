@@ -34,6 +34,21 @@ class PoolSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "tenant", "status", "closed_date", "created_at", "updated_at")
 
+    def validate_code(self, value):
+        # Pool.code is only enforced unique via a composite
+        # UniqueConstraint(tenant, code) at the DB level, which DRF does
+        # not auto-validate (only a plain unique=True field gets that for
+        # free). Without this check, a duplicate code raises a raw
+        # IntegrityError that surfaces as an unhandled 500 instead of a
+        # clean 400 - found and fixed while building the New Pool Wizard.
+        tenant = self.context["request"].user.tenant
+        queryset = Pool.objects.filter(tenant=tenant, code=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("A pool with this code already exists.")
+        return value
+
     def get_product_detail(self, obj):
         product = obj.product
         return ProductBasicSerializer(

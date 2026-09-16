@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom"
 import { AppLayout } from "./layouts/AppLayout"
 import { CommandCenter } from "./pages/CommandCenter"
 import { ProductCatalogue } from "./pages/ProductCatalogue"
+import { NewPoolWizard } from "./pages/NewPoolWizard"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -27,6 +28,7 @@ function App() {
         }
       >
         <Route index element={<CommandCenter />} />
+        <Route path="pools/new" element={<NewPoolWizard />} />
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (

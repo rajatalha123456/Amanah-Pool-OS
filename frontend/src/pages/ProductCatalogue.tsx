@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link, useLocation } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -25,6 +26,9 @@ function productStatusBadgeVariant(status: string): BadgeVariant {
 }
 
 export function ProductCatalogue() {
+  const location = useLocation()
+  const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
+
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [products, setProducts] = useState<Product[]>([])
@@ -104,11 +108,20 @@ export function ProductCatalogue() {
         title="Product Catalogue"
         subtitle="Approved, draft and retired Islamic products"
         actions={
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            + New Product
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link to="/pools/new">
+              <Button variant="secondary">+ New Pool</Button>
+            </Link>
+            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+              + New Product
+            </Button>
+          </div>
         }
       />
+
+      {successMessage && (
+        <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>
+      )}
 
       {rowError && (
         <p className="mb-4 text-sm text-red-400">{rowError}</p>

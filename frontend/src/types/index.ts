@@ -102,3 +102,10 @@ export interface Pool {
   created_at: string
   updated_at: string
 }
+
+export interface CreatePoolInput {
+  name: string
+  code: string
+  product: string
+  effective_date: string
+}
