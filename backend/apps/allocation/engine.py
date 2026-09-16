@@ -11,6 +11,8 @@ returned monetary value is rounded to 2 decimal places with
 ROUND_HALF_UP.
 """
 
+import hashlib
+import json
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Q
@@ -141,3 +143,20 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
         "mudarib_share": _round(mudarib_share),
         "lines": lines,
     }
+
+
+def calculate_hash(run_data):
+    """
+    Returns the SHA-256 hex digest of `run_data` serialized as a
+    sort-keyed JSON string, for tamper-detection on a persisted
+    AllocationRun. Any Decimal values are stringified first, since
+    Decimal isn't natively JSON-serializable.
+    """
+
+    def _default(value):
+        if isinstance(value, Decimal):
+            return str(value)
+        raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+    serialized = json.dumps(run_data, sort_keys=True, default=_default)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

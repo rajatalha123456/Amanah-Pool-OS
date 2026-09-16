@@ -357,16 +357,8 @@ Backend models are documented here as they are added.
 - **`apps.pools.PoolVersion`** (`TenantScopedModel`) — `pool` FK (`related_name="versions"`), `version_number`, `snapshot` (JSON), `created_by`, `is_current`.
 - **`apps.allocation.WeightageBand`** (`TenantScopedModel`) — `pool` FK (`related_name="weightage_bands"`), `participant_class`, `weightage`, `effective_from`, `effective_to`, `status` (draft/approved); see [Weightage & PSR Setup](#weightage--psr-setup).
 - **`apps.allocation.ProfitSharingRatio`** (`TenantScopedModel`) — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved).
-- **`apps.allocation.AllocationRun`** (`TenantScopedModel`) — `pool` FK (`related_name="allocation_runs"`), `value_date`, `gross_income`, `direct_expenses`, `distributable_amount`, `total_weighted_funds`, `depositor_pool_share`, `mudarib_share`, `status` (simulated/signed — maker-checker sign-off is a future task), `calculation_hash`, `created_by`. Populated exclusively from `apps.allocation.engine.calculate_allocation()` — see below.
+- **`apps.allocation.AllocationRun`** (`TenantScopedModel`) — `pool` FK (`related_name="allocation_runs"`), `value_date`, `gross_income`, `direct_expenses`, `distributable_amount`, `total_weighted_funds`, `depositor_pool_share`, `mudarib_share`, `status` (simulated/signed — maker-checker sign-off is a future task), `calculation_hash`, `created_by`. Populated exclusively from `apps.allocation.engine.calculate_allocation()`; see [Allocation Engine](#allocation-engine).
 - **`apps.allocation.AllocationLine`** (`TenantScopedModel`) — `allocation_run` FK (`related_name="lines"`), `participant_class`, `daily_funds`, `weightage`, `weighted_funds`, `allocated_amount`.
-
-### Allocation engine (`apps/allocation/engine.py`)
-
-`calculate_allocation(pool, value_date, gross_income, direct_expenses)` is a **pure function** — it reads `DailyBalance`, `WeightageBand`, and `ProfitSharingRatio` but performs no database writes; persisting the result into `AllocationRun`/`AllocationLine` (and the `POST` endpoint to trigger a run) is left for a future task alongside maker-checker sign-off.
-
-Calculation steps: `distributable = gross_income - direct_expenses`; for each participant class with a `DailyBalance` on `value_date`, find the `WeightageBand` (status `approved`, `effective_from <= value_date <= effective_to-or-open-ended`) and compute `weighted_funds = daily_funds * weightage`; sum all `weighted_funds` into `total_weighted_funds`; find the pool's active approved `ProfitSharingRatio` the same way and split `distributable` into `depositor_pool_share` and `mudarib_share`; each class's `allocated_amount` is `depositor_pool_share * (weighted_funds / total_weighted_funds)` — i.e. **the depositor's share, not the full distributable, is what gets split across participant classes** (the mudarib's share is the pool operator's own return, not allocated to depositors). All monetary values use `Decimal` with `ROUND_HALF_UP` to 2 places — never `float`. Raises `ValueError` for: no `DailyBalance` found, a participant class with a balance but no matching approved `WeightageBand`, no approved `PSR` covering the date, or `total_weighted_funds == 0` (division-by-zero guard).
-
-**Manually verified** against the seeded demo pool (`savings_tier_a` 60M × 1.00, `term_tier_b` 25M × 1.20, `institutional` 8M × 1.25 → `total_weighted_funds` = 100M, matching the BRD example) with `gross_income=12,000,000` and `direct_expenses=1,000,000`: `distributable=11,000,000`, PSR 70/30 → `depositor_pool_share=7,700,000`, `mudarib_share=3,300,000`; per-class `allocated_amount`s (4,620,000 / 2,310,000 / 770,000) sum exactly to `depositor_pool_share` with no rounding drift. Also verified each `ValueError` path fires correctly (missing balance, missing weightage band, missing PSR, zero weighted funds).
 - **`apps.pools.Asset`** (`TenantScopedModel`) — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off); see [Asset Assignment](#asset-assignment).
 - **`apps.pools.AssetAssignment`** (`TenantScopedModel`) — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date`, `assigned_by`.
 - **`apps.pools.DailyBalance`** (`TenantScopedModel`) — `pool` FK (`related_name="daily_balances"`), `participant_class`, `value_date`, `balance_amount`, `source` (manual/file_import/api), `status` (pending/validated/rejected); see [Balance Import & Validation](#balance-import--validation).
@@ -450,6 +442,57 @@ Every create/approve writes an `AuditLog` entry via `log_action()`.
 **Seeding for manual testing:** `python manage.py seed_demo_weightage_psr` (after `seed_demo_pool`) creates the BRD example values against the demo pool — `WeightageBand`s for `savings_tier_a` (1.00), `term_tier_b` (1.20), `institutional` (1.25), all pre-approved, plus an approved 70/30 `ProfitSharingRatio`, all effective from the pool's `effective_date`.
 
 **Manually verified end-to-end**: created a `draft` `WeightageBand` and approved it; creating a second band for the *same* `participant_class` with an overlapping (open-ended) date range correctly failed with `400` and named the conflicting record (BR-002); creating a band for a *different* `participant_class` with the exact same dates correctly succeeded (`201`); a PSR with `depositor_share + mudarib_share != 100` correctly failed validation; a valid 70/30 PSR on a pool with no existing PSR succeeded and was approved; a `pool_manager` attempting `approve` (Shariah-Board-only) correctly got `403`. Also caught and fixed a real bug while testing: `ProfitSharingRatio.clean()` compared `depositor_share`/`mudarib_share` without coercing to `Decimal` first — when values arrive as plain strings (e.g. from a management command's `defaults={...}` dict, before Django's field-level casting runs), `"70.00" + "30.00"` is Python string concatenation (`"70.0030.00"`), not addition, so the check always failed. Fixed by explicitly wrapping both values in `Decimal(...)` inside `clean()`.
+
+## Allocation Engine
+
+`apps.allocation.engine` computes a profit allocation for one pool on one `value_date`, given `gross_income` and `direct_expenses`. `AllocationRun` (the persisted result of a calculation) and `AllocationLine` (the per-participant-class breakdown) are described in [Data Model](#data-model).
+
+### Formula
+
+1. `distributable = gross_income - direct_expenses`
+2. For each `participant_class` with a `DailyBalance` on `value_date`: find its approved `WeightageBand` covering that date (`effective_from <= value_date <= effective_to`-or-open-ended) and compute `weighted_funds = daily_funds * weightage`.
+3. `total_weighted_funds` = sum of all `weighted_funds`.
+4. Find the pool's approved `ProfitSharingRatio` covering `value_date`, and split `distributable` into `depositor_pool_share = distributable * depositor_share / 100` and `mudarib_share = distributable * mudarib_share / 100`.
+5. Each class's `allocated_amount = depositor_pool_share * (weighted_funds / total_weighted_funds)` — **the depositor's share, not the full distributable, is what gets split across participant classes** (the mudarib's share is the pool operator's own return, never allocated to depositors).
+6. All monetary values use `Decimal` with `ROUND_HALF_UP` to 2 decimal places — never `float`.
+7. Raises `ValueError` for: no `DailyBalance` found for the date, a participant class with a balance but no matching approved `WeightageBand`, no approved `PSR` covering the date, or `total_weighted_funds == 0` (division-by-zero guard).
+
+### Worked example (BRD Allocation Simulator)
+
+With the seeded demo pool's data — `savings_tier_a` 60M (weightage 1.00), `term_tier_b` 25M (1.20), `institutional` 8M (1.25) — and `gross_income = 12,000,000`, `direct_expenses = 1,000,000`:
+
+| | |
+|---|---|
+| `distributable` | 11,000,000.00 |
+| `total_weighted_funds` | 100,000,000.00 (60M + 30M + 10M) |
+| PSR | 70 / 30 |
+| `depositor_pool_share` | 7,700,000.00 |
+| `mudarib_share` | 3,300,000.00 |
+
+| participant_class | daily_funds | weightage | weighted_funds | allocated_amount |
+|---|---|---|---|---|
+| savings_tier_a | 60,000,000.00 | 1.00 | 60,000,000.00 | 4,620,000.00 |
+| term_tier_b | 25,000,000.00 | 1.20 | 30,000,000.00 | 2,310,000.00 |
+| institutional | 8,000,000.00 | 1.25 | 10,000,000.00 | 770,000.00 |
+
+The three `allocated_amount`s sum exactly to `depositor_pool_share` (7,700,000.00), confirmed with no rounding drift.
+
+### `calculate_hash(run_data)`
+
+Returns the SHA-256 hex digest of `run_data` serialized as a sort-keyed JSON string (`Decimal`s stringified first, since they aren't natively JSON-serializable). Used to stamp `AllocationRun.calculation_hash` at save time, so a persisted run's inputs/outputs can later be checked for tampering.
+
+### Endpoints
+
+- **`POST /api/v1/allocation/allocation-runs/simulate/`** — runs `calculate_allocation()` and returns the result **directly in the response**; nothing is written to the database. Body: `{"pool": "<id>", "value_date": "2026-09-01", "gross_income": "12000000.00", "direct_expenses": "1000000.00"}`. Permission: `IsPoolManager` or `IsFinanceMaker` (via `HasAnyRole`).
+- **`POST /api/v1/allocation/allocation-runs/`** — same input, but persists the result as one `AllocationRun` (`status="simulated"`, `calculation_hash` set) plus its `AllocationLine`s, and returns the saved record (nested `lines`). Same permission as `simulate/`.
+- **`GET /api/v1/allocation/allocation-runs/?pool={pool_id}`** — list, with nested `lines`, filterable by pool. Any authenticated user.
+- **`GET /api/v1/allocation/allocation-runs/{id}/`** — detail, with nested `lines`.
+
+Every persisted run writes an `AuditLog` entry via `log_action()` with the run's summary (`distributable_amount`, `total_weighted_funds`, `depositor_pool_share`, `mudarib_share`, line count, `calculation_hash`).
+
+**Implementation note:** the input serializer (`AllocationRunInputSerializer`) builds its `pool` field in `__init__` rather than as a class-level `PrimaryKeyRelatedField(queryset=Pool.objects.all())`, for the same reason documented under [Balance Import & Validation](#balance-import--validation) — a `TenantScopedManager` queryset frozen at import time (no tenant context yet) stays empty forever no matter how many times `.all()` is called on it afterward.
+
+**Manually verified end-to-end via real HTTP requests** (not Django shell): `simulate/` returned the exact worked-example numbers above and confirmed **zero** `AllocationRun`/`AllocationLine` rows existed afterward; `POST /allocation-runs/` then created exactly 1 `AllocationRun` (`status="simulated"`, a populated `calculation_hash`) and 3 `AllocationLine`s with the same numbers; a `value_date` with no `DailyBalance` returned a clear `400 validation_error` via the API; a request missing a required field (`gross_income`) returned DRF's own field-level `400`; a `shariah_board` user (neither `pool_manager` nor `finance_maker`) got `403` on both `simulate/` and the save endpoint; the list and detail `GET` endpoints returned the run with its nested lines, and `?pool=` filtering worked; confirmed the `AuditLog` entry for the persisted run.
 
 ## Asset Assignment
 

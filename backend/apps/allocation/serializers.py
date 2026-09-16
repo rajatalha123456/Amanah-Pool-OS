@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import ProfitSharingRatio, WeightageBand
+from .models import AllocationLine, AllocationRun, ProfitSharingRatio, WeightageBand
 from .validators import check_no_overlap
 
 
@@ -100,3 +100,65 @@ class PSRSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(exc.message) from exc
 
         return attrs
+
+
+class AllocationLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AllocationLine
+        fields = (
+            "id",
+            "participant_class",
+            "daily_funds",
+            "weightage",
+            "weighted_funds",
+            "allocated_amount",
+        )
+        read_only_fields = fields
+
+
+class AllocationRunSerializer(serializers.ModelSerializer):
+    lines = AllocationLineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = AllocationRun
+        fields = (
+            "id",
+            "tenant",
+            "pool",
+            "value_date",
+            "gross_income",
+            "direct_expenses",
+            "distributable_amount",
+            "total_weighted_funds",
+            "depositor_pool_share",
+            "mudarib_share",
+            "status",
+            "calculation_hash",
+            "created_by",
+            "lines",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class AllocationRunInputSerializer(serializers.Serializer):
+    """
+    Shared input shape for both POST /allocation-runs/simulate/ and
+    POST /allocation-runs/. `pool` is assigned in __init__ rather than as
+    a class-level PrimaryKeyRelatedField(queryset=Pool.objects.all()) -
+    see the identical fix in pools.serializers.BulkBalanceImportSerializer
+    (README: "Balance Import & Validation" implementation note) for why a
+    class-level queryset against a TenantScopedManager permanently bakes
+    in an empty result at import time.
+    """
+
+    value_date = serializers.DateField()
+    gross_income = serializers.DecimalField(max_digits=18, decimal_places=2)
+    direct_expenses = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, default=Decimal("0"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.pools.models import Pool
+
+        self.fields["pool"] = serializers.PrimaryKeyRelatedField(queryset=Pool.objects.all())
