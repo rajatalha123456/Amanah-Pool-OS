@@ -64,7 +64,9 @@ class ProfitSharingRatio(TenantScopedModel):
 
 class AllocationRunStatus(models.TextChoices):
     SIMULATED = "simulated", "Simulated"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
     SIGNED = "signed", "Signed"
+    REJECTED = "rejected", "Rejected"
 
 
 class AllocationRun(TenantScopedModel):
@@ -91,6 +93,15 @@ class AllocationRun(TenantScopedModel):
     created_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
     )
+    checked_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="checked_allocation_runs",
+    )
+    checked_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.pool.name} allocation @ {self.value_date} ({self.status})"

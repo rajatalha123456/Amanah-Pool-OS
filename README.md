@@ -357,8 +357,10 @@ Backend models are documented here as they are added.
 - **`apps.pools.PoolVersion`** (`TenantScopedModel`) — `pool` FK (`related_name="versions"`), `version_number`, `snapshot` (JSON), `created_by`, `is_current`.
 - **`apps.allocation.WeightageBand`** (`TenantScopedModel`) — `pool` FK (`related_name="weightage_bands"`), `participant_class`, `weightage`, `effective_from`, `effective_to`, `status` (draft/approved); see [Weightage & PSR Setup](#weightage--psr-setup).
 - **`apps.allocation.ProfitSharingRatio`** (`TenantScopedModel`) — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved).
-- **`apps.allocation.AllocationRun`** (`TenantScopedModel`) — `pool` FK (`related_name="allocation_runs"`), `value_date`, `gross_income`, `direct_expenses`, `distributable_amount`, `total_weighted_funds`, `depositor_pool_share`, `mudarib_share`, `status` (simulated/signed — maker-checker sign-off is a future task), `calculation_hash`, `created_by`. Populated exclusively from `apps.allocation.engine.calculate_allocation()`; see [Allocation Engine](#allocation-engine).
+- **`apps.allocation.AllocationRun`** (`TenantScopedModel`) — `pool` FK (`related_name="allocation_runs"`), `value_date`, `gross_income`, `direct_expenses`, `distributable_amount`, `total_weighted_funds`, `depositor_pool_share`, `mudarib_share`, `status` (simulated/pending_approval/signed/rejected), `calculation_hash`, `created_by`, `checked_by`, `checked_at`, `rejection_reason`. Populated exclusively from `apps.allocation.engine.calculate_allocation()`; see [Allocation Engine](#allocation-engine) and [Maker-Checker Approval & Journal Posting](#maker-checker-approval--journal-posting).
 - **`apps.allocation.AllocationLine`** (`TenantScopedModel`) — `allocation_run` FK (`related_name="lines"`), `participant_class`, `daily_funds`, `weightage`, `weighted_funds`, `allocated_amount`.
+- **`apps.accounting.JournalBatch`** (`TenantScopedModel`) — `allocation_run` (`OneToOneField`, `related_name="journal_batch"`), `pool` FK, `batch_date`, `total_debit`, `total_credit`, `status` (posted), `posted_by`. `clean()`/`save()` reject an unbalanced batch (`total_debit != total_credit`); see [Maker-Checker Approval & Journal Posting](#maker-checker-approval--journal-posting).
+- **`apps.accounting.JournalEntry`** (`TenantScopedModel`) — `batch` FK (`related_name="entries"`), `account_name`, `entry_type` (debit/credit), `amount`.
 - **`apps.pools.Asset`** (`TenantScopedModel`) — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off); see [Asset Assignment](#asset-assignment).
 - **`apps.pools.AssetAssignment`** (`TenantScopedModel`) — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date`, `assigned_by`.
 - **`apps.pools.DailyBalance`** (`TenantScopedModel`) — `pool` FK (`related_name="daily_balances"`), `participant_class`, `value_date`, `balance_amount`, `source` (manual/file_import/api), `status` (pending/validated/rejected); see [Balance Import & Validation](#balance-import--validation).
@@ -493,6 +495,35 @@ Every persisted run writes an `AuditLog` entry via `log_action()` with the run's
 **Implementation note:** the input serializer (`AllocationRunInputSerializer`) builds its `pool` field in `__init__` rather than as a class-level `PrimaryKeyRelatedField(queryset=Pool.objects.all())`, for the same reason documented under [Balance Import & Validation](#balance-import--validation) — a `TenantScopedManager` queryset frozen at import time (no tenant context yet) stays empty forever no matter how many times `.all()` is called on it afterward.
 
 **Manually verified end-to-end via real HTTP requests** (not Django shell): `simulate/` returned the exact worked-example numbers above and confirmed **zero** `AllocationRun`/`AllocationLine` rows existed afterward; `POST /allocation-runs/` then created exactly 1 `AllocationRun` (`status="simulated"`, a populated `calculation_hash`) and 3 `AllocationLine`s with the same numbers; a `value_date` with no `DailyBalance` returned a clear `400 validation_error` via the API; a request missing a required field (`gross_income`) returned DRF's own field-level `400`; a `shariah_board` user (neither `pool_manager` nor `finance_maker`) got `403` on both `simulate/` and the save endpoint; the list and detail `GET` endpoints returned the run with its nested lines, and `?pool=` filtering worked; confirmed the `AuditLog` entry for the persisted run.
+
+## Maker-Checker Approval & Journal Posting
+
+Once an `AllocationRun` is persisted (`status="simulated"`), it goes through a maker-checker approval flow before its numbers are posted to the ledger.
+
+### AllocationRun status lifecycle
+
+`simulated` → (Finance Maker submits) → `pending_approval` → (Finance Checker decides) → `signed` **or** `rejected`
+
+- **`POST /api/v1/allocation/allocation-runs/{id}/submit-for-checking/`** — `IsFinanceMaker` only. Requires `status == "simulated"`.
+- **`POST /api/v1/allocation/allocation-runs/{id}/approve/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"`. Calls `apps.accounts.workflow.validate_maker_checker(maker_user=run.created_by, checker_user=request.user)` — if the same user created and is now approving the run, the request fails with `400`: *"Maker and checker cannot be the same user"*. On success: sets `checked_by`, `checked_at`, `status = "signed"`, and immediately calls `create_journal_from_allocation()` to post the ledger entries (below). The response includes the nested `journal_batch`.
+- **`POST /api/v1/allocation/allocation-runs/{id}/reject/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` and a required `rejection_reason` in the body (`400` if missing). Sets `checked_by`, `checked_at`, `rejection_reason`, `status = "rejected"`. No journal is posted.
+
+Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason` is also stored in the `AuditLog.reason` field, not just on the run.
+
+### Double-entry journal posting (`apps/accounting`)
+
+`apps.accounting.services.create_journal_from_allocation(allocation_run, posted_by)` builds one balanced `JournalBatch` (`status="posted"`, linked 1:1 to the `AllocationRun` via `OneToOneField`) with a `JournalEntry` per line:
+
+- **Per participant class** (from the run's `AllocationLine`s): `DEBIT "Profit Expense - {class}"` and `CREDIT "Depositor Payable - {class}"`, both equal to `allocated_amount` — recognizing the pool's obligation to pay depositors.
+- **For the mudarib's own share**: `DEBIT "Mudarib Income Suspense"` and `CREDIT "Mudarib Income"`, both equal to `mudarib_share` — a self-contained pair recognizing the bank's own income, independent of the depositor entries above.
+
+`total_debit` and `total_credit` are each the sum of their respective entries and are therefore equal by construction; `JournalBatch.clean()` (called from `save()`) still re-validates `total_debit == total_credit` and raises *"Journal batch is not balanced."* if not — this exists as a safety net even though the service always produces a balanced batch.
+
+### Journal Batches API
+
+- **`GET /api/v1/accounting/journal-batches/?pool={pool_id}`** — read-only list (with nested `entries`), any authenticated user, filterable by pool.
+
+**Manually verified end-to-end via real HTTP requests:** created a `simulated` run as a `finance_maker`, submitted it for checking (`pending_approval`); a `pool_manager` got `403` attempting `submit-for-checking` (wrong role); confirmed via Django shell that when the same physical user is set as both `created_by` and the approving `finance_checker`, `approve/` correctly returns `400` with the exact maker-checker message (there's no way to trigger this through the API alone in the current single-role-per-user model, since `finance_checker` can't create runs — this was flagged and confirmed with the user before testing this way); a genuinely different `finance_checker` then approved successfully — `status` became `signed`, `checked_by`/`checked_at` were set, and a `JournalBatch` was created with `total_debit == total_credit == 11,000,000.00` across exactly 8 entries (3 debit/credit pairs for the participant classes plus the mudarib pair); a second run was rejected with a required `rejection_reason`, confirmed recorded on both the run and its `AuditLog` entry, with no `JournalBatch` created; a `shariah_board` user got `403` on both `approve/` and `reject/`; confirmed via shell (equivalent to what the Django admin list page shows) that the posted `JournalBatch`'s `total_debit` and `total_credit` are equal.
 
 ## Asset Assignment
 

@@ -1,10 +1,19 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import HasAnyRole, IsPoolManager, IsShariahBoard
+from apps.accounts.permissions import (
+    HasAnyRole,
+    IsFinanceChecker,
+    IsFinanceMaker,
+    IsPoolManager,
+    IsShariahBoard,
+)
+from apps.accounts.workflow import validate_maker_checker
 from apps.core.audit import log_action
 
 from .engine import calculate_allocation, calculate_hash
@@ -150,6 +159,10 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
     def get_permissions(self):
         if self.action in ("create", "simulate"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
+        if self.action == "submit_for_checking":
+            return [IsAuthenticated(), IsFinanceMaker()]
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), IsFinanceChecker()]
         return [IsAuthenticated()]
 
     def _run_calculation(self, request):
@@ -256,3 +269,128 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         )
 
         return Response(self.get_serializer(run).data, status=201)
+
+    @action(detail=True, methods=["post"], url_path="submit-for-checking")
+    def submit_for_checking(self, request, pk=None):
+        run = self.get_object()
+
+        if run.status != AllocationRunStatus.SIMULATED:
+            raise ValidationError(
+                f"AllocationRun must be in '{AllocationRunStatus.SIMULATED}' status to submit "
+                f"for checking (current status: '{run.status}')."
+            )
+
+        run.status = AllocationRunStatus.PENDING_APPROVAL
+        run.save(update_fields=["status", "updated_at"])
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="submit_for_checking",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={
+                "status": {
+                    "before": AllocationRunStatus.SIMULATED,
+                    "after": AllocationRunStatus.PENDING_APPROVAL,
+                }
+            },
+            request=request,
+        )
+        return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        # Local import: apps.accounting depends on apps.allocation's
+        # models, so importing at module level here would create a
+        # circular import between the two apps.
+        from apps.accounting.services import create_journal_from_allocation
+
+        run = self.get_object()
+
+        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+            raise ValidationError(
+                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status to "
+                f"approve (current status: '{run.status}')."
+            )
+
+        try:
+            validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message) from exc
+
+        run.status = AllocationRunStatus.SIGNED
+        run.checked_by = request.user
+        run.checked_at = timezone.now()
+        run.save(update_fields=["status", "checked_by", "checked_at", "updated_at"])
+
+        journal_batch = create_journal_from_allocation(run, posted_by=request.user)
+
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="approve",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={
+                "status": {
+                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "after": AllocationRunStatus.SIGNED,
+                },
+                "journal_batch_id": str(journal_batch.id),
+                "total_debit": str(journal_batch.total_debit),
+                "total_credit": str(journal_batch.total_credit),
+            },
+            request=request,
+        )
+        log_action(
+            tenant=journal_batch.tenant,
+            actor=request.user,
+            action="create",
+            model_name="JournalBatch",
+            object_id=str(journal_batch.id),
+            changes={
+                "total_debit": str(journal_batch.total_debit),
+                "total_credit": str(journal_batch.total_credit),
+                "allocation_run_id": str(run.id),
+            },
+            request=request,
+        )
+
+        return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        run = self.get_object()
+
+        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+            raise ValidationError(
+                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status to "
+                f"reject (current status: '{run.status}')."
+            )
+
+        rejection_reason = request.data.get("rejection_reason")
+        if not rejection_reason:
+            raise ValidationError({"rejection_reason": ["This field is required."]})
+
+        run.status = AllocationRunStatus.REJECTED
+        run.checked_by = request.user
+        run.checked_at = timezone.now()
+        run.rejection_reason = rejection_reason
+        run.save(update_fields=["status", "checked_by", "checked_at", "rejection_reason", "updated_at"])
+
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="reject",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={
+                "status": {
+                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "after": AllocationRunStatus.REJECTED,
+                }
+            },
+            reason=rejection_reason,
+            request=request,
+        )
+        return Response(self.get_serializer(run).data)

@@ -118,6 +118,7 @@ class AllocationLineSerializer(serializers.ModelSerializer):
 
 class AllocationRunSerializer(serializers.ModelSerializer):
     lines = AllocationLineSerializer(many=True, read_only=True)
+    journal_batch = serializers.SerializerMethodField()
 
     class Meta:
         model = AllocationRun
@@ -135,11 +136,23 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "status",
             "calculation_hash",
             "created_by",
+            "checked_by",
+            "checked_at",
+            "rejection_reason",
             "lines",
+            "journal_batch",
             "created_at",
             "updated_at",
         )
         read_only_fields = fields
+
+    def get_journal_batch(self, obj):
+        # Local import to avoid a hard app-load-order dependency between
+        # allocation and accounting at module import time.
+        from apps.accounting.serializers import JournalBatchSerializer
+
+        batch = getattr(obj, "journal_batch", None)
+        return JournalBatchSerializer(batch).data if batch else None
 
 
 class AllocationRunInputSerializer(serializers.Serializer):
