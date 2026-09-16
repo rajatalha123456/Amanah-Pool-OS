@@ -218,6 +218,19 @@ This is a **display-only** component for now: the backend's `apps.accounts.User`
 
 Once the backend supports multiple tenants per user, `TenantSwitcher.tsx` (see the `TODO(multi-tenant)` comment in the file) should: fetch the real list of tenants available to the current user from an API instead of using `user.tenant_code` directly; on selecting a different tenant, write the new code to `localStorage` under `TENANT_CODE_KEY` (`src/api/axios.ts`) so it's sent as `X-Tenant-Code` on subsequent requests; and trigger a reload/refetch of tenant-scoped data, since nearly everything in the app is tenant-scoped.
 
+### Command Center (connected to real data)
+
+`src/pages/CommandCenter.tsx` (the default route, `/`) is connected to the real backend — it is **not mock data**. On mount it calls `fetchPools()` (`src/api/pools.ts`, `GET /api/v1/pools/pools/`) and `fetchProducts()` (`src/api/products.ts`, `GET /api/v1/products/products/`) and renders:
+
+- A small "Backend Connection" card (kept from earlier work) showing live `/health/` status.
+- A stat row (`StatCard`): Total Pools, Active Pools (`status === "open"`), Draft Pools (`status === "draft"`), Total Products.
+- A `Table` of all pools — Name, Code, Status (`Badge`, colored via a status→variant map: `draft`→gray/`neutral`, `approved`→gold, `open`/`allocation`→emerald, `closed`→navy, `archived`→gray/`neutral`), Product name (from the nested `product_detail`), Effective Date.
+- A loading spinner while the requests are in flight, an error message ("Failed to load data") if either call fails, and a "No pools yet" empty state when the pool list is empty.
+
+`Pool` and `Product` TypeScript interfaces (`src/types/index.ts`) mirror the backend serializers exactly, including nested `product_detail`/`contract_template_detail`.
+
+**Manually verified the data contract** by replaying the exact requests the page makes (same endpoints, same `Authorization`/`X-Tenant-Code` headers) against the running backend seeded via `seed_demo_pool`/`seed_demo_product`: the response shapes match the `Pool`/`Product` TypeScript interfaces field-for-field, confirmed `tsc --noEmit` and `npm run build` are clean, and confirmed the page and its new modules serve without compile errors from the Vite dev server. Full in-browser visual verification (spinner timing, table rendering, badge colors) was not done in this pass since it requires a real browser session.
+
 ## Authentication
 
 Login uses a two-step flow: password, then TOTP-based MFA (via [pyotp](https://pypi.org/project/pyotp/), compatible with Google Authenticator / Authy — no external SMS/email service required). Real access/refresh tokens (JWT, via `djangorestframework-simplejwt`) are only issued after MFA is verified.
