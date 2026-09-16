@@ -21,6 +21,7 @@ from .models import (
     AllocationLine,
     AllocationRun,
     AllocationRunStatus,
+    DepositorStatement,
     PSRStatus,
     ProfitSharingRatio,
     WeightageBand,
@@ -29,9 +30,11 @@ from .models import (
 from .serializers import (
     AllocationRunInputSerializer,
     AllocationRunSerializer,
+    DepositorStatementSerializer,
     PSRSerializer,
     WeightageBandSerializer,
 )
+from .statements import generate_statement_narrative
 
 
 class WeightageBandViewSet(viewsets.ModelViewSet):
@@ -157,7 +160,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         return queryset
 
     def get_permissions(self):
-        if self.action in ("create", "simulate"):
+        if self.action in ("create", "simulate", "generate_statements"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         if self.action == "submit_for_checking":
             return [IsAuthenticated(), IsFinanceMaker()]
@@ -394,3 +397,66 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             request=request,
         )
         return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"], url_path="generate-statements")
+    def generate_statements(self, request, pk=None):
+        run = self.get_object()
+
+        if run.status != AllocationRunStatus.SIGNED:
+            raise ValidationError(
+                "Statements can only be generated for signed allocation runs."
+            )
+
+        existing = list(DepositorStatement.objects.filter(allocation_run=run))
+        if existing:
+            return Response(DepositorStatementSerializer(existing, many=True).data)
+
+        statements = []
+        for line in run.lines.all():
+            opening_balance = line.daily_funds
+            net_deposits = 0
+            profit_allocated = line.allocated_amount
+            closing_balance = opening_balance + net_deposits + profit_allocated
+
+            narrative = generate_statement_narrative(
+                participant_class=line.participant_class,
+                opening_balance=opening_balance,
+                profit_allocated=profit_allocated,
+                weightage=line.weightage,
+                allocation_run=run,
+            )
+
+            statements.append(
+                DepositorStatement(
+                    tenant=run.tenant,
+                    allocation_run=run,
+                    participant_class=line.participant_class,
+                    period_start=run.value_date,
+                    period_end=run.value_date,
+                    opening_balance=opening_balance,
+                    net_deposits=net_deposits,
+                    profit_allocated=profit_allocated,
+                    closing_balance=closing_balance,
+                    narrative=narrative,
+                )
+            )
+
+        created = DepositorStatement.objects.bulk_create(statements)
+
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="generate_statements",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={"statement_count": len(created)},
+            request=request,
+        )
+
+        return Response(DepositorStatementSerializer(created, many=True).data)
+
+    @action(detail=True, methods=["get"])
+    def statements(self, request, pk=None):
+        run = self.get_object()
+        statements = run.statements.all()
+        return Response(DepositorStatementSerializer(statements, many=True).data)

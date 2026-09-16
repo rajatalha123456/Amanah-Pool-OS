@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import AllocationLine, AllocationRun, ProfitSharingRatio, WeightageBand
+from .models import AllocationLine, AllocationRun, DepositorStatement, ProfitSharingRatio, WeightageBand
 from .validators import check_no_overlap
 
 
@@ -175,3 +175,22 @@ class AllocationRunInputSerializer(serializers.Serializer):
         from apps.pools.models import Pool
 
         self.fields["pool"] = serializers.PrimaryKeyRelatedField(queryset=Pool.objects.all())
+
+
+class DepositorStatementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DepositorStatement
+        fields = (
+            "id",
+            "allocation_run",
+            "participant_class",
+            "period_start",
+            "period_end",
+            "opening_balance",
+            "net_deposits",
+            "profit_allocated",
+            "closing_balance",
+            "narrative",
+            "generated_at",
+        )
+        read_only_fields = fields

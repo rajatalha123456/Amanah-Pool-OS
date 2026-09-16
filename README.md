@@ -361,6 +361,7 @@ Backend models are documented here as they are added.
 - **`apps.allocation.AllocationLine`** (`TenantScopedModel`) — `allocation_run` FK (`related_name="lines"`), `participant_class`, `daily_funds`, `weightage`, `weighted_funds`, `allocated_amount`.
 - **`apps.accounting.JournalBatch`** (`TenantScopedModel`) — `allocation_run` (`OneToOneField`, `related_name="journal_batch"`), `pool` FK, `batch_date`, `total_debit`, `total_credit`, `status` (posted), `posted_by`. `clean()`/`save()` reject an unbalanced batch (`total_debit != total_credit`); see [Maker-Checker Approval & Journal Posting](#maker-checker-approval--journal-posting).
 - **`apps.accounting.JournalEntry`** (`TenantScopedModel`) — `batch` FK (`related_name="entries"`), `account_name`, `entry_type` (debit/credit), `amount`.
+- **`apps.allocation.DepositorStatement`** (`TenantScopedModel`) — `allocation_run` FK (`related_name="statements"`), `participant_class`, `period_start`, `period_end`, `opening_balance`, `net_deposits`, `profit_allocated`, `closing_balance`, `narrative`, `generated_at`; see [Depositor Statements](#depositor-statements).
 - **`apps.pools.Asset`** (`TenantScopedModel`) — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off); see [Asset Assignment](#asset-assignment).
 - **`apps.pools.AssetAssignment`** (`TenantScopedModel`) — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date`, `assigned_by`.
 - **`apps.pools.DailyBalance`** (`TenantScopedModel`) — `pool` FK (`related_name="daily_balances"`), `participant_class`, `value_date`, `balance_amount`, `source` (manual/file_import/api), `status` (pending/validated/rejected); see [Balance Import & Validation](#balance-import--validation).
@@ -524,6 +525,25 @@ Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason
 - **`GET /api/v1/accounting/journal-batches/?pool={pool_id}`** — read-only list (with nested `entries`), any authenticated user, filterable by pool.
 
 **Manually verified end-to-end via real HTTP requests:** created a `simulated` run as a `finance_maker`, submitted it for checking (`pending_approval`); a `pool_manager` got `403` attempting `submit-for-checking` (wrong role); confirmed via Django shell that when the same physical user is set as both `created_by` and the approving `finance_checker`, `approve/` correctly returns `400` with the exact maker-checker message (there's no way to trigger this through the API alone in the current single-role-per-user model, since `finance_checker` can't create runs — this was flagged and confirmed with the user before testing this way); a genuinely different `finance_checker` then approved successfully — `status` became `signed`, `checked_by`/`checked_at` were set, and a `JournalBatch` was created with `total_debit == total_credit == 11,000,000.00` across exactly 8 entries (3 debit/credit pairs for the participant classes plus the mudarib pair); a second run was rejected with a required `rejection_reason`, confirmed recorded on both the run and its `AuditLog` entry, with no `JournalBatch` created; a `shariah_board` user got `403` on both `approve/` and `reject/`; confirmed via shell (equivalent to what the Django admin list page shows) that the posted `JournalBatch`'s `total_debit` and `total_credit` are equal.
+
+## Depositor Statements
+
+Once an `AllocationRun` is `signed`, one `DepositorStatement` per participant class can be generated — a plain-language, per-class explanation of that period's profit allocation (BRD Screen #41 style).
+
+`apps.allocation.DepositorStatement` (`TenantScopedModel`) — `allocation_run` FK (`related_name="statements"`), `participant_class`, `period_start`/`period_end` (both the run's `value_date` for now — multi-day period tracking is future scope), `opening_balance` (simplified to the `AllocationLine`'s `daily_funds` for now, until real opening-balance/period tracking exists), `net_deposits` (placeholder `0` — a future feature), `profit_allocated` (from `AllocationLine.allocated_amount`), `closing_balance` (`opening_balance + net_deposits + profit_allocated`), `narrative`, `generated_at`.
+
+### Narrative generation (`apps/allocation/statements.py`)
+
+`generate_statement_narrative(participant_class, opening_balance, profit_allocated, weightage, allocation_run)` is a simple template-based function — expected to be replaced/enhanced later by a Disclosure Generator agent. Example output:
+
+> Your daily funds and approved weightage (1.00x) determined your share of distributable pool profit. Based on a distributable amount of 11000000.00 and your class's weighted contribution, you were allocated 4620000.00 for this period.
+
+### Endpoints
+
+- **`POST /api/v1/allocation/allocation-runs/{id}/generate-statements/`** — `IsPoolManager` or `IsFinanceMaker` (via `HasAnyRole`). Requires `run.status == "signed"` (`400 "Statements can only be generated for signed allocation runs."` otherwise). Creates one `DepositorStatement` per `AllocationLine`. **Idempotent**: if statements already exist for this run, the existing records are returned as-is rather than creating duplicates. Writes one `AuditLog` entry (with the statement count) on first generation only — a repeat call doesn't log again, since nothing changed.
+- **`GET /api/v1/allocation/allocation-runs/{id}/statements/`** — lists the run's statements. Any authenticated user.
+
+**Manually verified end-to-end via real HTTP requests:** calling `generate-statements/` on a `simulated` (not yet signed) run correctly returned `400` with the exact spec'd message; on a `signed` run it created exactly 3 `DepositorStatement`s (one per participant class) with correct `closing_balance`s (e.g. `60,000,000.00 + 0 + 4,620,000.00 = 64,620,000.00`) and populated narratives; calling it again on the same run returned the same 3 records (confirmed via DB count — still exactly 3, no duplicates) and did **not** write a second `AuditLog` entry; `GET .../statements/` correctly listed all 3 for a `shariah_board` user (any authenticated role can view); a `shariah_board` user attempting `generate-statements/` itself correctly got `403`.
 
 ## Asset Assignment
 

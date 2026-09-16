@@ -119,3 +119,30 @@ class AllocationLine(TenantScopedModel):
 
     def __str__(self):
         return f"{self.allocation_run} - {self.participant_class}"
+
+
+class DepositorStatement(TenantScopedModel):
+    """
+    A plain-language, per-participant-class statement generated from a
+    signed AllocationRun. period_start/period_end are both the run's
+    value_date for now (single-day period; multi-day period tracking is
+    future scope), and opening_balance is simplified to the
+    AllocationLine's daily_funds until real opening-balance/period
+    tracking exists.
+    """
+
+    allocation_run = models.ForeignKey(
+        AllocationRun, on_delete=models.CASCADE, related_name="statements"
+    )
+    participant_class = models.CharField(max_length=100)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    opening_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    net_deposits = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    profit_allocated = models.DecimalField(max_digits=18, decimal_places=2)
+    closing_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    narrative = models.TextField()
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.allocation_run} - {self.participant_class} statement"

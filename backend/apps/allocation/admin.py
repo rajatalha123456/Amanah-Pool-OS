@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import AllocationLine, AllocationRun, ProfitSharingRatio, WeightageBand
+from .models import (
+    AllocationLine,
+    AllocationRun,
+    DepositorStatement,
+    ProfitSharingRatio,
+    WeightageBand,
+)
 
 
 @admin.register(WeightageBand)
@@ -57,4 +63,19 @@ class AllocationRunAdmin(admin.ModelAdmin):
 @admin.register(AllocationLine)
 class AllocationLineAdmin(admin.ModelAdmin):
     list_display = ("allocation_run", "participant_class", "daily_funds", "weightage", "allocated_amount")
+    list_filter = ("tenant",)
+
+
+@admin.register(DepositorStatement)
+class DepositorStatementAdmin(admin.ModelAdmin):
+    list_display = (
+        "allocation_run",
+        "participant_class",
+        "period_start",
+        "period_end",
+        "opening_balance",
+        "profit_allocated",
+        "closing_balance",
+        "generated_at",
+    )
     list_filter = ("tenant",)
