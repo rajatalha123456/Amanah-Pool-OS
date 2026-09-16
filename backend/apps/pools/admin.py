@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Asset, AssetAssignment, Pool, PoolVersion
+from .models import Asset, AssetAssignment, BalanceImportBatch, DailyBalance, Pool, PoolVersion
 
 
 @admin.register(Pool)
@@ -27,3 +27,25 @@ class AssetAdmin(admin.ModelAdmin):
 class AssetAssignmentAdmin(admin.ModelAdmin):
     list_display = ("asset", "pool", "assigned_date", "unassigned_date", "assigned_by", "tenant")
     list_filter = ("tenant",)
+
+
+@admin.register(DailyBalance)
+class DailyBalanceAdmin(admin.ModelAdmin):
+    list_display = ("pool", "participant_class", "value_date", "balance_amount", "source", "status", "tenant")
+    list_filter = ("status", "source", "tenant")
+
+
+@admin.register(BalanceImportBatch)
+class BalanceImportBatchAdmin(admin.ModelAdmin):
+    list_display = (
+        "pool",
+        "value_date",
+        "total_records",
+        "matched_records",
+        "exception_count",
+        "control_total_expected",
+        "control_total_actual",
+        "status",
+        "imported_by",
+    )
+    list_filter = ("status", "tenant")

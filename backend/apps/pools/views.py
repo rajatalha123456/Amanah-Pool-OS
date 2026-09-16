@@ -1,16 +1,47 @@
+from decimal import Decimal
+
+from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsPoolManager, IsShariahBoard
+from apps.accounts.permissions import (
+    HasAnyRole,
+    IsFinanceChecker,
+    IsFinanceMaker,
+    IsPoolManager,
+    IsShariahBoard,
+)
 from apps.core.audit import log_action
 from apps.products.models import ProductStatus
 
-from .models import Asset, AssetAssignment, AssetStatus, Pool, PoolStatus, PoolVersion
-from .serializers import AssetAssignmentSerializer, AssetSerializer, PoolSerializer, PoolVersionSerializer
+from .models import (
+    Asset,
+    AssetAssignment,
+    AssetStatus,
+    BalanceImportBatch,
+    BalanceImportBatchStatus,
+    DailyBalance,
+    DailyBalanceStatus,
+    Pool,
+    PoolStatus,
+    PoolVersion,
+)
+from .serializers import (
+    AssetAssignmentSerializer,
+    AssetSerializer,
+    BalanceImportBatchSerializer,
+    BulkBalanceImportSerializer,
+    DailyBalanceSerializer,
+    PoolSerializer,
+    PoolVersionSerializer,
+)
+
+CONTROL_TOTAL_TOLERANCE = Decimal("0.01")
 
 
 def _build_pool_snapshot(pool):
@@ -266,3 +297,145 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(assignment).data)
+
+
+class DailyBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = DailyBalanceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DailyBalance.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        value_date = self.request.query_params.get("value_date")
+        if value_date:
+            queryset = queryset.filter(value_date=value_date)
+        return queryset
+
+
+class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    POST creates a bulk balance import batch (BulkBalanceImportSerializer
+    payload); GET lists BalanceImportBatch history, filterable by
+    ?pool={pool_id}.
+    """
+
+    def get_queryset(self):
+        queryset = BalanceImportBatch.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return BulkBalanceImportSerializer
+        return BalanceImportBatchSerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
+        return [IsAuthenticated()]
+
+    def create(self, request, *args, **kwargs):
+        serializer = BulkBalanceImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        pool = data["pool"]
+        value_date = data["value_date"]
+        control_total_expected = data.get("control_total_expected")
+        records = data["records"]
+
+        errors = []
+        created_balances = []
+        control_total_actual = Decimal("0.00")
+
+        with transaction.atomic():
+            for record in records:
+                participant_class = record["participant_class"]
+                balance_amount = record["balance_amount"]
+
+                if DailyBalance.objects.filter(
+                    pool=pool, value_date=value_date, participant_class=participant_class
+                ).exists():
+                    errors.append(
+                        f"Duplicate balance for participant_class='{participant_class}' "
+                        f"on {value_date}: skipped."
+                    )
+                    continue
+
+                balance = DailyBalance.objects.create(
+                    tenant=request.user.tenant,
+                    pool=pool,
+                    participant_class=participant_class,
+                    value_date=value_date,
+                    balance_amount=balance_amount,
+                    status=DailyBalanceStatus.VALIDATED,
+                )
+                created_balances.append(balance)
+                control_total_actual += balance_amount
+
+            matched_records = len(created_balances)
+            exception_count = len(errors)
+
+            # A batch is only "balanced" when nothing was skipped (no
+            # duplicate exceptions) AND, if a control total was supplied,
+            # it matches the actual sum within tolerance. Any exception
+            # (duplicate skip or control-total mismatch) marks the whole
+            # batch "exception", even if the other check would have passed.
+            control_total_matches = (
+                control_total_expected is None
+                or abs(control_total_actual - control_total_expected) <= CONTROL_TOTAL_TOLERANCE
+            )
+
+            batch_status = (
+                BalanceImportBatchStatus.BALANCED
+                if exception_count == 0 and control_total_matches
+                else BalanceImportBatchStatus.EXCEPTION
+            )
+
+            batch = BalanceImportBatch.objects.create(
+                tenant=request.user.tenant,
+                pool=pool,
+                value_date=value_date,
+                total_records=len(records),
+                matched_records=matched_records,
+                exception_count=exception_count,
+                control_total_expected=control_total_expected,
+                control_total_actual=control_total_actual,
+                status=batch_status,
+                imported_by=request.user,
+            )
+
+        log_action(
+            tenant=batch.tenant,
+            actor=request.user,
+            action="import",
+            model_name="BalanceImportBatch",
+            object_id=str(batch.id),
+            changes={
+                "total_records": batch.total_records,
+                "matched_records": batch.matched_records,
+                "exception_count": batch.exception_count,
+                "control_total_expected": str(control_total_expected) if control_total_expected is not None else None,
+                "control_total_actual": str(control_total_actual),
+                "status": batch.status,
+            },
+            request=request,
+        )
+
+        return Response(
+            {
+                "id": str(batch.id),
+                "total_records": batch.total_records,
+                "matched_records": batch.matched_records,
+                "exception_count": batch.exception_count,
+                "control_total_expected": batch.control_total_expected,
+                "control_total_actual": batch.control_total_actual,
+                "status": batch.status,
+                "errors": errors,
+            },
+            status=201,
+        )

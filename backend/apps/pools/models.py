@@ -102,3 +102,58 @@ class AssetAssignment(TenantScopedModel):
 
     def __str__(self):
         return f"{self.asset.reference_code} -> {self.pool.name}"
+
+
+class BalanceSource(models.TextChoices):
+    MANUAL = "manual", "Manual"
+    FILE_IMPORT = "file_import", "File Import"
+    API = "api", "API"
+
+
+class DailyBalanceStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    VALIDATED = "validated", "Validated"
+    REJECTED = "rejected", "Rejected"
+
+
+class BalanceImportBatchStatus(models.TextChoices):
+    PROCESSING = "processing", "Processing"
+    BALANCED = "balanced", "Balanced"
+    EXCEPTION = "exception", "Exception"
+
+
+class DailyBalance(TenantScopedModel):
+    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name="daily_balances")
+    participant_class = models.CharField(max_length=100)
+    value_date = models.DateField()
+    balance_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    source = models.CharField(max_length=20, choices=BalanceSource.choices, default=BalanceSource.MANUAL)
+    status = models.CharField(
+        max_length=20, choices=DailyBalanceStatus.choices, default=DailyBalanceStatus.PENDING
+    )
+
+    def __str__(self):
+        return f"{self.pool.name} - {self.participant_class} @ {self.value_date}"
+
+
+class BalanceImportBatch(TenantScopedModel):
+    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name="import_batches")
+    value_date = models.DateField()
+    total_records = models.IntegerField()
+    matched_records = models.IntegerField(default=0)
+    exception_count = models.IntegerField(default=0)
+    control_total_expected = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True
+    )
+    control_total_actual = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True
+    )
+    status = models.CharField(
+        max_length=20, choices=BalanceImportBatchStatus.choices, default=BalanceImportBatchStatus.PROCESSING
+    )
+    imported_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    def __str__(self):
+        return f"{self.pool.name} import @ {self.value_date} ({self.status})"

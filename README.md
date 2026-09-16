@@ -359,6 +359,8 @@ Backend models are documented here as they are added.
 - **`apps.allocation.ProfitSharingRatio`** (`TenantScopedModel`) — `pool` FK (`related_name="psr_schedules"`), `depositor_share`, `mudarib_share`, `effective_from`, `effective_to`, `status` (draft/approved).
 - **`apps.pools.Asset`** (`TenantScopedModel`) — `reference_code` (unique per tenant), `asset_type` (murabahah/ijarah/diminishing_musharakah/other), `description`, `face_value`, `status` (available/assigned/matured/written_off); see [Asset Assignment](#asset-assignment).
 - **`apps.pools.AssetAssignment`** (`TenantScopedModel`) — `asset` FK (`related_name="assignments"`), `pool` FK (`related_name="asset_assignments"`), `assigned_date`, `unassigned_date`, `assigned_by`.
+- **`apps.pools.DailyBalance`** (`TenantScopedModel`) — `pool` FK (`related_name="daily_balances"`), `participant_class`, `value_date`, `balance_amount`, `source` (manual/file_import/api), `status` (pending/validated/rejected); see [Balance Import & Validation](#balance-import--validation).
+- **`apps.pools.BalanceImportBatch`** (`TenantScopedModel`) — `pool` FK (`related_name="import_batches"`), `value_date`, `total_records`, `matched_records`, `exception_count`, `control_total_expected`, `control_total_actual`, `status` (processing/balanced/exception), `imported_by`.
 
 ## Products API
 
@@ -464,6 +466,52 @@ Every create/unassign writes an `AuditLog` entry via `log_action()`.
 **Seeding for manual testing:** `python manage.py seed_demo_asset` (after `seed_demo_pool`) creates three demo assets (`available`) and assigns the first one to the demo pool.
 
 **Manually verified end-to-end**: created an asset (`available`) as `finance_maker`; assigned it to a pool as `pool_manager`, confirming `asset.status` flipped to `assigned` and `assigned_by` was set; attempting to assign the *same* asset to a different pool correctly failed with the exact spec'd message; `unassign` correctly set `unassigned_date` and reverted `asset.status` to `available`; the same asset could then be assigned to a *different* pool successfully; both a `finance_maker` (assignment create) and a `shariah_board` user (asset create) attempting actions outside their allowed roles correctly got `403`.
+
+## Balance Import & Validation
+
+`apps.pools` adds `DailyBalance` and `BalanceImportBatch` (both `TenantScopedModel`) for recording and reconciling per-day, per-participant-class balances against a pool.
+
+- **`DailyBalance`** — `pool` FK (`related_name="daily_balances"`), `participant_class` (matches `WeightageBand.participant_class`), `value_date`, `balance_amount`, `source` (manual/file_import/api, default manual), `status` (pending/validated/rejected).
+- **`BalanceImportBatch`** — `pool` FK (`related_name="import_batches"`), `value_date`, `total_records`, `matched_records`, `exception_count`, `control_total_expected` (nullable — the user's own calculated total), `control_total_actual` (nullable — the system's summed total), `status` (processing/balanced/exception), `imported_by`.
+
+### `POST /api/v1/pools/balance-imports/` — bulk import
+
+Body:
+
+```json
+{
+  "pool": "<pool-id>",
+  "value_date": "2026-09-01",
+  "control_total_expected": "93000000.00",
+  "records": [
+    {"participant_class": "savings_tier_a", "balance_amount": "60000000.00"},
+    {"participant_class": "term_tier_b", "balance_amount": "25000000.00"},
+    {"participant_class": "institutional", "balance_amount": "8000000.00"}
+  ]
+}
+```
+
+Processing, inside one transaction:
+
+1. For each record, if a `DailyBalance` already exists for the same `pool` + `value_date` + `participant_class`, it's **skipped** (not overwritten) and an entry is appended to the response's `errors` list; `exception_count` is incremented.
+2. Every non-duplicate record creates a `DailyBalance` (`status="validated"`) and adds to a running `control_total_actual`.
+3. The batch's `status` is `"balanced"` only if **both** hold: no records were skipped (`exception_count == 0`) **and**, when `control_total_expected` was supplied, it matches `control_total_actual` within a `0.01` tolerance. Any exception — a duplicate skip or a control-total mismatch — sets `status = "exception"`, even if the other check alone would have passed.
+4. A `BalanceImportBatch` row is written, and the response returns a summary: `{id, total_records, matched_records, exception_count, control_total_expected, control_total_actual, status, errors}`.
+
+Permission: `IsPoolManager` or `IsFinanceMaker` (via `HasAnyRole`).
+
+**Other endpoints:**
+
+- `GET /api/v1/pools/balance-imports/?pool={pool_id}` — batch history for a pool.
+- `GET /api/v1/pools/daily-balances/?pool={pool_id}&value_date={date}` — the actual balance rows for a specific day.
+
+Every import writes an `AuditLog` entry via `log_action()` with the full summary in `changes`.
+
+**Implementation note:** `BulkBalanceImportSerializer`'s `pool` field is assigned in `__init__` rather than as a class-level `PrimaryKeyRelatedField(queryset=Pool.objects.all())` attribute — the same import-time-evaluation trap as the "BE-007 bug" documented under [Products API](#products-api), just one level down: `PrimaryKeyRelatedField.get_queryset()` calls `.all()` on the stored queryset to "re-evaluate" it, but `TenantScopedManager.objects.all()` evaluated at class-definition time (no tenant context yet) bakes in an empty result that a later `.all()` cannot undo. Building the field per-instantiation (after the tenant context is set) avoids this.
+
+**Seeding for manual testing:** `python manage.py seed_demo_balances` (after `seed_demo_pool`) creates the BRD Allocation Simulator example — `savings_tier_a` 60M, `term_tier_b` 25M, `institutional` 8M (total 93M) — as validated `DailyBalance`s plus a pre-built `balanced` `BalanceImportBatch`, dated on the pool's `effective_date`.
+
+**Manually verified end-to-end**: a 3-record bulk import with a correct `control_total_expected` (93M) returned `status: "balanced"` with no errors; re-importing the same `value_date` + `participant_class` correctly skipped it as a duplicate, incrementing `exception_count` and listing the exact error, with `status: "exception"`; a fresh import with a *wrong* `control_total_expected` (90M vs an actual 93M) correctly returned `status: "exception"` despite all 3 records matching cleanly; a `shariah_board` user (neither `pool_manager` nor `finance_maker`) attempting to import correctly got `403`. Confirmed `AuditLog` entries with the full summary for every import.
 
 ## Multi-Tenancy
 

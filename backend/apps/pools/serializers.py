@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.products.serializers import ContractTemplateBasicSerializer
 
-from .models import Asset, AssetAssignment, Pool, PoolVersion
+from .models import Asset, AssetAssignment, BalanceImportBatch, DailyBalance, Pool, PoolVersion
 
 
 class ProductBasicSerializer(serializers.Serializer):
@@ -107,3 +107,72 @@ class AssetAssignmentSerializer(serializers.ModelSerializer):
                     "Asset already assigned to another pool. Unassign first."
                 )
         return attrs
+
+
+class DailyBalanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyBalance
+        fields = (
+            "id",
+            "tenant",
+            "pool",
+            "participant_class",
+            "value_date",
+            "balance_amount",
+            "source",
+            "status",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class BalanceImportBatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BalanceImportBatch
+        fields = (
+            "id",
+            "tenant",
+            "pool",
+            "value_date",
+            "total_records",
+            "matched_records",
+            "exception_count",
+            "control_total_expected",
+            "control_total_actual",
+            "status",
+            "imported_by",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class BulkBalanceImportRecordSerializer(serializers.Serializer):
+    participant_class = serializers.CharField()
+    balance_amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+
+
+class BulkBalanceImportSerializer(serializers.Serializer):
+    value_date = serializers.DateField()
+    control_total_expected = serializers.DecimalField(
+        max_digits=18, decimal_places=2, required=False, allow_null=True
+    )
+    records = BulkBalanceImportRecordSerializer(many=True)
+
+    def __init__(self, *args, **kwargs):
+        # `pool` must be declared here (not as a class-level field) so its
+        # queryset is built fresh per-instantiation, after TenantMiddleware
+        # has set the tenant context - see the identical issue with
+        # class-level ModelViewSet.queryset documented in README ("BE-007
+        # bug"). A class-level `PrimaryKeyRelatedField(queryset=Pool.objects.all())`
+        # would bake in an empty queryset at import time that .all() can
+        # never undo.
+        super().__init__(*args, **kwargs)
+        self.fields["pool"] = serializers.PrimaryKeyRelatedField(queryset=Pool.objects.all())
+
+    def validate_records(self, records):
+        if not records:
+            raise serializers.ValidationError("At least one record is required.")
+        return records
