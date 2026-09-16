@@ -109,15 +109,21 @@ export function ProductCatalogue() {
         subtitle="Approved, draft and retired Islamic products"
         actions={
           <div className="flex shrink-0 items-center gap-2">
-            <Link to="/pools/new">
-              <Button variant="secondary">+ New Pool</Button>
-            </Link>
             <Button variant="primary" onClick={() => setIsModalOpen(true)}>
               + New Product
             </Button>
           </div>
         }
       />
+
+      <div className="mb-4 flex gap-4 border-b border-white/8 text-sm">
+        <span className="border-b-2 border-emerald-500 px-1 pb-2 font-medium text-ink-primary">
+          Products
+        </span>
+        <Link to="/pools" className="px-1 pb-2 text-ink-secondary hover:text-ink-primary">
+          Pools
+        </Link>
+      </div>
 
       {successMessage && (
         <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>

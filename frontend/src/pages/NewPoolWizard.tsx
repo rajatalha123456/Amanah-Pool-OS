@@ -96,7 +96,7 @@ export function NewPoolWizard() {
         product: selectedProductId,
         effective_date: effectiveDate,
       })
-      navigate("/products-pools", {
+      navigate("/pools", {
         state: { successMessage: `Pool "${pool.name}" created successfully.` },
       })
     } catch (err) {

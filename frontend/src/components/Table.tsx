@@ -9,9 +9,10 @@ interface TableProps<T> {
   columns: TableColumn<T>[]
   data: T[]
   keyField: (row: T) => string | number
+  onRowClick?: (row: T) => void
 }
 
-export function Table<T>({ columns, data, keyField }: TableProps<T>) {
+export function Table<T>({ columns, data, keyField, onRowClick }: TableProps<T>) {
   return (
     <div className="overflow-x-auto rounded-xl border border-white/8">
       <table className="min-w-full text-sm">
@@ -29,7 +30,11 @@ export function Table<T>({ columns, data, keyField }: TableProps<T>) {
         </thead>
         <tbody className="divide-y divide-white/5 bg-navy-900">
           {data.map((row) => (
-            <tr key={keyField(row)} className="transition-colors hover:bg-white/[0.03]">
+            <tr
+              key={keyField(row)}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={`transition-colors hover:bg-white/[0.03] ${onRowClick ? "cursor-pointer" : ""}`}
+            >
               {columns.map((col) => (
                 <td key={col.header} className="px-4 py-3 text-ink-primary">
                   {col.accessor(row)}

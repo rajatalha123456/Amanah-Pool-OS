@@ -3,6 +3,8 @@ import { Route, Routes } from "react-router-dom"
 import { AppLayout } from "./layouts/AppLayout"
 import { CommandCenter } from "./pages/CommandCenter"
 import { ProductCatalogue } from "./pages/ProductCatalogue"
+import { PoolCatalogue } from "./pages/PoolCatalogue"
+import { PoolDetail } from "./pages/PoolDetail"
 import { NewPoolWizard } from "./pages/NewPoolWizard"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
@@ -28,7 +30,9 @@ function App() {
         }
       >
         <Route index element={<CommandCenter />} />
+        <Route path="pools" element={<PoolCatalogue />} />
         <Route path="pools/new" element={<NewPoolWizard />} />
+        <Route path="pools/:id" element={<PoolDetail />} />
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (

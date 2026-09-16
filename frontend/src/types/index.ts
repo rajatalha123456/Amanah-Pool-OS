@@ -109,3 +109,31 @@ export interface CreatePoolInput {
   product: string
   effective_date: string
 }
+
+export interface PoolVersionSnapshot {
+  product: {
+    id: string
+    name: string
+    code: string
+    operating_model: string
+    status: string
+  }
+  contract_template: {
+    id: string
+    name: string
+    contract_type: string
+    version: string
+    clauses: Record<string, unknown>
+    status: string
+  }
+}
+
+export interface PoolVersion {
+  id: string
+  pool: string
+  version_number: number
+  snapshot: PoolVersionSnapshot
+  created_by: number | null
+  is_current: boolean
+  created_at: string
+}
