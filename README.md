@@ -795,6 +795,30 @@ Every create/update/resolve/dismiss writes an `AuditLog` entry via `log_action()
 
 **Manually verified end-to-end via real HTTP requests:** manually created an `ExceptionCase` as `pool_manager` (`201`); a `shariah_board` user got `403` attempting the same; resolving without `resolution_notes` correctly returned `400`, with it correctly set `status="resolved"` and populated `resolved_by`/`resolved_at`; a `pool_manager` got `403` attempting `resolve/` (creation and resolution are different permission levels); `PATCH .../{id}/` correctly updated `assigned_to`; `dismiss/` without notes returned `400`, with notes set `status="dismissed"`; filtering by `status=open`, `status=resolved`, and `severity=high` each returned exactly the matching case(s); triggered a real balance-import control-total mismatch and a real duplicate-record skip via `POST /api/v1/pools/balance-imports/` and confirmed in both cases an `ExceptionCase` was auto-created with `source_module="balance_import"`, the correct `source_object_id` (the batch's id), the correct `pool`, and a title/description matching the actual mismatch details.
 
+## Purification Ledger
+
+**Why this exists (Islamic finance context):** a Shariah-compliant pool must not retain or distribute income that itself comes from a non-compliant source. The most common real-world case is incidental conventional interest — e.g. a bank sweeps idle pool cash overnight and it happens to sit in a conventional interbank account that earns interest, or a counterparty pays a late fee structured as interest rather than a Shariah-compliant penalty. That income is never "the pool's profit" in a Shariah sense: it cannot be shared with depositors or the mudarib, because doing so would make their income impure (contaminated by riba). Standard practice (per AAOIFI-style governance) is **purification**: the tainted amount is identified, ring-fenced, ratified by the Shariah Board, and then donated to charity — deliberately *not* returned to the bank, the depositors, or the pool, since none of them are entitled to benefit from it. `apps.governance.PurificationEntry` gives this its own auditable lifecycle, separate from ordinary profit distribution, so it can never accidentally get folded back into an `AllocationRun`.
+
+`apps.governance.PurificationEntry` (`TenantScopedModel`):
+
+- `pool` FK, `source_description` (e.g. *"Conventional bank profit on idle cash balance"*), `amount`, `identified_date`.
+- `status`: `identified` → `approved_for_purification` → `distributed` — a strict one-way lifecycle; there is no path back and no way to skip a step through the API.
+- `shariah_decision` FK to `products.ShariahDecision` (nullable) — links to a specific Shariah Board ruling when one exists for this case, rather than relying only on the generic `approve` action.
+- `charity_recipient`, `distributed_date` — both `null` until `mark-distributed/` is called, at which point both become required.
+- `approved_by` (set by `approve/`), `notes`.
+
+### Endpoints (`apps/governance`)
+
+- **`GET /api/v1/governance/purification-entries/?pool={pool_id}`** — list, filterable by pool. Any authenticated user.
+- **`GET /api/v1/governance/purification-entries/{id}/`** — detail. Any authenticated user.
+- **`POST /api/v1/governance/purification-entries/`** — create. `IsFinanceMaker` or `IsRiskCompliance` (via `HasAnyRole`) — the people positioned to first notice a non-compliant income item. Always created with `status="identified"`, regardless of what's in the request body.
+- **`POST /api/v1/governance/purification-entries/{id}/approve/`** — `identified` → `approved_for_purification`; sets `approved_by=request.user`. `IsShariahBoard` only — this is the ruling step, and only the Shariah Board can make it. `400` if the entry isn't currently `identified`.
+- **`POST /api/v1/governance/purification-entries/{id}/mark-distributed/`** — `approved_for_purification` → `distributed`; `charity_recipient` and `distributed_date` are both required in the request body (`400` listing whichever is missing). `IsFinanceChecker` only — confirming an actual charity payment went out is a finance-operations step, deliberately separate from the Shariah ruling. `400` if the entry isn't currently `approved_for_purification` (this is what enforces the lifecycle order — `mark-distributed/` cannot be called before `approve/`).
+
+Every create/approve/mark-distributed writes an `AuditLog` entry via `log_action()`.
+
+**Manually verified end-to-end via real HTTP requests:** created an entry as `finance_maker` (`201`, `status="identified"`); calling `mark-distributed/` immediately (skipping `approve/`) correctly returned `400` with the exact state-machine message, confirming the lifecycle can't be short-circuited; a `finance_maker` got `403` attempting `approve/`; `shariah_board` then approved successfully — `status` became `approved_for_purification` with `approved_by` set; a `shariah_board` user got `403` attempting `mark-distributed/` (approval and distribution are different roles); `finance_checker` calling `mark-distributed/` without `charity_recipient` correctly returned `400`; with both `charity_recipient` ("Edhi Foundation") and `distributed_date` supplied, the entry correctly became `status="distributed"`; a `shariah_board` user got `403` attempting `POST` (create); `risk_compliance` successfully created a second entry, confirming both allowed creator roles work; `GET .../?pool={id}` correctly listed both entries; confirmed via Django shell that all four transitions (`create` x2, `approve`, `mark_distributed`) wrote the expected `AuditLog` entries with accurate `changes`.
+
 ## Multi-Tenancy
 
 Every API request (except the exempt paths below) must include an `X-Tenant-Code` header identifying which tenant the request is for:

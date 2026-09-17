@@ -73,3 +73,49 @@ class ExceptionCase(TenantScopedModel):
 
     def __str__(self):
         return f"[{self.severity}] {self.title}"
+
+
+class PurificationStatus(models.TextChoices):
+    IDENTIFIED = "identified", "Identified"
+    APPROVED_FOR_PURIFICATION = "approved_for_purification", "Approved for Purification"
+    DISTRIBUTED = "distributed", "Distributed"
+
+
+class PurificationEntry(TenantScopedModel):
+    """
+    Tracks non-Shariah-compliant income (e.g. incidental conventional
+    interest on idle cash) that must be purified - donated to charity
+    rather than retained or distributed to depositors/mudarib. Lifecycle:
+    identified -> approved_for_purification (Shariah Board ruling) ->
+    distributed (Finance Checker confirms the charity payment was made).
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="purification_entries"
+    )
+    source_description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    identified_date = models.DateField()
+    status = models.CharField(
+        max_length=30, choices=PurificationStatus.choices, default=PurificationStatus.IDENTIFIED
+    )
+    shariah_decision = models.ForeignKey(
+        "products.ShariahDecision",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purification_entries",
+    )
+    charity_recipient = models.CharField(max_length=255, null=True, blank=True)
+    distributed_date = models.DateField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_purification_entries",
+    )
+    notes = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Purification {self.amount} - {self.source_description}"
