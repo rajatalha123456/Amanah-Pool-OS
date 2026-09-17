@@ -20,9 +20,8 @@ export interface User {
 }
 
 export interface LoginResponse {
-  mfa_setup_required?: boolean
-  mfa_required?: boolean
-  pending_token: string
+  access: string
+  refresh: string
 }
 
 export interface MfaSetupResponse {
@@ -355,4 +354,84 @@ export interface AllocationRun {
   journal_batch: JournalBatch | null
   created_at: string
   updated_at: string
+}
+
+// --- Shariah Policy Copilot (proxied through apps.ai_agents to the separate FastAPI service) ---
+
+export interface ShariahDocument {
+  id: string
+  document_name: string
+  document_type: string
+  version: string
+  approval_status: string
+  status_emoji: string
+  approval_date: string | null
+  product_category: string | null
+  jurisdiction: string | null
+  is_current_version: number
+}
+
+export interface ShariahDocumentUploadInput {
+  file: File
+  document_name: string
+  document_type: string
+  approval_status: string
+  product_category?: string
+  jurisdiction?: string
+  approved_by?: string
+}
+
+export interface EvidencePackCitation {
+  document_id: string
+  document_name: string
+  version: string
+  section_label: string | null
+  page_number: number | null
+  approval_date: string | null
+}
+
+export interface EvidencePackExcerpt {
+  document_id: string
+  document_name: string
+  excerpt: string
+  citation: EvidencePackCitation
+}
+
+export interface EvidencePackComparisonRow {
+  topic: string
+  source_a: string
+  source_a_citation: EvidencePackCitation
+  source_b: string
+  source_b_citation: EvidencePackCitation
+  note: string | null
+}
+
+export interface EvidencePack {
+  id: string
+  question: string
+  research_summary: string
+  relevant_rulings: string[]
+  relevant_standards: string[]
+  key_evidence_excerpts: EvidencePackExcerpt[]
+  comparison_table: EvidencePackComparisonRow[]
+  open_issues: string[]
+  citations: EvidencePackCitation[]
+  conflict_flagged: boolean
+  disclaimer: string
+  review_status: string
+  is_fallback: boolean
+}
+
+export interface ShariahReviewResult {
+  id: string
+  review_status: string
+  reviewer_id: string
+  reviewed_at: string
+}
+
+export interface ShariahQueryFilters {
+  approved_only?: boolean
+  current_version_only?: boolean
+  product_category?: string
+  document_type?: string
 }

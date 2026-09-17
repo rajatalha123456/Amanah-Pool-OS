@@ -896,6 +896,113 @@ Run `python manage.py test_tenant_isolation` to see an end-to-end demonstration:
 
 **Frontend note:** once real authentication (BE-004) is in place, the frontend must send `X-Tenant-Code` on every API request after login (e.g. as a default header on the shared axios instance, populated from the logged-in user's tenant).
 
+## Shariah Policy Copilot Integration
+
+The Shariah Policy Copilot is a **separate FastAPI service** (own repo/folder: `shariah-policy-copilot/`, sibling to this project) that ingests Shariah policy documents (PDF/DOCX), answers natural-language questions with cited "Evidence Packs" via an LLM (Gemini/Anthropic/Ollama), and lets a Shariah reviewer approve/reject those packs. The Django backend never talks to its database or LLM directly — it proxies requests through a thin internal HTTP client (`apps/ai_agents/services/shariah_copilot_client.py`), so the Copilot service can be redeployed, scaled, or swapped independently of the pool management system.
+
+### Architecture
+
+```
+Frontend (React) → Django REST API (/api/v1/ai/shariah-copilot/*)
+                       │
+                       │  apps.ai_agents.services.shariah_copilot_client
+                       │  (requests, internal service key + forwarded user identity)
+                       ▼
+              Shariah Policy Copilot (FastAPI, separate process, default :8001)
+                       │
+                       ▼
+              SQLite + vector store (documents, evidence packs) + LLM provider
+```
+
+Django is the **only trusted caller** of the Copilot service. Instead of the Copilot service re-authenticating end users, Django forwards the acting user's identity on every call via internal headers:
+
+| Header | Value |
+|---|---|
+| `X-Internal-Key` | Shared secret (`SHARIAH_COPILOT_INTERNAL_KEY`) — proves the call came from Django, not a public client |
+| `X-User-Id` | `request.user.id` |
+| `X-User-Role` | Django role mapped to a Copilot role (see below) |
+| `X-Tenant-Id` | `request.user.tenant.code` — **taken from the authenticated user's own tenant, never from the raw `X-Tenant-Code` request header**, so a spoofed header can't be used to read another tenant's documents |
+
+Django role → Copilot role mapping (`ROLE_MAP` in `shariah_copilot_client.py`):
+
+| Django role | Copilot role |
+|---|---|
+| `shariah_board` | `shariah_reviewer` (only role allowed to approve/reject evidence packs) |
+| `shariah_secretariat` | `shariah_officer` |
+| `product_manager` | `product` |
+| `risk_compliance` | `compliance` |
+| anything else | `shariah_researcher` (fallback) |
+
+### Running both services locally
+
+**1. Shariah Policy Copilot (FastAPI), from `shariah-policy-copilot/backend/`:**
+
+```bash
+python -m venv venv          # use Python 3.11 — numpy/chromadb have no prebuilt wheels for 3.14 yet
+venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+# set GEMINI_API_KEY (or switch LLM_PROVIDER to ollama) and INTERNAL_SERVICE_KEY in .env
+python -m uvicorn app.main:app --port 8001 --reload
+```
+
+Verify: `curl http://localhost:8001/health` → `{"status":"ok"}`.
+
+**2. Django backend, from `pool management system/backend/`:**
+
+Add to `.env`:
+
+```
+SHARIAH_COPILOT_BASE_URL=http://localhost:8001
+SHARIAH_COPILOT_INTERNAL_KEY=<same value as the Copilot service's INTERNAL_SERVICE_KEY>
+```
+
+Then run as usual (`python manage.py runserver`). If the Copilot service is down or unreachable, every `/api/v1/ai/shariah-copilot/*` endpoint returns a clean `503 {"error": {"code": "service_unavailable", ...}}` instead of a Django error page or crash.
+
+### API endpoints
+
+All under `/api/v1/ai/shariah-copilot/`, all requiring `Authorization: Bearer <JWT>` and `X-Tenant-Code` like every other endpoint in this API:
+
+| Method | Path | Allowed roles | Notes |
+|---|---|---|---|
+| `POST` | `documents/upload/` | `shariah_board`, `shariah_secretariat` | multipart/form-data (`file` + metadata fields); audit-logged as `shariah_copilot_document_upload` |
+| `GET` | `documents/` | `shariah_board`, `shariah_secretariat`, `product_manager`, `risk_compliance` | supports `?current_only=true` and the Copilot service's other list filters as query params |
+| `POST` | `ask/` | same as list documents | body: `{"question": "...", "filters": {...}}` → returns an Evidence Pack. Not audit-logged here — the Copilot service keeps its own query audit trail |
+| `POST` | `review/{evidence_pack_id}/` | `shariah_board` only | body: `{"approve": true/false}`; audit-logged as `shariah_copilot_review_decision` |
+
+Errors from the Copilot service (4xx/5xx) are forwarded with their original status code and detail message, wrapped in this project's standard `{"error": {...}}` shape.
+
+### Manually verified
+
+- Shariah Secretariat can upload a document; it shows up via a direct call to the Copilot service.
+- Pool Manager attempting an upload is blocked with `403` at the Django layer (never reaches the Copilot service).
+- `ask/` returns an Evidence Pack (falls back to a "human review required" pack when no approved document matches).
+- Shariah Board can call `review/`; Shariah Secretariat is blocked with `403` (maps to `shariah_officer`, not `shariah_reviewer`).
+- Stopping the Copilot service produces a clean `503` from Django; Django itself keeps serving other requests.
+- **Cross-tenant isolation**: a document uploaded by one tenant's Shariah Secretariat does not appear in another tenant's document list — `X-Tenant-Id` is always derived from the authenticated user's own tenant, not a client-supplied value.
+
+### Verified end-to-end (real Evidence Pack + review + audit)
+
+An earlier pass only exercised the fallback ("no evidence found") path. With a realistic ~250-word policy document (Late Payment Charges / Ta'widh) uploaded pre-approved and a real question asked against it, the full pipeline was confirmed working:
+
+- `ask/` returned a genuine Evidence Pack with a real UUID `id`, `is_fallback: false`, grounded `research_summary`, and correct citations back to the uploaded document — retrieval, chunking, embedding, and the LLM call all work correctly.
+- Shariah Board approving that pack's `evidence_pack_id` via `review/` returned `review_status: "approved"`.
+- A second Evidence Pack, generated the same way, was rejected via `review/` with `approve: false` and returned `review_status: "rejected"`.
+- `AuditLog` (Django) confirmed one `ShariahCopilotDocument`/`create` entry per upload and one `ShariahCopilotEvidencePack` entry each for the `approve` and `reject` decisions, each with the correct actor and tenant.
+
+**Root cause of the earlier fallback-only result:** not a bug in the Copilot's retrieval/chunking/embedding pipeline (all confirmed working — chunks were present in ChromaDB and correctly retrieved), but a stale `GEMINI_MODEL` value pointing at a model that either 404'd (deprecated) or was a preview model returning persistent `503 UNAVAILABLE` under load. Fixed by switching to `gemini-3-flash-preview` in the Copilot service's `.env`. Also bumped the Django client's timeout for the `ask/` call specifically (`shariah_copilot_client.py`) to 90s, since a real LLM-backed answer can take 20-30s+, longer than the 30s used for the other near-instant Copilot calls.
+
+### Frontend UI
+
+The Shariah Policy Copilot is now fully accessible from the app's UI, not just the API — no separate tool needed to use it.
+
+- **Route**: `/ai-analytics` (the existing "AI & Analytics" sidebar entry), rendering `src/pages/ShariahCopilot.tsx`.
+- **Ask tab**: a question box that calls `ask/` and renders the returned Evidence Pack — research summary, cited evidence excerpts, open issues, a review-status badge, a "Conflict Detected" badge when `conflict_flagged`, a fallback warning when `is_fallback`, and the disclaimer text (always shown, never hidden). A Shariah Board user sees Approve/Reject buttons on any pack still `human_review_required`, calling `review/`. Because a real LLM-backed answer can take 20-30s+, the loading state shows an explicit "Researching... this may take up to 30 seconds" message rather than a bare spinner.
+- **Documents tab**: a table of documents (name, type, version, status badge, product category) from `documents/`, plus an "Upload Document" button (Shariah Board / Secretariat only) opening `src/pages/shariah-copilot/UploadDocumentModal.tsx`.
+- **API layer**: `src/api/shariahCopilot.ts` (`uploadDocument`, `fetchDocuments`, `askQuestion`, `submitReview`) and the corresponding types in `src/types/index.ts` (`ShariahDocument`, `EvidencePack` and its nested shapes), matching `apps/ai_agents/views.py` and the Copilot service's Pydantic schemas field-for-field.
+- **503 handling**: a `503` from the Copilot-backed endpoints (service down) shows a specific "Shariah Copilot service is temporarily unavailable. Please try again in a moment." message instead of a generic error, since it's a distinct microservice from the rest of the API.
+- Manually verified: upload → document appears in the list on refetch; a real question against an approved document returns a genuine (non-fallback) Evidence Pack; Shariah Board sees Approve/Reject, Pool Manager cannot even reach the Ask tab's results (blocked with `403` before any UI state renders); stopping the Copilot service produces the specific 503 message. `npx tsc -b` and `npm run build` both pass clean.
+
 ## Notes
 
 - Never commit `.env` (backend or frontend) — both are already in `.gitignore`.

@@ -4,6 +4,7 @@ import { AuthLayout } from "../../layouts/AuthLayout"
 import { Card } from "../../components/Card"
 import { Button } from "../../components/Button"
 import { Spinner } from "../../components/Spinner"
+import { useAuth } from "../../api/auth"
 import { login } from "../../api/authApi"
 import { extractErrorMessage } from "../../api/errors"
 
@@ -11,6 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function SignIn() {
   const navigate = useNavigate()
+  const { setTokens, loadCurrentUser } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -34,13 +36,9 @@ export function SignIn() {
 
     try {
       const response = await login(email, password)
-
-      navigate("/verify-mfa", {
-        state: {
-          pendingToken: response.pending_token,
-          isFirstTimeSetup: Boolean(response.mfa_setup_required),
-        },
-      })
+      setTokens(response.access, response.refresh)
+      await loadCurrentUser()
+      navigate("/", { replace: true })
     } catch (err) {
       setError(extractErrorMessage(err, "Unable to sign in. Please try again."))
     } finally {

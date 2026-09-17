@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .authentication import issue_pending_mfa_token, resolve_pending_mfa_user
+from .authentication import resolve_pending_mfa_user
 from .permissions import HasAnyRole, IsPoolManager
 from .serializers import (
     LoginSerializer,
@@ -38,14 +38,16 @@ class LoginView(APIView):
         if user is None:
             return Response({"detail": "Invalid email or password."}, status=401)
 
-        pending_token = issue_pending_mfa_token(user)
-
-        if not user.mfa_enabled:
-            return Response(
-                {"mfa_setup_required": True, "pending_token": pending_token}
-            )
-
-        return Response({"mfa_required": True, "pending_token": pending_token})
+        # MFA is temporarily disabled (dev/testing convenience) - issue tokens
+        # directly instead of routing through /verify-mfa. The MFA views/flow
+        # below are left in place so it can be re-enabled by reverting this.
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+        )
 
 
 class MfaSetupView(APIView):

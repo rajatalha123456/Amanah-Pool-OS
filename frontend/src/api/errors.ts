@@ -32,6 +32,13 @@ function firstStringFromDetails(details: unknown): string | null {
   return null
 }
 
+export function extractCopilotErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error) && error.response?.status === 503) {
+    return "Shariah Copilot service is temporarily unavailable. Please try again in a moment."
+  }
+  return extractErrorMessage(error, fallback)
+}
+
 export function extractErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
     const data = error.response?.data

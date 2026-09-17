@@ -27,6 +27,15 @@ EXCEPTION_CODES = {
 }
 
 
+class ServiceUnavailable(drf_exceptions.APIException):
+    status_code = 503
+    default_detail = "An upstream service is temporarily unavailable."
+    default_code = "service_unavailable"
+
+
+EXCEPTION_CODES[ServiceUnavailable] = "service_unavailable"
+
+
 def _error_code_for(exc):
     for exc_class, code in EXCEPTION_CODES.items():
         if isinstance(exc, exc_class):

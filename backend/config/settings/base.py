@@ -173,6 +173,12 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["x-tenant-code"]
 REST_FRAMEWORK["EXCEPTION_HANDLER"] = "apps.core.exceptions.custom_exception_handler"
 
 
+# Shariah Policy Copilot integration (external FastAPI service)
+
+SHARIAH_COPILOT_BASE_URL = config("SHARIAH_COPILOT_BASE_URL", default="http://localhost:8001")
+SHARIAH_COPILOT_INTERNAL_KEY = config("SHARIAH_COPILOT_INTERNAL_KEY", default="")
+
+
 # Logging
 
 LOGS_DIR = BASE_DIR / "logs"

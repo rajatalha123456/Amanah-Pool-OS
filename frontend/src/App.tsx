@@ -12,6 +12,7 @@ import { AllocationSimulator } from "./pages/AllocationSimulator"
 import { AllocationRunDetail } from "./pages/AllocationRunDetail"
 import { JournalBatchReview } from "./pages/JournalBatchReview"
 import { StatementView } from "./pages/StatementView"
+import { ShariahCopilot } from "./pages/ShariahCopilot"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -24,6 +25,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/daily-operations": <BalanceImport />,
   "/allocation-engine": <AllocationSimulator />,
   "/finance-ledger": <JournalBatchReview />,
+  "/ai-analytics": <ShariahCopilot />,
 }
 
 function App() {
