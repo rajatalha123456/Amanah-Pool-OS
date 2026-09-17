@@ -10,6 +10,7 @@ import { AssetRegistry } from "./pages/AssetRegistry"
 import { BalanceImport } from "./pages/BalanceImport"
 import { AllocationSimulator } from "./pages/AllocationSimulator"
 import { AllocationRunDetail } from "./pages/AllocationRunDetail"
+import { JournalBatchReview } from "./pages/JournalBatchReview"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -21,6 +22,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/risk-compliance": <AssetRegistry />,
   "/daily-operations": <BalanceImport />,
   "/allocation-engine": <AllocationSimulator />,
+  "/finance-ledger": <JournalBatchReview />,
 }
 
 function App() {
