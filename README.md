@@ -642,6 +642,28 @@ Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason
 
 **Manually verified end-to-end via real HTTP requests:** created a `simulated` run as a `finance_maker`, submitted it for checking (`pending_approval`); a `pool_manager` got `403` attempting `submit-for-checking` (wrong role); confirmed via Django shell that when the same physical user is set as both `created_by` and the approving `finance_checker`, `approve/` correctly returns `400` with the exact maker-checker message (there's no way to trigger this through the API alone in the current single-role-per-user model, since `finance_checker` can't create runs — this was flagged and confirmed with the user before testing this way); a genuinely different `finance_checker` then approved successfully — `status` became `signed`, `checked_by`/`checked_at` were set, and a `JournalBatch` was created with `total_debit == total_credit == 11,000,000.00` across exactly 8 entries (3 debit/credit pairs for the participant classes plus the mudarib pair); a second run was rejected with a required `rejection_reason`, confirmed recorded on both the run and its `AuditLog` entry, with no `JournalBatch` created; a `shariah_board` user got `403` on both `approve/` and `reject/`; confirmed via shell (equivalent to what the Django admin list page shows) that the posted `JournalBatch`'s `total_debit` and `total_credit` are equal.
 
+### GL Export (`apps/accounting/exports.py`)
+
+`generate_gl_csv(pool, date_from=None, date_to=None)` flattens every `posted` `JournalBatch` for a pool (and their nested `JournalEntry` rows) into a single standard general-ledger CSV, sorted by `batch_date` (oldest first). Only `status="posted"` batches are included — the filter is written against `JournalBatchStatus.POSTED` rather than hardcoding the string, so it stays correct if additional statuses (e.g. a future `"reversed"`) are introduced later. Optional `date_from`/`date_to` filter on `batch_date`.
+
+CSV columns: `batch_date, journal_batch_id, allocation_run_id, account_name, entry_type, amount, pool_code, posted_by, posted_at`.
+
+Sample row:
+
+```
+2026-09-01,3e5a4df9-666c-4749-8f49-dd377fc8c49e,f5f8dbd9-3a36-4caa-8fb4-82b831dfd911,Profit Expense - savings_tier_a,debit,4620000.00,PL-2026-014-01,finance.checker@novulabsdemo.test,2026-09-16 06:48:38.259219+00:00
+```
+
+**Endpoint: `GET /api/v1/accounting/journal-batches/gl-export/?pool={pool_id}&date_from=...&date_to=...`**
+
+- Permissions: `IsFinanceMaker` or `IsFinanceChecker` (via `HasAnyRole`) — only the finance team can export GL data.
+- Returns `Content-Type: text/csv` with `Content-Disposition: attachment; filename="gl_export_{pool_code}_{date_from}_{date_to}.csv"`.
+- No matching posted batches (wrong pool, or a `date_from`/`date_to` range with nothing in it) returns an **empty CSV with just the header row**, not an error — this is a normal empty-result case, not a failure.
+- Read-only, but still audit-logged: exporting financial data is compliance-worthy even though nothing is modified. Writes one `AuditLog` entry per call (`action="gl_export"`, `model_name="Pool"`) recording `{"pool": pool.code, "row_count": N, "date_from": ..., "date_to": ...}` — so who exported what, and how much, is always traceable.
+- Tenant isolation relies on `JournalBatch`'s `TenantScopedManager` (same pattern as the rest of the codebase) rather than an explicit tenant filter inside `generate_gl_csv()`.
+
+**Manually verified end-to-end via real HTTP requests:** exported a pool with 3 posted `JournalBatch`es (24 entries total) as `finance_maker` — got back a well-formed CSV; parsed it with Python's `csv.DictReader` and confirmed the debit column sum equals the credit column sum (`22,500,000.00 == 22,500,000.00`, balanced); a `date_from` in the far future returned an empty CSV (header only, `200 OK`); a pool with zero posted batches also returned an empty CSV; a `shariah_board` user got `403`; confirmed via Django shell that each call wrote an `AuditLog` row with the correct `row_count` and filter values, including `row_count: 0` for the empty-result cases.
+
 ## Depositor Statements
 
 Once an `AllocationRun` is `signed`, one `DepositorStatement` per participant class can be generated — a plain-language, per-class explanation of that period's profit allocation (BRD Screen #41 style).
