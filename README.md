@@ -819,6 +819,55 @@ Every create/approve/mark-distributed writes an `AuditLog` entry via `log_action
 
 **Manually verified end-to-end via real HTTP requests:** created an entry as `finance_maker` (`201`, `status="identified"`); calling `mark-distributed/` immediately (skipping `approve/`) correctly returned `400` with the exact state-machine message, confirming the lifecycle can't be short-circuited; a `finance_maker` got `403` attempting `approve/`; `shariah_board` then approved successfully — `status` became `approved_for_purification` with `approved_by` set; a `shariah_board` user got `403` attempting `mark-distributed/` (approval and distribution are different roles); `finance_checker` calling `mark-distributed/` without `charity_recipient` correctly returned `400`; with both `charity_recipient` ("Edhi Foundation") and `distributed_date` supplied, the entry correctly became `status="distributed"`; a `shariah_board` user got `403` attempting `POST` (create); `risk_compliance` successfully created a second entry, confirming both allowed creator roles work; `GET .../?pool={id}` correctly listed both entries; confirmed via Django shell that all four transitions (`create` x2, `approve`, `mark_distributed`) wrote the expected `AuditLog` entries with accurate `changes`.
 
+## Shariah Governance Dashboard
+
+A single read-only rollup of everything currently awaiting Shariah Board / Secretariat attention across the whole system — draft rulings, draft contract templates, draft weightage/PSR schedules, open exception cases, unresolved purification entries, and pools awaiting Shariah sign-off. Without this, the Shariah team would have to check six different screens one at a time to know what's actually pending; this collapses that into one call.
+
+**`GET /api/v1/governance/shariah-dashboard/?pool={pool_id}`** (optional `pool` filter) — `IsShariahBoard` or `IsShariahSecretariat` only (via `HasAnyRole`); a plain function-based view (`@api_view`), not a `ModelViewSet`, since it doesn't map to one model — it's a rollup across seven.
+
+Response shape:
+
+```json
+{
+  "pending_shariah_decisions": [
+    {"id": "...", "decision_code": "SD-2026-004", "title": "...", "status": "draft", "effective_date": "2026-10-01"}
+  ],
+  "pending_contract_templates": [
+    {"id": "...", "name": "Mudarabah Unrestricted v2", "contract_type": "mudarabah_unrestricted", "status": "draft"}
+  ],
+  "pending_weightage_bands": [
+    {"id": "...", "pool_code": "PL-2026-014-01", "participant_class": "vip_tier", "weightage": 1.30, "status": "draft"}
+  ],
+  "pending_psr_schedules": [
+    {"id": "...", "pool_code": "PL-2026-014-01", "depositor_share": 70.00, "mudarib_share": 30.00, "status": "draft"}
+  ],
+  "open_exception_cases": [
+    {"id": "...", "title": "Control total mismatch on 2026-09-20 for pool PL-2026-014-02", "severity": "medium", "status": "open", "pool_code": "PL-2026-014-02"}
+  ],
+  "pending_purification_entries": [
+    {"id": "...", "source_description": "Conventional bank profit on idle cash balance", "amount": 1250.00, "status": "identified", "pool_code": "PL-2026-014-01"}
+  ],
+  "pending_pool_approvals": [
+    {"id": "...", "name": "Retail Mudarabah Pool 2026 - Series 1", "code": "PL-2026-014-01", "status": "approved"}
+  ],
+  "summary_counts": {
+    "total_pending_items": 7,
+    "critical_exceptions": 1
+  }
+}
+```
+
+Notes on scope and filtering:
+
+- `?pool=` filters every pool-scoped list (`pending_weightage_bands`, `pending_psr_schedules`, `open_exception_cases`, `pending_purification_entries`, `pending_pool_approvals`). `pending_shariah_decisions` and `pending_contract_templates` are **always tenant-wide** regardless of `?pool=` — neither `ShariahDecision` nor `ContractTemplate` has a pool FK (a `ContractTemplate` sits a level above `Pool`, attached via `Product`), so there's nothing to filter them by.
+- `pending_pool_approvals` lists `Pool`s with `status="approved"` — i.e. pools that have cleared their own workflow and are now awaiting the Shariah sign-off that lets them move to `open` (see [Pool Lifecycle](#pool-lifecycle)).
+- `open_exception_cases` includes both `open` and `investigating` statuses (not just `open`) — an exception under active investigation still needs Shariah attention if it's high/critical.
+- `summary_counts.total_pending_items` is the sum of all seven list lengths; `critical_exceptions` counts only the `open_exception_cases` entries with `severity` in `{high, critical}`.
+- Each list is built with exactly one `.values(...)` query (no serializers, no per-row related-object access), so the whole dashboard is seven queries total regardless of how many rows come back — no N+1s.
+- Purely a read/view endpoint: no `log_action()` calls. Nothing is modified, and viewing an internal dashboard isn't compliance-sensitive the way exporting financial data (see [GL Export](#gl-export-appsaccountingexportspy)) is.
+
+**Manually verified end-to-end via real HTTP requests:** called the dashboard with only 2 pre-existing draft `WeightageBand`s in the system — every other list correctly returned `[]` (not an error), `total_pending_items` correctly read `2`; a `pool_manager` got `403`; created one draft `ShariahDecision`, one draft `ContractTemplate`, one `critical`-severity open `ExceptionCase`, one `identified` `PurificationEntry`, and flipped a `Pool` to `status="approved"` — the dashboard then correctly listed all of them in their respective categories, `total_pending_items` became `7`, `critical_exceptions` became `1`; filtering by a *different* pool's id correctly returned empty pool-scoped lists while still showing the tenant-wide `ShariahDecision`/`ContractTemplate` entries.
+
 ## Multi-Tenancy
 
 Every API request (except the exempt paths below) must include an `X-Tenant-Code` header identifying which tenant the request is for:
