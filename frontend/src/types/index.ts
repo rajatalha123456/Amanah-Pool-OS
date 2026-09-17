@@ -298,6 +298,28 @@ export interface SimulateAllocationResult {
   lines: AllocationLine[]
 }
 
+export interface JournalEntry {
+  id: string
+  account_name: string
+  entry_type: string
+  amount: string
+}
+
+export interface JournalBatch {
+  id: string
+  tenant: string
+  allocation_run: string
+  pool: string
+  batch_date: string
+  total_debit: string
+  total_credit: string
+  status: string
+  posted_by: number | null
+  entries: JournalEntry[]
+  created_at: string
+  updated_at: string
+}
+
 export interface AllocationRun {
   id: string
   tenant: string
@@ -316,7 +338,7 @@ export interface AllocationRun {
   checked_at: string | null
   rejection_reason: string | null
   lines: AllocationLine[]
-  journal_batch: unknown | null
+  journal_batch: JournalBatch | null
   created_at: string
   updated_at: string
 }

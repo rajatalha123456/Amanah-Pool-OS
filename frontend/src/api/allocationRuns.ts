@@ -25,3 +25,25 @@ export async function fetchAllocationRunDetail(id: string): Promise<AllocationRu
   const response = await apiClient.get<AllocationRun>(`allocation/allocation-runs/${id}/`)
   return response.data
 }
+
+export async function submitRunForChecking(id: string): Promise<AllocationRun> {
+  const response = await apiClient.post<AllocationRun>(
+    `allocation/allocation-runs/${id}/submit-for-checking/`,
+  )
+  return response.data
+}
+
+export async function approveRun(id: string): Promise<AllocationRun> {
+  const response = await apiClient.post<AllocationRun>(
+    `allocation/allocation-runs/${id}/approve/`,
+  )
+  return response.data
+}
+
+export async function rejectRun(id: string, reason: string): Promise<AllocationRun> {
+  const response = await apiClient.post<AllocationRun>(
+    `allocation/allocation-runs/${id}/reject/`,
+    { rejection_reason: reason },
+  )
+  return response.data
+}

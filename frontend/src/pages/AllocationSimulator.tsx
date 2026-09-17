@@ -1,15 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card } from "../components/Card"
+import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { StatCard } from "../components/StatCard"
 import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
-import { createAllocationRun, simulateAllocation } from "../api/allocationRuns"
+import { createAllocationRun, fetchAllocationRuns, simulateAllocation } from "../api/allocationRuns"
 import { extractErrorMessage } from "../api/errors"
-import type { AllocationLine, Pool, SimulateAllocationResult } from "../types"
+import type { AllocationLine, AllocationRun, BadgeVariant, Pool, SimulateAllocationResult } from "../types"
 
 export function AllocationSimulator() {
   const navigate = useNavigate()
@@ -29,6 +30,9 @@ export function AllocationSimulator() {
   const [saveError, setSaveError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
+  const [recentRuns, setRecentRuns] = useState<AllocationRun[]>([])
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false)
+
   useEffect(() => {
     fetchPools()
       .then((data) => {
@@ -40,6 +44,15 @@ export function AllocationSimulator() {
       .catch(() => setSimulateError("Failed to load pools"))
       .finally(() => setIsLoadingPools(false))
   }, [])
+
+  useEffect(() => {
+    if (!selectedPoolId) return
+    setIsLoadingRuns(true)
+    fetchAllocationRuns(selectedPoolId)
+      .then((data) => setRecentRuns(data))
+      .catch(() => setRecentRuns([]))
+      .finally(() => setIsLoadingRuns(false))
+  }, [selectedPoolId])
 
   function buildInput() {
     return {
@@ -78,9 +91,7 @@ export function AllocationSimulator() {
 
     try {
       const run = await createAllocationRun(buildInput())
-      navigate("/pools/" + selectedPoolId, {
-        state: { successMessage: `Allocation run for ${run.value_date} saved as "${run.status}".` },
-      })
+      navigate("/allocation-runs/" + run.id)
     } catch (err) {
       setSaveError(extractErrorMessage(err, "Unable to save allocation run."))
     } finally {
@@ -94,6 +105,25 @@ export function AllocationSimulator() {
     { header: "Weightage", accessor: (line) => line.weightage },
     { header: "Weighted Funds", accessor: (line) => line.weighted_funds },
     { header: "Allocated Amount", accessor: (line) => line.allocated_amount },
+  ]
+
+  const STATUS_BADGE: Record<string, BadgeVariant> = {
+    simulated: "neutral",
+    pending_approval: "gold",
+    signed: "emerald",
+    rejected: "navy",
+  }
+
+  const runColumns: TableColumn<AllocationRun>[] = [
+    { header: "Value Date", accessor: (run) => run.value_date },
+    { header: "Gross Income", accessor: (run) => run.gross_income },
+    {
+      header: "Status",
+      accessor: (run) => (
+        <Badge variant={STATUS_BADGE[run.status] ?? "neutral"}>{run.status}</Badge>
+      ),
+    },
+    { header: "Created At", accessor: (run) => run.created_at },
   ]
 
   return (
@@ -206,6 +236,24 @@ export function AllocationSimulator() {
           </div>
         </>
       )}
+
+      <Card title="Recent Runs">
+        {isLoadingRuns ? (
+          <div className="flex items-center gap-2 text-sm text-ink-secondary">
+            <Spinner className="h-4 w-4" />
+            Loading runs...
+          </div>
+        ) : recentRuns.length === 0 ? (
+          <p className="text-sm text-ink-secondary">No allocation runs for this pool yet.</p>
+        ) : (
+          <Table
+            columns={runColumns}
+            data={recentRuns}
+            keyField={(run) => run.id}
+            onRowClick={(run) => navigate(`/allocation-runs/${run.id}`)}
+          />
+        )}
+      </Card>
     </div>
   )
 }
