@@ -755,6 +755,46 @@ Every import writes an `AuditLog` entry via `log_action()` with the full summary
 
 **Manually verified end-to-end**: a 3-record bulk import with a correct `control_total_expected` (93M) returned `status: "balanced"` with no errors; re-importing the same `value_date` + `participant_class` correctly skipped it as a duplicate, incrementing `exception_count` and listing the exact error, with `status: "exception"`; a fresh import with a *wrong* `control_total_expected` (90M vs an actual 93M) correctly returned `status: "exception"` despite all 3 records matching cleanly; a `shariah_board` user (neither `pool_manager` nor `finance_maker`) attempting to import correctly got `403`. Confirmed `AuditLog` entries with the full summary for every import.
 
+## Exception Handling Framework
+
+A generic, module-agnostic way for anomalies detected anywhere in the system (a balance import mismatch today; allocation variances, pool lifecycle issues, or an AI agent's own findings in the future) to surface as a single triage queue for the Risk & Compliance team, instead of each module inventing its own ad-hoc "flag" mechanism.
+
+`apps.governance.ExceptionCase` (`TenantScopedModel`):
+
+- `source_module` (`allocation` / `balance_import` / `pool_lifecycle` / `asset_assignment` / `other`) and `source_object_id` (a free-text ID of the record that triggered it, e.g. a `BalanceImportBatch` id) — together they trace an exception back to what raised it, without a hard FK (the source could be any model in any app).
+- `pool` FK (nullable — not every exception is pool-scoped).
+- `severity` (`low` / `medium` / `high` / `critical`), `title`, `description`.
+- `status` (`open` → `investigating` / `resolved` / `dismissed`), `detected_by` (`system` / `ai_agent` / `manual`, default `system`).
+- `assigned_to` FK (nullable) for routing to a specific Risk & Compliance user; `resolution_notes`, `resolved_by`, `resolved_at` — all set together when a case is closed out.
+
+### `apps.core.exceptions_helper.create_exception_case()`
+
+```python
+create_exception_case(
+    tenant, source_module, title, description,
+    severity="medium", pool=None, source_object_id=None, detected_by="system",
+)
+```
+
+The single entry point any other module should call when it detects an anomaly — it just creates the `ExceptionCase` row. It imports `apps.governance.models` lazily inside the function body rather than at module level, so calling modules (like `apps.pools`) don't take on a hard import-time dependency on the governance app.
+
+### First integration: Balance Import (`apps/pools/views.py`)
+
+Immediately after a `BalanceImportBatch` is saved with `status == "exception"` (a duplicate skip and/or a control-total mismatch — see [Balance Import & Validation](#balance-import--validation)), the view calls `create_exception_case()` with `source_module="balance_import"`, `source_object_id=<batch id>`, `severity="medium"`, and a title/description that includes the pool code, value date, and a short summary of what went wrong. This is the reference pattern future modules (and future AI agents) should follow: detect the anomaly you already know about, then make one call to raise it into the shared queue rather than storing it in a module-local field.
+
+### Endpoints (`apps/governance`)
+
+- **`GET /api/v1/governance/exceptions/?pool={pool_id}&status={status}&severity={severity}`** — list, filterable by any combination of the three params. Any authenticated user.
+- **`GET /api/v1/governance/exceptions/{id}/`** — detail. Any authenticated user.
+- **`POST /api/v1/governance/exceptions/`** — manual creation. `IsRiskCompliance` or `IsPoolManager` (via `HasAnyRole`).
+- **`PATCH /api/v1/governance/exceptions/{id}/`** — update (primarily for setting `assigned_to`); `status`/`resolution_notes`/`resolved_by`/`resolved_at` are read-only here and can only change via `resolve`/`dismiss`. `IsRiskCompliance` only.
+- **`POST /api/v1/governance/exceptions/{id}/resolve/`** — `resolution_notes` required (`400` otherwise); sets `status="resolved"`, `resolved_by=request.user`, `resolved_at=now()`. `IsRiskCompliance` only.
+- **`POST /api/v1/governance/exceptions/{id}/dismiss/`** — same shape as `resolve/` but sets `status="dismissed"` — for exceptions triaged as false positives or not worth acting on. `IsRiskCompliance` only.
+
+Every create/update/resolve/dismiss writes an `AuditLog` entry via `log_action()`.
+
+**Manually verified end-to-end via real HTTP requests:** manually created an `ExceptionCase` as `pool_manager` (`201`); a `shariah_board` user got `403` attempting the same; resolving without `resolution_notes` correctly returned `400`, with it correctly set `status="resolved"` and populated `resolved_by`/`resolved_at`; a `pool_manager` got `403` attempting `resolve/` (creation and resolution are different permission levels); `PATCH .../{id}/` correctly updated `assigned_to`; `dismiss/` without notes returned `400`, with notes set `status="dismissed"`; filtering by `status=open`, `status=resolved`, and `severity=high` each returned exactly the matching case(s); triggered a real balance-import control-total mismatch and a real duplicate-record skip via `POST /api/v1/pools/balance-imports/` and confirmed in both cases an `ExceptionCase` was auto-created with `source_module="balance_import"`, the correct `source_object_id` (the batch's id), the correct `pool`, and a title/description matching the actual mismatch details.
+
 ## Multi-Tenancy
 
 Every API request (except the exempt paths below) must include an `X-Tenant-Code` header identifying which tenant the request is for:

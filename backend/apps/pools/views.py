@@ -17,6 +17,7 @@ from apps.accounts.permissions import (
     IsShariahBoard,
 )
 from apps.core.audit import log_action
+from apps.core.exceptions_helper import create_exception_case
 from apps.products.models import ProductStatus
 
 from .models import (
@@ -425,6 +426,21 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             },
             request=request,
         )
+
+        if batch.status == BalanceImportBatchStatus.EXCEPTION:
+            create_exception_case(
+                tenant=batch.tenant,
+                source_module="balance_import",
+                source_object_id=str(batch.id),
+                pool=pool,
+                severity="medium",
+                title=f"Control total mismatch on {value_date} for pool {pool.code}",
+                description=(
+                    f"Balance import batch {batch.id} for pool {pool.code} on {value_date} "
+                    f"flagged as exception: {exception_count} skipped/duplicate record(s), "
+                    f"control total expected={control_total_expected}, actual={control_total_actual}."
+                ),
+            )
 
         return Response(
             {
