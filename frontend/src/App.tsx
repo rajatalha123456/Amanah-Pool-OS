@@ -11,6 +11,7 @@ import { BalanceImport } from "./pages/BalanceImport"
 import { AllocationSimulator } from "./pages/AllocationSimulator"
 import { AllocationRunDetail } from "./pages/AllocationRunDetail"
 import { JournalBatchReview } from "./pages/JournalBatchReview"
+import { StatementView } from "./pages/StatementView"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -44,6 +45,7 @@ function App() {
         <Route path="pools/:id" element={<PoolDetail />} />
         <Route path="allocation-simulator" element={<AllocationSimulator />} />
         <Route path="allocation-runs/:id" element={<AllocationRunDetail />} />
+        <Route path="statements/:id" element={<StatementView />} />
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (

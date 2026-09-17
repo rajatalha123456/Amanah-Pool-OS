@@ -1,5 +1,5 @@
 import { apiClient } from "./axios"
-import type { AllocationRun, AllocationRunInput, SimulateAllocationResult } from "../types"
+import type { AllocationRun, AllocationRunInput, SimulateAllocationResult, DepositorStatement } from "../types"
 
 export async function simulateAllocation(data: AllocationRunInput): Promise<SimulateAllocationResult> {
   const response = await apiClient.post<SimulateAllocationResult>(
@@ -44,6 +44,20 @@ export async function rejectRun(id: string, reason: string): Promise<AllocationR
   const response = await apiClient.post<AllocationRun>(
     `allocation/allocation-runs/${id}/reject/`,
     { rejection_reason: reason },
+  )
+  return response.data
+}
+
+export async function generateStatements(id: string): Promise<DepositorStatement[]> {
+  const response = await apiClient.post<DepositorStatement[]>(
+    `allocation/allocation-runs/${id}/generate-statements/`,
+  )
+  return response.data
+}
+
+export async function fetchStatements(id: string): Promise<DepositorStatement[]> {
+  const response = await apiClient.get<DepositorStatement[]>(
+    `allocation/allocation-runs/${id}/statements/`,
   )
   return response.data
 }

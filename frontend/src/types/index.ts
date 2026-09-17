@@ -320,6 +320,20 @@ export interface JournalBatch {
   updated_at: string
 }
 
+export interface DepositorStatement {
+  id: string
+  allocation_run: string
+  participant_class: string
+  period_start: string
+  period_end: string
+  opening_balance: string
+  net_deposits: string
+  profit_allocated: string
+  closing_balance: string
+  narrative: string
+  generated_at: string
+}
+
 export interface AllocationRun {
   id: string
   tenant: string

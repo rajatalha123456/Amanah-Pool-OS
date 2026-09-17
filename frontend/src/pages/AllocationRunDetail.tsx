@@ -13,9 +13,11 @@ import {
   fetchAllocationRunDetail,
   rejectRun,
   submitRunForChecking,
+  generateStatements,
+  fetchStatements,
 } from "../api/allocationRuns"
 import { extractErrorMessage } from "../api/errors"
-import type { BadgeVariant, AllocationLine, AllocationRun, JournalEntry } from "../types"
+import type { BadgeVariant, AllocationLine, AllocationRun, JournalEntry, DepositorStatement } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
 
@@ -41,6 +43,9 @@ export function AllocationRunDetail() {
   const [isActionPending, setIsActionPending] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
 
+  const [statements, setStatements] = useState<DepositorStatement[]>([])
+  const [isLoadingStatements, setIsLoadingStatements] = useState(false)
+
   function loadData() {
     if (!id) return
     setPageState("loading")
@@ -48,6 +53,11 @@ export function AllocationRunDetail() {
       .then((data) => {
         setRun(data)
         setPageState("loaded")
+        if (data.status === "signed") {
+          fetchStatements(id)
+            .then((stmts) => setStatements(stmts))
+            .catch(() => setStatements([]))
+        }
       })
       .catch(() => {
         setPageError("Failed to load allocation run")
@@ -193,6 +203,67 @@ export function AllocationRunDetail() {
               keyField={(entry) => entry.id}
             />
           </div>
+        </Card>
+      )}
+
+      {run.status === "signed" && (
+        <Card title="Depositor Statements" className="mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-ink-secondary">
+              {statements.length > 0
+                ? `${statements.length} statement(s) generated`
+                : "No statements generated yet"}
+            </p>
+            <Button
+              variant="primary"
+              disabled={isLoadingStatements || isActionPending}
+              onClick={async () => {
+                setIsLoadingStatements(true)
+                try {
+                  await generateStatements(id!)
+                  const newStatements = await fetchStatements(id!)
+                  setStatements(newStatements)
+                } catch (err) {
+                  setActionError(extractErrorMessage(err, "Unable to generate statements."))
+                } finally {
+                  setIsLoadingStatements(false)
+                }
+              }}
+            >
+              {isLoadingStatements ? <Spinner className="h-4 w-4" /> : "Generate Statements"}
+            </Button>
+          </div>
+
+          {statements.length > 0 && (
+            <div className="space-y-3">
+              {statements.map((stmt) => (
+                <div key={stmt.id} className="border border-white/8 rounded p-4 hover:bg-white/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-ink-primary">{stmt.participant_class}</p>
+                      <p className="text-xs text-ink-secondary">
+                        Period: {stmt.period_start} to {stmt.period_end}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-emerald-400 font-medium">
+                        {stmt.closing_balance}
+                      </p>
+                      <p className="text-xs text-ink-secondary">Closing Balance</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <a
+                href={`/statements/${id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-4 px-4 py-2 text-sm font-medium text-emerald-400 border border-emerald-400/30 rounded hover:bg-white/5"
+              >
+                View & Print Statements
+              </a>
+            </div>
+          )}
         </Card>
       )}
 
