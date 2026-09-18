@@ -1,23 +1,37 @@
 import base64
 import io
+import secrets
+import string
 
 import pyotp
 import qrcode
 from django.contrib.auth import authenticate
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.core.audit import log_action
+
 from .authentication import resolve_pending_mfa_user
-from .permissions import HasAnyRole, IsPoolManager
+from .models import User
+from .permissions import HasAnyRole, IsPlatformSuperAdmin, IsPoolManager
 from .serializers import (
     LoginSerializer,
     MfaSetupSerializer,
     MfaVerifySerializer,
+    UserCreateSerializer,
+    UserListSerializer,
     UserSerializer,
+    UserUpdateSerializer,
 )
+
+
+def _generate_password(length=14):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 TOTP_ISSUER = "Amanah Pool OS"
 
@@ -141,3 +155,92 @@ class FinanceOnlyTestView(APIView):
 
     def get(self, request):
         return Response({"detail": "Hello, finance."})
+
+
+class UserManagementViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Platform Super Admin user administration. No hard delete is exposed
+    on purpose - deactivation (is_active=False, via PATCH) is the only
+    way to remove a user's access, so history/audit trails referencing
+    them stay intact.
+    """
+
+    def get_queryset(self):
+        # Deliberately NOT tenant-scoped via TenantScopedManager (User
+        # isn't a TenantScopedModel) - a platform_super_admin needs to
+        # see users across all tenants; everyone else is restricted to
+        # their own tenant below.
+        user = self.request.user
+        queryset = User.objects.all().order_by("email")
+        if user.role != "platform_super_admin":
+            queryset = queryset.filter(tenant=user.tenant)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return UserListSerializer
+        if self.action == "create":
+            return UserCreateSerializer
+        if self.action in ("update", "partial_update"):
+            return UserUpdateSerializer
+        return UserListSerializer
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), IsPlatformSuperAdmin()]
+        return [IsAuthenticated()]
+
+    def create(self, request, *args, **kwargs):
+        serializer = UserCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password = _generate_password()
+        user = serializer.save()
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        log_action(
+            tenant=user.tenant,
+            actor=request.user,
+            action="create",
+            model_name="User",
+            object_id=str(user.id),
+            changes={"email": user.email, "role": user.role, "tenant_id": str(user.tenant_id) if user.tenant_id else None},
+            request=request,
+        )
+
+        response_data = UserListSerializer(user).data
+        response_data["generated_password"] = password
+        return Response(response_data, status=201)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        previous_is_active = instance.is_active
+        previous_role = instance.role
+
+        user = serializer.save()
+
+        action_name = "update"
+        if previous_is_active and not user.is_active:
+            action_name = "deactivate"
+        elif not previous_is_active and user.is_active:
+            action_name = "activate"
+
+        log_action(
+            tenant=user.tenant,
+            actor=self.request.user,
+            action=action_name,
+            model_name="User",
+            object_id=str(user.id),
+            changes={
+                "role": {"before": previous_role, "after": user.role},
+                "is_active": {"before": previous_is_active, "after": user.is_active},
+            },
+            request=self.request,
+        )

@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
@@ -8,7 +9,11 @@ from .views import (
     MfaSetupView,
     MfaVerifyView,
     PoolManagerOnlyTestView,
+    UserManagementViewSet,
 )
+
+router = DefaultRouter()
+router.register("users", UserManagementViewSet, basename="user-management")
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
@@ -26,4 +31,4 @@ urlpatterns = [
         FinanceOnlyTestView.as_view(),
         name="test-finance-only",
     ),
-]
+] + router.urls
