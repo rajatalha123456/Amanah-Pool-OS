@@ -13,6 +13,9 @@ import { AllocationRunDetail } from "./pages/AllocationRunDetail"
 import { JournalBatchReview } from "./pages/JournalBatchReview"
 import { StatementView } from "./pages/StatementView"
 import { ShariahCopilot } from "./pages/ShariahCopilot"
+import { PurificationLedger } from "./pages/PurificationLedger"
+import { InvestmentPools } from "./pages/InvestmentPools"
+import { UserAdministration } from "./pages/UserAdministration"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -26,6 +29,9 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/allocation-engine": <AllocationSimulator />,
   "/finance-ledger": <JournalBatchReview />,
   "/ai-analytics": <ShariahCopilot />,
+  "/shariah-governance": <PurificationLedger />,
+  "/investments": <InvestmentPools />,
+  "/administration": <UserAdministration />,
 }
 
 function App() {

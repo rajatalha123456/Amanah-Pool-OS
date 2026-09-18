@@ -61,6 +61,7 @@ export interface ProductBasic {
   id: string
   name: string
   code: string
+  operating_model: string
   status: string
   contract_template: ContractTemplateBasic
 }
@@ -356,6 +357,78 @@ export interface AllocationRun {
   updated_at: string
 }
 
+export interface CapitalAccount {
+  id: string
+  pool: string
+  investor_name: string
+  investor_reference: string
+  units_held: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCapitalAccountInput {
+  pool: string
+  investor_name: string
+  investor_reference: string
+}
+
+export interface Subscription {
+  id: string
+  capital_account: string
+  amount: string
+  nav_per_unit: string
+  units_allotted: string
+  transaction_date: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Redemption {
+  id: string
+  capital_account: string
+  units_redeemed: string
+  nav_per_unit: string
+  amount: string
+  transaction_date: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NAVSnapshot {
+  id: string
+  pool: string
+  valuation_date: string
+  total_pool_value: string
+  total_units_outstanding: string
+  nav_per_unit: string
+  status: string
+  created_by: number | null
+  published_by: number | null
+  published_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateNAVSnapshotInput {
+  pool: string
+  valuation_date: string
+  total_pool_value: string
+}
+
+export interface SubscribeInput {
+  amount: string
+  transaction_date: string
+}
+
+export interface RedeemInput {
+  units_redeemed: string
+  transaction_date: string
+}
+
 // --- Shariah Policy Copilot (proxied through apps.ai_agents to the separate FastAPI service) ---
 
 export interface ShariahDocument {
@@ -434,4 +507,92 @@ export interface ShariahQueryFilters {
   current_version_only?: boolean
   product_category?: string
   document_type?: string
+}
+
+// --- Governance: Exception Queue + Purification Ledger (apps.governance) ---
+
+export interface ExceptionCase {
+  id: string
+  source_module: string
+  source_object_id: string | null
+  pool: string | null
+  severity: string
+  title: string
+  description: string
+  status: string
+  detected_by: string
+  assigned_to: number | null
+  resolution_notes: string | null
+  resolved_by: number | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdateExceptionAssigneeInput {
+  assigned_to: number
+}
+
+export interface PurificationEntry {
+  id: string
+  pool: string
+  source_description: string
+  amount: string
+  identified_date: string
+  status: string
+  shariah_decision: string | null
+  charity_recipient: string | null
+  distributed_date: string | null
+  approved_by: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePurificationEntryInput {
+  pool: string
+  source_description: string
+  amount: string
+  identified_date: string
+}
+
+export const USER_ROLES = [
+  "platform_super_admin",
+  "product_manager",
+  "pool_manager",
+  "finance_maker",
+  "finance_checker",
+  "shariah_secretariat",
+  "shariah_board",
+  "risk_compliance",
+  "auditor",
+  "investor_member",
+] as const
+
+export interface UserAdmin {
+  id: number
+  email: string
+  full_name: string
+  role: string
+  tenant_code: string | null
+  mfa_enabled: boolean
+  is_active: boolean
+}
+
+export interface CreateUserInput {
+  email: string
+  full_name: string
+  role: string
+  tenant: string
+}
+
+export interface UserCreateResponse extends UserAdmin {
+  generated_password: string
+}
+
+export interface UpdateUserInput {
+  full_name?: string
+  role?: string
+  tenant?: string
+  is_active?: boolean
 }
