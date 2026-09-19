@@ -57,6 +57,18 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(decision).data)
 
 
+CONTRACT_CLAUSES_SCHEMA = [
+    {"key": "profit_ratio", "label": "Profit Ratio", "description": "The depositor/mudarib profit-sharing split."},
+    {"key": "late_payment_policy", "label": "Late Payment Policy", "description": "How overdue payments are treated (no interest/penalty under Shariah)."},
+    {"key": "notice_period", "label": "Notice Period", "description": "Required notice before withdrawal or termination."},
+    {"key": "loss_bearing_clause", "label": "Loss Bearing Clause", "description": "How capital losses are allocated among participants."},
+    {"key": "early_termination_terms", "label": "Early Termination Terms", "description": "Conditions and consequences of ending the contract early."},
+    {"key": "collateral_requirements", "label": "Collateral Requirements", "description": "Any security/collateral required, if applicable."},
+    {"key": "dispute_resolution", "label": "Dispute Resolution", "description": "Mechanism for resolving disagreements (e.g. Shariah arbitration)."},
+    {"key": "purification_clause", "label": "Purification Clause", "description": "How incidental non-Shariah-compliant income is handled."},
+]
+
+
 class ContractTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ContractTemplateSerializer
 
@@ -69,6 +81,16 @@ class ContractTemplateViewSet(viewsets.ModelViewSet):
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
         return [IsAuthenticated()]
+
+    @action(detail=True, methods=["get"], url_path="clauses-schema")
+    def clauses_schema(self, request, pk=None):
+        # Ensures the referenced template exists (and belongs to the
+        # current tenant, via TenantScopedManager) before returning the
+        # schema - a 404 for a bad/foreign id rather than a schema for
+        # nothing. The schema itself is static and not template-specific
+        # yet; see the README for why.
+        self.get_object()
+        return Response(CONTRACT_CLAUSES_SCHEMA)
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)

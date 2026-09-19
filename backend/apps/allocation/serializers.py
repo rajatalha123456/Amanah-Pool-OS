@@ -119,6 +119,7 @@ class AllocationLineSerializer(serializers.ModelSerializer):
 class AllocationRunSerializer(serializers.ModelSerializer):
     lines = AllocationLineSerializer(many=True, read_only=True)
     journal_batch = serializers.SerializerMethodField()
+    shariah_review_required = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = AllocationRun
@@ -139,6 +140,10 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "checked_by",
             "checked_at",
             "rejection_reason",
+            "shariah_review_required",
+            "shariah_signed_off_by",
+            "shariah_signed_off_at",
+            "shariah_review_note",
             "lines",
             "journal_batch",
             "created_at",

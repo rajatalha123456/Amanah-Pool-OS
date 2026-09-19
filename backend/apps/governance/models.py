@@ -4,6 +4,7 @@ from apps.core.models import TenantScopedModel
 
 
 class ExceptionSourceModule(models.TextChoices):
+    ACCOUNTING = "accounting", "Accounting"
     ALLOCATION = "allocation", "Allocation"
     BALANCE_IMPORT = "balance_import", "Balance Import"
     POOL_LIFECYCLE = "pool_lifecycle", "Pool Lifecycle"
@@ -61,6 +62,8 @@ class ExceptionCase(TenantScopedModel):
         blank=True,
         related_name="assigned_exception_cases",
     )
+    investigation_notes = models.TextField(null=True, blank=True)
+    treatment_plan = models.TextField(null=True, blank=True)
     resolution_notes = models.TextField(null=True, blank=True)
     resolved_by = models.ForeignKey(
         "accounts.User",
@@ -119,3 +122,45 @@ class PurificationEntry(TenantScopedModel):
 
     def __str__(self):
         return f"Purification {self.amount} - {self.source_description}"
+
+
+class RelatedPartyRelationshipType(models.TextChoices):
+    DIRECTOR = "director", "Director"
+    SHAREHOLDER = "shareholder", "Shareholder"
+    FAMILY_MEMBER = "family_member", "Family Member"
+    AFFILIATE_COMPANY = "affiliate_company", "Affiliate Company"
+    OTHER = "other", "Other"
+
+
+class RelatedPartyDisclosureStatus(models.TextChoices):
+    DISCLOSED = "disclosed", "Disclosed"
+    PENDING_REVIEW = "pending_review", "Pending Review"
+    APPROVED = "approved", "Approved"
+    FLAGGED = "flagged", "Flagged"
+
+
+class RelatedPartyTransaction(TenantScopedModel):
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="related_party_transactions"
+    )
+    related_party_name = models.CharField(max_length=255)
+    relationship_type = models.CharField(max_length=30, choices=RelatedPartyRelationshipType.choices)
+    transaction_type = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    transaction_date = models.DateField()
+    disclosure_status = models.CharField(
+        max_length=20,
+        choices=RelatedPartyDisclosureStatus.choices,
+        default=RelatedPartyDisclosureStatus.PENDING_REVIEW,
+    )
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_related_party_transactions",
+    )
+    review_notes = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.related_party_name} - {self.amount}"

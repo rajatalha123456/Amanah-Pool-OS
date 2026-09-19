@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
-from .models import ExceptionCase, PurificationEntry
+from apps.pools.models import Pool
+
+from .models import ExceptionCase, PurificationEntry, RelatedPartyTransaction
 
 
 class ExceptionCaseSerializer(serializers.ModelSerializer):
@@ -17,6 +19,8 @@ class ExceptionCaseSerializer(serializers.ModelSerializer):
             "status",
             "detected_by",
             "assigned_to",
+            "investigation_notes",
+            "treatment_plan",
             "resolution_notes",
             "resolved_by",
             "resolved_at",
@@ -27,6 +31,8 @@ class ExceptionCaseSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "detected_by",
+            "investigation_notes",
+            "treatment_plan",
             "resolution_notes",
             "resolved_by",
             "resolved_at",
@@ -62,3 +68,38 @@ class PurificationEntrySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+
+class RelatedPartyTransactionSerializer(serializers.ModelSerializer):
+    pool = serializers.PrimaryKeyRelatedField(queryset=Pool._base_manager.all())
+
+    class Meta:
+        model = RelatedPartyTransaction
+        fields = (
+            "id",
+            "pool",
+            "related_party_name",
+            "relationship_type",
+            "transaction_type",
+            "amount",
+            "transaction_date",
+            "disclosure_status",
+            "reviewed_by",
+            "review_notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "disclosure_status",
+            "reviewed_by",
+            "review_notes",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_pool(self, pool):
+        request = self.context.get("request")
+        if request and pool.tenant_id != request.user.tenant_id:
+            raise serializers.ValidationError("Pool does not belong to the current tenant.")
+        return pool

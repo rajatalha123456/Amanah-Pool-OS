@@ -75,6 +75,9 @@ export function PoolCatalogue() {
         <span className="border-b-2 border-emerald-500 px-1 pb-2 font-medium text-ink-primary">
           Pools
         </span>
+        <Link to="/contract-templates" className="px-1 pb-2 text-ink-secondary hover:text-ink-primary">
+          Contract Templates
+        </Link>
       </div>
 
       {successMessage && <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>}

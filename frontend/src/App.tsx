@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom"
 import { AppLayout } from "./layouts/AppLayout"
 import { CommandCenter } from "./pages/CommandCenter"
 import { ProductCatalogue } from "./pages/ProductCatalogue"
+import { ContractTemplateStudio } from "./pages/ContractTemplateStudio"
 import { PoolCatalogue } from "./pages/PoolCatalogue"
 import { PoolDetail } from "./pages/PoolDetail"
 import { NewPoolWizard } from "./pages/NewPoolWizard"
@@ -13,8 +14,10 @@ import { AllocationRunDetail } from "./pages/AllocationRunDetail"
 import { JournalBatchReview } from "./pages/JournalBatchReview"
 import { StatementView } from "./pages/StatementView"
 import { ShariahCopilot } from "./pages/ShariahCopilot"
-import { PurificationLedger } from "./pages/PurificationLedger"
+import { ShariahGovernance } from "./pages/ShariahGovernance"
 import { InvestmentPools } from "./pages/InvestmentPools"
+import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
+import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
@@ -29,7 +32,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/allocation-engine": <AllocationSimulator />,
   "/finance-ledger": <JournalBatchReview />,
   "/ai-analytics": <ShariahCopilot />,
-  "/shariah-governance": <PurificationLedger />,
+  "/shariah-governance": <ShariahGovernance />,
   "/investments": <InvestmentPools />,
   "/administration": <UserAdministration />,
 }
@@ -54,6 +57,9 @@ function App() {
         <Route path="allocation-simulator" element={<AllocationSimulator />} />
         <Route path="allocation-runs/:id" element={<AllocationRunDetail />} />
         <Route path="statements/:id" element={<StatementView />} />
+        <Route path="investments/capital-accounts/:id" element={<CapitalAccountDetail />} />
+        <Route path="exceptions/:id" element={<ExceptionCaseDetail />} />
+        <Route path="contract-templates" element={<ContractTemplateStudio />} />
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (

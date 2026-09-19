@@ -9,13 +9,15 @@ import { useAuth } from "../api/auth"
 import { askQuestion, fetchDocuments, submitReview } from "../api/shariahCopilot"
 import { extractCopilotErrorMessage } from "../api/errors"
 import { UploadDocumentModal } from "./shariah-copilot/UploadDocumentModal"
+import { ModelGovernance } from "./ModelGovernance"
 import type { BadgeVariant, EvidencePack, ShariahDocument } from "../types"
 
-type CopilotTab = "ask" | "documents"
+type CopilotTab = "ask" | "documents" | "models"
 
 const TABS: { key: CopilotTab; label: string }[] = [
   { key: "ask", label: "Ask" },
   { key: "documents", label: "Documents" },
+  { key: "models", label: "Model Governance" },
 ]
 
 const DOCUMENT_STATUS_BADGE: Record<string, BadgeVariant> = {
@@ -72,6 +74,7 @@ export function ShariahCopilot() {
 
       {activeTab === "ask" && <AskTab canReview={canReview} />}
       {activeTab === "documents" && <DocumentsTab canUpload={canUpload} />}
+      {activeTab === "models" && <ModelGovernance />}
     </div>
   )
 }

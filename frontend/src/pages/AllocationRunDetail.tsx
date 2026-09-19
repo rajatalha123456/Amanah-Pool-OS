@@ -12,6 +12,7 @@ import {
   approveRun,
   fetchAllocationRunDetail,
   rejectRun,
+  shariahSignOffRun,
   submitRunForChecking,
   generateStatements,
   fetchStatements,
@@ -24,12 +25,100 @@ type PageState = "loading" | "loaded" | "error"
 const STATUS_BADGE: Record<string, BadgeVariant> = {
   simulated: "neutral",
   pending_approval: "gold",
+  shariah_review: "gold",
   signed: "emerald",
   rejected: "navy",
 }
 
 function statusBadgeVariant(status: string): BadgeVariant {
   return STATUS_BADGE[status] ?? "neutral"
+}
+
+type StageDecision = "completed" | "approved" | "in_review" | "blocked" | "pending"
+
+const STAGE_DECISION_BADGE: Record<StageDecision, BadgeVariant> = {
+  completed: "emerald",
+  approved: "emerald",
+  in_review: "gold",
+  blocked: "navy",
+  pending: "neutral",
+}
+
+const STAGE_DECISION_LABEL: Record<StageDecision, string> = {
+  completed: "Completed",
+  approved: "Approved",
+  in_review: "In Review",
+  blocked: "Blocked",
+  pending: "Pending",
+}
+
+interface TimelineStage {
+  key: string
+  label: string
+  owner: string | null
+  decision: StageDecision
+  timestamp: string | null
+}
+
+function userLabel(userId: number | null): string {
+  return userId !== null ? `User #${userId}` : "—"
+}
+
+function buildTimelineStages(run: AllocationRun): TimelineStage[] {
+  const isRejected = run.status === "rejected"
+
+  const prepared: TimelineStage = {
+    key: "prepared",
+    label: "Prepared",
+    owner: userLabel(run.created_by),
+    decision: "completed",
+    timestamp: run.created_at,
+  }
+
+  const independentCheck: TimelineStage = {
+    key: "independent-check",
+    label: "Independent Check",
+    owner: run.status === "simulated" ? null : userLabel(run.checked_by ?? null),
+    decision:
+      run.status === "simulated"
+        ? "pending"
+        : isRejected
+          ? "blocked"
+          : run.status === "pending_approval"
+            ? "in_review"
+            : "approved",
+    timestamp: run.status === "simulated" ? null : run.checked_at,
+  }
+
+  const shariahReviewApplicable = run.shariah_review_required
+  const shariahReviewDecision: StageDecision = !shariahReviewApplicable
+    ? "pending"
+    : isRejected
+      ? "blocked"
+      : run.shariah_signed_off_by !== null
+        ? "approved"
+        : run.status === "pending_approval"
+          ? "in_review"
+          : "pending"
+  const shariahReview: TimelineStage = {
+    key: "shariah-review",
+    label: "Shariah Review",
+    owner: shariahReviewApplicable && run.shariah_signed_off_by !== null ? userLabel(run.shariah_signed_off_by) : null,
+    decision: shariahReviewDecision,
+    timestamp: run.shariah_signed_off_at,
+  }
+
+  const finalReleaseDecision: StageDecision =
+    run.status === "signed" ? "completed" : isRejected ? "blocked" : "pending"
+  const finalRelease: TimelineStage = {
+    key: "final-release",
+    label: "Final Release",
+    owner: run.status === "signed" ? userLabel(run.checked_by) : null,
+    decision: finalReleaseDecision,
+    timestamp: run.status === "signed" ? run.checked_at : null,
+  }
+
+  return [prepared, independentCheck, shariahReview, finalRelease]
 }
 
 export function AllocationRunDetail() {
@@ -42,6 +131,7 @@ export function AllocationRunDetail() {
   const [actionError, setActionError] = useState("")
   const [isActionPending, setIsActionPending] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showSignOffModal, setShowSignOffModal] = useState(false)
 
   const [statements, setStatements] = useState<DepositorStatement[]>([])
   const [isLoadingStatements, setIsLoadingStatements] = useState(false)
@@ -125,6 +215,10 @@ export function AllocationRunDetail() {
 
       {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
 
+      <Card title="Approval Timeline" className="mb-6">
+        <ApprovalTimeline stages={buildTimelineStages(run)} />
+      </Card>
+
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Distributable" value={run.distributable_amount} deltaTone="neutral" />
         <StatCard label="Total Weighted Funds" value={run.total_weighted_funds} deltaTone="neutral" />
@@ -147,7 +241,22 @@ export function AllocationRunDetail() {
           </Button>
         )}
 
-        {run.status === "pending_approval" && (
+        {run.status === "pending_approval" && run.shariah_review_required && (
+          <div className="space-y-3">
+            <p className="text-sm text-gold-400">
+              Waiting for Shariah Secretariat sign-off before this run can be approved.
+            </p>
+            <Button
+              variant="primary"
+              disabled={isActionPending}
+              onClick={() => setShowSignOffModal(true)}
+            >
+              Shariah Sign-Off
+            </Button>
+          </div>
+        )}
+
+        {run.status === "pending_approval" && !run.shariah_review_required && (
           <div className="flex gap-3">
             <Button
               variant="primary"
@@ -162,6 +271,18 @@ export function AllocationRunDetail() {
               onClick={() => setShowRejectModal(true)}
             >
               Reject
+            </Button>
+          </div>
+        )}
+
+        {run.status === "shariah_review" && (
+          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              disabled={isActionPending}
+              onClick={() => runAction(approveRun, "Unable to approve.")}
+            >
+              {isActionPending ? <Spinner className="h-4 w-4" /> : "Approve"}
             </Button>
           </div>
         )}
@@ -279,7 +400,95 @@ export function AllocationRunDetail() {
           onError={(error) => setActionError(error)}
         />
       )}
+
+      {showSignOffModal && (
+        <ShariahSignOffModal
+          id={id}
+          isSubmitting={isActionPending}
+          onClose={() => setShowSignOffModal(false)}
+          onSignedOff={() => {
+            setShowSignOffModal(false)
+            loadData()
+          }}
+          onError={(error) => setActionError(error)}
+        />
+      )}
     </div>
+  )
+}
+
+function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stages.map((stage) => (
+        <div key={stage.key} className="rounded-lg border border-white/8 bg-navy-900 p-4">
+          <p className="text-xs font-semibold tracking-wide text-ink-secondary uppercase">{stage.label}</p>
+          <div className="mt-2">
+            <Badge variant={STAGE_DECISION_BADGE[stage.decision]}>{STAGE_DECISION_LABEL[stage.decision]}</Badge>
+          </div>
+          <p className="mt-3 text-sm text-ink-primary">{stage.owner ?? "—"}</p>
+          <p className="mt-1 text-xs text-ink-secondary">
+            {stage.timestamp ? new Date(stage.timestamp).toLocaleString() : "—"}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+interface ShariahSignOffModalProps {
+  id: string
+  isSubmitting: boolean
+  onClose: () => void
+  onSignedOff: () => void
+  onError: (error: string) => void
+}
+
+function ShariahSignOffModal({ id, isSubmitting, onClose, onSignedOff, onError }: ShariahSignOffModalProps) {
+  const [note, setNote] = useState("")
+  const [error, setError] = useState("")
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError("")
+    try {
+      await shariahSignOffRun(id, note)
+      onSignedOff()
+    } catch (err) {
+      const message = extractErrorMessage(err, "Unable to record Shariah sign-off.")
+      setError(message)
+      onError(message)
+    }
+  }
+
+  return (
+    <Modal title="Shariah Sign-Off" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+            Note (optional)
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+            className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+            placeholder="Evidence reviewed, comments for the record..."
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner className="h-4 w-4" /> : "Sign Off"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

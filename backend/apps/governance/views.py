@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from apps.accounts.permissions import (
     HasAnyRole,
     IsFinanceChecker,
+    IsFinanceMaker,
+    IsPoolManager,
     IsRiskCompliance,
     IsShariahBoard,
 )
@@ -17,8 +19,20 @@ from apps.core.audit import log_action
 from apps.pools.models import Pool, PoolStatus
 from apps.products.models import ContractTemplate, ContractTemplateStatus, ShariahDecision, ShariahDecisionStatus
 
-from .models import ExceptionCase, ExceptionSeverity, ExceptionStatus, PurificationEntry, PurificationStatus
-from .serializers import ExceptionCaseSerializer, PurificationEntrySerializer
+from .models import (
+    ExceptionCase,
+    ExceptionSeverity,
+    ExceptionStatus,
+    PurificationEntry,
+    PurificationStatus,
+    RelatedPartyDisclosureStatus,
+    RelatedPartyTransaction,
+)
+from .serializers import (
+    ExceptionCaseSerializer,
+    PurificationEntrySerializer,
+    RelatedPartyTransactionSerializer,
+)
 
 
 class ExceptionCaseViewSet(
@@ -52,7 +66,14 @@ class ExceptionCaseViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [IsAuthenticated(), HasAnyRole(["risk_compliance", "pool_manager"])()]
-        if self.action in ("update", "partial_update", "resolve", "dismiss"):
+        if self.action in (
+            "update",
+            "partial_update",
+            "resolve",
+            "dismiss",
+            "start_investigation",
+            "set_treatment",
+        ):
             return [IsAuthenticated(), IsRiskCompliance()]
         return [IsAuthenticated()]
 
@@ -79,6 +100,65 @@ class ExceptionCaseViewSet(
             changes={"assigned_to": instance.assigned_to_id},
             request=self.request,
         )
+
+    @action(detail=True, methods=["post"], url_path="start-investigation")
+    def start_investigation(self, request, pk=None):
+        case = self.get_object()
+
+        investigation_notes = request.data.get("investigation_notes")
+        if not investigation_notes:
+            raise ValidationError({"investigation_notes": ["This field is required."]})
+
+        if case.status != ExceptionStatus.OPEN:
+            raise ValidationError(
+                f"ExceptionCase must be in '{ExceptionStatus.OPEN}' status to start "
+                f"investigation (current status: '{case.status}')."
+            )
+
+        previous_status = case.status
+        case.status = ExceptionStatus.INVESTIGATING
+        case.investigation_notes = investigation_notes
+        case.save(update_fields=["status", "investigation_notes", "updated_at"])
+
+        log_action(
+            tenant=case.tenant,
+            actor=request.user,
+            action="start_investigation",
+            model_name="ExceptionCase",
+            object_id=str(case.id),
+            changes={"status": {"before": previous_status, "after": case.status}},
+            reason=investigation_notes,
+            request=request,
+        )
+        return Response(self.get_serializer(case).data)
+
+    @action(detail=True, methods=["post"], url_path="set-treatment")
+    def set_treatment(self, request, pk=None):
+        case = self.get_object()
+
+        treatment_plan = request.data.get("treatment_plan")
+        if not treatment_plan:
+            raise ValidationError({"treatment_plan": ["This field is required."]})
+
+        if case.status != ExceptionStatus.INVESTIGATING:
+            raise ValidationError(
+                f"ExceptionCase must be in '{ExceptionStatus.INVESTIGATING}' status to set "
+                f"a treatment plan (current status: '{case.status}')."
+            )
+
+        case.treatment_plan = treatment_plan
+        case.save(update_fields=["treatment_plan", "updated_at"])
+
+        log_action(
+            tenant=case.tenant,
+            actor=request.user,
+            action="set_treatment",
+            model_name="ExceptionCase",
+            object_id=str(case.id),
+            changes={"treatment_plan": treatment_plan},
+            request=request,
+        )
+        return Response(self.get_serializer(case).data)
 
     @action(detail=True, methods=["post"])
     def resolve(self, request, pk=None):
@@ -201,6 +281,7 @@ class PurificationEntryViewSet(
         )
         return Response(self.get_serializer(entry).data)
 
+
     @action(detail=True, methods=["post"], url_path="mark-distributed")
     def mark_distributed(self, request, pk=None):
         entry = self.get_object()
@@ -241,6 +322,63 @@ class PurificationEntryViewSet(
             request=request,
         )
         return Response(self.get_serializer(entry).data)
+
+
+class RelatedPartyTransactionViewSet(viewsets.ModelViewSet):
+    serializer_class = RelatedPartyTransactionSerializer
+
+    def get_queryset(self):
+        queryset = RelatedPartyTransaction.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager"])()]
+        if self.action == "review":
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance", "shariah_board"])()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(tenant=self.request.user.tenant)
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="create",
+            model_name="RelatedPartyTransaction",
+            object_id=str(instance.id),
+            changes={"amount": str(instance.amount), "pool": str(instance.pool_id)},
+            request=self.request,
+        )
+
+    @action(detail=True, methods=["post"])
+    def review(self, request, pk=None):
+        transaction = self.get_object()
+        decision = request.data.get("decision")
+        if decision not in {
+            RelatedPartyDisclosureStatus.APPROVED,
+            RelatedPartyDisclosureStatus.FLAGGED,
+        }:
+            raise ValidationError({"decision": ["Must be 'approved' or 'flagged'."]})
+
+        previous_status = transaction.disclosure_status
+        transaction.disclosure_status = decision
+        transaction.reviewed_by = request.user
+        transaction.review_notes = request.data.get("notes")
+        transaction.save(update_fields=["disclosure_status", "reviewed_by", "review_notes", "updated_at"])
+        log_action(
+            tenant=transaction.tenant,
+            actor=request.user,
+            action="review",
+            model_name="RelatedPartyTransaction",
+            object_id=str(transaction.id),
+            changes={"status": {"before": previous_status, "after": decision}},
+            reason=transaction.review_notes,
+            request=request,
+        )
+        return Response(self.get_serializer(transaction).data)
 
 
 @api_view(["GET"])

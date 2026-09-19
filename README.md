@@ -244,6 +244,51 @@ Once the backend supports multiple tenants per user, `TenantSwitcher.tsx` (see t
 
 **Manually verified the data contract via real HTTP requests** against the running backend: `fetchContractTemplates()`'s endpoint returned the shape expected by the `ContractTemplate` interface; `createProduct()`'s endpoint created a real `Product` (`status: "draft"`) matching the `Product` interface exactly; `submitProductForReview()`'s endpoint flipped `status` to `shariah_review` as expected; and a `403` from a disallowed role (`shariah_board` attempting to create a product) came back in the `{"error": {"message": ...}}` shape, confirming `extractErrorMessage()`'s new branch actually fires on real backend errors rather than only in theory. `tsc --noEmit`, `npm run build`, and Vite module serving are all clean. As with Command Center, full in-browser visual/interaction verification (modal open/close, form submission UX) was not done in this pass.
 
+### Contract Template Studio (connected — list + create, third Products & Pools tab)
+
+**Backend**: one new read-only endpoint, `GET /api/v1/products/contract-templates/{id}/clauses-schema/` (`ContractTemplateViewSet.clauses_schema`, any authenticated user). It 404s for an unknown/foreign-tenant id (via `self.get_object()`, so tenant isolation is enforced the same as every other action on this viewset) and otherwise returns a static list of standard Islamic-finance contract clause fields — `profit_ratio`, `late_payment_policy`, `notice_period`, `loss_bearing_clause`, `early_termination_terms`, `collateral_requirements`, `dispute_resolution`, `purification_clause` — each with a `key`, `label`, and `description`. It's intentionally static/not template-specific for now (no per-`contract_type` variation yet); making it vary by contract type is future scope if the clause set actually needs to differ between Mudarabah/Musharakah/Wakalah/Qard.
+
+**Frontend**: `src/pages/ContractTemplateStudio.tsx`, routed at `/contract-templates` and added as the third tab ("Contract Templates") alongside Products and Pools on both `ProductCatalogue.tsx` and `PoolCatalogue.tsx`'s existing tab bars.
+
+- Lists existing templates in a table (name, contract_type, version, status badge, linked `shariah_decision_code`) via the pre-existing `fetchContractTemplates()`.
+- **"+ New Template"** expands an inline single-page form (not a multi-step wizard — deliberately kept simple per this task's scope) with name, contract type, version, an optional approved-Shariah-decision dropdown (fetched via `fetchShariahDecisions()`, filtered to `status === "approved"`), and a dynamic clauses editor: add/remove key-value rows freely, plus quick-add buttons sourced from the new `clauses-schema/` endpoint (falling back to a matching static list when the catalogue has no existing template yet to fetch the schema from — the schema is currently identical either way, since it isn't template-specific). Submits via a new `createContractTemplate()` (`POST /api/v1/products/contract-templates/`), building the `clauses` JSON object from the non-empty rows client-side.
+- New template rows are `IsProductManager`-gated server-side, same as the rest of this viewset; a disallowed role's `403` surfaces inline via `extractErrorMessage()`.
+
+**Verified via real HTTP requests** in `apps/products/tests.py::ContractTemplateClausesSchemaApiTests`: fetched the clauses schema and confirmed it contains the standard fields; confirmed a `404` for an unknown template id; created a template with a dynamic `clauses` object (`{"profit_ratio": "70/30", "notice_period": "30 days"}`), confirmed the response echoes it back exactly and starts in `draft` status, and confirmed it appears in the list endpoint. `npm run build` is clean.
+
+### Related-Party Transactions (connected — create and review)
+
+Risk & Compliance includes a **Related-Party** tab alongside the Asset Registry and Exception Queue. It calls the live governance API at `/api/v1/governance/related-party-transactions/` and supports pool filtering, transaction creation, and review decisions.
+
+- Finance Makers and Pool Managers can create transactions; new records start as `pending_review`.
+- Risk & Compliance and Shariah Board users can approve or flag a transaction with review notes through `POST /api/v1/governance/related-party-transactions/{id}/review/` using `{ "decision": "approved" | "flagged", "notes": "..." }`.
+- The backend applies tenant isolation and writes audit entries for create and review actions. The governance API test suite covers create, approve, flag, and forbidden-role responses.
+
+### Exception Case Investigation Lifecycle (quarantine, investigation, treatment)
+
+`ExceptionCase` now tracks two additional stages beyond open/resolved/dismissed — `investigation_notes` and `treatment_plan` — so a Risk & Compliance case can show its full quarantine → investigation → treatment → resolution history, not just a final outcome:
+
+- **`POST /api/v1/governance/exceptions/{id}/start-investigation/`** — `IsRiskCompliance` only. Requires `status == "open"` and a required `investigation_notes` body field (`400` if missing or if the case isn't `open`, e.g. calling it twice). Transitions `open` → `investigating`.
+- **`POST /api/v1/governance/exceptions/{id}/set-treatment/`** — `IsRiskCompliance` only. Requires `status == "investigating"` (so a treatment plan can't be set before an investigation has started) and a required `treatment_plan` body field. Status stays `investigating` — setting a treatment plan is a sub-step within investigation, not a status transition of its own.
+- `resolve/`/`dismiss/` (pre-existing) remain the final step, unchanged.
+- Every transition writes an `AuditLog` entry (`start_investigation`, `set_treatment`), the same as the rest of this model's actions.
+
+**Frontend**: `src/pages/governance/ExceptionCaseDetail.tsx`, routed at `/exceptions/{id}`. `ExceptionQueue`'s table rows now navigate here on click instead of the old inline-expand card (which has been removed, along with the now-fully-superseded `ResolutionModal.tsx`). The page shows the case's title/severity/description, then a 4-stage timeline card (**Quarantine** → **Investigation** → **Treatment Plan** → **Resolve/Dismiss**) with a decision badge (Completed / In Review / Pending / Blocked) and the stage's notes per card, followed by whichever action form applies to the case's current status (Start Investigation / Set Treatment Plan / Resolve or Dismiss), gated to `risk_compliance` the same as before.
+
+**Verified via real HTTP requests** in `apps/governance/tests.py::ExceptionCaseInvestigationLifecycleApiTests`: ran the full lifecycle (start-investigation → set-treatment → resolve) end-to-end confirming each response's status and stored notes; confirmed `start-investigation` rejects a missing `investigation_notes` and rejects being called a second time once already `investigating`; confirmed `set-treatment` rejects being called before an investigation has started; confirmed a non-`risk_compliance` role gets `403` on both new actions. `npm run build` is clean.
+
+### Shariah Governance page (connected — Workspace, Fatwa Register, Purification Ledger)
+
+The **Shariah Governance** nav item now routes to `src/pages/ShariahGovernance.tsx`, a three-tab page rather than the single Purification Ledger it previously pointed straight to:
+
+- **Workspace** — calls `fetchShariahDashboard()` against the existing `GET /api/v1/governance/shariah-dashboard/` aggregation endpoint and renders it as `StatCard`s (total pending items, critical exceptions, pending decisions, pending purification entries) plus a list per pending category (Shariah decisions, contract templates, weightage bands, PSR schedules, open exception cases, purification entries, pool approvals). Nothing new on the backend — this is a read-only view over an endpoint that already existed.
+- **Fatwa Register** — a new `ShariahDecisionViewSet` frontend: a table of `ShariahDecision` rows (`decision_code`, `title`, status badge, `effective_date`) backed by `src/api/shariahGovernance.ts`'s `fetchShariahDecisions()` / `createShariahDecision()` / `approveShariahDecision()`, calling the pre-existing `apps.products` endpoints (`GET/POST /api/v1/products/shariah-decisions/`, `POST /api/v1/products/shariah-decisions/{id}/approve/`). A **"+ New Decision"** modal creates a `draft` decision; an **Approve** action (visible to Shariah Board / Shariah Secretariat, matching the endpoint's existing permission) flips it to `approved`.
+- **Purification Ledger** — the existing `PurificationLedger` component, unchanged in behavior, now rendered as the third tab instead of owning its own page/route. Its own `PageHeader` was removed (replaced with a plain subtitle line) since it's nested under the parent page's header now.
+
+Backend test coverage added in `apps/products/tests.py` (`ShariahDecisionApiTests`) — create/list/approve a decision, a non-Shariah role forbidden from creating one, and the dashboard correctly reflecting a newly-created pending decision — run via real `APIClient` HTTP requests against `reverse()`d URLs, all passing.
+
+`npm run build` is clean.
+
 ### New Pool Wizard (connected — Model selection + basic Pool creation only)
 
 `src/pages/NewPoolWizard.tsx` (routed at `/pools/new`, linked from a **"+ New Pool"** button next to Product Catalogue's "+ New Product") follows the catalogue's 6-station visual design — a `Stepper` shows "1 Model" / "2 Contract" / "3 Economics" / "4 Assets" / "5 Governance" / "6 Review", the current step highlighted in emerald, the rest muted — but **only two of those stations are functional right now**:
@@ -326,7 +371,7 @@ Once the backend supports multiple tenants per user, `TenantSwitcher.tsx` (see t
 `src/pages/AllocationRunDetail.tsx` is the detail page for a saved `AllocationRun`, reachable directly at `/allocation-runs/{id}` (linked from the Simulator's "Recent Runs" list after saving a run). Displays the same stat cards + lines table as the Simulator, plus status-conditional actions to drive the maker-checker approval workflow:
 
 - **`simulated`** status: "Submit for Checking" button → `POST .../allocation-runs/{id}/submit-for-checking/` (no body), transitions to `pending_approval` (requires `finance_maker` role).
-- **`pending_approval`** status: "Approve" button (requires `finance_checker` role, different user than maker via `validate_maker_checker()` backend check) → `POST .../allocation-runs/{id}/approve/` → transitions to `signed`, creates a `JournalBatch` with double-entry rows (e.g. debit "Profit Expense — savings_tier_a" / credit "Depositor Payable — savings_tier_a"), then renders the Journal Batch card showing batch_date, total_debit, total_credit, and a table of entries. Also "Reject" button → opens a small modal (required `rejection_reason` text field) → `POST .../allocation-runs/{id}/reject/` with body `{rejection_reason}` → transitions to `rejected`.
+- **`pending_approval`** status: "Approve" button (requires `finance_checker` role, different user than maker via `validate_maker_checker()` backend check) → `POST .../allocation-runs/{id}/approve/` → transitions to `signed`, creates a `JournalBatch` with double-entry rows (e.g. debit "Profit Expense — savings_tier_a" / credit "Depositor Payable — savings_tier_a"), then renders the Journal Batch card showing batch_date, total_debit, total_credit, and a table of entries. Also "Reject" button → opens a small modal (required `rejection_reason` text field) → `POST .../allocation-runs/{id}/reject/` with body `{rejection_reason}` → transitions to `rejected`. **Updated by a later task** for `bank_pool` runs — see [Allocation Run approval timeline (frontend)](#allocation-run-approval-timeline-frontend) below: a `shariah_review` stage now sits between `pending_approval` and `signed`, so the Approve button here only appears directly when `shariah_review_required` is `False`.
 - **`signed`** status: read-only display of the Journal Batch card (batch_date, totals, entries table with account_name/entry_type/amount).
 - **`rejected`** status: displays the rejection_reason in a read-only box.
 
@@ -619,13 +664,30 @@ Once an `AllocationRun` is persisted (`status="simulated"`), it goes through a m
 
 ### AllocationRun status lifecycle
 
-`simulated` → (Finance Maker submits) → `pending_approval` → (Finance Checker decides) → `signed` **or** `rejected`
+`simulated` → (Finance Maker submits) → `pending_approval` → **[bank_pool only] (Shariah Secretariat signs off) →** `shariah_review` → (Finance Checker decides) → `signed` **or** `rejected`
 
 - **`POST /api/v1/allocation/allocation-runs/{id}/submit-for-checking/`** — `IsFinanceMaker` only. Requires `status == "simulated"`.
-- **`POST /api/v1/allocation/allocation-runs/{id}/approve/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"`. Calls `apps.accounts.workflow.validate_maker_checker(maker_user=run.created_by, checker_user=request.user)` — if the same user created and is now approving the run, the request fails with `400`: *"Maker and checker cannot be the same user"*. On success: sets `checked_by`, `checked_at`, `status = "signed"`, and immediately calls `create_journal_from_allocation()` to post the ledger entries (below). The response includes the nested `journal_batch`.
-- **`POST /api/v1/allocation/allocation-runs/{id}/reject/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` and a required `rejection_reason` in the body (`400` if missing). Sets `checked_by`, `checked_at`, `rejection_reason`, `status = "rejected"`. No journal is posted.
+- **`AllocationRun.shariah_review_required`** (read-only computed property, exposed on the serializer) is `True` when the run's pool's `Product.operating_model == "bank_pool"` **and** the `ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL` setting (env-configurable, default `True`) is on. It is evaluated live from the pool + setting each time it's read, not stored on the row — flipping the setting doesn't retroactively change the flow already in progress for a run's UI state, since the flag is derived fresh on every request.
+- **`POST /api/v1/allocation/allocation-runs/{id}/shariah-sign-off/`** — `IsShariahSecretariat` only. Requires `shariah_review_required == True` and `status == "pending_approval"` (`400` with *"This AllocationRun's pool does not require Shariah review."* if the pool doesn't need it at all). Body: `{"note": "..."}` (optional, stored as `shariah_review_note`). Sets `shariah_signed_off_by`, `shariah_signed_off_at`, `status = "shariah_review"`.
+- **`POST /api/v1/allocation/allocation-runs/{id}/approve/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` when `shariah_review_required == False`, or `status == "shariah_review"` when it's `True` — so for a `bank_pool` run, a Finance Checker cannot skip straight from `pending_approval` to `signed`; the Shariah sign-off step is enforced server-side, not just hidden in the UI. Calls `apps.accounts.workflow.validate_maker_checker(maker_user=run.created_by, checker_user=request.user)` — if the same user created and is now approving the run, the request fails with `400`: *"Maker and checker cannot be the same user"*. On success: sets `checked_by`, `checked_at`, `status = "signed"`, and immediately calls `create_journal_from_allocation()` to post the ledger entries (below). The response includes the nested `journal_batch`.
+- **`POST /api/v1/allocation/allocation-runs/{id}/reject/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` (rejection during `shariah_review` is not currently supported — a run that failed Shariah review still has to reach `pending_approval` again some other way; this is unchanged from before and out of scope for this task) and a required `rejection_reason` in the body (`400` if missing). Sets `checked_by`, `checked_at`, `rejection_reason`, `status = "rejected"`. No journal is posted.
 
-Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason` is also stored in the `AuditLog.reason` field, not just on the run.
+Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason` is also stored in the `AuditLog.reason` field, not just on the run; for `shariah-sign-off`, `shariah_review_note` is stored the same way.
+
+### Allocation Run approval timeline (frontend)
+
+`src/pages/AllocationRunDetail.tsx` renders a 4-stage timeline (Prepared → Independent Check → Shariah Review → Final Release) as a row of cards above the run's figures, each showing an owner, a decision badge (Completed / Approved / In Review / Blocked / Pending), and a timestamp:
+
+- **Prepared** — always `Completed`, showing `created_by` and `created_at`.
+- **Independent Check** — `Pending` while `simulated`, `In Review` once submitted (`pending_approval`) with no owner yet (nobody has actually checked it), `Approved` once past that stage, `Blocked` if `rejected`.
+- **Shariah Review** — only meaningful when `shariah_review_required` is `True`; otherwise stays `Pending`/greyed with no owner. Shows `In Review` while waiting in `pending_approval`, `Approved` with the signing-off Secretariat user and `shariah_signed_off_at` once signed off.
+- **Final Release** — `Completed` with `checked_by`/`checked_at` only once `status == "signed"`; `Blocked` if rejected, `Pending` otherwise.
+
+The Actions card adapts to the same flag: a `bank_pool` run sitting in `pending_approval` shows a "Waiting for Shariah Secretariat sign-off" notice and a **Shariah Sign-Off** button (calls the new `shariahSignOffRun()` in `src/api/allocationRuns.ts`) instead of the Approve/Reject buttons, which only appear once the run reaches `shariah_review`; a non-`bank_pool` run keeps the original direct `pending_approval` → Approve/Reject behavior unchanged.
+
+User references (`created_by`, `checked_by`, `shariah_signed_off_by`) are shown as `User #{id}` — there's no user-lookup-by-id endpoint yet to resolve a display name, consistent with how user references are shown everywhere else in the frontend today.
+
+**Verified via real HTTP requests** in `apps/allocation/tests.py::AllocationRunShariahReviewStageApiTests`: created a `bank_pool` run, confirmed `shariah_review_required=True` on the API response, submitted it for checking, confirmed a Finance Checker's premature `approve/` is rejected with `400`, confirmed a Finance Checker cannot call `shariah-sign-off/` (`403`), had the Shariah Secretariat sign off successfully (`status` → `shariah_review`, note stored, signer recorded), then had the Finance Checker approve successfully (`status` → `signed`). A second test created an `investment_pool` run, confirmed `shariah_review_required=False`, confirmed `shariah-sign-off/` is rejected with `400` for a pool that doesn't need it, and confirmed the Finance Checker can approve directly from `pending_approval` as before. `npm run build` is clean.
 
 ### Double-entry journal posting (`apps/accounting`)
 
@@ -640,7 +702,44 @@ Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason
 
 - **`GET /api/v1/accounting/journal-batches/?pool={pool_id}`** — read-only list (with nested `entries`), any authenticated user, filterable by pool.
 
+### Reconciliation Copilot
+
+`apps/accounting/reconciliation.py` provides a **rule-based v1, simplified sanity check** after each journal batch is posted. It is not production-grade line-by-line reconciliation; it is a high-level control designed to catch large mismatches.
+
+For the journal batch's pool, the check compares:
+
+1. `journal_total`: the cumulative `amount` of all credit entries whose account name starts with `Depositor Payable` across that pool's posted `JournalBatch` records.
+2. `snapshot_total`: the sum of all `DailyBalance.balance_amount` values in the pool's most recent `value_date` snapshot, across participant classes.
+
+The percentage difference is:
+
+```text
+abs(journal_total - snapshot_total) / abs(snapshot_total) * 100
+```
+
+When the snapshot total is zero, the difference is `0%` if both totals are zero and `100%` otherwise. A difference of **5% or less** is tolerated because normal round-trip differences can occur. A difference above 5% creates an `ExceptionCase` with `source_module="accounting"`; severity is `medium` above 5% and `high` above 15%. The exception description includes both totals and the exact percentage difference. The check is best-effort and never blocks journal posting if it fails.
+
 **Manually verified end-to-end via real HTTP requests:** created a `simulated` run as a `finance_maker`, submitted it for checking (`pending_approval`); a `pool_manager` got `403` attempting `submit-for-checking` (wrong role); confirmed via Django shell that when the same physical user is set as both `created_by` and the approving `finance_checker`, `approve/` correctly returns `400` with the exact maker-checker message (there's no way to trigger this through the API alone in the current single-role-per-user model, since `finance_checker` can't create runs — this was flagged and confirmed with the user before testing this way); a genuinely different `finance_checker` then approved successfully — `status` became `signed`, `checked_by`/`checked_at` were set, and a `JournalBatch` was created with `total_debit == total_credit == 11,000,000.00` across exactly 8 entries (3 debit/credit pairs for the participant classes plus the mudarib pair); a second run was rejected with a required `rejection_reason`, confirmed recorded on both the run and its `AuditLog` entry, with no `JournalBatch` created; a `shariah_board` user got `403` on both `approve/` and `reject/`; confirmed via shell (equivalent to what the Django admin list page shows) that the posted `JournalBatch`'s `total_debit` and `total_credit` are equal.
+
+## Allocation Anomaly Detector
+
+`apps/allocation/anomaly_detector.py` — `check_for_anomalies(allocation_run)` — runs automatically as the last step of `AllocationRun.approve/` (after the run is signed and its `JournalBatch` is posted; see [Maker-Checker Approval & Journal Posting](#maker-checker-approval--journal-posting) above), and flags an `ExceptionCase` if the just-signed run looks statistically unusual compared to that pool's recent history.
+
+**This is a rule-based v1 check, not a statistical or ML model.** It compares two metrics against a simple moving average of the trailing 5 signed runs for the same pool:
+
+1. **Profit margin** — `distributable_amount / gross_income` for the whole run.
+2. **Per-participant-class allocation ratio** — `allocated_amount / daily_funds` for each `AllocationLine`, compared against the same participant class's average ratio across the baseline runs.
+
+For each metric, `deviation = abs(current - average) / average`. A deviation of **40% or more** on *either* metric raises exactly one `ExceptionCase` (the first metric found to breach the threshold — profit margin is checked before per-class ratios). Severity is `high` if the deviation is **60% or more**, otherwise `medium`.
+
+- **No baseline, no check.** If the pool has fewer than 5 prior *signed* runs, `check_for_anomalies()` returns `False` immediately and does nothing — there's no history to compare against yet, so a brand-new pool's first several runs are never flagged regardless of their numbers.
+- **`ExceptionCase` fields**: `source_module="allocation"`, `source_object_id=str(allocation_run.id)`, `pool=allocation_run.pool`, `detected_by="system"`, and a `description` that states the actual numbers, e.g. *"Allocation ratio for 'Depositor' 84.00% is 233.33% different from the 5-run average of 25.20%."* — deliberately concrete rather than a generic "anomaly detected" message, so a Risk & Compliance reviewer can triage without re-deriving the math.
+- **Never blocks approval.** `approve/` calls `check_for_anomalies()` in a `try/except`, logging (not raising) on failure — a bug or edge case in the anomaly check must never prevent a legitimately-approved run from being signed and posted. This is a detection/triage aid, not a gate.
+- **Known limitation (accepted for v1):** the baseline is always "whatever the 5 most recent signed runs are," including runs that were themselves flagged as anomalous. A flagged run is not excluded from becoming part of the next run's baseline, so a real anomaly can temporarily skew what counts as "normal" for the pool's next couple of runs. This was a deliberate choice to keep v1 simple and match the spec exactly ("average of the previous 5 signed runs"); if this turns out to cause too much baseline noise in practice, a v2 could exclude runs with an open/unresolved `ExceptionCase` from the baseline calculation.
+
+**Relationship to Mizan:** the team has a separate, general-purpose anomaly detection tool called **Mizan**, intended to eventually operate as a standalone General Reports/Analytics capability across the whole system (not allocation-specific). This rule-based allocation check is **not** Mizan and does not share code or infrastructure with it — it's a narrow, allocation-specific v1 safeguard that ships now. Mizan integration is future scope and, when it lands, may either subsume this check or run alongside it as a second, independent signal.
+
+**Manually verified:** created 5 baseline `signed` runs for a pool with a consistent ~10% profit margin and 14%/70% depositor/mudarib allocation ratios; a 6th run with 5x the gross income deviated 400% on the depositor ratio and correctly raised a `high`-severity `ExceptionCase` with the exact numbers in the description; a 6th run with normal, in-line numbers against the same clean baseline raised nothing; a brand-new pool's first-ever run (no baseline at all) was correctly skipped with no `ExceptionCase` and no error; confirmed end-to-end through the real `POST /api/v1/allocation/allocation-runs/{id}/approve/` endpoint (not just the function directly) that an anomalous run's `approve/` call still returns `200` with the run signed and its journal posted, while a matching `ExceptionCase` (`source_module="allocation"`) appears via `GET /api/v1/governance/exceptions/` — confirming the check runs silently in the background and never surfaces as an approval failure.
 
 ### GL Export (`apps/accounting/exports.py`)
 
@@ -663,6 +762,115 @@ Sample row:
 - Tenant isolation relies on `JournalBatch`'s `TenantScopedManager` (same pattern as the rest of the codebase) rather than an explicit tenant filter inside `generate_gl_csv()`.
 
 **Manually verified end-to-end via real HTTP requests:** exported a pool with 3 posted `JournalBatch`es (24 entries total) as `finance_maker` — got back a well-formed CSV; parsed it with Python's `csv.DictReader` and confirmed the debit column sum equals the credit column sum (`22,500,000.00 == 22,500,000.00`, balanced); a `date_from` in the far future returned an empty CSV (header only, `200 OK`); a pool with zero posted batches also returned an empty CSV; a `shariah_board` user got `403`; confirmed via Django shell that each call wrote an `AuditLog` row with the correct `row_count` and filter values, including `row_count: 0` for the empty-result cases.
+
+## Reconciliation Copilot
+
+`apps/accounting/reconciliation.py` — `check_reconciliation(journal_batch)` — runs automatically as the last step of `create_journal_from_allocation()` (right after a `JournalBatch` is posted; see [Double-entry journal posting](#double-entry-journal-posting-appsaccounting) above), and flags an `ExceptionCase` if what's been posted to the ledger looks materially out of line with the pool's most recent balance data.
+
+**This is a simplified v1 sanity check, not production-grade reconciliation.** Real reconciliation matches individual transactions line-by-line; this instead compares two pool-level totals as a coarse "does the big picture make sense" gate:
+
+1. **Posted depositor payable total** — the sum of `total_credit` across every `posted` `JournalBatch` for the pool, restricted to `JournalEntry` rows whose `account_name` starts with `"Depositor Payable"` (cumulative across all signed runs to date, not just the batch that triggered the check).
+2. **Latest balance snapshot total** — the sum of `DailyBalance.balance_amount` across all participant classes for the pool's single most recent `value_date` (i.e. "what the balances say depositors are owed as of the latest known snapshot").
+
+`percentage_difference = abs(journal_total - snapshot_total) / abs(snapshot_total) * 100` (treated as `100%` if `snapshot_total` is `0` but `journal_total` isn't, and `0%` if both are `0`). A mismatch **over 5%** (`MISMATCH_TOLERANCE`) raises exactly one `ExceptionCase` — the 5% tolerance exists because some day-to-day drift between a ledger total and a balance snapshot is normal (timing differences, in-flight transactions) and shouldn't page anyone. Severity is `high` if the mismatch is **over 15%** (`HIGH_SEVERITY_THRESHOLD`), otherwise `medium`.
+
+- **`ExceptionCase` fields**: `source_module="accounting"`, `source_object_id=str(journal_batch.id)`, `pool=journal_batch.pool`, `detected_by="system"`, and a `description` stating both totals and the exact percentage difference, e.g. *"Posted depositor payable total is 42000.00; latest DailyBalance snapshot total is 10000.00; exact percentage difference is 320.00%."*
+- **Never blocks posting.** `create_journal_from_allocation()` calls `check_reconciliation()` in a `try/except`, logging (not raising) on failure — the same pattern as the [Allocation Anomaly Detector](#allocation-anomaly-detector)'s hook into `approve/`. A bug or edge case in the reconciliation check must never prevent a legitimately-balanced journal batch from being posted.
+- **Known limitation (accepted for v1):** this compares pool-level totals, not individual transactions — it can miss offsetting errors (e.g. one participant class over-credited and another under-credited by the same amount would net to a 0% pool-level difference) and it only ever looks at the *latest* `DailyBalance` snapshot, not a matching-date comparison against the journal batch's own `batch_date`. A true production reconciliation engine (transaction-level matching, per-date comparison) is future scope; this is deliberately a cheap, fast, "did something go badly wrong" tripwire, not a substitute for it.
+
+**Manually verified:** with matching data (a `DailyBalance` snapshot of 42,000 against a posted `JournalBatch` with 42,000 in `Depositor Payable` credits), `create_journal_from_allocation()` posted the batch and correctly raised no `ExceptionCase`; deliberately altering the `DailyBalance` snapshot down to 10,000 against the same posted 42,000 and re-running `check_reconciliation()` correctly returned `True` and raised a `high`-severity `ExceptionCase` (320% mismatch, both exact totals in the description); `apps/accounting/tests.py`'s `test_reconciliation_failure_does_not_block_journal_posting` patches `check_reconciliation` to raise and confirms `create_journal_from_allocation()` still returns a valid, persisted `JournalBatch` — journal posting is provably unaffected by a reconciliation-check failure. All three `ReconciliationTests` pass (`python manage.py test apps.accounting.tests`).
+
+## Investment Pools — Capital Accounts
+
+`apps.investments` tracks unitized capital for `investment_pool`-operating-model pools (as opposed to the daily-balance-based bank pools everywhere else in this system): investors hold **units** rather than a raw cash balance, and money moves in/out via **subscriptions** (buying units at a NAV) and **redemptions** (selling units back at a NAV).
+
+`apps.investments.CapitalAccount` (`TenantScopedModel`):
+
+- `pool` FK — intended for `investment_pool`-model pools; this is a **convention, not an enforced constraint** yet (no validation blocks attaching a `CapitalAccount` to a `bank_pool`-model `Pool`).
+- `investor_name` — a plain name for now. Not linked to a `User` — an `investor_member`-role User linkage is future scope, once investor self-service login exists.
+- `investor_reference` — a human-readable code (e.g. `"INV-2026-001"`), unique per tenant (`unique_investor_reference_per_tenant` constraint).
+- `units_held` — running balance, maintained only by `subscribe/` and `redeem/` (never editable directly via the API — `units_held` and `status` are both read-only in `CapitalAccountSerializer`).
+- `status`: `active` / `closed`.
+
+`Subscription` and `Redemption` (both `TenantScopedModel`, FK'd to `CapitalAccount` via `related_name="subscriptions"` / `"redemptions"`) are the two transaction types, each carrying its own `nav_per_unit`, a computed amount/unit figure, `transaction_date`, and `status` (`pending` / `processed` — both are always created as `processed`, since they're only ever created synchronously through the actions below; `pending` exists for a possible future async/batch flow).
+
+### Endpoints (`apps/investments`)
+
+- **`GET /api/v1/investments/capital-accounts/?pool={pool_id}`** — list, filterable by pool. Any authenticated user.
+- **`GET /api/v1/investments/capital-accounts/{id}/`** — detail. Any authenticated user.
+- **`POST /api/v1/investments/capital-accounts/`** — create. `IsPoolManager` or `IsFinanceMaker` (via `HasAnyRole`).
+- **`POST /api/v1/investments/capital-accounts/{id}/subscribe/`** — body: `{amount, transaction_date}`. Computes `units_allotted = amount / nav_per_unit`, creates a `Subscription` (`status="processed"`), and increments `units_held` by that amount. `IsFinanceMaker` only. `nav_per_unit` is **not** an accepted input — see [NAV Calculation Engine](#nav-calculation-engine) below for where it comes from now.
+- **`POST /api/v1/investments/capital-accounts/{id}/redeem/`** — body: `{units_redeemed, transaction_date}`. Validates `units_redeemed <= units_held` (`400` with *"Cannot redeem more units than held"* otherwise), computes `amount = units_redeemed * nav_per_unit`, creates a `Redemption` (`status="processed"`), and decrements `units_held`. **`IsFinanceChecker` only** — deliberately a different role than `subscribe/`'s `IsFinanceMaker`, so the same person can never both bring capital in and take it back out unchecked (segregation of duties, same principle as the [Maker-Checker Approval](#maker-checker-approval--journal-posting) flow elsewhere).
+
+Every `subscribe/redeem` call writes an `AuditLog` entry (`model_name="CapitalAccount"`) recording the transaction id, amount/units, NAV (and which `NAVSnapshot` it came from), and the resulting `units_held`.
+
+### Demo data (`seed_demo_investment_pool`)
+
+`python manage.py seed_demo_investment_pool` creates a fully-approved `investment_pool`-operating-model `Product` + `Pool` (`INV-2026-001` / `INV-2026-001-01`), two `CapitalAccount`s (`INV-2026-001`, `INV-2026-002`), and processes one `Subscription` each — `amount=50000.00` at `nav_per_unit=100.00`, allotting `500` units — so there's ready-made data to exercise `redeem/` against without manually creating everything first. Idempotent: re-running it skips accounts/subscriptions that already exist.
+
+**Manually verified end-to-end via real HTTP requests:** created a `CapitalAccount` as `pool_manager` (`201`, `units_held="0.000000"`); a `shariah_board` user got `403` attempting `subscribe/`; `finance_maker` subscribed `50000.00` at NAV `100.00` — `units_held` correctly became `500.000000`; a `finance_maker` got `403` attempting `redeem/` on the same account (segregation of duties — the maker of a subscription cannot also be the checker of a redemption); `finance_checker` attempting to redeem `600` units against `500` held correctly returned `400` with the exact message *"Cannot redeem more units than held"*; `finance_checker` then redeemed a valid `100` units at NAV `105.00` — got back `amount="10500.00"` and `units_held` correctly dropped to `400.000000`; confirmed **tenant isolation**: a `TENANT-B` `pool_manager` listing capital accounts got `[]` (no leak of the `NOVU-DEMO` account), and fetching that account directly by ID returned `404` (via `TenantScopedManager`, not a `403` that would otherwise confirm its existence).
+
+### Investor KYC
+
+Each `CapitalAccount` can have one tenant-scoped `InvestorProfile`, created or edited by a Finance Maker through `POST/PATCH /api/v1/investments/investor-profiles/`. It records identity details, date of birth, address, risk tolerance, and suitability notes. New profiles start as `pending`.
+
+- Risk Compliance verifies or rejects a profile through `POST /api/v1/investments/investor-profiles/{id}/verify-kyc/` with `{ "kyc_status": "verified" | "rejected", "notes": "..." }`.
+- Every create, edit, and verification writes an `AuditLog` entry.
+- `subscribe/` rejects accounts without a verified profile with `KYC verification required before subscription`; the frontend also disables Subscribe and shows the tooltip `KYC verification required` until the profile is verified.
+- Editing a profile resets its status to `pending`, clearing the previous verification metadata so changed identity data must be reviewed again.
+
+### Investor Portfolio Summary (staff-facing, read-only)
+
+There is no investor-facing login yet — the `investor_member` role exists but nothing issues investors their own credentials. Rather than build that full auth flow now, staff (Pool Manager, Finance Maker/Checker) can view a read-only per-investor summary instead:
+
+- `src/pages/investments/CapitalAccountDetail.tsx`, routed at `/investments/capital-accounts/{id}` and linked via a **"View Portfolio Summary"** button on each expanded row in `InvestmentPools.tsx`. Shows `units_held`, current value (`units_held × latest published NAV`), and full `Subscription`/`Redemption` history tables.
+- Backed by two new read-only endpoints: `GET /api/v1/investments/subscriptions/?capital_account={id}` and `GET /api/v1/investments/redemptions/?capital_account={id}` (`SubscriptionViewSet` / `RedemptionViewSet`, list+retrieve only, any authenticated user — same as the existing `CapitalAccountViewSet.retrieve()`). No new write paths; `subscribe/`/`redeem/` on `CapitalAccountViewSet` are unchanged.
+- Current value shows "No published NAV" instead of a value when the pool has no published `NAVSnapshot` yet, rather than showing a stale or zero figure.
+- Verified via real HTTP requests in `apps/investments/tests.py::CapitalAccountDetailApiTests`: subscribed then redeemed against a test account, confirmed `units_held` reflects both, and confirmed both new list endpoints return exactly the filtered records for that `capital_account`. `npm run build` is clean.
+
+Building an actual investor login (issuing `investor_member` credentials, self-service registration, investor-scoped auth) is deliberately out of scope here and left for a future investor-facing portal phase.
+
+### Impairment Events and Capital Loss Allocation
+
+`ImpairmentEvent` records a pool valuation loss as a draft with a computed `loss_percentage` based on the published NAV's `total_pool_value` at the event's valuation date. A Shariah Board member approves the event through `POST /api/v1/investments/impairment-events/{id}/approve/`.
+
+Approval is one atomic transaction: every active `CapitalAccount` in the pool has its `units_held` reduced by the same loss percentage, the final six-decimal rounding adjustment keeps the pool total reconciled, and each account reduction is audit-logged. An event cannot be approved twice and approval is restricted to `IsShariahBoard` because the basis for allocating a loss is Shariah-sensitive.
+
+This implements the capital-loss principle of Mudarabah and Musharakah: genuine investment losses are borne by the capital providers (investors) in proportion to their capital participation, rather than being assigned arbitrarily to one investor or absorbed as operating profit. The Shariah Board approval is the control point confirming that the impairment and its allocation basis are appropriate before investor units change.
+
+## NAV Calculation Engine
+
+`apps.investments.NAVSnapshot` gives a pool a formal, maker-checker-approved Net Asset Value per unit at a point in time, and `subscribe/`/`redeem/` (above) now **always** use the pool's latest published NAV automatically — the earlier manual `nav_per_unit` request-body input has been removed entirely; sending one is simply ignored (it's not read from the request at all).
+
+`apps.investments.nav_engine.calculate_nav(pool, total_pool_value)` is a **pure function** (no writes):
+
+```
+total_units_outstanding = sum(units_held for all active CapitalAccounts in the pool)
+nav_per_unit = total_pool_value / total_units_outstanding   (Decimal, ROUND_HALF_UP, 6 dp)
+```
+
+Raises `ValueError` ("No active units outstanding for this pool — cannot calculate NAV.") if there are zero active units — there's no meaningful per-unit value to compute with nothing outstanding. `total_pool_value` is a **manual Finance Maker input for now**; in practice this figure should be derived from a Balance Sheet / asset valuation, but that integration is future scope — v1 trusts whatever the Finance Maker enters.
+
+### Maker-checker flow
+
+`NAVSnapshot.status`: `draft` → `published`, and reuses `apps.accounts.workflow.validate_maker_checker()` — the same helper `AllocationRun.approve/` uses (see [Maker-Checker Approval & Journal Posting](#maker-checker-approval--journal-posting)) — so the same rule applies: the `finance_checker` who publishes can never be the `finance_maker` who created the draft.
+
+- **`POST /api/v1/investments/nav-snapshots/`** — body: `{pool, valuation_date, total_pool_value}`. Calls `calculate_nav()` and persists the result as `status="draft"`, `created_by=request.user`. `IsFinanceMaker` only. Multiple drafts for the same `pool`/`valuation_date` are allowed (e.g. re-entering a corrected `total_pool_value`).
+- **`GET /api/v1/investments/nav-snapshots/?pool={pool_id}`** — list, filterable by pool. Any authenticated user.
+- **`POST /api/v1/investments/nav-snapshots/{id}/publish/`** — requires `status="draft"`; sets `published_by=request.user`, `published_at=now()`, `status="published"`. `IsFinanceChecker` only, and additionally calls `validate_maker_checker(maker_user=snapshot.created_by, checker_user=request.user)` — `400` with *"Maker and checker cannot be the same user"* if they're the same person. Also blocked (`400`) if another snapshot for the same `pool`/`valuation_date` is already published — **only one published `NAVSnapshot` per pool per date, ever** (enforced both by an explicit pre-check for a clean error message, and by a partial `UniqueConstraint` on `(tenant, pool, valuation_date)` filtered to `status="published"` as the hard DB-level backstop).
+- **`GET /api/v1/investments/nav-snapshots/latest/?pool={pool_id}`** — returns the most recent (`-valuation_date`) **published** `NAVSnapshot` for the pool; `400` with a clear message if none exists yet. This is exactly what `subscribe/`/`redeem/` call internally.
+
+Every create/publish writes an `AuditLog` entry (`model_name="NAVSnapshot"`).
+
+### Demo data (`seed_demo_nav_snapshot`)
+
+`python manage.py seed_demo_nav_snapshot` publishes a `NAVSnapshot` for the `seed_demo_investment_pool` pool, baselined so `nav_per_unit` comes out to exactly `100.00` given that pool's existing `1000` units outstanding (`total_pool_value=100000.00`). Run `seed_demo_investment_pool` first. Idempotent.
+
+**Manually verified end-to-end via real HTTP requests:** created a draft `NAVSnapshot` as `finance_maker` (`total_pool_value=105000.00` against `1000` units outstanding → `nav_per_unit="105.000000"`, `status="draft"`); a `shariah_board` user got `403` attempting to create one; the same `finance_maker` who created it got `403` attempting to publish it (wrong role, `IsFinanceChecker` only); a genuinely different `finance_checker` published it successfully; separately confirmed the **actual maker-checker violation** (not just the role gate) by creating a draft with `created_by` set to a `finance_checker` user and having that same user attempt to publish it — correctly returned `400` *"Maker and checker cannot be the same user"*; `subscribe/` on a brand-new pool with zero `NAVSnapshot`s returned exactly *"No published NAV available for this pool. Cannot process subscription/redemption."*; `subscribe/` against the pool with a published `105.00` NAV, sent with a deliberately wrong `nav_per_unit: "1.00"` in the request body, correctly ignored the body value entirely and used the real published NAV (`nav_per_unit="105.000000"` on the resulting `Subscription`, not `1.00`); with two published snapshots for the same pool (`100.00` @ 2026-09-01, `105.00` @ 2026-09-15), `latest/` correctly returned the `2026-09-15` one; attempting to publish a second draft for a `valuation_date` that already had a published snapshot initially surfaced a raw `500` (an uncaught `IntegrityError` from the partial unique constraint) — **fixed** by adding an explicit pre-check in `publish/` that now returns a clean `400` *"A NAVSnapshot for {pool_code} on {date} has already been published."* instead.
+
+### Frontend Investments screen
+
+The `/investments` screen (`frontend/src/pages/InvestmentPools.tsx`) filters the pool list client-side to products with `operating_model="investment_pool"`, then provides the current published NAV, Capital Accounts, and NAV History tabs. Subscribe and Redeem forms deliberately omit `nav_per_unit`: the backend uses the latest published NAV and the UI shows that value as read-only context. Subscribe is visible to `finance_maker`, Redeem and NAV publishing are visible to `finance_checker`, and a missing published NAV disables both account actions with a clear *"Publish a NAV snapshot first"* message. The API wrapper is in `frontend/src/api/investments.ts`; `fetchLatestNAV()` treats the backend's expected no-published-NAV `400` as `null` so the page can render its empty state.
 
 ## Depositor Statements
 
@@ -761,7 +969,7 @@ A generic, module-agnostic way for anomalies detected anywhere in the system (a 
 
 `apps.governance.ExceptionCase` (`TenantScopedModel`):
 
-- `source_module` (`allocation` / `balance_import` / `pool_lifecycle` / `asset_assignment` / `other`) and `source_object_id` (a free-text ID of the record that triggered it, e.g. a `BalanceImportBatch` id) — together they trace an exception back to what raised it, without a hard FK (the source could be any model in any app).
+- `source_module` (`accounting` / `allocation` / `balance_import` / `pool_lifecycle` / `asset_assignment` / `other`) and `source_object_id` (a free-text ID of the record that triggered it, e.g. a `BalanceImportBatch` id) — together they trace an exception back to what raised it, without a hard FK (the source could be any model in any app).
 - `pool` FK (nullable — not every exception is pool-scoped).
 - `severity` (`low` / `medium` / `high` / `critical`), `title`, `description`.
 - `status` (`open` → `investigating` / `resolved` / `dismissed`), `detected_by` (`system` / `ai_agent` / `manual`, default `system`).
@@ -795,6 +1003,16 @@ Every create/update/resolve/dismiss writes an `AuditLog` entry via `log_action()
 
 **Manually verified end-to-end via real HTTP requests:** manually created an `ExceptionCase` as `pool_manager` (`201`); a `shariah_board` user got `403` attempting the same; resolving without `resolution_notes` correctly returned `400`, with it correctly set `status="resolved"` and populated `resolved_by`/`resolved_at`; a `pool_manager` got `403` attempting `resolve/` (creation and resolution are different permission levels); `PATCH .../{id}/` correctly updated `assigned_to`; `dismiss/` without notes returned `400`, with notes set `status="dismissed"`; filtering by `status=open`, `status=resolved`, and `severity=high` each returned exactly the matching case(s); triggered a real balance-import control-total mismatch and a real duplicate-record skip via `POST /api/v1/pools/balance-imports/` and confirmed in both cases an `ExceptionCase` was auto-created with `source_module="balance_import"`, the correct `source_object_id` (the batch's id), the correct `pool`, and a title/description matching the actual mismatch details.
 
+### Frontend UI
+
+The Exception Queue is a tab on the **Risk & Compliance** page (`/risk-compliance`, `src/pages/AssetRegistry.tsx`, alongside the existing Asset Registry tab), rendered by `src/pages/governance/ExceptionQueue.tsx`:
+
+- Status and severity filter dropdowns re-fetch the list on change.
+- Clicking a row expands a detail `Card` (description, detected-by, assigned-to) with role-gated action buttons — "Assign to me", "Resolve", "Dismiss" — shown only to `risk_compliance` users, on cases still `open`/`investigating`.
+- Resolve/Dismiss open `src/pages/governance/ResolutionModal.tsx`, a small modal requiring `resolution_notes`; a `400` from the backend for a missing reason surfaces as the exact field-level message via `extractErrorMessage`'s `validation_error` handling.
+- `src/api/governance.ts` holds `fetchExceptions`, `updateExceptionAssignee`, `resolveException`, `dismissException`, all matching `apps/governance/serializers.py` field-for-field (`ExceptionCase` type in `src/types/index.ts`).
+- Manually verified: filtering works; a non-`risk_compliance` role attempting resolve/dismiss/assign gets the backend's real `403`, surfaced as a normal error message (the action buttons are also hidden from those roles in the UI, so this is defense in depth, not the only gate).
+
 ## Purification Ledger
 
 **Why this exists (Islamic finance context):** a Shariah-compliant pool must not retain or distribute income that itself comes from a non-compliant source. The most common real-world case is incidental conventional interest — e.g. a bank sweeps idle pool cash overnight and it happens to sit in a conventional interbank account that earns interest, or a counterparty pays a late fee structured as interest rather than a Shariah-compliant penalty. That income is never "the pool's profit" in a Shariah sense: it cannot be shared with depositors or the mudarib, because doing so would make their income impure (contaminated by riba). Standard practice (per AAOIFI-style governance) is **purification**: the tainted amount is identified, ring-fenced, ratified by the Shariah Board, and then donated to charity — deliberately *not* returned to the bank, the depositors, or the pool, since none of them are entitled to benefit from it. `apps.governance.PurificationEntry` gives this its own auditable lifecycle, separate from ordinary profit distribution, so it can never accidentally get folded back into an `AllocationRun`.
@@ -818,6 +1036,16 @@ Every create/update/resolve/dismiss writes an `AuditLog` entry via `log_action()
 Every create/approve/mark-distributed writes an `AuditLog` entry via `log_action()`.
 
 **Manually verified end-to-end via real HTTP requests:** created an entry as `finance_maker` (`201`, `status="identified"`); calling `mark-distributed/` immediately (skipping `approve/`) correctly returned `400` with the exact state-machine message, confirming the lifecycle can't be short-circuited; a `finance_maker` got `403` attempting `approve/`; `shariah_board` then approved successfully — `status` became `approved_for_purification` with `approved_by` set; a `shariah_board` user got `403` attempting `mark-distributed/` (approval and distribution are different roles); `finance_checker` calling `mark-distributed/` without `charity_recipient` correctly returned `400`; with both `charity_recipient` ("Edhi Foundation") and `distributed_date` supplied, the entry correctly became `status="distributed"`; a `shariah_board` user got `403` attempting `POST` (create); `risk_compliance` successfully created a second entry, confirming both allowed creator roles work; `GET .../?pool={id}` correctly listed both entries; confirmed via Django shell that all four transitions (`create` x2, `approve`, `mark_distributed`) wrote the expected `AuditLog` entries with accurate `changes`.
+
+### Frontend UI
+
+`src/pages/PurificationLedger.tsx`, mounted at the **Shariah Governance** nav item (`/shariah-governance`):
+
+- A pool selector drives which entries load (`fetchPurificationEntries(poolId)`); the table shows source, amount, identified date, a status badge (`identified`=neutral, `approved_for_purification`=gold, `distributed`=emerald), and — once distributed — the charity recipient and distributed date read-only.
+- "+ New Entry" opens `src/pages/governance/NewPurificationEntryModal.tsx` (source description, amount, identified date).
+- Per-row actions are role-gated exactly like the backend permissions: "Approve" only renders for `shariah_board` on `identified` rows; "Mark Distributed" (opening `src/pages/governance/MarkDistributedModal.tsx`, requiring both `charity_recipient` and `distributed_date`) only renders for `finance_checker` on `approved_for_purification` rows.
+- `src/api/governance.ts` also holds `fetchPurificationEntries`, `createPurificationEntry`, `approvePurificationEntry`, `markDistributed`, matching the serializer fields (`PurificationEntry` type in `src/types/index.ts`).
+- Manually verified the full lifecycle end-to-end through these exact endpoints: create (`identified`) → approve as `shariah_board` (`approved_for_purification`) → mark distributed as `finance_checker` (`distributed`, with `charity_recipient`/`distributed_date` populated and correctly displayed read-only in the table).
 
 ## Shariah Governance Dashboard
 
@@ -867,6 +1095,30 @@ Notes on scope and filtering:
 - Purely a read/view endpoint: no `log_action()` calls. Nothing is modified, and viewing an internal dashboard isn't compliance-sensitive the way exporting financial data (see [GL Export](#gl-export-appsaccountingexportspy)) is.
 
 **Manually verified end-to-end via real HTTP requests:** called the dashboard with only 2 pre-existing draft `WeightageBand`s in the system — every other list correctly returned `[]` (not an error), `total_pending_items` correctly read `2`; a `pool_manager` got `403`; created one draft `ShariahDecision`, one draft `ContractTemplate`, one `critical`-severity open `ExceptionCase`, one `identified` `PurificationEntry`, and flipped a `Pool` to `status="approved"` — the dashboard then correctly listed all of them in their respective categories, `total_pending_items` became `7`, `critical_exceptions` became `1`; filtering by a *different* pool's id correctly returned empty pool-scoped lists while still showing the tenant-wide `ShariahDecision`/`ContractTemplate` entries.
+
+## User Management APIs
+
+Platform administration for creating and managing `User` accounts, layered on top of the existing `accounts` app rather than a new one — it's the same model, just a different set of endpoints/permissions for administering it.
+
+Three serializers on `User`, each shaped for its endpoint:
+
+- **`UserListSerializer`** — `id, email, full_name, role, tenant_code, mfa_enabled, is_active`. Used for both list and detail.
+- **`UserCreateSerializer`** — `id, email, full_name, role, tenant` (input fields only — no password field; see below).
+- **`UserUpdateSerializer`** — `full_name, role, tenant, is_active`, all optional (`PATCH`-friendly). Notably **excludes `email`** — email is the login identifier (`USERNAME_FIELD`) and changing it isn't supported through this endpoint.
+
+### Endpoints (`apps/accounts`, `UserManagementViewSet`)
+
+- **`GET /api/v1/auth/users/`** — list. A `platform_super_admin` sees users across **every** tenant; any other role sees only their own tenant's users. Any authenticated user can call this (not gated to admins), but the queryset scoping means non-admins never see other tenants' rosters.
+- **`GET /api/v1/auth/users/{id}/`** — detail.
+- **`POST /api/v1/auth/users/`** — create. `IsPlatformSuperAdmin` only. The request body never carries a password — one is generated server-side the same way `create_test_user` does (`secrets.choice` over a 14-character alphanumeric alphabet) and returned **once**, as `generated_password` in the `201` response body, alongside the created user's normal fields. It is never stored anywhere retrievable and is not returned again by any other endpoint.
+- **`PATCH /api/v1/auth/users/{id}/`** — update `full_name`/`role`/`tenant`/`is_active`. `IsPlatformSuperAdmin` only.
+- **No `DELETE`** — deliberately not registered on the ViewSet (only `ListModelMixin`/`RetrieveModelMixin`/`CreateModelMixin`/`UpdateModelMixin` are mixed in), so hitting `DELETE` on a user detail URL returns a plain `405 Method Not Allowed`. Removing access is always a **soft deactivation** via `PATCH {"is_active": false}` — this preserves the user as the `actor`/`created_by`/etc. on every historical `AuditLog` entry, `AllocationRun`, etc. they touched, rather than leaving dangling references or requiring `SET_NULL` everywhere.
+
+Deactivation itself relies on Django's own auth machinery rather than custom logic: `ModelBackend.user_can_authenticate()` (called from `authenticate()` inside `LoginView`) already refuses `is_active=False` users, so a deactivated user's login attempt fails with the same generic `"Invalid email or password."` as a wrong password — no separate check was needed.
+
+`log_action()` is called on every `create` and every `update`, with the update action name set to `"deactivate"` or `"activate"` (not the generic `"update"`) when `is_active` actually flips — makes the audit trail read naturally ("who deactivated user X and when") without needing to diff `changes` to figure out what happened.
+
+**Manually verified end-to-end via real HTTP requests:** a `pool_manager` got `403` on `POST` and `403` on `PATCH`; a `platform_super_admin` created a user and received `generated_password` in the response; logged in as the new user with that exact password — succeeded; the same `platform_super_admin` then `PATCH`ed `is_active: false` — the same login attempt afterward correctly failed with `"Invalid email or password."`; `DELETE` on the user's detail URL correctly returned `405` (no delete route exists at all); confirmed via Django shell that both the `create` and the `deactivate` were recorded as distinct `AuditLog` actions with accurate `changes`.
 
 ## Multi-Tenancy
 
@@ -1002,6 +1254,17 @@ The Shariah Policy Copilot is now fully accessible from the app's UI, not just t
 - **API layer**: `src/api/shariahCopilot.ts` (`uploadDocument`, `fetchDocuments`, `askQuestion`, `submitReview`) and the corresponding types in `src/types/index.ts` (`ShariahDocument`, `EvidencePack` and its nested shapes), matching `apps/ai_agents/views.py` and the Copilot service's Pydantic schemas field-for-field.
 - **503 handling**: a `503` from the Copilot-backed endpoints (service down) shows a specific "Shariah Copilot service is temporarily unavailable. Please try again in a moment." message instead of a generic error, since it's a distinct microservice from the rest of the API.
 - Manually verified: upload → document appears in the list on refetch; a real question against an approved document returns a genuine (non-fallback) Evidence Pack; Shariah Board sees Approve/Reject, Pool Manager cannot even reach the Ask tab's results (blocked with `403` before any UI state renders); stopping the Copilot service produces the specific 503 message. `npx tsc -b` and `npm run build` both pass clean.
+
+### AI Model Governance and Kill Switch
+
+The Django backend maintains a global `AIModelRegistry` for the three internal AI features: `shariah_copilot`, `allocation_anomaly_detector`, and `reconciliation_copilot`. A data migration seeds all three as `active` with version `1.0`.
+
+- Authenticated users can list models at `GET /api/v1/ai/models/`.
+- Only Platform Super Admins can toggle a model with `PATCH /api/v1/ai/models/{id}/`, for example `{ "status": "disabled", "disabled_reason": "Maintenance" }`.
+- Every toggle is written to `AuditLog` with the actor, previous/new status, and disable reason.
+- A disabled Shariah Copilot returns `503 This AI feature is currently disabled.` before the external Copilot service is called. Disabled allocation anomaly and reconciliation checks silently return their existing no-op result so background posting/signing workflows remain non-blocking.
+
+The `/ai-analytics` page exposes this through a **Model Governance** tab. The registry table and controls are visible to all authenticated users, but only Platform Super Admins see the Disable/Enable controls.
 
 ## Notes
 

@@ -1,5 +1,11 @@
 import { apiClient } from "./axios"
-import type { ContractTemplate, CreateProductInput, Product } from "../types"
+import type {
+  ContractClauseSchemaField,
+  ContractTemplate,
+  CreateContractTemplateInput,
+  CreateProductInput,
+  Product,
+} from "../types"
 
 export async function fetchProducts(): Promise<Product[]> {
   const response = await apiClient.get<Product[]>("products/products/")
@@ -18,5 +24,19 @@ export async function submitProductForReview(id: string): Promise<Product> {
 
 export async function fetchContractTemplates(): Promise<ContractTemplate[]> {
   const response = await apiClient.get<ContractTemplate[]>("products/contract-templates/")
+  return response.data
+}
+
+export async function createContractTemplate(
+  data: CreateContractTemplateInput,
+): Promise<ContractTemplate> {
+  const response = await apiClient.post<ContractTemplate>("products/contract-templates/", data)
+  return response.data
+}
+
+export async function fetchClausesSchema(templateId: string): Promise<ContractClauseSchemaField[]> {
+  const response = await apiClient.get<ContractClauseSchemaField[]>(
+    `products/contract-templates/${templateId}/clauses-schema/`,
+  )
   return response.data
 }

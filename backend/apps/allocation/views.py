@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import mixins, viewsets
@@ -12,6 +14,7 @@ from apps.accounts.permissions import (
     IsFinanceMaker,
     IsPoolManager,
     IsShariahBoard,
+    IsShariahSecretariat,
 )
 from apps.accounts.workflow import validate_maker_checker
 from apps.core.audit import log_action
@@ -35,6 +38,8 @@ from .serializers import (
     WeightageBandSerializer,
 )
 from .statements import generate_statement_narrative
+
+logger = logging.getLogger("apps")
 
 
 class WeightageBandViewSet(viewsets.ModelViewSet):
@@ -164,6 +169,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         if self.action == "submit_for_checking":
             return [IsAuthenticated(), IsFinanceMaker()]
+        if self.action == "shariah_sign_off":
+            return [IsAuthenticated(), IsShariahSecretariat()]
         if self.action in ("approve", "reject"):
             return [IsAuthenticated(), IsFinanceChecker()]
         return [IsAuthenticated()]
@@ -301,6 +308,51 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         )
         return Response(self.get_serializer(run).data)
 
+    @action(detail=True, methods=["post"], url_path="shariah-sign-off")
+    def shariah_sign_off(self, request, pk=None):
+        run = self.get_object()
+
+        if not run.shariah_review_required:
+            raise ValidationError(
+                "This AllocationRun's pool does not require Shariah review."
+            )
+
+        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+            raise ValidationError(
+                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status for "
+                f"Shariah sign-off (current status: '{run.status}')."
+            )
+
+        run.status = AllocationRunStatus.SHARIAH_REVIEW
+        run.shariah_signed_off_by = request.user
+        run.shariah_signed_off_at = timezone.now()
+        run.shariah_review_note = request.data.get("note")
+        run.save(
+            update_fields=[
+                "status",
+                "shariah_signed_off_by",
+                "shariah_signed_off_at",
+                "shariah_review_note",
+                "updated_at",
+            ]
+        )
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="shariah_sign_off",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={
+                "status": {
+                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "after": AllocationRunStatus.SHARIAH_REVIEW,
+                }
+            },
+            reason=run.shariah_review_note,
+            request=request,
+        )
+        return Response(self.get_serializer(run).data)
+
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         # Local import: apps.accounting depends on apps.allocation's
@@ -308,11 +360,18 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         # circular import between the two apps.
         from apps.accounting.services import create_journal_from_allocation
 
+        from .anomaly_detector import check_for_anomalies
+
         run = self.get_object()
 
-        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+        required_status = (
+            AllocationRunStatus.SHARIAH_REVIEW
+            if run.shariah_review_required
+            else AllocationRunStatus.PENDING_APPROVAL
+        )
+        if run.status != required_status:
             raise ValidationError(
-                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status to "
+                f"AllocationRun must be in '{required_status}' status to "
                 f"approve (current status: '{run.status}')."
             )
 
@@ -321,6 +380,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
 
+        previous_status = run.status
         run.status = AllocationRunStatus.SIGNED
         run.checked_by = request.user
         run.checked_at = timezone.now()
@@ -336,7 +396,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             object_id=str(run.id),
             changes={
                 "status": {
-                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "before": previous_status,
                     "after": AllocationRunStatus.SIGNED,
                 },
                 "journal_batch_id": str(journal_batch.id),
@@ -358,6 +418,13 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             },
             request=request,
         )
+
+        # Best-effort: a failure here must never block a successful approve
+        # (the run is already signed and the journal is already posted).
+        try:
+            check_for_anomalies(run)
+        except Exception:
+            logger.exception("Anomaly check failed for AllocationRun %s", run.id)
 
         return Response(self.get_serializer(run).data)
 

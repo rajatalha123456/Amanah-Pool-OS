@@ -123,6 +123,9 @@ export function ProductCatalogue() {
         <Link to="/pools" className="px-1 pb-2 text-ink-secondary hover:text-ink-primary">
           Pools
         </Link>
+        <Link to="/contract-templates" className="px-1 pb-2 text-ink-secondary hover:text-ink-primary">
+          Contract Templates
+        </Link>
       </div>
 
       {successMessage && (

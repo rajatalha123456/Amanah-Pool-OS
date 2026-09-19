@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -65,6 +66,7 @@ class ProfitSharingRatio(TenantScopedModel):
 class AllocationRunStatus(models.TextChoices):
     SIMULATED = "simulated", "Simulated"
     PENDING_APPROVAL = "pending_approval", "Pending Approval"
+    SHARIAH_REVIEW = "shariah_review", "Shariah Review"
     SIGNED = "signed", "Signed"
     REJECTED = "rejected", "Rejected"
 
@@ -102,9 +104,36 @@ class AllocationRun(TenantScopedModel):
     )
     checked_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(null=True, blank=True)
+    shariah_signed_off_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shariah_signed_off_allocation_runs",
+    )
+    shariah_signed_off_at = models.DateTimeField(null=True, blank=True)
+    shariah_review_note = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.pool.name} allocation @ {self.value_date} ({self.status})"
+
+    @property
+    def shariah_review_required(self) -> bool:
+        """
+        Whether this run must pass through PENDING_APPROVAL -> SHARIAH_REVIEW
+        (a Shariah Secretariat sign-off) before it can be approved/signed by
+        a Finance Checker. Currently gated on the pool's operating_model
+        being bank_pool and a global on/off setting - not stored on the row
+        itself, so flipping the setting doesn't retroactively change the
+        required flow for runs already in progress under the old rule
+        inconsistently; it's re-evaluated live from the pool + setting each
+        time it's checked.
+        """
+
+        return (
+            self.pool.product.operating_model == "bank_pool"
+            and settings.ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL
+        )
 
 
 class AllocationLine(TenantScopedModel):

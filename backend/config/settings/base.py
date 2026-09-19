@@ -178,6 +178,14 @@ REST_FRAMEWORK["EXCEPTION_HANDLER"] = "apps.core.exceptions.custom_exception_han
 SHARIAH_COPILOT_BASE_URL = config("SHARIAH_COPILOT_BASE_URL", default="http://localhost:8001")
 SHARIAH_COPILOT_INTERNAL_KEY = config("SHARIAH_COPILOT_INTERNAL_KEY", default="")
 
+# Whether AllocationRuns for bank_pool-operating-model pools must pass through
+# a Shariah Secretariat sign-off stage (PENDING_APPROVAL -> SHARIAH_REVIEW)
+# before a Finance Checker can approve/sign them. See
+# apps.allocation.models.AllocationRun.shariah_review_required.
+ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL = config(
+    "ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL", default=True, cast=bool
+)
+
 
 # Logging
 

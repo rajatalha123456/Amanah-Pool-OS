@@ -9,6 +9,7 @@ class ProductBasicSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     name = serializers.CharField()
     code = serializers.CharField()
+    operating_model = serializers.CharField()
     status = serializers.CharField()
     contract_template = ContractTemplateBasicSerializer()
 
@@ -56,6 +57,7 @@ class PoolSerializer(serializers.ModelSerializer):
                 "id": product.id,
                 "name": product.name,
                 "code": product.code,
+                "operating_model": product.operating_model,
                 "status": product.status,
                 "contract_template": product.contract_template,
             }

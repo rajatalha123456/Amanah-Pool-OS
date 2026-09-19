@@ -1,13 +1,76 @@
 from rest_framework import exceptions as drf_exceptions
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import HasAnyRole, IsShariahBoard
+from apps.accounts.permissions import HasAnyRole, IsPlatformSuperAdmin, IsShariahBoard
 from apps.core.audit import log_action
 from apps.core.exceptions import ServiceUnavailable
 
 from .services import shariah_copilot_client as copilot
+from .models import AIModelRegistry, AIModelStatus, is_ai_model_enabled
+
+
+AI_MODEL_NAME = "shariah_copilot"
+
+
+def _ensure_copilot_enabled():
+    if not is_ai_model_enabled(AI_MODEL_NAME):
+        raise ServiceUnavailable("This AI feature is currently disabled.")
+
+
+class AIModelRegistrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIModelRegistry
+        fields = (
+            "id",
+            "model_name",
+            "version",
+            "status",
+            "disabled_reason",
+            "disabled_by",
+            "disabled_at",
+        )
+        read_only_fields = ("id", "model_name", "version", "disabled_by", "disabled_at")
+
+
+class AIModelRegistryViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = AIModelRegistrySerializer
+
+    def get_queryset(self):
+        return AIModelRegistry.objects.all().order_by("model_name")
+
+    def get_permissions(self):
+        if self.action in ("update", "partial_update"):
+            return [IsPlatformSuperAdmin()]
+        return [IsAuthenticated()]
+
+    def perform_update(self, serializer):
+        registry = self.get_object()
+        previous_status = registry.status
+        new_status = serializer.validated_data.get("status", previous_status)
+        if new_status == AIModelStatus.DISABLED:
+            registry = serializer.save(disabled_by=self.request.user, disabled_at=timezone.now())
+        else:
+            registry = serializer.save(disabled_by=None, disabled_at=None, disabled_reason=None)
+
+        log_action(
+            tenant=None,
+            actor=self.request.user,
+            action="disable" if new_status == AIModelStatus.DISABLED else "enable",
+            model_name="AIModelRegistry",
+            object_id=str(registry.id),
+            changes={"status": {"before": previous_status, "after": registry.status}},
+            reason=registry.disabled_reason,
+            request=self.request,
+        )
 
 
 def _forward_copilot_error(exc: copilot.ShariahCopilotError):
@@ -28,6 +91,7 @@ def _forward_copilot_error(exc: copilot.ShariahCopilotError):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat"])])
 def upload_document(request):
+    _ensure_copilot_enabled()
     file = request.FILES.get("file")
     if not file:
         raise drf_exceptions.ValidationError({"file": ["This field is required."]})
@@ -58,6 +122,7 @@ def upload_document(request):
     [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance"])]
 )
 def list_documents(request):
+    _ensure_copilot_enabled()
     params = request.query_params.dict()
 
     try:
@@ -75,6 +140,7 @@ def list_documents(request):
     [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance"])]
 )
 def ask(request):
+    _ensure_copilot_enabled()
     question = request.data.get("question")
     if not question:
         raise drf_exceptions.ValidationError({"question": ["This field is required."]})
@@ -93,6 +159,7 @@ def ask(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, IsShariahBoard])
 def review(request, evidence_pack_id):
+    _ensure_copilot_enabled()
     approve = request.data.get("approve")
     if approve is None:
         raise drf_exceptions.ValidationError({"approve": ["This field is required."]})

@@ -2,11 +2,16 @@
 Journal posting derived from a signed AllocationRun.
 """
 
+import logging
 from decimal import Decimal
 
 from django.db import transaction
 
 from .models import JournalBatch, JournalEntry, JournalEntryType
+from .reconciliation import check_reconciliation
+
+
+logger = logging.getLogger("apps")
 
 
 def create_journal_from_allocation(allocation_run, posted_by=None):
@@ -95,6 +100,14 @@ def create_journal_from_allocation(allocation_run, posted_by=None):
                 )
                 for entry in entries_data
             ]
+        )
+
+    try:
+        check_reconciliation(batch)
+    except Exception:
+        # Reconciliation is a best-effort detection aid and must not block posting.
+        logger.exception(
+            "Reconciliation check failed for JournalBatch %s", batch.id
         )
 
     return batch

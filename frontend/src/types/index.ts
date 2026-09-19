@@ -19,6 +19,16 @@ export interface User {
   mfa_enabled: boolean
 }
 
+export interface AIModelRegistry {
+  id: number
+  model_name: string
+  version: string
+  status: "active" | "disabled"
+  disabled_reason: string | null
+  disabled_by: number | null
+  disabled_at: string | null
+}
+
 export interface LoginResponse {
   access: string
   refresh: string
@@ -79,6 +89,20 @@ export interface ContractTemplate {
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface CreateContractTemplateInput {
+  name: string
+  contract_type: string
+  version: string
+  clauses: Record<string, string>
+  shariah_decision?: string | null
+}
+
+export interface ContractClauseSchemaField {
+  key: string
+  label: string
+  description: string
 }
 
 export interface CreateProductInput {
@@ -193,6 +217,36 @@ export interface Asset {
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface RelatedPartyTransaction {
+  id: string
+  tenant: string
+  pool: string
+  related_party_name: string
+  relationship_type: string
+  transaction_type: string
+  amount: string
+  transaction_date: string
+  disclosure_status: string
+  reviewed_by: number | null
+  review_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateRelatedPartyTransactionInput {
+  pool: string
+  related_party_name: string
+  relationship_type: string
+  transaction_type: string
+  amount: string
+  transaction_date: string
+}
+
+export interface RelatedPartyReviewInput {
+  decision: "approved" | "flagged"
+  notes?: string
 }
 
 export interface CreateAssetInput {
@@ -351,6 +405,10 @@ export interface AllocationRun {
   checked_by: number | null
   checked_at: string | null
   rejection_reason: string | null
+  shariah_review_required: boolean
+  shariah_signed_off_by: number | null
+  shariah_signed_off_at: string | null
+  shariah_review_note: string | null
   lines: AllocationLine[]
   journal_batch: JournalBatch | null
   created_at: string
@@ -366,6 +424,37 @@ export interface CapitalAccount {
   status: string
   created_at: string
   updated_at: string
+}
+
+export interface InvestorProfile {
+  id: string
+  capital_account: string
+  kyc_status: "pending" | "verified" | "rejected"
+  id_document_type: string
+  id_document_number: string
+  date_of_birth: string
+  address: string
+  risk_tolerance: "conservative" | "moderate" | "aggressive"
+  suitability_assessment_notes: string | null
+  verified_by: number | null
+  verified_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InvestorProfileInput {
+  capital_account: string
+  id_document_type: string
+  id_document_number: string
+  date_of_birth: string
+  address: string
+  risk_tolerance: InvestorProfile["risk_tolerance"]
+  suitability_assessment_notes?: string
+}
+
+export interface VerifyKYCInput {
+  kyc_status: "verified" | "rejected"
+  notes?: string
 }
 
 export interface CreateCapitalAccountInput {
@@ -522,6 +611,8 @@ export interface ExceptionCase {
   status: string
   detected_by: string
   assigned_to: number | null
+  investigation_notes: string | null
+  treatment_plan: string | null
   resolution_notes: string | null
   resolved_by: number | null
   resolved_at: string | null
@@ -554,6 +645,48 @@ export interface CreatePurificationEntryInput {
   source_description: string
   amount: string
   identified_date: string
+}
+
+// --- Shariah Governance: Dashboard + Fatwa Register (apps.governance / apps.products) ---
+
+export interface ShariahDecision {
+  id: string
+  tenant: string
+  decision_code: string
+  title: string
+  description: string
+  status: string
+  effective_date: string
+  approved_by: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateShariahDecisionInput {
+  decision_code: string
+  title: string
+  description: string
+  effective_date: string
+}
+
+export interface ShariahDashboardItem {
+  id: string
+  [key: string]: unknown
+}
+
+export interface ShariahDashboard {
+  pending_shariah_decisions: ShariahDashboardItem[]
+  pending_contract_templates: ShariahDashboardItem[]
+  pending_weightage_bands: ShariahDashboardItem[]
+  pending_psr_schedules: ShariahDashboardItem[]
+  open_exception_cases: ShariahDashboardItem[]
+  pending_purification_entries: ShariahDashboardItem[]
+  pending_pool_approvals: ShariahDashboardItem[]
+  summary_counts: {
+    total_pending_items: number
+    critical_exceptions: number
+  }
 }
 
 export const USER_ROLES = [
