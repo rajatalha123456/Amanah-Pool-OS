@@ -8,10 +8,10 @@ import { PoolCatalogue } from "./pages/PoolCatalogue"
 import { PoolDetail } from "./pages/PoolDetail"
 import { NewPoolWizard } from "./pages/NewPoolWizard"
 import { AssetRegistry } from "./pages/AssetRegistry"
-import { BalanceImport } from "./pages/BalanceImport"
+import { DailyOperationsCockpit } from "./pages/DailyOperationsCockpit"
 import { AllocationSimulator } from "./pages/AllocationSimulator"
 import { AllocationRunDetail } from "./pages/AllocationRunDetail"
-import { JournalBatchReview } from "./pages/JournalBatchReview"
+import { FinanceLedger } from "./pages/FinanceLedger"
 import { StatementView } from "./pages/StatementView"
 import { ShariahCopilot } from "./pages/ShariahCopilot"
 import { ShariahGovernance } from "./pages/ShariahGovernance"
@@ -28,9 +28,9 @@ import { navItems } from "./layouts/navItems"
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/products-pools": <ProductCatalogue />,
   "/risk-compliance": <AssetRegistry />,
-  "/daily-operations": <BalanceImport />,
+  "/daily-operations": <DailyOperationsCockpit />,
   "/allocation-engine": <AllocationSimulator />,
-  "/finance-ledger": <JournalBatchReview />,
+  "/finance-ledger": <FinanceLedger />,
   "/ai-analytics": <ShariahCopilot />,
   "/shariah-governance": <ShariahGovernance />,
   "/investments": <InvestmentPools />,

@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
-import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
@@ -114,11 +113,6 @@ export function BalanceImport() {
 
   return (
     <div>
-      <PageHeader
-        title="Balance Import & Validation"
-        subtitle="File/API ingestion with control totals"
-      />
-
       <Card title="Import Balances" className="mb-6">
         {isLoadingPools ? (
           <div className="flex items-center gap-2 text-sm text-ink-secondary">

@@ -227,4 +227,152 @@ class ExceptionCaseInvestigationLifecycleApiTests(APITestCase):
 		)
 		self.assertEqual(forbidden_treatment.status_code, status.HTTP_403_FORBIDDEN)
 
+
+class RiskDashboardAggregationApiTests(APITestCase):
+	"""
+	Reproduces the exact sequence of real HTTP requests
+	RiskLimitDashboard.tsx makes to compute its StatCards, since it is a
+	pure client-side aggregation over existing endpoints with no
+	dedicated backend for this dashboard.
+	"""
+
+	def setUp(self):
+		self.tenant = Tenant.objects.create(
+			name="Risk Dashboard Test Tenant", code="RISK-DASH-TEST", data_residency="PK"
+		)
+		set_current_tenant(self.tenant)
+		self.risk_user = User.objects.create_user(
+			email="risk@example.com",
+			password="password",
+			full_name="Risk Reviewer",
+			role=UserRole.RISK_COMPLIANCE,
+			tenant=self.tenant,
+		)
+		product = Product.objects.create(
+			tenant=self.tenant,
+			name="Risk Dashboard Product",
+			code="RISK-DASH-PRODUCT",
+			operating_model=OperatingModel.BANK_POOL,
+			contract_template=ContractTemplate.objects.create(
+				tenant=self.tenant,
+				name="Risk Dashboard Contract",
+				contract_type=ContractType.MUDARABAH_UNRESTRICTED,
+				version="1.0",
+				clauses={},
+			),
+		)
+		self.pool = Pool.objects.create(
+			tenant=self.tenant,
+			name="Risk Dashboard Pool",
+			code="RISK-DASH-POOL",
+			product=product,
+			effective_date=date(2026, 1, 1),
+		)
+
+		from apps.governance.models import (
+			ExceptionCase,
+			ExceptionSeverity,
+			ExceptionSourceModule,
+			PurificationEntry,
+			PurificationStatus,
+			RelatedPartyDisclosureStatus,
+			RelatedPartyTransaction,
+			RelatedPartyRelationshipType,
+		)
+
+		ExceptionCase.objects.create(
+			tenant=self.tenant,
+			source_module=ExceptionSourceModule.OTHER,
+			severity=ExceptionSeverity.CRITICAL,
+			title="Critical open exception",
+			description="Needs attention.",
+		)
+		ExceptionCase.objects.create(
+			tenant=self.tenant,
+			source_module=ExceptionSourceModule.OTHER,
+			severity=ExceptionSeverity.MEDIUM,
+			title="Medium open exception",
+			description="Also needs attention.",
+		)
+		ExceptionCase.objects.create(
+			tenant=self.tenant,
+			source_module=ExceptionSourceModule.OTHER,
+			severity=ExceptionSeverity.LOW,
+			title="Resolved exception, should not count",
+			description="Already handled.",
+			status="resolved",
+		)
+
+		RelatedPartyTransaction.objects.create(
+			tenant=self.tenant,
+			pool=self.pool,
+			related_party_name="Pending Party",
+			relationship_type=RelatedPartyRelationshipType.DIRECTOR,
+			transaction_type="loan",
+			amount="1000.00",
+			transaction_date=date(2026, 9, 1),
+			disclosure_status=RelatedPartyDisclosureStatus.PENDING_REVIEW,
+		)
+		RelatedPartyTransaction.objects.create(
+			tenant=self.tenant,
+			pool=self.pool,
+			related_party_name="Approved Party",
+			relationship_type=RelatedPartyRelationshipType.SHAREHOLDER,
+			transaction_type="loan",
+			amount="2000.00",
+			transaction_date=date(2026, 9, 1),
+			disclosure_status=RelatedPartyDisclosureStatus.APPROVED,
+		)
+
+		PurificationEntry.objects.create(
+			tenant=self.tenant,
+			pool=self.pool,
+			source_description="Incidental interest",
+			amount="50.00",
+			identified_date=date(2026, 9, 1),
+			status=PurificationStatus.IDENTIFIED,
+		)
+		PurificationEntry.objects.create(
+			tenant=self.tenant,
+			pool=self.pool,
+			source_description="Already distributed",
+			amount="25.00",
+			identified_date=date(2026, 9, 1),
+			status=PurificationStatus.DISTRIBUTED,
+		)
+
+	def tearDown(self):
+		set_current_tenant(None)
+
+	def authenticate(self, user):
+		self.client.force_authenticate(user=user)
+		self.client.defaults["HTTP_X_TENANT_CODE"] = self.tenant.code
+
+	def test_dashboard_aggregation_from_real_endpoints(self):
+		self.authenticate(self.risk_user)
+
+		exceptions_response = self.client.get(reverse("exception-case-list"), {"status": "open"})
+		self.assertEqual(exceptions_response.status_code, status.HTTP_200_OK)
+		open_exceptions = exceptions_response.data
+		self.assertEqual(len(open_exceptions), 2)
+
+		severity_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+		for exception in open_exceptions:
+			severity_counts[exception["severity"]] += 1
+		self.assertEqual(severity_counts, {"low": 0, "medium": 1, "high": 0, "critical": 1})
+
+		related_party_response = self.client.get(reverse("related-party-transaction-list"))
+		self.assertEqual(related_party_response.status_code, status.HTTP_200_OK)
+		pending_related_party = [
+			t for t in related_party_response.data if t["disclosure_status"] == "pending_review"
+		]
+		self.assertEqual(len(pending_related_party), 1)
+
+		purification_response = self.client.get(reverse("purification-entry-list"))
+		self.assertEqual(purification_response.status_code, status.HTTP_200_OK)
+		pending_purification = [
+			e for e in purification_response.data if e["status"] == "identified"
+		]
+		self.assertEqual(len(pending_purification), 1)
+
 # Create your tests here.

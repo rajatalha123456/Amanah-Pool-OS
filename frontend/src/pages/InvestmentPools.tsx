@@ -6,12 +6,14 @@ import { Card } from "../components/Card"
 import { Modal } from "../components/Modal"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
+import { StatCard } from "../components/StatCard"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import {
   createCapitalAccount,
   createNAVSnapshot,
   fetchCapitalAccounts,
+  fetchImpairmentEvents,
   fetchLatestNAV,
   fetchNAVSnapshots,
   publishNAVSnapshot,
@@ -30,13 +32,14 @@ import type {
   BadgeVariant,
   CapitalAccount,
   CreateCapitalAccountInput,
+  ImpairmentEvent,
   InvestorProfile,
   InvestorProfileInput,
   NAVSnapshot,
   Pool,
 } from "../types"
 
-type Tab = "accounts" | "nav"
+type Tab = "dashboard" | "accounts" | "nav" | "venture-view"
 type ModalMode = "account" | "subscribe" | "redeem" | "nav" | null
 
 const inputClasses =
@@ -62,7 +65,8 @@ export function InvestmentPools() {
   const [accounts, setAccounts] = useState<CapitalAccount[]>([])
   const [snapshots, setSnapshots] = useState<NAVSnapshot[]>([])
   const [latestNAV, setLatestNAV] = useState<NAVSnapshot | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>("accounts")
+  const [impairmentEvents, setImpairmentEvents] = useState<ImpairmentEvent[]>([])
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard")
   const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null)
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [selectedAccount, setSelectedAccount] = useState<CapitalAccount | null>(null)
@@ -91,6 +95,7 @@ export function InvestmentPools() {
       setAccounts([])
       setSnapshots([])
       setLatestNAV(null)
+      setImpairmentEvents([])
       return
     }
 
@@ -100,11 +105,13 @@ export function InvestmentPools() {
       fetchCapitalAccounts(selectedPoolId),
       fetchNAVSnapshots(selectedPoolId),
       fetchLatestNAV(selectedPoolId),
+      fetchImpairmentEvents(selectedPoolId),
     ])
-      .then(([accountData, snapshotData, latestData]) => {
+      .then(([accountData, snapshotData, latestData, impairmentData]) => {
         setAccounts(accountData)
         setSnapshots(snapshotData)
         setLatestNAV(latestData)
+        setImpairmentEvents(impairmentData)
       })
       .catch((error) => setPageError(extractErrorMessage(error, "Unable to load investment data.")))
       .finally(() => setIsLoading(false))
@@ -142,14 +149,16 @@ export function InvestmentPools() {
 
   async function refreshInvestmentData() {
     if (!selectedPoolId) return
-    const [accountData, snapshotData, latestData] = await Promise.all([
+    const [accountData, snapshotData, latestData, impairmentData] = await Promise.all([
       fetchCapitalAccounts(selectedPoolId),
       fetchNAVSnapshots(selectedPoolId),
       fetchLatestNAV(selectedPoolId),
+      fetchImpairmentEvents(selectedPoolId),
     ])
     setAccounts(accountData)
     setSnapshots(snapshotData)
     setLatestNAV(latestData)
+    setImpairmentEvents(impairmentData)
   }
 
   async function handleCreateAccount(event: FormEvent<HTMLFormElement>) {
@@ -334,6 +343,13 @@ export function InvestmentPools() {
           <div className="mb-4 flex gap-4 border-b border-white/8 text-sm">
             <button
               type="button"
+              onClick={() => setActiveTab("dashboard")}
+              className={`border-b-2 px-1 pb-2 ${activeTab === "dashboard" ? "border-emerald-500 text-ink-primary" : "border-transparent text-ink-secondary"}`}
+            >
+              Dashboard
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab("accounts")}
               className={`border-b-2 px-1 pb-2 ${activeTab === "accounts" ? "border-emerald-500 text-ink-primary" : "border-transparent text-ink-secondary"}`}
             >
@@ -346,9 +362,20 @@ export function InvestmentPools() {
             >
               NAV History
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("venture-view")}
+              className={`border-b-2 px-1 pb-2 ${activeTab === "venture-view" ? "border-emerald-500 text-ink-primary" : "border-transparent text-ink-secondary"}`}
+            >
+              Venture View
+            </button>
           </div>
 
-          {activeTab === "accounts" ? (
+          {activeTab === "dashboard" && (
+            <PoolDashboard accounts={accounts} snapshots={snapshots} latestNAV={latestNAV} />
+          )}
+
+          {activeTab === "accounts" && (
             <Card
               title="Capital Accounts"
               className="relative"
@@ -427,7 +454,9 @@ export function InvestmentPools() {
                 </>
               )}
             </Card>
-          ) : (
+          )}
+
+          {activeTab === "nav" && (
             <Card title="NAV History">
               <div className="mb-4 flex justify-end">
                 {isFinanceMaker && <Button variant="primary" onClick={() => setModalMode("nav")}>+ New NAV Snapshot</Button>}
@@ -438,6 +467,10 @@ export function InvestmentPools() {
                 <Table columns={navColumns} data={snapshots} keyField={(snapshot) => snapshot.id} />
               )}
             </Card>
+          )}
+
+          {activeTab === "venture-view" && (
+            <VentureView accounts={accounts} latestNAV={latestNAV} impairmentEvents={impairmentEvents} />
           )}
         </>
       )}
@@ -480,6 +513,191 @@ export function InvestmentPools() {
           </form>
         </Modal>
       )}
+    </div>
+  )
+}
+
+function PoolDashboard({
+  accounts,
+  snapshots,
+  latestNAV,
+}: {
+  accounts: CapitalAccount[]
+  snapshots: NAVSnapshot[]
+  latestNAV: NAVSnapshot | null
+}) {
+  const totalUnits = accounts.reduce((sum, account) => sum + Number(account.units_held), 0)
+  const navPerUnit = latestNAV ? Number(latestNAV.nav_per_unit) : null
+  const totalCapital = navPerUnit !== null ? totalUnits * navPerUnit : null
+
+  const publishedSnapshots = [...snapshots]
+    .filter((snapshot) => snapshot.status === "published")
+    .sort((a, b) => new Date(a.valuation_date).getTime() - new Date(b.valuation_date).getTime())
+
+  const previousNAV = publishedSnapshots.length >= 2 ? publishedSnapshots[publishedSnapshots.length - 2] : null
+  const navChangePct =
+    previousNAV && navPerUnit !== null
+      ? ((navPerUnit - Number(previousNAV.nav_per_unit)) / Number(previousNAV.nav_per_unit)) * 100
+      : null
+
+  const sparklineValues = publishedSnapshots.slice(-8).map((snapshot) => Number(snapshot.nav_per_unit))
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Capital"
+          value={totalCapital !== null ? totalCapital.toFixed(2) : "—"}
+          delta={navPerUnit === null ? "No published NAV yet" : undefined}
+          deltaTone="neutral"
+        />
+        <StatCard label="Total Investors" value={String(accounts.length)} deltaTone="neutral" />
+        <StatCard
+          label="Latest NAV"
+          value={latestNAV ? latestNAV.nav_per_unit : "—"}
+          delta={latestNAV ? `as of ${latestNAV.valuation_date}` : "No NAV published yet"}
+          deltaTone="neutral"
+        />
+        <StatCard
+          label="NAV Trend"
+          value={navChangePct !== null ? `${navChangePct >= 0 ? "+" : ""}${navChangePct.toFixed(2)}%` : "—"}
+          delta={
+            navChangePct === null
+              ? "Needs 2+ published snapshots"
+              : `vs ${previousNAV?.valuation_date}`
+          }
+          deltaTone={navChangePct === null ? "neutral" : navChangePct >= 0 ? "positive" : "negative"}
+        />
+      </div>
+
+      <Card title="NAV History (sparkline)">
+        {sparklineValues.length < 2 ? (
+          <p className="text-sm text-ink-secondary">
+            Not enough published NAV snapshots yet to plot a trend.
+          </p>
+        ) : (
+          <NAVSparkline values={sparklineValues} />
+        )}
+      </Card>
+    </div>
+  )
+}
+
+function NAVSparkline({ values }: { values: number[] }) {
+  const width = 320
+  const height = 64
+  const padding = 4
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+
+  const points = values.map((value, index) => {
+    const x = padding + (index / (values.length - 1)) * (width - padding * 2)
+    const y = height - padding - ((value - min) / range) * (height - padding * 2)
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  })
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-16 w-full max-w-md" preserveAspectRatio="none">
+      <polyline
+        points={points.join(" ")}
+        fill="none"
+        stroke="#10b981"
+        strokeWidth="2"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
+function VentureView({
+  accounts,
+  latestNAV,
+  impairmentEvents,
+}: {
+  accounts: CapitalAccount[]
+  latestNAV: NAVSnapshot | null
+  impairmentEvents: ImpairmentEvent[]
+}) {
+  const totalUnits = accounts.reduce((sum, account) => sum + Number(account.units_held), 0)
+  const navPerUnit = latestNAV ? Number(latestNAV.nav_per_unit) : null
+
+  const pendingImpairments = impairmentEvents.filter((event) => event.status === "draft")
+  const hasPendingNAVApproval = latestNAV === null || latestNAV.status === "draft"
+
+  return (
+    <div className="space-y-6">
+      <Card title="Partner Capital Ratios">
+        {accounts.length === 0 ? (
+          <p className="text-sm text-ink-secondary">No capital accounts for this pool yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {accounts.map((account) => {
+              const share = totalUnits > 0 ? (Number(account.units_held) / totalUnits) * 100 : 0
+              return (
+                <div key={account.id} className="flex items-center gap-3">
+                  <div className="w-40 shrink-0 text-sm text-ink-primary">{account.investor_name}</div>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-navy-800">
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{ width: `${share.toFixed(2)}%` }}
+                    />
+                  </div>
+                  <div className="w-16 shrink-0 text-right text-sm text-ink-secondary">{share.toFixed(1)}%</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      <Card title="Results">
+        {navPerUnit === null ? (
+          <p className="text-sm text-gold-400">No published NAV yet — results cannot be shown.</p>
+        ) : accounts.length === 0 ? (
+          <p className="text-sm text-ink-secondary">No capital accounts for this pool yet.</p>
+        ) : (
+          <Table
+            columns={[
+              { header: "Investor", accessor: (account: CapitalAccount) => account.investor_name },
+              { header: "Units Held", accessor: (account: CapitalAccount) => account.units_held },
+              {
+                header: "Current Value",
+                accessor: (account: CapitalAccount) => (Number(account.units_held) * navPerUnit).toFixed(2),
+              },
+            ]}
+            data={accounts}
+            keyField={(account) => account.id}
+          />
+        )}
+      </Card>
+
+      <Card title="Governance">
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant={hasPendingNAVApproval ? "gold" : "emerald"}>
+              {hasPendingNAVApproval ? "Pending" : "Clear"}
+            </Badge>
+            <span className="text-ink-primary">
+              {latestNAV === null
+                ? "No NAV snapshot has been published yet."
+                : latestNAV.status === "draft"
+                  ? `A NAV snapshot for ${latestNAV.valuation_date} is awaiting Finance Checker approval.`
+                  : "Latest NAV snapshot is published."}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={pendingImpairments.length > 0 ? "gold" : "emerald"}>
+              {pendingImpairments.length > 0 ? "Pending" : "Clear"}
+            </Badge>
+            <span className="text-ink-primary">
+              {pendingImpairments.length > 0
+                ? `${pendingImpairments.length} impairment event(s) awaiting Shariah Board approval.`
+                : "No impairment events awaiting approval."}
+            </span>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

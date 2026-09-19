@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
-import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
@@ -94,11 +93,6 @@ export function JournalBatchReview() {
 
   return (
     <div>
-      <PageHeader
-        title="Journal Batch Review"
-        subtitle="Review posted journal entries and audit trail"
-      />
-
       <Card title="Filter by Pool" className="mb-6">
         {isLoadingPools ? (
           <div className="flex items-center gap-2 text-sm text-ink-secondary">

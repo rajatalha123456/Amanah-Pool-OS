@@ -374,6 +374,32 @@ export interface JournalBatch {
   updated_at: string
 }
 
+export interface IncomeExpenseEvent {
+  id: string
+  tenant: string
+  pool: string
+  event_type: "income" | "expense"
+  category: string
+  amount: string
+  event_date: string
+  description: string
+  status: "pending" | "posted"
+  created_by: number | null
+  posted_by: number | null
+  posted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateIncomeExpenseEventInput {
+  pool: string
+  event_type: "income" | "expense"
+  category: string
+  amount: string
+  event_date: string
+  description: string
+}
+
 export interface DepositorStatement {
   id: string
   allocation_run: string
@@ -498,6 +524,19 @@ export interface NAVSnapshot {
   created_by: number | null
   published_by: number | null
   published_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ImpairmentEvent {
+  id: string
+  pool: string
+  valuation_date: string
+  loss_amount: string
+  loss_percentage: string
+  reason: string
+  status: string
+  approved_by: number | null
   created_at: string
   updated_at: string
 }

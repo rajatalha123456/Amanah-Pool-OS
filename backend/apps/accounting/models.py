@@ -56,3 +56,46 @@ class JournalEntry(TenantScopedModel):
 
     def __str__(self):
         return f"{self.entry_type} {self.account_name} = {self.amount}"
+
+
+class IncomeExpenseEventType(models.TextChoices):
+    INCOME = "income", "Income"
+    EXPENSE = "expense", "Expense"
+
+
+class IncomeExpenseEventStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    POSTED = "posted", "Posted"
+
+
+class IncomeExpenseEvent(TenantScopedModel):
+    """
+    A manually-recorded income or expense item for a pool (e.g. a
+    provision reversal, an ad-hoc operational expense) that isn't produced
+    by the AllocationRun -> JournalBatch pipeline. Tracked here as its own
+    maker-checker record; posting it does not itself create JournalEntry
+    rows - that integration is future scope, this model only tracks the
+    event's own lifecycle for now.
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="income_expense_events"
+    )
+    event_type = models.CharField(max_length=10, choices=IncomeExpenseEventType.choices)
+    category = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    event_date = models.DateField()
+    description = models.TextField()
+    status = models.CharField(
+        max_length=10, choices=IncomeExpenseEventStatus.choices, default=IncomeExpenseEventStatus.PENDING
+    )
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    posted_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    posted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.event_type} {self.category} {self.amount} - {self.pool.name} ({self.status})"

@@ -9,15 +9,17 @@ import { fetchAssets } from "../api/assets"
 import { NewAssetModal } from "./NewAssetModal"
 import { ExceptionQueue } from "./governance/ExceptionQueue"
 import { RelatedPartyReview } from "./RelatedPartyReview"
+import { RiskLimitDashboard } from "./RiskLimitDashboard"
 import type { Asset, BadgeVariant } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
-type RiskComplianceTab = "assets" | "exceptions" | "related-party"
+type RiskComplianceTab = "assets" | "exceptions" | "related-party" | "risk-dashboard"
 
 const TABS: { key: RiskComplianceTab; label: string }[] = [
   { key: "assets", label: "Asset Registry" },
   { key: "exceptions", label: "Exception Queue" },
   { key: "related-party", label: "Related-Party" },
+  { key: "risk-dashboard", label: "Risk Dashboard" },
 ]
 
 const ASSET_STATUS_BADGE: Record<string, BadgeVariant> = {
@@ -129,6 +131,7 @@ export function AssetRegistry() {
 
       {activeTab === "exceptions" && <ExceptionQueue />}
       {activeTab === "related-party" && <RelatedPartyReview />}
+      {activeTab === "risk-dashboard" && <RiskLimitDashboard />}
     </div>
   )
 }

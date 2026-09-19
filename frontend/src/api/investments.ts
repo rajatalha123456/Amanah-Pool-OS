@@ -5,6 +5,7 @@ import type {
   CapitalAccount,
   CreateCapitalAccountInput,
   CreateNAVSnapshotInput,
+  ImpairmentEvent,
   NAVSnapshot,
   Redemption,
   RedeemInput,
@@ -73,6 +74,13 @@ export async function createNAVSnapshot(data: CreateNAVSnapshotInput): Promise<N
 
 export async function publishNAVSnapshot(id: string): Promise<NAVSnapshot> {
   const response = await apiClient.post<NAVSnapshot>(`investments/nav-snapshots/${id}/publish/`)
+  return response.data
+}
+
+export async function fetchImpairmentEvents(poolId: string): Promise<ImpairmentEvent[]> {
+  const response = await apiClient.get<ImpairmentEvent[]>("investments/impairment-events/", {
+    params: { pool: poolId },
+  })
   return response.data
 }
 

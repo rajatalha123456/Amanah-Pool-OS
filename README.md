@@ -341,15 +341,39 @@ Backend test coverage added in `apps/products/tests.py` (`ShariahDecisionApiTest
 
 **Manually verified via real HTTP requests:** `fetchAssets()` and `createAsset()` match the `Asset` interface exactly (`status: "available"` on creation); `assignAsset()` creates an assignment with `unassigned_date: null`, matching the "active assignment" filter; `fetchAssetAssignments()` returns assignments keyed by asset UUID, confirming the join logic in `AssignedAssetsSection.tsx` works; `unassignAsset()` sets `unassigned_date` to today.
 
-### Balance Import & Validation (new page, connected)
+### Balance Import & Validation (connected)
 
-`src/pages/BalanceImport.tsx` (routed at `/daily-operations`, matching the BRD catalogue's own screen placement) is a standalone page (not part of `PoolDetail.tsx`, since it needs its own pool selector and a wide multi-row form) with:
+`src/pages/BalanceImport.tsx` is a standalone component (not part of `PoolDetail.tsx`, since it needs its own pool selector and a wide multi-row form) with:
 
 - A **Pool** dropdown (`fetchPools()`), **Value Date**, optional **Control Total Expected**, and dynamic **participant_class / balance_amount** rows (**"+ Add Row"**, minimum 1 row, each row removable except the last).
 - **Import** calls `importBalances()` and renders an **Import Summary** card: total/matched/exception counts, a status `Badge` (`balanced`→emerald, `exception`→gold), and — when present — the backend's `errors` array rendered as a red bulleted list (not folded into a single string), so multiple duplicate-skip messages are all visible at once.
 - An **Import History** table below (`fetchImportHistory(poolId)`), re-fetched after every import.
 
 **Manually verified via real HTTP requests:** a 3-record import with a matching control total returns `status: "balanced"` with an empty `errors` array; re-importing the same `value_date` + `participant_class` returns `status: "exception"` with the exact duplicate-skip message in `errors`, confirming the list-rendering path is exercised by a real backend response rather than just a hardcoded example; `fetchImportHistory()` returns entries matching the `BalanceImportBatch` interface exactly, in the shape the history table's columns read.
+
+**Now nested, not a standalone route** — see [Daily Operations Cockpit](#daily-operations-cockpit-aggregation-dashboard-no-new-backend) below: `/daily-operations` renders a new parent page with this as its "Balance Import" tab, so its own `PageHeader` was removed (it now inherits the parent's).
+
+### Daily Operations Cockpit (aggregation dashboard, no new backend)
+
+`src/pages/DailyOperationsCockpit.tsx`, now routed at `/daily-operations` (replacing the old direct route to `BalanceImport.tsx`), is a two-tab page: **Cockpit** (new) and **Balance Import** (the pre-existing page above, unchanged, just relocated here as a tab).
+
+The Cockpit tab is a pure aggregation view — **no new backend endpoints**, everything is computed client-side from three existing endpoints:
+
+- **Total Managed Funds** and **Close Readiness** are both derived from `GET /api/v1/pools/balance-imports/?pool={id}`, called once per pool currently "in cycle" (`status` is `open` or `allocation` — `draft`/`approved`/`closed`/`archived` pools are excluded, since they aren't mid-operating-cycle). For each in-cycle pool: if it has at least one balance-import batch, it counts toward "close-ready" and its most recent batch's `control_total_actual` is added to the funds total. Close Readiness is shown as both a percentage and the raw `{ready}/{total}` count. There's no bulk "all pools' funds" or "all pools' import status" endpoint, so this fans out one request per in-cycle pool — acceptable given the small number of pools actually open at once, but not something to scale to hundreds of pools without a real aggregation endpoint.
+- **Open Exceptions** is a single `GET /api/v1/governance/exceptions/?status=open` call, count of the results.
+- The **"Pools In Progress"** table lists pools with `status === "allocation"` (i.e. mid-cycle, past `open` but not yet `closed`), reusing the same `Pool` rows/columns pattern as Command Center.
+
+**Verified via a real end-to-end HTTP test** in `apps/pools/tests.py::DailyOperationsCockpitAggregationApiTests`, which reproduces the exact sequence of calls the frontend makes: created 3 pools (one `allocation` with a balance import posted, one `open` with none, one `draft` excluded entirely), posted one balance import, then re-fetched pools/exceptions/balance-imports through the real API exactly as the cockpit does and confirmed the resulting aggregation — 2 in-cycle pools, 1 close-ready, `50%` readiness, `1000.00` total managed funds, 1 open exception. `npm run build` is clean.
+
+### Risk Dashboard (aggregation tab, no new backend)
+
+`src/pages/RiskLimitDashboard.tsx`, added as the fourth tab ("Risk Dashboard") on `AssetRegistry.tsx` alongside Asset Registry, Exception Queue, and Related-Party — same tabbed-page pattern, no new route. Like the Daily Operations Cockpit above, this is a pure client-side aggregation with **no new backend endpoints**:
+
+- **Total Open Exceptions** and the **by-severity breakdown** (Critical/High/Medium/Low StatCards) both come from a single `GET /api/v1/governance/exceptions/?status=open` call, bucketed by `severity` client-side.
+- **Related-Party Pending Review** is `GET /api/v1/governance/related-party-transactions/` (full list, no server-side status filter available on this endpoint), filtered client-side to `disclosure_status === "pending_review"`.
+- **Purification Pending** is `GET /api/v1/governance/purification-entries/` (same reasoning), filtered client-side to `status === "identified"` (the ledger's initial, not-yet-approved state).
+
+**Verified via a real end-to-end HTTP test** in `apps/governance/tests.py::RiskDashboardAggregationApiTests`: created 3 exceptions (critical, medium, and one already-`resolved` to confirm it's correctly excluded), 2 related-party transactions (one `pending_review`, one `approved`), and 2 purification entries (one `identified`, one `distributed`); then reproduced the dashboard's exact call sequence and confirmed the resulting counts — 2 open exceptions (1 critical, 1 medium), 1 pending related-party transaction, 1 pending purification entry. `npm run build` is clean.
 
 ### Allocation Simulator (new page, connected — BRD Screen #12)
 
@@ -702,6 +726,19 @@ User references (`created_by`, `checked_by`, `shariah_signed_off_by`) are shown 
 
 - **`GET /api/v1/accounting/journal-batches/?pool={pool_id}`** — read-only list (with nested `entries`), any authenticated user, filterable by pool.
 
+### Income/Expense Events
+
+`IncomeExpenseEvent` is a manually-recorded income or expense item for a pool (e.g. a provision reversal, an ad-hoc operational expense) that doesn't come from the `AllocationRun` → `JournalBatch` pipeline. It's its own small maker-checker record, tracked independently — **posting an event does not create `JournalEntry` rows**; wiring it into the double-entry ledger is future scope, this only tracks the event's own `pending` → `posted` lifecycle for now.
+
+- **`POST /api/v1/accounting/income-expense-events/`** — `IsFinanceMaker` only. Body: `{pool, event_type: "income"|"expense", category, amount, event_date, description}`. `category` is a free-text field (e.g. `profit_income`, `operational_expense`, `provision_reversal`), not an enum — kept open-ended rather than a fixed choice list since the categories in use will likely grow. New events start `pending`.
+- **`GET /api/v1/accounting/income-expense-events/?pool={pool_id}`** — any authenticated user, filterable by pool.
+- **`POST /api/v1/accounting/income-expense-events/{id}/post/`** — `IsFinanceChecker` only (a different role than the creator, mirroring the segregation-of-duties pattern used everywhere else — Allocation Runs, Subscriptions/Redemptions). Requires `status == "pending"`; sets `posted_by`, `posted_at`, `status = "posted"`.
+- Every create and post writes an `AuditLog` entry.
+
+**Frontend**: `src/pages/IncomeExpenseWorkbench.tsx`, added as the "Income & Expense" tab on a new `src/pages/FinanceLedger.tsx` page (routed at `/finance-ledger`), alongside the pre-existing Journal Batch Review as its "Journal Batches" tab (both pages had their own `PageHeader` removed/consolidated into the new parent, same pattern as the Shariah Governance and Risk & Compliance tabbed pages). A pool selector, a table (event type badge, category, amount, status badge), a **"+ New Event"** modal (Finance Maker), and a **Post** row action (Finance Checker, only shown for `pending` events).
+
+**Verified via real HTTP requests** in `apps/accounting/tests.py::IncomeExpenseEventApiTests`: created an event as Finance Maker (`201`, `status: "pending"`); confirmed a Finance Maker cannot post their own event (`403`); posted it as Finance Checker (`200`, `status: "posted"`, `posted_by` set); confirmed posting it a second time is rejected (`400`); confirmed a Pool Manager cannot create an event (`403`); confirmed the list endpoint filters correctly by `?pool=`. `npm run build` is clean.
+
 ### Reconciliation Copilot
 
 `apps/accounting/reconciliation.py` provides a **rule-based v1, simplified sanity check** after each journal batch is posted. It is not production-grade line-by-line reconciliation; it is a high-level control designed to catch large mismatches.
@@ -829,6 +866,28 @@ There is no investor-facing login yet — the `investor_member` role exists but 
 - Verified via real HTTP requests in `apps/investments/tests.py::CapitalAccountDetailApiTests`: subscribed then redeemed against a test account, confirmed `units_held` reflects both, and confirmed both new list endpoints return exactly the filtered records for that `capital_account`. `npm run build` is clean.
 
 Building an actual investor login (issuing `investor_member` credentials, self-service registration, investor-scoped auth) is deliberately out of scope here and left for a future investor-facing portal phase.
+
+### Pool Dashboard (aggregation tab, no new backend)
+
+`InvestmentPools.tsx` now opens on a **"Dashboard"** tab (the new default, ahead of Capital Accounts / NAV History / Venture View) summarizing the selected pool at a glance. Pure client-side aggregation over data the page already fetches (`accounts`, `snapshots`, `latestNAV`) — **no new backend, no new endpoint calls**:
+
+- **Total Capital** — sum of every account's `units_held × latest published NAV.nav_per_unit`; shows "No published NAV yet" instead of a zero/stale figure when there is none.
+- **Total Investors** — simply `accounts.length`.
+- **Latest NAV** — the latest published `NAVSnapshot.nav_per_unit`, with its valuation date.
+- **NAV Trend** — percentage change between the two most recent **published** snapshots (`draft` snapshots are excluded from the trend, though they still count toward the raw fetched list); shows "Needs 2+ published snapshots" when there isn't enough history yet.
+- A small inline SVG sparkline plots up to the last 8 published `nav_per_unit` values.
+
+**Verified via a real end-to-end HTTP test** in `apps/investments/tests.py::PoolDashboardAggregationApiTests`: created 2 capital accounts (200 + 300 units), two published NAV snapshots (`10.00` then `11.00`) and one `draft` snapshot (`12.00`, deliberately excluded from the trend calc); reproduced the dashboard's exact call sequence (`capital-accounts?pool=`, `nav-snapshots?pool=`, `nav-snapshots/latest/?pool=`) and confirmed the resulting aggregation — `500` total units, `5500.00` total capital, and a `+10%` NAV trend computed only from the two published snapshots. `npm run build` is clean.
+
+### Venture View (aggregation tab, no new backend)
+
+A tab, **"Venture View"**, on `InvestmentPools.tsx` alongside Dashboard, Capital Accounts and NAV History — presents the same pool's existing data from an investment-committee angle rather than an operational one. Like the Risk Dashboard and Daily Operations Cockpit above, this is a pure client-side aggregation with **no new backend model**; it does add one small read-only fetch (`fetchImpairmentEvents()`, `GET /api/v1/investments/impairment-events/?pool={id}`) alongside the capital-accounts/NAV calls the page already made, since nothing on the page previously surfaced impairment events at all.
+
+- **Partner Capital Ratios** — each `CapitalAccount.units_held` as a percentage of the pool's total units, rendered as a labeled progress bar per investor.
+- **Results** — a table of each account's `units_held × latest published NAV.nav_per_unit` as its current value; shows "No published NAV yet — results cannot be shown" instead of a zero/stale figure when the pool has no published `NAVSnapshot`.
+- **Governance** — two status rows, each a `Badge` (`Pending`/`Clear`) plus a one-line explanation: whether the latest `NAVSnapshot` is still `draft` (awaiting Finance Checker publish) or there is none at all, and whether any `ImpairmentEvent` for the pool is still `draft` (awaiting Shariah Board approval).
+
+**Verified via a real end-to-end HTTP test** in `apps/investments/tests.py::VentureViewAggregationApiTests`: created two capital accounts (300 and 100 units), a published NAV snapshot (`nav_per_unit = 20.00`), and one `draft` impairment event; then reproduced the tab's exact call sequence (`capital-accounts?pool=`, `nav-snapshots/latest/?pool=`, `impairment-events?pool=`) and confirmed the resulting aggregation — 75%/25% capital ratios, `6000.00`/`2000.00` results, and 1 pending impairment event correctly detected. `npm run build` is clean.
 
 ### Impairment Events and Capital Loss Allocation
 
