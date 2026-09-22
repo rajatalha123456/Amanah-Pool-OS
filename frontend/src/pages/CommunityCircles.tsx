@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useNavigate } from "react-router-dom"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Card } from "../components/Card"
@@ -44,6 +45,7 @@ function memberStatusBadgeVariant(status: string): BadgeVariant {
 }
 
 export function CommunityCircles() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const isPoolManager = user?.role === "pool_manager"
   const isFinanceMaker = user?.role === "finance_maker"
@@ -244,7 +246,12 @@ export function CommunityCircles() {
               {members.length === 0 ? (
                 <p className="text-sm text-ink-secondary">No circle members for this pool yet.</p>
               ) : (
-                <Table columns={rosterColumns} data={members} keyField={(member) => member.id} />
+                <Table
+                  columns={rosterColumns}
+                  data={members}
+                  keyField={(member) => member.id}
+                  onRowClick={(member) => navigate(`/community-circles/members/${member.id}`)}
+                />
               )}
             </Card>
           )}

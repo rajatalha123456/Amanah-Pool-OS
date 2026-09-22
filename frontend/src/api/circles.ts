@@ -16,9 +16,28 @@ export async function fetchCircleMembers(poolId: string): Promise<CircleMember[]
   return response.data
 }
 
+export async function fetchCircleMember(memberId: string): Promise<CircleMember> {
+  const response = await apiClient.get<CircleMember>(`circles/circle-members/${memberId}/`)
+  return response.data
+}
+
 export async function fetchContributionsForPool(poolId: string): Promise<Contribution[]> {
   const response = await apiClient.get<Contribution[]>("circles/contributions/", {
     params: { pool: poolId },
+  })
+  return response.data
+}
+
+export async function fetchContributionsForMember(memberId: string): Promise<Contribution[]> {
+  const response = await apiClient.get<Contribution[]>("circles/contributions/", {
+    params: { member: memberId },
+  })
+  return response.data
+}
+
+export async function fetchPayoutsForMember(memberId: string): Promise<Payout[]> {
+  const response = await apiClient.get<Payout[]>("circles/payouts/", {
+    params: { member: memberId },
   })
   return response.data
 }

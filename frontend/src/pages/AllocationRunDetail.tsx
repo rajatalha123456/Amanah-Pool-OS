@@ -8,6 +8,7 @@ import { Spinner } from "../components/Spinner"
 import { Modal } from "../components/Modal"
 import { StatCard } from "../components/StatCard"
 import { Table, type TableColumn } from "../components/Table"
+import { useAuth } from "../api/auth"
 import {
   approveRun,
   fetchAllocationRunDetail,
@@ -123,6 +124,9 @@ function buildTimelineStages(run: AllocationRun): TimelineStage[] {
 
 export function AllocationRunDetail() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const canReject = user?.role === "finance_checker"
+  const canSignOff = user?.role === "shariah_secretariat"
 
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
@@ -242,21 +246,34 @@ export function AllocationRunDetail() {
         )}
 
         {run.status === "pending_approval" && run.shariah_review_required && (
-          <div className="space-y-3">
+            <div className="space-y-3">
             <p className="text-sm text-gold-400">
               Waiting for Shariah Secretariat sign-off before this run can be approved.
             </p>
-            <Button
-              variant="primary"
-              disabled={isActionPending}
-              onClick={() => setShowSignOffModal(true)}
-            >
-              Shariah Sign-Off
-            </Button>
+              <div className="flex gap-3">
+                {canSignOff && (
+                  <Button
+                    variant="primary"
+                    disabled={isActionPending}
+                    onClick={() => setShowSignOffModal(true)}
+                  >
+                    Shariah Sign-Off
+                  </Button>
+                )}
+                {canReject && (
+                  <Button
+                    variant="secondary"
+                    disabled={isActionPending}
+                    onClick={() => setShowRejectModal(true)}
+                  >
+                    Reject
+                  </Button>
+                )}
+              </div>
           </div>
         )}
 
-        {run.status === "pending_approval" && !run.shariah_review_required && (
+        {run.status === "pending_approval" && !run.shariah_review_required && canReject && (
           <div className="flex gap-3">
             <Button
               variant="primary"
@@ -275,7 +292,7 @@ export function AllocationRunDetail() {
           </div>
         )}
 
-        {run.status === "shariah_review" && (
+        {run.status === "shariah_review" && canReject && (
           <div className="flex gap-3">
             <Button
               variant="primary"
@@ -283,6 +300,13 @@ export function AllocationRunDetail() {
               onClick={() => runAction(approveRun, "Unable to approve.")}
             >
               {isActionPending ? <Spinner className="h-4 w-4" /> : "Approve"}
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={isActionPending}
+              onClick={() => setShowRejectModal(true)}
+            >
+              Reject
             </Button>
           </div>
         )}

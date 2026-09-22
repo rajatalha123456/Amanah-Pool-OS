@@ -115,7 +115,7 @@ class PoolViewSet(viewsets.ModelViewSet):
         if pool.product.status != ProductStatus.APPROVED:
             raise ValidationError("Product must be approved first.")
 
-        pool.status = PoolStatus.APPROVED
+        pool.status = PoolStatus.PENDING_APPROVAL
         pool.save(update_fields=["status", "updated_at"])
         log_action(
             tenant=pool.tenant,
@@ -123,7 +123,7 @@ class PoolViewSet(viewsets.ModelViewSet):
             action="submit_for_approval",
             model_name="Pool",
             object_id=str(pool.id),
-            changes={"status": {"before": PoolStatus.DRAFT, "after": PoolStatus.APPROVED}},
+            changes={"status": {"before": PoolStatus.DRAFT, "after": PoolStatus.PENDING_APPROVAL}},
             request=request,
         )
         return Response(self.get_serializer(pool).data)
@@ -132,16 +132,14 @@ class PoolViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         pool = self.get_object()
 
-        if pool.status != PoolStatus.APPROVED:
+        if pool.status != PoolStatus.PENDING_APPROVAL:
             raise ValidationError(
-                f"Pool must be in '{PoolStatus.APPROVED}' status to approve "
+                f"Pool must be in '{PoolStatus.PENDING_APPROVAL}' status to approve "
                 f"(current status: '{pool.status}')."
             )
 
-        # The substantive Shariah approval already happened at the Product
-        # level (see apps.products.ProductViewSet.approve, BR-001). This is
-        # a formal Pool-specific sign-off confirming that approval applies
-        # to this pool; it does not change `status` (already "approved").
+        pool.status = PoolStatus.APPROVED
+        pool.save(update_fields=["status", "updated_at"])
         log_action(
             tenant=pool.tenant,
             actor=request.user,
@@ -149,6 +147,7 @@ class PoolViewSet(viewsets.ModelViewSet):
             model_name="Pool",
             object_id=str(pool.id),
             reason="Shariah Board sign-off on pool",
+            changes={"status": {"before": PoolStatus.PENDING_APPROVAL, "after": PoolStatus.APPROVED}},
             request=request,
         )
         return Response(self.get_serializer(pool).data)

@@ -4,6 +4,7 @@ import { Badge } from "../../components/Badge"
 import { Button } from "../../components/Button"
 import { Spinner } from "../../components/Spinner"
 import { Table, type TableColumn } from "../../components/Table"
+import { useAuth } from "../../api/auth"
 import { approvePSR, createPSR, fetchPSRSchedules } from "../../api/allocation"
 import { extractErrorMessage } from "../../api/errors"
 import type { BadgeVariant, PSR } from "../../types"
@@ -14,6 +15,8 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 }
 
 export function PSRSection({ poolId }: { poolId: string }) {
+  const { user } = useAuth()
+  const canApprove = user?.role === "shariah_board"
   const [schedules, setSchedules] = useState<PSR[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -87,7 +90,7 @@ export function PSRSection({ poolId }: { poolId: string }) {
     {
       header: "",
       accessor: (psr) =>
-        psr.status === "draft" ? (
+        canApprove && psr.status === "draft" ? (
           <button
             type="button"
             onClick={() => handleApprove(psr.id)}

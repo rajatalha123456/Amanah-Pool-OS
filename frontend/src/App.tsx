@@ -17,6 +17,7 @@ import { ShariahCopilot } from "./pages/ShariahCopilot"
 import { ShariahGovernance } from "./pages/ShariahGovernance"
 import { InvestmentPools } from "./pages/InvestmentPools"
 import { CommunityCircles } from "./pages/CommunityCircles"
+import { MemberMobileHome } from "./pages/circles/MemberMobileHome"
 import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
 import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
@@ -61,6 +62,7 @@ function App() {
         <Route path="statements/:id" element={<StatementView />} />
         <Route path="investments/capital-accounts/:id" element={<CapitalAccountDetail />} />
         <Route path="exceptions/:id" element={<ExceptionCaseDetail />} />
+        <Route path="community-circles/members/:id" element={<MemberMobileHome />} />
         <Route path="contract-templates" element={<ContractTemplateStudio />} />
         {navItems
           .filter((item) => item.path !== "/")

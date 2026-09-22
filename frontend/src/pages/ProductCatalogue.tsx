@@ -6,7 +6,8 @@ import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
-import { fetchProducts, submitProductForReview } from "../api/products"
+import { useAuth } from "../api/auth"
+import { approveProduct, fetchProducts, submitProductForReview } from "../api/products"
 import { extractErrorMessage } from "../api/errors"
 import { NewProductModal } from "./NewProductModal"
 import type { BadgeVariant, Product } from "../types"
@@ -26,6 +27,8 @@ function productStatusBadgeVariant(status: string): BadgeVariant {
 }
 
 export function ProductCatalogue() {
+  const { user } = useAuth()
+  const canApprove = user?.role === "shariah_board"
   const location = useLocation()
   const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
 
@@ -34,6 +37,7 @@ export function ProductCatalogue() {
   const [products, setProducts] = useState<Product[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState("")
 
   function loadProducts() {
@@ -71,6 +75,19 @@ export function ProductCatalogue() {
     }
   }
 
+  async function handleApprove(id: string) {
+    setRowError("")
+    setApprovingId(id)
+    try {
+      const updated = await approveProduct(id)
+      setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)))
+    } catch (err) {
+      setRowError(extractErrorMessage(err, "Unable to approve this product."))
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
   const columns: TableColumn<Product>[] = [
     { header: "Name", accessor: (product) => product.name },
     { header: "Code", accessor: (product) => product.code },
@@ -87,7 +104,7 @@ export function ProductCatalogue() {
     },
     { header: "Updated At", accessor: (product) => product.updated_at },
     {
-      header: "",
+      header: "Action",
       accessor: (product) =>
         product.status === "draft" ? (
           <button
@@ -98,6 +115,14 @@ export function ProductCatalogue() {
           >
             {submittingId === product.id ? "Submitting..." : "Submit for Review"}
           </button>
+        ) : canApprove && product.status === "shariah_review" ? (
+          <Button
+            variant="primary"
+            disabled={approvingId === product.id}
+            onClick={() => handleApprove(product.id)}
+          >
+            {approvingId === product.id ? <Spinner className="h-4 w-4" /> : "Approve"}
+          </Button>
         ) : null,
     },
   ]

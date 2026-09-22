@@ -6,7 +6,9 @@ import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
+import { useAuth } from "../api/auth"
 import {
+  approvePool,
   closePool,
   fetchPoolDetail,
   fetchPoolVersions,
@@ -24,6 +26,7 @@ type DetailTab = "overview" | "economics" | "assets"
 
 const POOL_STATUS_BADGE: Record<string, BadgeVariant> = {
   draft: "neutral",
+  pending_approval: "gold",
   approved: "gold",
   open: "emerald",
   allocation: "emerald",
@@ -42,6 +45,8 @@ const TABS: { key: DetailTab; label: string }[] = [
 ]
 
 export function PoolDetail() {
+  const { user } = useAuth()
+  const canApprove = user?.role === "shariah_board"
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
@@ -174,6 +179,19 @@ export function PoolDetail() {
               >
                 {isActionPending ? <Spinner className="h-4 w-4" /> : "Submit for Approval"}
               </Button>
+            )}
+            {pool.status === "pending_approval" && (
+              canApprove ? (
+                <Button
+                  variant="primary"
+                  disabled={isActionPending}
+                  onClick={() => runAction(approvePool, "Unable to approve pool.")}
+                >
+                  {isActionPending ? <Spinner className="h-4 w-4" /> : "Approve Pool"}
+                </Button>
+              ) : (
+                <p className="text-sm text-gold-400">Waiting for Shariah Board approval.</p>
+              )
             )}
             {pool.status === "approved" && (
               <Button

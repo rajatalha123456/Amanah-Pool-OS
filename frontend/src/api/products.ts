@@ -22,6 +22,11 @@ export async function submitProductForReview(id: string): Promise<Product> {
   return response.data
 }
 
+export async function approveProduct(id: string): Promise<Product> {
+  const response = await apiClient.post<Product>(`products/products/${id}/approve/`)
+  return response.data
+}
+
 export async function fetchContractTemplates(): Promise<ContractTemplate[]> {
   const response = await apiClient.get<ContractTemplate[]>("products/contract-templates/")
   return response.data
@@ -31,6 +36,13 @@ export async function createContractTemplate(
   data: CreateContractTemplateInput,
 ): Promise<ContractTemplate> {
   const response = await apiClient.post<ContractTemplate>("products/contract-templates/", data)
+  return response.data
+}
+
+export async function approveContractTemplate(id: string): Promise<ContractTemplate> {
+  const response = await apiClient.post<ContractTemplate>(
+    `products/contract-templates/${id}/approve/`,
+  )
   return response.data
 }
 

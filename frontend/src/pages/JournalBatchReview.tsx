@@ -83,14 +83,6 @@ export function JournalBatchReview() {
     )
   }
 
-  if (pageState === "error" || batches.length === 0) {
-    return (
-      <Card>
-        <p className="text-sm text-red-400">{pageError || "No journal batches found"}</p>
-      </Card>
-    )
-  }
-
   return (
     <div>
       <Card title="Filter by Pool" className="mb-6">
@@ -117,8 +109,13 @@ export function JournalBatchReview() {
       </Card>
 
       <Card title="Posted Journal Batches">
-        <div className="space-y-4">
-          {batches.map((batch) => {
+        {pageState === "error" ? (
+          <p className="text-sm text-red-400">{pageError}</p>
+        ) : batches.length === 0 ? (
+          <p className="text-sm text-ink-secondary">No journal batches found for this pool.</p>
+        ) : (
+          <div className="space-y-4">
+            {batches.map((batch) => {
             const isExpanded = expandedBatches[batch.id]
             const isBalanced = batch.total_debit === batch.total_credit
 
@@ -190,8 +187,9 @@ export function JournalBatchReview() {
                 )}
               </div>
             )
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </Card>
     </div>
   )

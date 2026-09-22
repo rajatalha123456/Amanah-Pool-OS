@@ -6,7 +6,13 @@ import { Card } from "../components/Card"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
-import { createContractTemplate, fetchClausesSchema, fetchContractTemplates } from "../api/products"
+import { useAuth } from "../api/auth"
+import {
+  approveContractTemplate,
+  createContractTemplate,
+  fetchClausesSchema,
+  fetchContractTemplates,
+} from "../api/products"
 import { fetchShariahDecisions } from "../api/shariahGovernance"
 import { extractErrorMessage } from "../api/errors"
 import type {
@@ -41,10 +47,13 @@ const inputClasses =
 const labelClasses = "mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase"
 
 export function ContractTemplateStudio() {
+  const { user } = useAuth()
+  const canApprove = user?.role === "shariah_board"
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
 
   function loadTemplates() {
     setPageState("loading")
@@ -68,6 +77,19 @@ export function ContractTemplateStudio() {
     setIsFormOpen(false)
   }
 
+  async function handleApprove(template: ContractTemplate) {
+    setPageError("")
+    setApprovingId(template.id)
+    try {
+      const updated = await approveContractTemplate(template.id)
+      setTemplates((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+    } catch (err) {
+      setPageError(extractErrorMessage(err, "Unable to approve this contract template."))
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
   const columns: TableColumn<ContractTemplate>[] = [
     { header: "Name", accessor: (template) => template.name },
     { header: "Contract Type", accessor: (template) => template.contract_type },
@@ -79,6 +101,19 @@ export function ContractTemplateStudio() {
       ),
     },
     { header: "Shariah Decision", accessor: (template) => template.shariah_decision_code ?? "—" },
+    {
+      header: "Action",
+      accessor: (template) =>
+        canApprove && template.status === "draft" ? (
+          <Button
+            variant="primary"
+            disabled={approvingId === template.id}
+            onClick={() => handleApprove(template)}
+          >
+            {approvingId === template.id ? <Spinner className="h-4 w-4" /> : "Approve"}
+          </Button>
+        ) : null,
+    },
   ]
 
   return (

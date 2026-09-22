@@ -4,6 +4,7 @@ import { Badge } from "../../components/Badge"
 import { Button } from "../../components/Button"
 import { Spinner } from "../../components/Spinner"
 import { Table, type TableColumn } from "../../components/Table"
+import { useAuth } from "../../api/auth"
 import {
   approveWeightageBand,
   createWeightageBand,
@@ -18,6 +19,8 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 }
 
 export function WeightageBandsSection({ poolId }: { poolId: string }) {
+  const { user } = useAuth()
+  const canApprove = user?.role === "shariah_board"
   const [bands, setBands] = useState<WeightageBand[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -91,7 +94,7 @@ export function WeightageBandsSection({ poolId }: { poolId: string }) {
     {
       header: "",
       accessor: (band) =>
-        band.status === "draft" ? (
+        canApprove && band.status === "draft" ? (
           <button
             type="button"
             onClick={() => handleApprove(band.id)}

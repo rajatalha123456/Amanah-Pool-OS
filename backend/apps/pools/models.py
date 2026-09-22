@@ -5,6 +5,7 @@ from apps.core.models import TenantScopedModel
 
 class PoolStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
+    PENDING_APPROVAL = "pending_approval", "Pending Approval"
     APPROVED = "approved", "Approved"
     OPEN = "open", "Open"
     ALLOCATION = "allocation", "Allocation"
