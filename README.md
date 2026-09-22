@@ -1411,6 +1411,79 @@ Wired to the previously-placeholder **Reports** sidebar item (`/reports` in `CUS
 
 `npm run build` is clean.
 
+## Liquidity Forecast
+
+A pure, stateless projection helper — `apps.pools.liquidity.calculate_liquidity_forecast(pool, as_of_date, horizon_days=30)` — no new model. It's a **simple trend-based projection, not an ML-based forecast**; an ML-based forecast (accounting for seasonality, cyclicality, pool-type-specific patterns, etc.) is explicitly future scope, not attempted here.
+
+### Calculation
+
+1. **Trend** — pulls the pool's `DailyBalance` history up to `as_of_date`, sums `balance_amount` per `value_date` (a pool can have multiple `DailyBalance` rows per day, one per `participant_class`, so each day's "total" is the sum across classes), then averages the day-over-day delta of those daily totals over the last 30 days of history.
+2. **Known upcoming outflows** over `[as_of_date, as_of_date + horizon_days]`, by `product.operating_model`:
+   - `investment_pool` — sums `amount` of `Redemption` rows with `status="pending"` whose `transaction_date` falls in that window (`Redemption.capital_account.pool` is the join, since `Redemption` has no direct `pool` FK).
+   - `community_circle` — sums `amount` of `Payout` rows with `status="pending"` whose `payout_date` falls in that window.
+   - any other operating model (e.g. `bank_pool`) — no known-outflow source is modeled yet, so `known_outflows` is `0`.
+3. `projected_balance = current_balance + (trend_per_day * horizon_days) - known_outflows`.
+
+If the pool has fewer than 5 `DailyBalance` records as of `as_of_date`, the function returns `insufficient_data: True` with `current_balance`/`trend_per_day`/`known_outflows`/`projected_balance` all `null` — a normal response, not an error, since a forecast from 1-4 data points wouldn't be meaningful.
+
+### API
+
+- **`GET /api/v1/pools/pools/{pool_id}/liquidity-forecast/?horizon_days=30`** — `IsAuthenticated` only (falls through `PoolViewSet.get_permissions()`'s default branch, same as `retrieve`/`versions` — a read-only aggregation, not a role-gated action). Optional `as_of_date` (defaults to today) and `horizon_days` (defaults to `30`) query params. Returns the plain dict from `calculate_liquidity_forecast()` directly via `Response(...)`, following the same no-serializer convention as `AllocationRunViewSet.simulate()`.
+
+**Verified via real HTTP requests** in `apps/pools/test_liquidity_forecast.py::LiquidityForecastApiTests` (3 tests, all passing): a pool with only 3 `DailyBalance` records returns `insufficient_data: True` with a `null` projection; a pool with 10 days of history rising by a fixed 100/day returns the exact expected `current_balance`, `trend_per_day`, and `projected_balance` (`current_balance + trend_per_day * 30`); an investment pool with a pending `Redemption` inside the 30-day horizon has its `amount` counted in `known_outflows`, while a pending redemption *outside* the horizon and an already-`processed` redemption are both correctly excluded.
+
+### Frontend (`src/pages/pool-detail/LiquidityForecastSection.tsx`)
+
+No new page — added as a third `Card` in the existing Pool Detail "Overview" tab grid (`src/pages/PoolDetail.tsx`), next to "Product" and "Pool Info", following the same self-contained `poolId`-prop section pattern as `PSRSection`/`WeightageBandsSection`/`AssignedAssetsSection`. Fetches via `fetchLiquidityForecast()` in `src/api/liquidity.ts`. Shows `current_balance`, `projected_balance` (30-day), a trend indicator (▲ emerald when `trend_per_day >= 0`, ▼ gold when negative), and `known_outflows`, with an explicit "Simple trend-based projection... Not an ML-based forecast" caption. When `insufficient_data` is `true`, shows "Not enough history yet." instead. `npm run build` is clean.
+
+## Dispute & Request Center
+
+`apps.governance.models.SupportRequest` (`TenantScopedModel`, no new app — governance already aggregates this class of case-management model alongside `ExceptionCase`/`PurificationEntry`/`RelatedPartyTransaction`) tracks disputes/service requests raised on behalf of an investor or circle member: statement corrections, payout inquiries, KYC issues, general complaints. `raised_by_name` is a plain name for now (not linked to a User), same as `CapitalAccount.investor_name` — linking to an `investor_member` User is future scope.
+
+### Model
+
+- `pool` — nullable FK (some requests aren't pool-specific, e.g. a general KYC issue).
+- `request_type` — `statement_correction` / `payout_inquiry` / `kyc_issue` / `general_complaint` / `other`.
+- `subject`, `description`, `raised_by_name`.
+- `status` — `open` (default) / `in_progress` / `resolved` / `closed`.
+- `priority` — `low` / `medium` (default) / `high`.
+- `assigned_to` (nullable `User` FK), `resolution_notes` (nullable), `resolved_by` (nullable `User` FK), `resolved_at` (nullable).
+
+### API (`apps/governance`)
+
+- **`GET/POST /api/v1/governance/support-requests/`** — `list`/`retrieve`/`create` all just `IsAuthenticated`: **any** authenticated user can file a request (staff filing on behalf of a member who called or emailed in) or read the queue. `assigned_to`/`status`/`resolution_notes`/`resolved_by`/`resolved_at` are all read-only on the serializer — the only way they change is through the two actions below, so every state transition is captured by an explicit, named `log_action()` call rather than a generic `update`. Filters: `status`, `priority`, `pool`.
+- **`POST /api/v1/governance/support-requests/{id}/assign/`** — `IsRiskCompliance` or `IsPoolManager` only (`HasAnyRole(["risk_compliance", "pool_manager"])`). Body: `{"assigned_to_user_id"}` (validated to exist in the caller's own tenant). Sets `assigned_to`; if the request was still `open`, also advances it to `in_progress` (filing something and then assigning it are the two events that take a request out of the "nobody's looked at this yet" state).
+- **`POST /api/v1/governance/support-requests/{id}/resolve/`** — **design call**: rather than restricting this to a fixed role at the `get_permissions()` layer (which can't express "whoever it's currently assigned to," since that varies per-object), the permission check happens *inside* the action: allowed if `request.user` is the request's current `assigned_to`, **or** if they're Risk & Compliance / a Pool Manager (the same roles that can assign work in the first place, so they can always reassign or close out something that's stuck). Anyone else gets a `403` via `PermissionDenied`, with a message naming who *is* allowed. Body: `{"resolution_notes"}` (required). Sets `status="resolved"`, stamps `resolved_by`/`resolved_at`.
+
+Every create/assign/resolve call is written to `AuditLog` via `log_action()`.
+
+**Verified via real HTTP requests** in `apps/governance/test_support_requests.py::SupportRequestApiTests` (9 tests, all passing): a Finance Maker can file a request (`201`, `status="open"`); Risk Compliance can assign it to that same Finance Maker (`200`, `status` advances to `"in_progress"`); a non-Risk/non-Pool-Manager user attempting to assign gets `403`; the assignee can then resolve it (`200`, `status="resolved"`, `resolved_by` is the assignee); Risk Compliance can *also* resolve a request assigned to someone else, without being the assignee (`200`); a **different**, uninvolved user (not the assignee, not Risk/Pool-Manager) gets `403` attempting to resolve; resolving without `resolution_notes` returns `400`; `?status=`/`?priority=` filter correctly; and tenant isolation is confirmed (a user in a different tenant sees zero requests).
+
+### Frontend
+
+No new top-level nav item — added as a 5th tab ("Dispute & Request Center") on the existing **Risk & Compliance** page (`src/pages/AssetRegistry.tsx`), alongside Asset Registry / Exception Queue / Related-Party / Risk Dashboard, since Risk & Compliance already has the tab scaffold and role overlap (`risk_compliance`, `pool_manager`) this workflow needs.
+
+- **`src/pages/governance/DisputeCenter.tsx`** — a filtered table (`status`, `priority`) of `SupportRequest`s: `subject`, `request_type` (human-readable label), `priority`/`status` `Badge`s, `pool` (or `—`), `assigned_to`. A **+ New Request** button opens a modal form (`request_type`, `raised_by_name`, `subject`, `description`, `priority`). Row click opens a detail **modal** (not a separate route, unlike `ExceptionCaseDetail` — this is a simpler single-panel case, no multi-stage investigation pipeline to visualize) showing the full description, resolution notes once resolved, and, while `open`/`in_progress`: an **Assign to Me** button (Risk Compliance/Pool Manager) and, once assigned-or-privileged, a **Resolve** button that expands an inline resolution-notes form.
+- **`src/api/supportRequests.ts`** — `fetchSupportRequests`, `fetchSupportRequest`, `createSupportRequest`, `assignSupportRequest`, `resolveSupportRequest`.
+
+`npm run build` is clean.
+
+## Contribution Receipts
+
+No new endpoint — the existing `GET /api/v1/circles/contributions/{id}/` (added `RetrieveModelMixin` to `ContributionViewSet`, which was previously list-only: `Contribution`s are still only ever *created* via `CircleMemberViewSet.record_contribution()`, this just lets a single one be *read* back) now backs a member-facing receipt page.
+
+`ContributionSerializer` gained five flat, read-only fields sourced from the related `CircleMember`/`Pool` (minimal change over introducing a nested serializer, since the receipt page only needs a handful of display fields, not the full member/pool objects): `member_reference`, `member_name` (via `source="member.member_reference"` etc.), and `pool`/`pool_name`/`pool_code` (via `source="member.pool_id"` / `"member.pool.name"` / `"member.pool.code"` — a `Contribution` has no direct `pool` FK, only through `member`).
+
+### Frontend (`src/pages/circles/ContributionReceipt.tsx`)
+
+New route `community-circles/contributions/:id`. Follows the same print-friendly full-page layout as `StatementView.tsx` (`src/pages/StatementView.tsx` — Depositor Statements): a centered card, section headings, a stat-grid for the key figures, and a print button (`window.print()`, hidden itself via `@media print` so it doesn't appear on the printed page — `StatementView` has no such button, since a full print CSS page-break stylesheet is enough there, but a single-record receipt page needs one to trigger the browser's print dialog directly). Adds an explicit "Amanah Pool OS" branding line above the receipt title, which `StatementView` doesn't have. Shows member name, `member_reference`, pool name + code, amount, contribution date, cycle number, and a status `Badge`.
+
+In `CommunityCircles.tsx`'s **Rotation & Payouts** tab (table view), any row whose Contribution status is `received` now shows a small **View Receipt** link next to the status badge, navigating to the new route.
+
+**Verified via real HTTP requests** in `apps/circles/test_member_mobile_smoke.py::MemberMobileHomeDataTests::test_contribution_detail_for_receipt`: fetches a specific contribution by id and confirms `member_reference`, `member_name`, `pool_name`, `pool_code`, `amount`, `contribution_date`, `cycle_number`, and `status` are all present and correct on the response (16/16 `apps.circles` tests passing). `npm run build` is clean.
+
+## Notes
+
 - Never commit `.env` (backend or frontend) — both are already in `.gitignore`.
 - `db.sqlite3` is ignored too, in case it's accidentally generated (this project uses PostgreSQL).
 - `node_modules/` and `dist/` are ignored in the frontend.

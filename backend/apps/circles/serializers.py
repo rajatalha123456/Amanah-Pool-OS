@@ -21,11 +21,22 @@ class CircleMemberSerializer(serializers.ModelSerializer):
 
 
 class ContributionSerializer(serializers.ModelSerializer):
+    member_reference = serializers.CharField(source="member.member_reference", read_only=True)
+    member_name = serializers.CharField(source="member.member_name", read_only=True)
+    pool = serializers.CharField(source="member.pool_id", read_only=True)
+    pool_name = serializers.CharField(source="member.pool.name", read_only=True)
+    pool_code = serializers.CharField(source="member.pool.code", read_only=True)
+
     class Meta:
         model = Contribution
         fields = (
             "id",
             "member",
+            "member_reference",
+            "member_name",
+            "pool",
+            "pool_name",
+            "pool_code",
             "amount",
             "contribution_date",
             "cycle_number",

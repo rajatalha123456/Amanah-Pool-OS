@@ -31,6 +31,11 @@ export async function fetchContributionsForPool(poolId: string): Promise<Contrib
   return response.data
 }
 
+export async function fetchContribution(contributionId: string): Promise<Contribution> {
+  const response = await apiClient.get<Contribution>(`circles/contributions/${contributionId}/`)
+  return response.data
+}
+
 export async function fetchContributionsForMember(memberId: string): Promise<Contribution[]> {
   const response = await apiClient.get<Contribution[]>("circles/contributions/", {
     params: { member: memberId },

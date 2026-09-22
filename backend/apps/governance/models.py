@@ -164,3 +164,67 @@ class RelatedPartyTransaction(TenantScopedModel):
 
     def __str__(self):
         return f"{self.related_party_name} - {self.amount}"
+
+
+class SupportRequestType(models.TextChoices):
+    STATEMENT_CORRECTION = "statement_correction", "Statement Correction"
+    PAYOUT_INQUIRY = "payout_inquiry", "Payout Inquiry"
+    KYC_ISSUE = "kyc_issue", "KYC Issue"
+    GENERAL_COMPLAINT = "general_complaint", "General Complaint"
+    OTHER = "other", "Other"
+
+
+class SupportRequestStatus(models.TextChoices):
+    OPEN = "open", "Open"
+    IN_PROGRESS = "in_progress", "In Progress"
+    RESOLVED = "resolved", "Resolved"
+    CLOSED = "closed", "Closed"
+
+
+class SupportRequestPriority(models.TextChoices):
+    LOW = "low", "Low"
+    MEDIUM = "medium", "Medium"
+    HIGH = "high", "High"
+
+
+class SupportRequest(TenantScopedModel):
+    """
+    A dispute or service request raised on behalf of an investor/member
+    (statement corrections, payout inquiries, KYC issues, complaints).
+    raised_by_name is a plain name for now, not linked to a User -
+    linking to an investor_member User is future scope, same as
+    CapitalAccount.investor_name.
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="support_requests", null=True, blank=True
+    )
+    request_type = models.CharField(max_length=30, choices=SupportRequestType.choices)
+    subject = models.CharField(max_length=255)
+    description = models.TextField()
+    raised_by_name = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20, choices=SupportRequestStatus.choices, default=SupportRequestStatus.OPEN
+    )
+    priority = models.CharField(
+        max_length=10, choices=SupportRequestPriority.choices, default=SupportRequestPriority.MEDIUM
+    )
+    assigned_to = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_support_requests",
+    )
+    resolution_notes = models.TextField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_support_requests",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"[{self.request_type}] {self.subject}"

@@ -19,6 +19,7 @@ import { extractErrorMessage } from "../api/errors"
 import { WeightageBandsSection } from "./pool-detail/WeightageBandsSection"
 import { PSRSection } from "./pool-detail/PSRSection"
 import { AssignedAssetsSection } from "./pool-detail/AssignedAssetsSection"
+import { LiquidityForecastSection } from "./pool-detail/LiquidityForecastSection"
 import type { BadgeVariant, Pool, PoolVersion } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
@@ -168,6 +169,8 @@ export function PoolDetail() {
               )}
               <p className="mt-1 text-sm text-ink-secondary">Status: {pool.status}</p>
             </Card>
+
+            <LiquidityForecastSection poolId={pool.id} />
           </div>
 
           <Card title="Actions" className="mb-6">

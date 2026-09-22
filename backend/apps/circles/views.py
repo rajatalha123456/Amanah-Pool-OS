@@ -23,10 +23,11 @@ from .rotation import run_draw as run_draw_for_pool
 from .serializers import ArrearsRecordSerializer, CircleMemberSerializer, ContributionSerializer, PayoutSerializer
 
 
-class ContributionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+class ContributionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """
     Read-only: Contributions are only ever created via
-    CircleMemberViewSet.record_contribution().
+    CircleMemberViewSet.record_contribution(). retrieve() backs the
+    member-facing contribution receipt page.
     """
 
     serializer_class = ContributionSerializer

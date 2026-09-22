@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
@@ -19,6 +20,8 @@ from apps.accounts.permissions import (
 from apps.core.audit import log_action
 from apps.core.exceptions_helper import create_exception_case
 from apps.products.models import ProductStatus
+
+from .liquidity import calculate_liquidity_forecast
 
 from .models import (
     Asset,
@@ -101,6 +104,22 @@ class PoolViewSet(viewsets.ModelViewSet):
         pool = self.get_object()
         versions = pool.versions.all()
         return Response(PoolVersionSerializer(versions, many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="liquidity-forecast")
+    def liquidity_forecast(self, request, pk=None):
+        pool = self.get_object()
+
+        as_of_date_param = request.query_params.get("as_of_date")
+        as_of_date = date.fromisoformat(as_of_date_param) if as_of_date_param else timezone.localdate()
+
+        horizon_days_param = request.query_params.get("horizon_days")
+        try:
+            horizon_days = int(horizon_days_param) if horizon_days_param else 30
+        except ValueError:
+            raise ValidationError({"horizon_days": ["Must be an integer."]})
+
+        result = calculate_liquidity_forecast(pool, as_of_date, horizon_days=horizon_days)
+        return Response(result)
 
     @action(detail=True, methods=["post"], url_path="submit-for-approval")
     def submit_for_approval(self, request, pk=None):

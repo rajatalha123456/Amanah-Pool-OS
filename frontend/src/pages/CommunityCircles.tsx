@@ -373,6 +373,7 @@ function RotationTab({
   isFinanceChecker: boolean
   onMembersChanged: () => Promise<void>
 }) {
+  const navigate = useNavigate()
   const [cycleNumber, setCycleNumber] = useState(1)
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [payouts, setPayouts] = useState<Payout[]>([])
@@ -575,9 +576,23 @@ function RotationTab({
         const contribution = cycleContributionByMember[member.id]
         if (!contribution) return <Badge variant="neutral">not recorded</Badge>
         return (
-          <Badge variant={contribution.status === "received" ? "emerald" : "gold"}>
-            {contribution.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={contribution.status === "received" ? "emerald" : "gold"}>
+              {contribution.status}
+            </Badge>
+            {contribution.status === "received" && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  navigate(`/community-circles/contributions/${contribution.id}`)
+                }}
+                className="text-xs font-medium text-emerald-400 hover:underline"
+              >
+                View Receipt
+              </button>
+            )}
+          </div>
         )
       },
     },

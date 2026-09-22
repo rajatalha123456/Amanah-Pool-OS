@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.pools.models import Pool
 
-from .models import ExceptionCase, PurificationEntry, RelatedPartyTransaction
+from .models import ExceptionCase, PurificationEntry, RelatedPartyTransaction, SupportRequest
 
 
 class ExceptionCaseSerializer(serializers.ModelSerializer):
@@ -103,3 +103,34 @@ class RelatedPartyTransactionSerializer(serializers.ModelSerializer):
         if request and pool.tenant_id != request.user.tenant_id:
             raise serializers.ValidationError("Pool does not belong to the current tenant.")
         return pool
+
+
+class SupportRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportRequest
+        fields = (
+            "id",
+            "pool",
+            "request_type",
+            "subject",
+            "description",
+            "raised_by_name",
+            "status",
+            "priority",
+            "assigned_to",
+            "resolution_notes",
+            "resolved_by",
+            "resolved_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "status",
+            "assigned_to",
+            "resolution_notes",
+            "resolved_by",
+            "resolved_at",
+            "created_at",
+            "updated_at",
+        )

@@ -5,6 +5,7 @@ from .views import (
     ExceptionCaseViewSet,
     PurificationEntryViewSet,
     RelatedPartyTransactionViewSet,
+    SupportRequestViewSet,
     shariah_dashboard,
 )
 
@@ -12,6 +13,7 @@ router = DefaultRouter()
 router.register("exceptions", ExceptionCaseViewSet, basename="exception-case")
 router.register("purification-entries", PurificationEntryViewSet, basename="purification-entry")
 router.register("related-party-transactions", RelatedPartyTransactionViewSet, basename="related-party-transaction")
+router.register("support-requests", SupportRequestViewSet, basename="support-request")
 
 urlpatterns = [
     path("shariah-dashboard/", shariah_dashboard, name="shariah-dashboard"),

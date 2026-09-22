@@ -574,6 +574,11 @@ export interface RunDrawResponse {
 export interface Contribution {
   id: string
   member: string
+  member_reference: string
+  member_name: string
+  pool: string
+  pool_name: string
+  pool_code: string
   amount: string
   contribution_date: string
   cycle_number: number
@@ -746,6 +751,32 @@ export interface UpdateExceptionAssigneeInput {
   assigned_to: number
 }
 
+export interface SupportRequest {
+  id: string
+  pool: string | null
+  request_type: string
+  subject: string
+  description: string
+  raised_by_name: string
+  status: string
+  priority: string
+  assigned_to: number | null
+  resolution_notes: string | null
+  resolved_by: number | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateSupportRequestInput {
+  pool?: string
+  request_type: string
+  subject: string
+  description: string
+  raised_by_name: string
+  priority?: string
+}
+
 export interface PurificationEntry {
   id: string
   pool: string
@@ -871,4 +902,15 @@ export interface AuditLogFilters {
   date_from?: string
   date_to?: string
   tenant?: string
+}
+
+export interface LiquidityForecast {
+  pool: string
+  as_of_date: string
+  horizon_days: number
+  insufficient_data: boolean
+  current_balance: string | null
+  trend_per_day: string | null
+  known_outflows: string | null
+  projected_balance: string | null
 }

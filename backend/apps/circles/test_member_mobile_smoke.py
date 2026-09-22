@@ -62,7 +62,7 @@ class MemberMobileHomeDataTests(APITestCase):
             joined_date=date(2026, 9, 1),
             payout_position=2,
         )
-        Contribution.objects.create(
+        self.contribution = Contribution.objects.create(
             tenant=self.tenant, member=self.member, amount="100.00", contribution_date=date(2026, 9, 5),
             cycle_number=1, status=ContributionStatus.RECEIVED,
         )
@@ -103,6 +103,18 @@ class MemberMobileHomeDataTests(APITestCase):
         response = self.client.get(reverse("circle-member-list"), {"pool": str(self.pool.id)})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+
+    def test_contribution_detail_for_receipt(self):
+        response = self.client.get(reverse("circle-contribution-detail", args=[str(self.contribution.id)]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["member_reference"], "MEM-1")
+        self.assertEqual(response.data["member_name"], "Member One")
+        self.assertEqual(response.data["pool_name"], "Smoke Pool")
+        self.assertEqual(response.data["pool_code"], "SMOKE-POOL")
+        self.assertEqual(response.data["amount"], "100.00")
+        self.assertEqual(response.data["contribution_date"], "2026-09-05")
+        self.assertEqual(response.data["cycle_number"], 1)
+        self.assertEqual(response.data["status"], "received")
 
     def test_contributions_filtered_by_pool_for_calendar_view(self):
         response = self.client.get(reverse("circle-contribution-list"), {"pool": str(self.pool.id)})
