@@ -690,11 +690,13 @@ Once an `AllocationRun` is persisted (`status="simulated"`), it goes through a m
 
 `simulated` → (Finance Maker submits) → `pending_approval` → **[bank_pool only] (Shariah Secretariat signs off) →** `shariah_review` → (Finance Checker decides) → `signed` **or** `rejected`
 
+A Finance Checker can reject from either `pending_approval` or `shariah_review` (whichever stage the run is currently sitting in); `approve/` (→ `signed`) is only reachable from the single stage the pool's `shariah_review_required` flag currently requires.
+
 - **`POST /api/v1/allocation/allocation-runs/{id}/submit-for-checking/`** — `IsFinanceMaker` only. Requires `status == "simulated"`.
 - **`AllocationRun.shariah_review_required`** (read-only computed property, exposed on the serializer) is `True` when the run's pool's `Product.operating_model == "bank_pool"` **and** the `ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL` setting (env-configurable, default `True`) is on. It is evaluated live from the pool + setting each time it's read, not stored on the row — flipping the setting doesn't retroactively change the flow already in progress for a run's UI state, since the flag is derived fresh on every request.
 - **`POST /api/v1/allocation/allocation-runs/{id}/shariah-sign-off/`** — `IsShariahSecretariat` only. Requires `shariah_review_required == True` and `status == "pending_approval"` (`400` with *"This AllocationRun's pool does not require Shariah review."* if the pool doesn't need it at all). Body: `{"note": "..."}` (optional, stored as `shariah_review_note`). Sets `shariah_signed_off_by`, `shariah_signed_off_at`, `status = "shariah_review"`.
 - **`POST /api/v1/allocation/allocation-runs/{id}/approve/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` when `shariah_review_required == False`, or `status == "shariah_review"` when it's `True` — so for a `bank_pool` run, a Finance Checker cannot skip straight from `pending_approval` to `signed`; the Shariah sign-off step is enforced server-side, not just hidden in the UI. Calls `apps.accounts.workflow.validate_maker_checker(maker_user=run.created_by, checker_user=request.user)` — if the same user created and is now approving the run, the request fails with `400`: *"Maker and checker cannot be the same user"*. On success: sets `checked_by`, `checked_at`, `status = "signed"`, and immediately calls `create_journal_from_allocation()` to post the ledger entries (below). The response includes the nested `journal_batch`.
-- **`POST /api/v1/allocation/allocation-runs/{id}/reject/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` (rejection during `shariah_review` is not currently supported — a run that failed Shariah review still has to reach `pending_approval` again some other way; this is unchanged from before and out of scope for this task) and a required `rejection_reason` in the body (`400` if missing). Sets `checked_by`, `checked_at`, `rejection_reason`, `status = "rejected"`. No journal is posted.
+- **`POST /api/v1/allocation/allocation-runs/{id}/reject/`** — `IsFinanceChecker` only. Requires `status == "pending_approval"` **or** `status == "shariah_review"` — unlike `approve/`, which can only fire from whichever single stage is currently required (`shariah_review` when the pool needs Shariah review, `pending_approval` otherwise), `reject/` is allowed from either stage, so a Finance Checker can still stop a `bank_pool` run after it has cleared Shariah sign-off. Also requires a `rejection_reason` in the body (`400` if missing). Sets `checked_by`, `checked_at`, `rejection_reason`, `status = "rejected"`; the `AuditLog` entry's `changes.status.before` records whichever of the two stages the run was rejected from. No journal is posted.
 
 Every transition writes an `AuditLog` entry; for `reject`, the `rejection_reason` is also stored in the `AuditLog.reason` field, not just on the run; for `shariah-sign-off`, `shariah_review_note` is stored the same way.
 
@@ -711,7 +713,7 @@ The Actions card adapts to the same flag: a `bank_pool` run sitting in `pending_
 
 User references (`created_by`, `checked_by`, `shariah_signed_off_by`) are shown as `User #{id}` — there's no user-lookup-by-id endpoint yet to resolve a display name, consistent with how user references are shown everywhere else in the frontend today.
 
-**Verified via real HTTP requests** in `apps/allocation/tests.py::AllocationRunShariahReviewStageApiTests`: created a `bank_pool` run, confirmed `shariah_review_required=True` on the API response, submitted it for checking, confirmed a Finance Checker's premature `approve/` is rejected with `400`, confirmed a Finance Checker cannot call `shariah-sign-off/` (`403`), had the Shariah Secretariat sign off successfully (`status` → `shariah_review`, note stored, signer recorded), then had the Finance Checker approve successfully (`status` → `signed`). A second test created an `investment_pool` run, confirmed `shariah_review_required=False`, confirmed `shariah-sign-off/` is rejected with `400` for a pool that doesn't need it, and confirmed the Finance Checker can approve directly from `pending_approval` as before. `npm run build` is clean.
+**Verified via real HTTP requests** in `apps/allocation/tests.py::AllocationRunShariahReviewStageApiTests`: created a `bank_pool` run, confirmed `shariah_review_required=True` on the API response, submitted it for checking, confirmed a Finance Checker's premature `approve/` is rejected with `400`, confirmed a Finance Checker cannot call `shariah-sign-off/` (`403`), had the Shariah Secretariat sign off successfully (`status` → `shariah_review`, note stored, signer recorded), then had the Finance Checker approve successfully (`status` → `signed`). A second test created an `investment_pool` run, confirmed `shariah_review_required=False`, confirmed `shariah-sign-off/` is rejected with `400` for a pool that doesn't need it, and confirmed the Finance Checker can approve directly from `pending_approval` as before. Two more tests cover `reject/`: one signs a `bank_pool` run off through Shariah Review and confirms the Finance Checker can reject it from `shariah_review` (`status` → `rejected`) while a Finance Maker gets `403`; the other confirms the pre-existing `pending_approval` → `rejected` path still works unchanged. `npm run build` is clean.
 
 ### Double-entry journal posting (`apps/accounting`)
 
@@ -1324,6 +1326,56 @@ The Django backend maintains a global `AIModelRegistry` for the three internal A
 - A disabled Shariah Copilot returns `503 This AI feature is currently disabled.` before the external Copilot service is called. Disabled allocation anomaly and reconciliation checks silently return their existing no-op result so background posting/signing workflows remain non-blocking.
 
 The `/ai-analytics` page exposes this through a **Model Governance** tab. The registry table and controls are visible to all authenticated users, but only Platform Super Admins see the Disable/Enable controls.
+
+## Community Circles — Rotation & Payouts
+
+`apps.circles` implements the `community_circle` operating model: a ROSCA (rotating savings and credit association) where a fixed group of members each contribute a fixed amount per cycle, and the pooled amount is paid out in full to one member per cycle, in an order fixed by a one-time random draw.
+
+### Models
+
+- **`CircleMember`** (`TenantScopedModel`) — `pool` FK, `member_name`, `member_reference` (unique per tenant), `payout_position` (nullable `IntegerField`, unique per pool when set — enforced by a partial `UniqueConstraint` with `condition=Q(payout_position__isnull=False)`, the same pattern `NAVSnapshot` uses for "only one published snapshot per pool/date"), `status` (`active` / `paid_out` / `withdrawn`), `joined_date`.
+- **`Contribution`** (`TenantScopedModel`) — `member` FK (`related_name="contributions"`), `amount`, `contribution_date`, `cycle_number`, `status` (`pending` / `received`).
+- **`Payout`** (`TenantScopedModel`) — `member` FK (`related_name="payouts"`), `pool` FK, `cycle_number`, `amount`, `payout_date`, `status` (`pending` / `disbursed`), `disbursed_by` (nullable `User` FK), `draw_seed` (nullable — the seed from the draw that assigned this member's `payout_position`, copied here for per-payout traceability).
+
+### The draw (`apps/circles/rotation.py::run_draw(pool)`)
+
+Assigns `payout_position` to every `active` `CircleMember` of a pool whose position is still `null`, in a uniformly random order, inside `transaction.atomic()` with `select_for_update()` so two concurrent draw requests for the same pool can't race and hand out duplicate positions.
+
+**Why `secrets`, not `random`:** Python's `random` module is a Mersenne Twister PRNG — its internal state can, in principle, be reconstructed from a large enough sample of its output, and it is explicitly documented as unsuitable for security purposes. A rotation draw is exactly the kind of decision (who gets paid first) that a party with insight into the server's PRNG state, or with influence over the seed, could otherwise bias in their favor. `run_draw()` instead uses `secrets.SystemRandom().shuffle()`, which draws from the OS's cryptographically secure random source (`os.urandom`), so the resulting order cannot be predicted or steered by anyone, including the process itself.
+
+A `secrets.token_hex(16)` seed is generated per draw and returned (and stored, on the audit log entry and copied onto each `Payout`) purely as a transparency/audit token — proof that a specific randomized run produced the order, not a re-playable seed for `random.seed()`-style reproduction (which `secrets` deliberately does not support, precisely because reproducibility would reintroduce the predictability risk above).
+
+Positions are assigned starting after whatever positions already exist for the pool, so `run_draw()` can be called again later if new members join an existing circle without disturbing already-assigned members.
+
+### API
+
+- **`POST /api/v1/circles/circle-members/run-draw/{pool_id}/`** — `IsPoolManager` only. Calls `run_draw()`, logs the seed and full assignment list to `AuditLog`, and returns `{"seed": ..., "assignments": [{"member_id": ..., "position": ...}]}`.
+- **`POST /api/v1/circles/circle-members/{id}/record-contribution/`** — `IsFinanceMaker` only. Body: `{"amount", "contribution_date", "cycle_number"}`. Creates a `Contribution` with `status="received"`.
+- **`POST /api/v1/circles/circle-members/{id}/disburse-payout/`** — `IsFinanceChecker` only. Body: `{"cycle_number", "amount", "payout_date"}`. Enforces the payout sequence server-side, not just in the UI:
+  1. **Turn order** — among the pool's `active` members with an assigned `payout_position`, whichever has the *smallest* position and hasn't been paid yet is "next in line". Disbursing to any other member is rejected with a `400` naming the actual expected position — a member can't be paid out of turn even if a Finance Checker tries to target them directly by id.
+  2. **Full contribution for the cycle** — every currently-`active` member must have a `Contribution` with `status="received"` for the given `cycle_number` before *anyone* can be disbursed to for that cycle; otherwise the `400` names how many members are still pending.
+
+  On success: creates a `Payout` with `status="disbursed"`, sets `member.status = "paid_out"`. No further disbursement can target that member again for a later cycle (a paid-out member drops out of the `active` "who's next" query).
+- **`GET /api/v1/circles/contributions/?pool={pool_id}`** and **`GET /api/v1/circles/payouts/?pool={pool_id}`** — read-only, any authenticated (tenant-scoped) user. Added for the frontend's Rotation & Payouts tab, which needs every member's contribution/payout status for a given cycle in one screen rather than issuing per-member requests; `Contribution`/`Payout` rows are still only ever created via the two actions above.
+
+Every draw, contribution, and disbursement is written to `AuditLog` via `log_action()`.
+
+### Demo data
+
+`python manage.py seed_demo_community_circle` creates a demo `community_circle` Product + Pool, 5 `CircleMember`s, runs a draw (verifying afterward that positions `1..5` were assigned with no gaps or duplicates), and records each member's cycle-1 `Contribution` as `received`.
+
+**Verified via real HTTP requests** in `apps/circles/tests.py::CircleRotationApiTests`: created 5 members, ran the draw as Pool Manager and confirmed a `403` for a Finance Checker attempting the same, confirmed the returned `assignments` cover all 5 members with unique positions `1..5`; recorded cycle-1 contributions for 4 of the 5 members; confirmed disbursing to the *second*-turn member is rejected (`400`, wrong turn) even once role/permission (`IsFinanceChecker`) passes; confirmed disbursing to the correct first-turn member is *also* rejected until the missing member's contribution is recorded (`400`, incomplete cycle); confirmed a Finance Maker gets `403` on disburse; then recorded the missing contribution and confirmed disbursement succeeds (`201`, `status="disbursed"`, member `status` becomes `"paid_out"`). Separate tests confirm a draw against another tenant's pool is rejected (the pool lookup is tenant-scoped) and that `CircleMember` listing is tenant-isolated.
+
+### Frontend (`src/pages/CommunityCircles.tsx`)
+
+The **Community Circles** sidebar item (previously a placeholder) now renders a pool selector scoped to `product_detail.operating_model === "community_circle"` pools (same filtering pattern as `InvestmentPools.tsx`), with two tabs:
+
+- **Member Roster** — a table of `member_reference` / `member_name` / `payout_position` (`"Not drawn yet"` while `null`) / status `Badge` / `joined_date`. A Pool Manager sees a **+ New Member** button (only while at least one member still has no `payout_position` — once a draw has run, the roster is closed to new members joining mid-rotation) and a **Run Draw** button (only while at least one member is un-drawn), which opens a confirmation modal ("This action will randomly assign a payout order... This cannot be undone.") before calling the draw. The returned `seed` is shown afterward as a small copy-able `Draw seed: {seed}` line for audit transparency.
+- **Rotation & Payouts** — a cycle-number input plus a table (one row per member) showing that cycle's contribution status (`received` / `pending` / `not recorded`, from `GET /circles/contributions/?pool=`) and payout status (amount + date once disbursed, from `GET /circles/payouts/?pool=`). Each row gets a **Record Contribution** button (Finance Maker, if not yet recorded for the selected cycle) and, only on the row of the smallest-`payout_position` still-`active` member, a **Disburse Payout** button (Finance Checker) that's disabled with a `"Waiting for all members to contribute this cycle"` tooltip until every active member's contribution for that cycle is `received` — mirroring the backend's own turn-order and completeness checks so a Finance Checker sees why a disbursement isn't available yet instead of only discovering it from a rejected request.
+
+Errors from all five write actions (create member, run draw, record contribution, disburse payout) go through the same `extractErrorMessage()` used elsewhere in the frontend, so backend messages like *"It is not this member's turn..."* and *"Not all active members have contributed for cycle..."* surface verbatim instead of a generic failure message.
+
+**Manually verified** (real HTTP, both roles) against a running dev server: created 5 members as Pool Manager, ran the draw and got a valid random assignment with unique positions `1..5`; recorded contributions for 4 of 5 members and confirmed disbursing to the first-turn member was rejected (`400`, incomplete cycle); recorded the last contribution, then confirmed disbursing to the *second*-turn member was rejected (`400`, wrong turn) and disbursing as a Finance Maker was rejected (`403`); disbursed successfully to the correct first-turn member (`201`, `status="disbursed"`). `npm run build` is clean.
 
 ## Notes
 

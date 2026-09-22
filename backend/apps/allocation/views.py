@@ -432,16 +432,22 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
     def reject(self, request, pk=None):
         run = self.get_object()
 
-        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+        rejectable_statuses = (
+            AllocationRunStatus.PENDING_APPROVAL,
+            AllocationRunStatus.SHARIAH_REVIEW,
+        )
+        if run.status not in rejectable_statuses:
             raise ValidationError(
-                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status to "
-                f"reject (current status: '{run.status}')."
+                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' or "
+                f"'{AllocationRunStatus.SHARIAH_REVIEW}' status to reject "
+                f"(current status: '{run.status}')."
             )
 
         rejection_reason = request.data.get("rejection_reason")
         if not rejection_reason:
             raise ValidationError({"rejection_reason": ["This field is required."]})
 
+        previous_status = run.status
         run.status = AllocationRunStatus.REJECTED
         run.checked_by = request.user
         run.checked_at = timezone.now()
@@ -456,7 +462,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             object_id=str(run.id),
             changes={
                 "status": {
-                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "before": previous_status,
                     "after": AllocationRunStatus.REJECTED,
                 }
             },

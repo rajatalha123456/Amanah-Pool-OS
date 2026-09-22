@@ -16,6 +16,7 @@ import { StatementView } from "./pages/StatementView"
 import { ShariahCopilot } from "./pages/ShariahCopilot"
 import { ShariahGovernance } from "./pages/ShariahGovernance"
 import { InvestmentPools } from "./pages/InvestmentPools"
+import { CommunityCircles } from "./pages/CommunityCircles"
 import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
 import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
@@ -34,6 +35,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/ai-analytics": <ShariahCopilot />,
   "/shariah-governance": <ShariahGovernance />,
   "/investments": <InvestmentPools />,
+  "/community-circles": <CommunityCircles />,
   "/administration": <UserAdministration />,
 }
 

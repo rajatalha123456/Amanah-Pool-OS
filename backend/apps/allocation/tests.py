@@ -144,6 +144,60 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
         self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
         self.assertEqual(approve_response.data["status"], "signed")
 
+    def test_finance_checker_can_reject_from_shariah_review_stage(self):
+        pool, value_date = self._make_pool("bank_pool", "BANK-REJ")
+        run_id = self._create_run(pool, value_date)
+        detail_url = reverse("allocation-run-detail", args=[run_id])
+
+        self.authenticate(self.maker)
+        submit_response = self.client.post(f"{detail_url}submit-for-checking/")
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+
+        self.authenticate(self.secretariat)
+        signoff_response = self.client.post(
+            f"{detail_url}shariah-sign-off/", {"note": "Reviewed."}, format="json"
+        )
+        self.assertEqual(signoff_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(signoff_response.data["status"], "shariah_review")
+
+        # Wrong role cannot reject.
+        self.authenticate(self.maker)
+        forbidden_reject = self.client.post(
+            f"{detail_url}reject/", {"rejection_reason": "Not allowed"}, format="json"
+        )
+        self.assertEqual(forbidden_reject.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.authenticate(self.checker)
+        reject_response = self.client.post(
+            f"{detail_url}reject/", {"rejection_reason": "Ratio looks off."}, format="json"
+        )
+        self.assertEqual(reject_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reject_response.data["status"], "rejected")
+
+    def test_finance_checker_can_reject_from_pending_approval_stage(self):
+        pool, value_date = self._make_pool("investment_pool", "INV-REJ")
+        run_id = self._create_run(pool, value_date)
+        detail_url = reverse("allocation-run-detail", args=[run_id])
+
+        self.authenticate(self.maker)
+        submit_response = self.client.post(f"{detail_url}submit-for-checking/")
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(submit_response.data["status"], "pending_approval")
+
+        # Wrong role cannot reject.
+        self.authenticate(self.secretariat)
+        forbidden_reject = self.client.post(
+            f"{detail_url}reject/", {"rejection_reason": "Not allowed"}, format="json"
+        )
+        self.assertEqual(forbidden_reject.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.authenticate(self.checker)
+        reject_response = self.client.post(
+            f"{detail_url}reject/", {"rejection_reason": "Numbers don't match."}, format="json"
+        )
+        self.assertEqual(reject_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reject_response.data["status"], "rejected")
+
     def test_non_bank_pool_run_skips_shariah_review(self):
         pool, value_date = self._make_pool("investment_pool", "INV")
         run_id = self._create_run(pool, value_date)

@@ -1,0 +1,60 @@
+import { apiClient } from "./axios"
+import type {
+  CircleMember,
+  Contribution,
+  CreateCircleMemberInput,
+  DisbursePayoutInput,
+  Payout,
+  RecordContributionInput,
+  RunDrawResponse,
+} from "../types"
+
+export async function fetchCircleMembers(poolId: string): Promise<CircleMember[]> {
+  const response = await apiClient.get<CircleMember[]>("circles/circle-members/", {
+    params: { pool: poolId },
+  })
+  return response.data
+}
+
+export async function fetchContributionsForPool(poolId: string): Promise<Contribution[]> {
+  const response = await apiClient.get<Contribution[]>("circles/contributions/", {
+    params: { pool: poolId },
+  })
+  return response.data
+}
+
+export async function fetchPayoutsForPool(poolId: string): Promise<Payout[]> {
+  const response = await apiClient.get<Payout[]>("circles/payouts/", {
+    params: { pool: poolId },
+  })
+  return response.data
+}
+
+export async function createCircleMember(data: CreateCircleMemberInput): Promise<CircleMember> {
+  const response = await apiClient.post<CircleMember>("circles/circle-members/", data)
+  return response.data
+}
+
+export async function runDraw(poolId: string): Promise<RunDrawResponse> {
+  const response = await apiClient.post<RunDrawResponse>(`circles/circle-members/run-draw/${poolId}/`)
+  return response.data
+}
+
+export async function recordContribution(
+  memberId: string,
+  data: RecordContributionInput,
+): Promise<Contribution> {
+  const response = await apiClient.post<Contribution>(
+    `circles/circle-members/${memberId}/record-contribution/`,
+    data,
+  )
+  return response.data
+}
+
+export async function disbursePayout(memberId: string, data: DisbursePayoutInput): Promise<Payout> {
+  const response = await apiClient.post<Payout>(
+    `circles/circle-members/${memberId}/disburse-payout/`,
+    data,
+  )
+  return response.data
+}

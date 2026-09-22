@@ -547,6 +547,67 @@ export interface CreateNAVSnapshotInput {
   total_pool_value: string
 }
 
+export interface CircleMember {
+  id: string
+  pool: string
+  member_name: string
+  member_reference: string
+  payout_position: number | null
+  status: "active" | "paid_out" | "withdrawn"
+  joined_date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCircleMemberInput {
+  pool: string
+  member_name: string
+  member_reference: string
+  joined_date: string
+}
+
+export interface RunDrawResponse {
+  seed: string
+  assignments: { member_id: string; position: number }[]
+}
+
+export interface Contribution {
+  id: string
+  member: string
+  amount: string
+  contribution_date: string
+  cycle_number: number
+  status: "pending" | "received"
+  created_at: string
+  updated_at: string
+}
+
+export interface RecordContributionInput {
+  amount: string
+  contribution_date: string
+  cycle_number: number
+}
+
+export interface Payout {
+  id: string
+  member: string
+  pool: string
+  cycle_number: number
+  amount: string
+  payout_date: string
+  status: "pending" | "disbursed"
+  disbursed_by: number | null
+  draw_seed: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DisbursePayoutInput {
+  cycle_number: number
+  amount: string
+  payout_date: string
+}
+
 export interface SubscribeInput {
   amount: string
   transaction_date: string
