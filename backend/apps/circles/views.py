@@ -5,13 +5,22 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsFinanceChecker, IsFinanceMaker, IsPoolManager
+from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker, IsPoolManager, IsRiskCompliance
 from apps.core.audit import log_action
 from apps.pools.models import Pool
 
-from .models import CircleMember, CircleMemberStatus, Contribution, ContributionStatus, Payout, PayoutStatus
+from .models import (
+    ArrearsRecord,
+    ArrearsStatus,
+    CircleMember,
+    CircleMemberStatus,
+    Contribution,
+    ContributionStatus,
+    Payout,
+    PayoutStatus,
+)
 from .rotation import run_draw as run_draw_for_pool
-from .serializers import CircleMemberSerializer, ContributionSerializer, PayoutSerializer
+from .serializers import ArrearsRecordSerializer, CircleMemberSerializer, ContributionSerializer, PayoutSerializer
 
 
 class ContributionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -83,6 +92,8 @@ class CircleMemberViewSet(
             return [IsAuthenticated(), IsFinanceMaker()]
         if self.action == "disburse_payout":
             return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "flag_arrears":
+            return [IsAuthenticated(), IsRiskCompliance()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -244,3 +255,96 @@ class CircleMemberViewSet(
             request=request,
         )
         return Response(PayoutSerializer(payout).data, status=201)
+
+    @action(detail=True, methods=["post"], url_path="flag-arrears")
+    def flag_arrears(self, request, pk=None):
+        member = self.get_object()
+
+        cycle_number = request.data.get("cycle_number")
+        expected_amount = request.data.get("expected_amount")
+
+        errors = {}
+        if not cycle_number:
+            errors["cycle_number"] = ["This field is required."]
+        if not expected_amount:
+            errors["expected_amount"] = ["This field is required."]
+        if errors:
+            raise ValidationError(errors)
+
+        arrears = ArrearsRecord.objects.create(
+            tenant=member.tenant,
+            member=member,
+            cycle_number=cycle_number,
+            expected_amount=expected_amount,
+            status=ArrearsStatus.OVERDUE,
+        )
+
+        log_action(
+            tenant=member.tenant,
+            actor=request.user,
+            action="flag_arrears",
+            model_name="ArrearsRecord",
+            object_id=str(arrears.id),
+            changes={
+                "member_id": str(member.id),
+                "cycle_number": arrears.cycle_number,
+                "expected_amount": str(arrears.expected_amount),
+                "status": arrears.status,
+            },
+            request=request,
+        )
+        return Response(ArrearsRecordSerializer(arrears).data, status=201)
+
+
+class ArrearsRecordViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Read-only aside from grant_hardship: ArrearsRecords are created only
+    via CircleMemberViewSet.flag_arrears().
+    """
+
+    serializer_class = ArrearsRecordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ArrearsRecord.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        member_id = self.request.query_params.get("member")
+        if pool_id:
+            queryset = queryset.filter(member__pool_id=pool_id)
+        if member_id:
+            queryset = queryset.filter(member_id=member_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action == "grant_hardship":
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat", "shariah_board"])()]
+        return [IsAuthenticated()]
+
+    @action(detail=True, methods=["post"], url_path="grant-hardship")
+    def grant_hardship(self, request, pk=None):
+        arrears = self.get_object()
+
+        hardship_reason = request.data.get("hardship_reason")
+        if not hardship_reason:
+            raise ValidationError({"hardship_reason": ["This field is required."]})
+
+        arrears.status = ArrearsStatus.HARDSHIP_GRANTED
+        arrears.hardship_reason = hardship_reason
+        arrears.reviewed_by = request.user
+        arrears.reviewed_at = timezone.now()
+        arrears.save(update_fields=["status", "hardship_reason", "reviewed_by", "reviewed_at", "updated_at"])
+
+        log_action(
+            tenant=arrears.tenant,
+            actor=request.user,
+            action="grant_hardship",
+            model_name="ArrearsRecord",
+            object_id=str(arrears.id),
+            changes={"status": arrears.status, "hardship_reason": arrears.hardship_reason},
+            request=request,
+        )
+        return Response(ArrearsRecordSerializer(arrears).data)

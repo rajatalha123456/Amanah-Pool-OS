@@ -103,3 +103,12 @@ class MemberMobileHomeDataTests(APITestCase):
         response = self.client.get(reverse("circle-member-list"), {"pool": str(self.pool.id)})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+
+    def test_contributions_filtered_by_pool_for_calendar_view(self):
+        response = self.client.get(reverse("circle-contribution-list"), {"pool": str(self.pool.id)})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        dates = {row["contribution_date"] for row in response.data}
+        self.assertEqual(dates, {"2026-09-05"})
+        statuses = {row["status"] for row in response.data}
+        self.assertEqual(statuses, {"received", "pending"})

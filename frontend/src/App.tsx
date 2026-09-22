@@ -21,6 +21,7 @@ import { MemberMobileHome } from "./pages/circles/MemberMobileHome"
 import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
 import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
+import { AuditorPortal } from "./pages/AuditorPortal"
 import { PlaceholderPage } from "./pages/PlaceholderPage"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
@@ -37,6 +38,7 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/shariah-governance": <ShariahGovernance />,
   "/investments": <InvestmentPools />,
   "/community-circles": <CommunityCircles />,
+  "/reports": <AuditorPortal />,
   "/administration": <UserAdministration />,
 }
 

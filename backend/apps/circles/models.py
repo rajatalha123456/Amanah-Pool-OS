@@ -19,6 +19,12 @@ class PayoutStatus(models.TextChoices):
     DISBURSED = "disbursed", "Disbursed"
 
 
+class ArrearsStatus(models.TextChoices):
+    OVERDUE = "overdue", "Overdue"
+    HARDSHIP_GRANTED = "hardship_granted", "Hardship Granted"
+    RESOLVED = "resolved", "Resolved"
+
+
 class CircleMember(TenantScopedModel):
     """
     A participant in a community_circle-model Pool (a ROSCA - rotating
@@ -90,3 +96,28 @@ class Payout(TenantScopedModel):
 
     def __str__(self):
         return f"{self.member.member_reference} cycle {self.cycle_number} - {self.amount} ({self.status})"
+
+
+class ArrearsRecord(TenantScopedModel):
+    """
+    Tracks a member falling behind on an expected contribution for a
+    cycle. Created manually (via CircleMemberViewSet.flag_arrears) for
+    now - automatic detection from cycle deadlines is out of scope
+    until deadlines are modeled. A hardship waiver can only be granted
+    by Shariah oversight (Secretariat or Board), never by Risk &
+    Compliance alone, since waiving a member's obligation is a
+    Shariah-governance decision, not an operational one.
+    """
+
+    member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="arrears_records")
+    cycle_number = models.IntegerField()
+    expected_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    status = models.CharField(max_length=20, choices=ArrearsStatus.choices, default=ArrearsStatus.OVERDUE)
+    hardship_reason = models.TextField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.member.member_reference} cycle {self.cycle_number} ({self.status})"

@@ -11,15 +11,19 @@ import { useAuth } from "../api/auth"
 import {
   createCircleMember,
   disbursePayout,
+  fetchArrearsRecordsForPool,
   fetchCircleMembers,
   fetchContributionsForPool,
   fetchPayoutsForPool,
+  flagArrears,
+  grantHardship,
   recordContribution,
   runDraw,
 } from "../api/circles"
 import { fetchPools } from "../api/pools"
 import { extractErrorMessage } from "../api/errors"
 import type {
+  ArrearsRecord,
   BadgeVariant,
   CircleMember,
   Contribution,
@@ -28,7 +32,8 @@ import type {
   RunDrawResponse,
 } from "../types"
 
-type Tab = "roster" | "rotation"
+type Tab = "roster" | "rotation" | "arrears"
+type RotationView = "table" | "calendar"
 
 const inputClasses =
   "w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
@@ -44,12 +49,37 @@ function memberStatusBadgeVariant(status: string): BadgeVariant {
   return MEMBER_STATUS_BADGE[status] ?? "neutral"
 }
 
+const ARREARS_STATUS_BADGE: Record<string, BadgeVariant> = {
+  overdue: "gold",
+  hardship_granted: "emerald",
+  resolved: "navy",
+}
+
+function arrearsStatusBadgeVariant(status: string): BadgeVariant {
+  return ARREARS_STATUS_BADGE[status] ?? "neutral"
+}
+
+function dateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function parseDateKey(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function formatCalendarMonth(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+}
+
 export function CommunityCircles() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isPoolManager = user?.role === "pool_manager"
   const isFinanceMaker = user?.role === "finance_maker"
   const isFinanceChecker = user?.role === "finance_checker"
+  const isRiskCompliance = user?.role === "risk_compliance"
+  const isShariahReviewer = user?.role === "shariah_secretariat" || user?.role === "shariah_board"
 
   const [pools, setPools] = useState<Pool[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState("")
@@ -211,6 +241,13 @@ export function CommunityCircles() {
             >
               Rotation & Payouts
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("arrears")}
+              className={`border-b-2 px-1 pb-2 ${activeTab === "arrears" ? "border-emerald-500 text-ink-primary" : "border-transparent text-ink-secondary"}`}
+            >
+              Hardship & Arrears
+            </button>
           </div>
 
           {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
@@ -263,6 +300,15 @@ export function CommunityCircles() {
               isFinanceMaker={isFinanceMaker}
               isFinanceChecker={isFinanceChecker}
               onMembersChanged={refreshMembers}
+            />
+          )}
+
+          {activeTab === "arrears" && (
+            <ArrearsTab
+              poolId={selectedPoolId}
+              members={members}
+              isRiskCompliance={isRiskCompliance}
+              isShariahReviewer={isShariahReviewer}
             />
           )}
         </>
@@ -336,6 +382,9 @@ function RotationTab({
   const [isSaving, setIsSaving] = useState(false)
   const [contributionModalMember, setContributionModalMember] = useState<CircleMember | null>(null)
   const [disburseModalMember, setDisburseModalMember] = useState<CircleMember | null>(null)
+  const [rotationView, setRotationView] = useState<RotationView>("table")
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (!poolId || members.length === 0) {
@@ -396,6 +445,60 @@ function RotationTab({
     }
     return map
   }, [payouts, cycleNumber])
+
+  const cycleContributions = useMemo(
+    () => contributions.filter((contribution) => contribution.cycle_number === cycleNumber),
+    [contributions, cycleNumber],
+  )
+
+  const memberById = useMemo(
+    () => Object.fromEntries(members.map((member) => [member.id, member])) as Record<string, CircleMember>,
+    [members],
+  )
+
+  const contributionsByDate = useMemo(() => {
+    const grouped: Record<string, Contribution[]> = {}
+    for (const contribution of cycleContributions) {
+      grouped[contribution.contribution_date] ??= []
+      grouped[contribution.contribution_date].push(contribution)
+    }
+    return grouped
+  }, [cycleContributions])
+
+  useEffect(() => {
+    const firstContribution = cycleContributions
+      .map((contribution) => contribution.contribution_date)
+      .sort()[0]
+    if (firstContribution) {
+      const firstDate = parseDateKey(firstContribution)
+      setCalendarMonth(new Date(firstDate.getFullYear(), firstDate.getMonth(), 1))
+      setSelectedCalendarDate(firstContribution)
+    } else {
+      setCalendarMonth(new Date())
+      setSelectedCalendarDate(null)
+    }
+  }, [cycleNumber, cycleContributions])
+
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1)
+    const startOffset = firstDay.getDay()
+    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate()
+    return Array.from({ length: 42 }, (_, index) => {
+      const dayNumber = index - startOffset + 1
+      if (dayNumber < 1 || dayNumber > daysInMonth) return null
+      const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), dayNumber)
+      return { date, key: dateKey(date) }
+    })
+  }, [calendarMonth])
+
+  const selectedDayContributions = selectedCalendarDate
+    ? contributionsByDate[selectedCalendarDate] ?? []
+    : []
+
+  function changeCalendarMonth(offset: number) {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
+    setSelectedCalendarDate(null)
+  }
 
   const allActiveMembersContributed = activeMembersByPosition.every(
     (member) => cycleContributionByMember[member.id]?.status === "received",
@@ -538,16 +641,34 @@ function RotationTab({
   return (
     <Card title="Rotation & Payouts">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          Cycle
-          <input
-            type="number"
-            min="1"
-            value={cycleNumber}
-            onChange={(event) => setCycleNumber(Math.max(1, Number(event.target.value) || 1))}
-            className="w-24 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
+            Cycle
+            <input
+              type="number"
+              min="1"
+              value={cycleNumber}
+              onChange={(event) => setCycleNumber(Math.max(1, Number(event.target.value) || 1))}
+              className="w-24 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+            />
+          </label>
+          <div className="flex overflow-hidden rounded-md border border-white/10">
+            <button
+              type="button"
+              onClick={() => setRotationView("table")}
+              className={`px-3 py-2 text-sm ${rotationView === "table" ? "bg-emerald-600 text-white" : "text-ink-secondary hover:text-ink-primary"}`}
+            >
+              Table View
+            </button>
+            <button
+              type="button"
+              onClick={() => setRotationView("calendar")}
+              className={`px-3 py-2 text-sm ${rotationView === "calendar" ? "bg-emerald-600 text-white" : "text-ink-secondary hover:text-ink-primary"}`}
+            >
+              Calendar View
+            </button>
+          </div>
+        </div>
       </div>
 
       {cycleError && <p className="mb-4 text-sm text-red-400">{cycleError}</p>}
@@ -560,6 +681,73 @@ function RotationTab({
         </div>
       ) : members.length === 0 ? (
         <p className="text-sm text-ink-secondary">No circle members for this pool yet.</p>
+      ) : rotationView === "calendar" ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => changeCalendarMonth(-1)}
+                className="px-2 text-sm text-ink-secondary hover:text-ink-primary"
+              >
+                Previous
+              </button>
+              <h3 className="text-sm font-semibold text-ink-primary">{formatCalendarMonth(calendarMonth)}</h3>
+              <button
+                type="button"
+                onClick={() => changeCalendarMonth(1)}
+                className="px-2 text-sm text-ink-secondary hover:text-ink-primary"
+              >
+                Next
+              </button>
+            </div>
+            <div className="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase text-ink-secondary">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <span key={day}>{day}</span>)}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {calendarDays.map((day, index) => {
+                if (!day) return <div key={`empty-${index}`} className="min-h-20 rounded-md bg-white/[0.02]" />
+                const dayContributions = contributionsByDate[day.key] ?? []
+                const hasPaid = dayContributions.some((contribution) => contribution.status === "received")
+                const hasDue = dayContributions.some(
+                  (contribution) => contribution.status === "pending" && day.key < dateKey(new Date()),
+                )
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    onClick={() => setSelectedCalendarDate(day.key)}
+                    className={`min-h-20 rounded-md border p-2 text-left ${selectedCalendarDate === day.key ? "border-emerald-500 bg-emerald-500/10" : "border-white/8 bg-navy-900 hover:border-white/20"}`}
+                  >
+                    <span className="text-sm text-ink-primary">{day.date.getDate()}</span>
+                    <span className="mt-2 flex flex-wrap gap-1">
+                      {hasPaid && <Badge variant="emerald">Paid</Badge>}
+                      {hasDue && <Badge variant="gold">Due</Badge>}
+                      {!hasPaid && !hasDue && dayContributions.length > 0 && <Badge variant="neutral">Pending</Badge>}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <Card title={selectedCalendarDate ? `Contributions — ${selectedCalendarDate}` : "Select a day"}>
+            {selectedDayContributions.length === 0 ? (
+              <p className="text-sm text-ink-secondary">No contributions on this day.</p>
+            ) : (
+              <div className="space-y-3">
+                {selectedDayContributions.map((contribution) => (
+                  <div key={contribution.id} className="border-b border-white/8 pb-3 last:border-0 last:pb-0">
+                    <p className="text-sm text-ink-primary">{memberById[contribution.member]?.member_name ?? contribution.member}</p>
+                    <p className="mt-1 text-sm text-ink-secondary">Amount: {contribution.amount}</p>
+                    <Badge variant={contribution.status === "received" ? "emerald" : "gold"}>
+                      {contribution.status === "received" ? "Paid" : "Pending"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       ) : (
         <Table columns={rotationColumns} data={members} keyField={(member) => member.id} />
       )}
@@ -599,6 +787,220 @@ function RotationTab({
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <Button type="submit" disabled={isSaving}>
               {isSaving ? <Spinner className="h-4 w-4" /> : "Disburse Payout"}
+            </Button>
+          </form>
+        </Modal>
+      )}
+    </Card>
+  )
+}
+
+function ArrearsTab({
+  poolId,
+  members,
+  isRiskCompliance,
+  isShariahReviewer,
+}: {
+  poolId: string
+  members: CircleMember[]
+  isRiskCompliance: boolean
+  isShariahReviewer: boolean
+}) {
+  const [records, setRecords] = useState<ArrearsRecord[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [actionError, setActionError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [flagModalMember, setFlagModalMember] = useState<CircleMember | null>(null)
+  const [hardshipModalRecord, setHardshipModalRecord] = useState<ArrearsRecord | null>(null)
+
+  const memberById = useMemo(
+    () => Object.fromEntries(members.map((member) => [member.id, member])) as Record<string, CircleMember>,
+    [members],
+  )
+
+  useEffect(() => {
+    if (!poolId) {
+      setRecords([])
+      return
+    }
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError("")
+    fetchArrearsRecordsForPool(poolId)
+      .then((data) => {
+        if (!cancelled) setRecords(data)
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(extractErrorMessage(error, "Unable to load arrears records."))
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [poolId])
+
+  async function refreshRecords() {
+    const data = await fetchArrearsRecordsForPool(poolId)
+    setRecords(data)
+  }
+
+  function closeFlagModal() {
+    setFlagModalMember(null)
+    setActionError("")
+  }
+
+  function closeHardshipModal() {
+    setHardshipModalRecord(null)
+    setActionError("")
+  }
+
+  async function handleFlagArrears(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!flagModalMember) return
+    const form = new FormData(event.currentTarget)
+    setActionError("")
+    setIsSaving(true)
+    try {
+      await flagArrears(flagModalMember.id, {
+        cycle_number: Number(form.get("cycle_number")),
+        expected_amount: String(form.get("expected_amount")),
+      })
+      await refreshRecords()
+      closeFlagModal()
+    } catch (error) {
+      setActionError(extractErrorMessage(error, "Unable to flag arrears."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleGrantHardship(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!hardshipModalRecord) return
+    const form = new FormData(event.currentTarget)
+    setActionError("")
+    setIsSaving(true)
+    try {
+      await grantHardship(hardshipModalRecord.id, {
+        hardship_reason: String(form.get("hardship_reason")),
+      })
+      await refreshRecords()
+      closeHardshipModal()
+    } catch (error) {
+      setActionError(extractErrorMessage(error, "Unable to grant hardship waiver."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const arrearsColumns: TableColumn<ArrearsRecord>[] = [
+    {
+      header: "Member Reference",
+      accessor: (record) => memberById[record.member]?.member_reference ?? record.member,
+    },
+    { header: "Cycle", accessor: (record) => record.cycle_number },
+    { header: "Expected Amount", accessor: (record) => record.expected_amount },
+    {
+      header: "Status",
+      accessor: (record) => <Badge variant={arrearsStatusBadgeVariant(record.status)}>{record.status}</Badge>,
+    },
+    {
+      header: "Actions",
+      accessor: (record) =>
+        isShariahReviewer && record.status === "overdue" ? (
+          <Button
+            variant="gold"
+            onClick={(event) => {
+              event.stopPropagation()
+              setHardshipModalRecord(record)
+            }}
+          >
+            Grant Hardship
+          </Button>
+        ) : (
+          <span className="text-ink-secondary">—</span>
+        ),
+    },
+  ]
+
+  return (
+    <Card title="Hardship & Arrears">
+      {isRiskCompliance && members.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <select
+            onChange={(event) => {
+              const member = memberById[event.target.value]
+              if (member) setFlagModalMember(member)
+              event.target.value = ""
+            }}
+            value=""
+            className="rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="">Flag as Overdue...</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.member_reference} — {member.member_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {loadError && <p className="mb-4 text-sm text-red-400">{loadError}</p>}
+      {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-8 text-ink-secondary">
+          <Spinner className="h-5 w-5" />
+          Loading arrears data...
+        </div>
+      ) : records.length === 0 ? (
+        <p className="text-sm text-ink-secondary">No arrears records for this pool.</p>
+      ) : (
+        <Table columns={arrearsColumns} data={records} keyField={(record) => record.id} />
+      )}
+
+      {flagModalMember && (
+        <Modal title={`Flag as Overdue — ${flagModalMember.member_reference}`} onClose={closeFlagModal}>
+          <form onSubmit={handleFlagArrears} className="space-y-4">
+            <label className={labelClasses}>
+              Cycle Number
+              <input name="cycle_number" type="number" min="1" required className={inputClasses} />
+            </label>
+            <label className={labelClasses}>
+              Expected Amount
+              <input name="expected_amount" type="number" step="0.01" min="0" required className={inputClasses} />
+            </label>
+            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? <Spinner className="h-4 w-4" /> : "Flag as Overdue"}
+            </Button>
+          </form>
+        </Modal>
+      )}
+
+      {hardshipModalRecord && (
+        <Modal
+          title={`Grant Hardship — ${memberById[hardshipModalRecord.member]?.member_reference ?? hardshipModalRecord.member}`}
+          onClose={closeHardshipModal}
+        >
+          <form onSubmit={handleGrantHardship} className="space-y-4">
+            <p className="text-sm text-ink-secondary">Cycle {hardshipModalRecord.cycle_number}</p>
+            <label className={labelClasses}>
+              Hardship Reason (Shariah-compliant justification)
+              <textarea
+                name="hardship_reason"
+                required
+                rows={4}
+                className={inputClasses}
+              />
+            </label>
+            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? <Spinner className="h-4 w-4" /> : "Grant Hardship"}
             </Button>
           </form>
         </Modal>

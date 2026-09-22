@@ -1,9 +1,12 @@
 import { apiClient } from "./axios"
 import type {
+  ArrearsRecord,
   CircleMember,
   Contribution,
   CreateCircleMemberInput,
   DisbursePayoutInput,
+  FlagArrearsInput,
+  GrantHardshipInput,
   Payout,
   RecordContributionInput,
   RunDrawResponse,
@@ -73,6 +76,32 @@ export async function recordContribution(
 export async function disbursePayout(memberId: string, data: DisbursePayoutInput): Promise<Payout> {
   const response = await apiClient.post<Payout>(
     `circles/circle-members/${memberId}/disburse-payout/`,
+    data,
+  )
+  return response.data
+}
+
+export async function fetchArrearsRecordsForPool(poolId: string): Promise<ArrearsRecord[]> {
+  const response = await apiClient.get<ArrearsRecord[]>("circles/arrears-records/", {
+    params: { pool: poolId },
+  })
+  return response.data
+}
+
+export async function flagArrears(memberId: string, data: FlagArrearsInput): Promise<ArrearsRecord> {
+  const response = await apiClient.post<ArrearsRecord>(
+    `circles/circle-members/${memberId}/flag-arrears/`,
+    data,
+  )
+  return response.data
+}
+
+export async function grantHardship(
+  arrearsId: string,
+  data: GrantHardshipInput,
+): Promise<ArrearsRecord> {
+  const response = await apiClient.post<ArrearsRecord>(
+    `circles/arrears-records/${arrearsId}/grant-hardship/`,
     data,
   )
   return response.data

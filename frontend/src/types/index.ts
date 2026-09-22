@@ -608,6 +608,28 @@ export interface DisbursePayoutInput {
   payout_date: string
 }
 
+export interface ArrearsRecord {
+  id: string
+  member: string
+  cycle_number: number
+  expected_amount: string
+  status: "overdue" | "hardship_granted" | "resolved"
+  hardship_reason: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FlagArrearsInput {
+  cycle_number: number
+  expected_amount: string
+}
+
+export interface GrantHardshipInput {
+  hardship_reason: string
+}
+
 export interface SubscribeInput {
   amount: string
   transaction_date: string
@@ -828,4 +850,25 @@ export interface UpdateUserInput {
   role?: string
   tenant?: string
   is_active?: boolean
+}
+
+export interface AuditLogEntry {
+  id: string
+  tenant: string | null
+  actor: number | null
+  actor_email: string | null
+  action: string
+  model_name: string
+  object_id: string
+  changes: Record<string, unknown> | null
+  reason: string | null
+  ip_address: string | null
+  created_at: string
+}
+
+export interface AuditLogFilters {
+  model_name?: string
+  date_from?: string
+  date_to?: string
+  tenant?: string
 }

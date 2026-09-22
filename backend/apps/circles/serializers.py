@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import CircleMember, Contribution, Payout
+from .models import ArrearsRecord, CircleMember, Contribution, Payout
 
 
 class CircleMemberSerializer(serializers.ModelSerializer):
@@ -57,6 +57,32 @@ class PayoutSerializer(serializers.ModelSerializer):
             "status",
             "disbursed_by",
             "draw_seed",
+            "created_at",
+            "updated_at",
+        )
+
+
+class ArrearsRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ArrearsRecord
+        fields = (
+            "id",
+            "member",
+            "cycle_number",
+            "expected_amount",
+            "status",
+            "hardship_reason",
+            "reviewed_by",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "status",
+            "hardship_reason",
+            "reviewed_by",
+            "reviewed_at",
             "created_at",
             "updated_at",
         )
