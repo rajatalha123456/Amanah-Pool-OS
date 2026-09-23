@@ -1,7 +1,10 @@
 import { NavLink } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { navItems } from "./navItems"
 
 export function Sidebar() {
+  const { t } = useTranslation()
+
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-navy-950 border-r border-white/5">
       <div className="px-6 pt-6 pb-5">
@@ -27,7 +30,7 @@ export function Sidebar() {
                   }`
                 }
               >
-                {item.label}
+                {t(item.labelKey)}
               </NavLink>
             </li>
           ))}

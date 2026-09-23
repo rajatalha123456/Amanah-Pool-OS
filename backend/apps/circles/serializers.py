@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ArrearsRecord, CircleMember, Contribution, Payout
+from .models import ArrearsRecord, CircleMember, CircleProposal, CircleVote, Contribution, Payout
 
 
 class CircleMemberSerializer(serializers.ModelSerializer):
@@ -71,6 +71,48 @@ class PayoutSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+
+class CircleVoteSerializer(serializers.ModelSerializer):
+    member_reference = serializers.CharField(source="member.member_reference", read_only=True)
+    member_name = serializers.CharField(source="member.member_name", read_only=True)
+
+    class Meta:
+        model = CircleVote
+        fields = (
+            "id",
+            "proposal",
+            "member",
+            "member_reference",
+            "member_name",
+            "decision",
+            "voted_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "voted_at", "created_at", "updated_at")
+
+
+class CircleProposalSerializer(serializers.ModelSerializer):
+    votes = CircleVoteSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CircleProposal
+        fields = (
+            "id",
+            "pool",
+            "title",
+            "description",
+            "proposal_type",
+            "status",
+            "created_by",
+            "voting_deadline",
+            "closed_at",
+            "votes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "status", "created_by", "closed_at", "votes", "created_at", "updated_at")
 
 
 class ArrearsRecordSerializer(serializers.ModelSerializer):

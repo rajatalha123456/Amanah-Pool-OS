@@ -98,6 +98,62 @@ class Payout(TenantScopedModel):
         return f"{self.member.member_reference} cycle {self.cycle_number} - {self.amount} ({self.status})"
 
 
+class ProposalType(models.TextChoices):
+    AMOUNT_CHANGE = "amount_change", "Amount Change"
+    MEMBER_ADDITION = "member_addition", "Member Addition"
+    RULE_CHANGE = "rule_change", "Rule Change"
+    OTHER = "other", "Other"
+
+
+class ProposalStatus(models.TextChoices):
+    OPEN = "open", "Open"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+    CLOSED = "closed", "Closed"
+
+
+class VoteDecision(models.TextChoices):
+    APPROVE = "approve", "Approve"
+    REJECT = "reject", "Reject"
+    ABSTAIN = "abstain", "Abstain"
+
+
+class CircleProposal(TenantScopedModel):
+    """
+    A proposal put to a vote among a circle's active members - e.g.
+    changing the contribution amount, adding a member, or changing a
+    rule. Voting is recorded via CircleVote and tallied when a Pool
+    Manager closes the proposal (see CircleProposalViewSet.close).
+    """
+
+    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="circle_proposals")
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    proposal_type = models.CharField(max_length=20, choices=ProposalType.choices)
+    status = models.CharField(max_length=20, choices=ProposalStatus.choices, default=ProposalStatus.OPEN)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+    voting_deadline = models.DateField()
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.status})"
+
+
+class CircleVote(TenantScopedModel):
+    proposal = models.ForeignKey(CircleProposal, on_delete=models.CASCADE, related_name="votes")
+    member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="circle_votes")
+    decision = models.CharField(max_length=20, choices=VoteDecision.choices)
+    voted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["proposal", "member"], name="unique_vote_per_member_per_proposal"),
+        ]
+
+    def __str__(self):
+        return f"{self.member.member_reference} -> {self.proposal.title} ({self.decision})"
+
+
 class ArrearsRecord(TenantScopedModel):
     """
     Tracks a member falling behind on an expected contribution for a

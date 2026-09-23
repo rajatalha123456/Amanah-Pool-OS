@@ -20,19 +20,21 @@ import {
   recordContribution,
   runDraw,
 } from "../api/circles"
+import { closeCircleProposal, createCircleProposal, fetchCircleProposals, recordVote } from "../api/circleProposals"
 import { fetchPools } from "../api/pools"
 import { extractErrorMessage } from "../api/errors"
 import type {
   ArrearsRecord,
   BadgeVariant,
   CircleMember,
+  CircleProposal,
   Contribution,
   Payout,
   Pool,
   RunDrawResponse,
 } from "../types"
 
-type Tab = "roster" | "rotation" | "arrears"
+type Tab = "roster" | "rotation" | "arrears" | "proposals"
 type RotationView = "table" | "calendar"
 
 const inputClasses =
@@ -57,6 +59,17 @@ const ARREARS_STATUS_BADGE: Record<string, BadgeVariant> = {
 
 function arrearsStatusBadgeVariant(status: string): BadgeVariant {
   return ARREARS_STATUS_BADGE[status] ?? "neutral"
+}
+
+const PROPOSAL_STATUS_BADGE: Record<string, BadgeVariant> = {
+  open: "gold",
+  approved: "emerald",
+  rejected: "neutral",
+  closed: "navy",
+}
+
+function proposalStatusBadgeVariant(status: string): BadgeVariant {
+  return PROPOSAL_STATUS_BADGE[status] ?? "neutral"
 }
 
 function dateKey(date: Date): string {
@@ -248,6 +261,13 @@ export function CommunityCircles() {
             >
               Hardship & Arrears
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("proposals")}
+              className={`border-b-2 px-1 pb-2 ${activeTab === "proposals" ? "border-emerald-500 text-ink-primary" : "border-transparent text-ink-secondary"}`}
+            >
+              Proposals & Voting
+            </button>
           </div>
 
           {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
@@ -310,6 +330,10 @@ export function CommunityCircles() {
               isRiskCompliance={isRiskCompliance}
               isShariahReviewer={isShariahReviewer}
             />
+          )}
+
+          {activeTab === "proposals" && (
+            <ProposalsTab poolId={selectedPoolId} members={members} isPoolManager={isPoolManager} />
           )}
         </>
       )}
@@ -1016,6 +1040,263 @@ function ArrearsTab({
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <Button type="submit" disabled={isSaving}>
               {isSaving ? <Spinner className="h-4 w-4" /> : "Grant Hardship"}
+            </Button>
+          </form>
+        </Modal>
+      )}
+    </Card>
+  )
+}
+
+function ProposalsTab({
+  poolId,
+  members,
+  isPoolManager,
+}: {
+  poolId: string
+  members: CircleMember[]
+  isPoolManager: boolean
+}) {
+  const [proposals, setProposals] = useState<CircleProposal[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [actionError, setActionError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false)
+  const [voteModalProposal, setVoteModalProposal] = useState<CircleProposal | null>(null)
+
+  useEffect(() => {
+    if (!poolId) {
+      setProposals([])
+      return
+    }
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError("")
+    fetchCircleProposals(poolId)
+      .then((data) => {
+        if (!cancelled) setProposals(data)
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(extractErrorMessage(error, "Unable to load proposals."))
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [poolId])
+
+  async function refreshProposals() {
+    const data = await fetchCircleProposals(poolId)
+    setProposals(data)
+  }
+
+  function closeProposalModal() {
+    setIsProposalModalOpen(false)
+    setActionError("")
+  }
+
+  function closeVoteModal() {
+    setVoteModalProposal(null)
+    setActionError("")
+  }
+
+  async function handleCreateProposal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    setActionError("")
+    setIsSaving(true)
+    try {
+      await createCircleProposal({
+        pool: poolId,
+        title: String(form.get("title")),
+        description: String(form.get("description")),
+        proposal_type: form.get("proposal_type") as CircleProposal["proposal_type"],
+        voting_deadline: String(form.get("voting_deadline")),
+      })
+      await refreshProposals()
+      closeProposalModal()
+    } catch (error) {
+      setActionError(extractErrorMessage(error, "Unable to create proposal."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleRecordVote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!voteModalProposal) return
+    const form = new FormData(event.currentTarget)
+    setActionError("")
+    setIsSaving(true)
+    try {
+      await recordVote(voteModalProposal.id, {
+        member_id: String(form.get("member_id")),
+        decision: form.get("decision") as "approve" | "reject" | "abstain",
+      })
+      await refreshProposals()
+      closeVoteModal()
+    } catch (error) {
+      setActionError(extractErrorMessage(error, "Unable to record vote."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleCloseProposal(proposal: CircleProposal) {
+    setActionError("")
+    setIsSaving(true)
+    try {
+      await closeCircleProposal(proposal.id)
+      await refreshProposals()
+    } catch (error) {
+      setActionError(extractErrorMessage(error, "Unable to close proposal."))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function voteTally(proposal: CircleProposal) {
+    const approve = proposal.votes.filter((vote) => vote.decision === "approve").length
+    const reject = proposal.votes.filter((vote) => vote.decision === "reject").length
+    const abstain = proposal.votes.filter((vote) => vote.decision === "abstain").length
+    return { approve, reject, abstain }
+  }
+
+  const proposalColumns: TableColumn<CircleProposal>[] = [
+    { header: "Title", accessor: (proposal) => proposal.title },
+    { header: "Type", accessor: (proposal) => proposal.proposal_type },
+    {
+      header: "Status",
+      accessor: (proposal) => <Badge variant={proposalStatusBadgeVariant(proposal.status)}>{proposal.status}</Badge>,
+    },
+    { header: "Voting Deadline", accessor: (proposal) => proposal.voting_deadline },
+    {
+      header: "Votes (A/R/Ab)",
+      accessor: (proposal) => {
+        const { approve, reject, abstain } = voteTally(proposal)
+        return `${approve} / ${reject} / ${abstain}`
+      },
+    },
+    {
+      header: "Actions",
+      accessor: (proposal) => (
+        <div className="flex flex-wrap gap-2">
+          {proposal.status === "open" && (
+            <Button
+              variant="outline"
+              onClick={(event) => {
+                event.stopPropagation()
+                setVoteModalProposal(proposal)
+              }}
+            >
+              Record Vote
+            </Button>
+          )}
+          {isPoolManager && proposal.status === "open" && (
+            <Button
+              variant="gold"
+              disabled={isSaving}
+              onClick={(event) => {
+                event.stopPropagation()
+                void handleCloseProposal(proposal)
+              }}
+            >
+              Close Voting
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <Card title="Proposals & Voting">
+      <div className="mb-4 flex justify-end">
+        {isPoolManager && (
+          <Button variant="primary" onClick={() => setIsProposalModalOpen(true)}>
+            + New Proposal
+          </Button>
+        )}
+      </div>
+
+      {loadError && <p className="mb-4 text-sm text-red-400">{loadError}</p>}
+      {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-8 text-ink-secondary">
+          <Spinner className="h-5 w-5" />
+          Loading proposals...
+        </div>
+      ) : proposals.length === 0 ? (
+        <p className="text-sm text-ink-secondary">No proposals for this pool yet.</p>
+      ) : (
+        <Table columns={proposalColumns} data={proposals} keyField={(proposal) => proposal.id} />
+      )}
+
+      {isProposalModalOpen && (
+        <Modal title="New Proposal" onClose={closeProposalModal}>
+          <form onSubmit={handleCreateProposal} className="space-y-4">
+            <label className={labelClasses}>
+              Title
+              <input name="title" required className={inputClasses} />
+            </label>
+            <label className={labelClasses}>
+              Description
+              <textarea name="description" required rows={3} className={inputClasses} />
+            </label>
+            <label className={labelClasses}>
+              Proposal Type
+              <select name="proposal_type" required className={inputClasses} defaultValue="amount_change">
+                <option value="amount_change">Amount Change</option>
+                <option value="member_addition">Member Addition</option>
+                <option value="rule_change">Rule Change</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className={labelClasses}>
+              Voting Deadline
+              <input name="voting_deadline" type="date" required className={inputClasses} />
+            </label>
+            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? <Spinner className="h-4 w-4" /> : "Create Proposal"}
+            </Button>
+          </form>
+        </Modal>
+      )}
+
+      {voteModalProposal && (
+        <Modal title={`Record Vote — ${voteModalProposal.title}`} onClose={closeVoteModal}>
+          <form onSubmit={handleRecordVote} className="space-y-4">
+            <label className={labelClasses}>
+              Member
+              <select name="member_id" required className={inputClasses} defaultValue="">
+                <option value="" disabled>
+                  Select a member...
+                </option>
+                {members
+                  .filter((member) => member.status === "active")
+                  .map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.member_reference} — {member.member_name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className={labelClasses}>
+              Decision
+              <select name="decision" required className={inputClasses} defaultValue="approve">
+                <option value="approve">Approve</option>
+                <option value="reject">Reject</option>
+                <option value="abstain">Abstain</option>
+              </select>
+            </label>
+            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? <Spinner className="h-4 w-4" /> : "Submit Vote"}
             </Button>
           </form>
         </Modal>

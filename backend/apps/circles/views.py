@@ -14,13 +14,24 @@ from .models import (
     ArrearsStatus,
     CircleMember,
     CircleMemberStatus,
+    CircleProposal,
+    CircleVote,
     Contribution,
     ContributionStatus,
     Payout,
     PayoutStatus,
+    ProposalStatus,
+    VoteDecision,
 )
 from .rotation import run_draw as run_draw_for_pool
-from .serializers import ArrearsRecordSerializer, CircleMemberSerializer, ContributionSerializer, PayoutSerializer
+from .serializers import (
+    ArrearsRecordSerializer,
+    CircleMemberSerializer,
+    CircleProposalSerializer,
+    CircleVoteSerializer,
+    ContributionSerializer,
+    PayoutSerializer,
+)
 
 
 class ContributionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -295,6 +306,129 @@ class CircleMemberViewSet(
             request=request,
         )
         return Response(ArrearsRecordSerializer(arrears).data, status=201)
+
+
+class CircleProposalViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = CircleProposalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CircleProposal.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), IsPoolManager()]
+        if self.action == "close":
+            return [IsAuthenticated(), IsPoolManager()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="create",
+            model_name="CircleProposal",
+            object_id=str(instance.id),
+            changes={"title": instance.title, "proposal_type": instance.proposal_type},
+            request=self.request,
+        )
+
+    @action(detail=True, methods=["post"], url_path="vote")
+    def vote(self, request, pk=None):
+        proposal = self.get_object()
+
+        if proposal.status != ProposalStatus.OPEN:
+            raise ValidationError("This proposal is not open for voting.")
+
+        member_id = request.data.get("member_id")
+        decision = request.data.get("decision")
+
+        errors = {}
+        if not member_id:
+            errors["member_id"] = ["This field is required."]
+        if not decision:
+            errors["decision"] = ["This field is required."]
+        elif decision not in VoteDecision.values:
+            errors["decision"] = [f"Must be one of {VoteDecision.values}."]
+        if errors:
+            raise ValidationError(errors)
+
+        try:
+            member = CircleMember.objects.get(pk=member_id, pool=proposal.pool)
+        except CircleMember.DoesNotExist:
+            raise ValidationError("Member not found on this proposal's pool.")
+
+        if CircleVote.objects.filter(proposal=proposal, member=member).exists():
+            raise ValidationError("This member has already voted on this proposal.")
+
+        vote = CircleVote.objects.create(
+            tenant=proposal.tenant,
+            proposal=proposal,
+            member=member,
+            decision=decision,
+        )
+
+        log_action(
+            tenant=proposal.tenant,
+            actor=request.user,
+            action="vote",
+            model_name="CircleVote",
+            object_id=str(vote.id),
+            changes={"proposal_id": str(proposal.id), "member_id": str(member.id), "decision": vote.decision},
+            request=request,
+        )
+        return Response(CircleVoteSerializer(vote).data, status=201)
+
+    @action(detail=True, methods=["post"], url_path="close")
+    def close(self, request, pk=None):
+        proposal = self.get_object()
+
+        if proposal.status != ProposalStatus.OPEN:
+            raise ValidationError("This proposal is already closed.")
+
+        votes = proposal.votes.all()
+        approve_count = votes.filter(decision=VoteDecision.APPROVE).count()
+        reject_count = votes.filter(decision=VoteDecision.REJECT).count()
+        abstain_count = votes.filter(decision=VoteDecision.ABSTAIN).count()
+
+        proposal.status = ProposalStatus.APPROVED if approve_count > reject_count else ProposalStatus.REJECTED
+        proposal.closed_at = timezone.now()
+        proposal.save(update_fields=["status", "closed_at", "updated_at"])
+
+        log_action(
+            tenant=proposal.tenant,
+            actor=request.user,
+            action="close",
+            model_name="CircleProposal",
+            object_id=str(proposal.id),
+            changes={
+                "status": proposal.status,
+                "approve_count": approve_count,
+                "reject_count": reject_count,
+                "abstain_count": abstain_count,
+            },
+            request=request,
+        )
+        return Response(
+            {
+                **CircleProposalSerializer(proposal).data,
+                "vote_counts": {
+                    "approve": approve_count,
+                    "reject": reject_count,
+                    "abstain": abstain_count,
+                },
+            }
+        )
 
 
 class ArrearsRecordViewSet(

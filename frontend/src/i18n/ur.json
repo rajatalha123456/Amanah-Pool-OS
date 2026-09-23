@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "commandCenter": "کمانڈ سینٹر",
+    "productsPools": "پروڈکٹس اور پولز",
+    "dailyOperations": "یومیہ آپریشنز",
+    "allocationEngine": "ایلوکیشن انجن",
+    "investments": "سرمایہ کاری",
+    "communityCircles": "کمیونٹی سرکلز",
+    "shariahGovernance": "شرعی نگرانی",
+    "riskCompliance": "رسک اینڈ کمپلائنس",
+    "financeLedger": "فنانس اینڈ لیجر",
+    "aiAnalytics": "اے آئی اینڈ اینالیٹکس",
+    "reports": "رپورٹس",
+    "administration": "انتظامیہ"
+  },
+  "common": {
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "submit": "جمع کروائیں",
+    "approve": "منظور کریں",
+    "reject": "مسترد کریں",
+    "export": "ایکسپورٹ"
+  },
+  "login": {
+    "title": "لاگ ان کریں",
+    "subtitle": "اپنے امانہ پول او ایس ورک اسپیس تک رسائی حاصل کریں",
+    "emailLabel": "ای میل",
+    "emailPlaceholder": "you@amanahcapital.com",
+    "passwordLabel": "پاس ورڈ",
+    "signIn": "سائن ان",
+    "invalidEmail": "ای میل کا فارمیٹ درست نہیں ہے",
+    "passwordRequired": "پاس ورڈ درکار ہے",
+    "genericError": "سائن ان نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔"
+  },
+  "commandCenter": {
+    "title": "ایگزیکٹو کمانڈ سینٹر",
+    "subtitle": "تمام پول ماڈلز پر ادارہ جاتی مرئیت",
+    "totalPools": "کل پولز",
+    "activePools": "فعال پولز",
+    "draftPools": "مسودہ پولز",
+    "totalProducts": "کل پروڈکٹس"
+  }
+}

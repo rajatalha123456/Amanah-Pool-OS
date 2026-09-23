@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "commandCenter": "Command Center",
+    "productsPools": "Products & Pools",
+    "dailyOperations": "Daily Operations",
+    "allocationEngine": "Allocation Engine",
+    "investments": "Investments",
+    "communityCircles": "Community Circles",
+    "shariahGovernance": "Shariah Governance",
+    "riskCompliance": "Risk & Compliance",
+    "financeLedger": "Finance & Ledger",
+    "aiAnalytics": "AI & Analytics",
+    "reports": "Reports",
+    "administration": "Administration"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "export": "Export"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Access your Amanah Pool OS workspace",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@amanahcapital.com",
+    "passwordLabel": "Password",
+    "signIn": "Sign In",
+    "invalidEmail": "Invalid email format",
+    "passwordRequired": "Password is required",
+    "genericError": "Unable to sign in. Please try again."
+  },
+  "commandCenter": {
+    "title": "Executive Command Center",
+    "subtitle": "Enterprise visibility across all pool models",
+    "totalPools": "Total Pools",
+    "activePools": "Active Pools",
+    "draftPools": "Draft Pools",
+    "totalProducts": "Total Products"
+  }
+}

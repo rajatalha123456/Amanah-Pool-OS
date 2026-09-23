@@ -631,6 +631,54 @@ export interface FlagArrearsInput {
   expected_amount: string
 }
 
+export interface CircleVote {
+  id: string
+  proposal: string
+  member: string
+  member_reference: string
+  member_name: string
+  decision: "approve" | "reject" | "abstain"
+  voted_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CircleProposal {
+  id: string
+  pool: string
+  title: string
+  description: string
+  proposal_type: "amount_change" | "member_addition" | "rule_change" | "other"
+  status: "open" | "approved" | "rejected" | "closed"
+  created_by: number | null
+  voting_deadline: string
+  closed_at: string | null
+  votes: CircleVote[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCircleProposalInput {
+  pool: string
+  title: string
+  description: string
+  proposal_type: "amount_change" | "member_addition" | "rule_change" | "other"
+  voting_deadline: string
+}
+
+export interface RecordVoteInput {
+  member_id: string
+  decision: "approve" | "reject" | "abstain"
+}
+
+export interface CloseProposalResponse extends CircleProposal {
+  vote_counts: {
+    approve: number
+    reject: number
+    abstain: number
+  }
+}
+
 export interface GrantHardshipInput {
   hardship_reason: string
 }

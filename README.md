@@ -1482,6 +1482,57 @@ In `CommunityCircles.tsx`'s **Rotation & Payouts** tab (table view), any row who
 
 **Verified via real HTTP requests** in `apps/circles/test_member_mobile_smoke.py::MemberMobileHomeDataTests::test_contribution_detail_for_receipt`: fetches a specific contribution by id and confirms `member_reference`, `member_name`, `pool_name`, `pool_code`, `amount`, `contribution_date`, `cycle_number`, and `status` are all present and correct on the response (16/16 `apps.circles` tests passing). `npm run build` is clean.
 
+## Circle Proposals & Voting
+
+Community circle governance: any Pool Manager can put a proposal (an amount change, member addition, rule change, or other change) to a vote among a circle's active members. Voting itself is recorded by staff on a member's behalf (members don't yet log in directly, matching the rest of `apps.circles`), then a Pool Manager closes voting and the majority decides the outcome.
+
+### Models
+
+- **`CircleProposal`** (TenantScopedModel) — `pool` (FK), `title`, `description`, `proposal_type` (`amount_change` / `member_addition` / `rule_change` / `other`), `status` (`open` / `approved` / `rejected` / `closed`, default `open`), `created_by` (FK to `User`), `voting_deadline` (date), `closed_at` (nullable datetime, set when voting closes).
+- **`CircleVote`** (TenantScopedModel) — `proposal` (FK, `related_name="votes"`), `member` (FK to `CircleMember`), `decision` (`approve` / `reject` / `abstain`), `voted_at` (auto). `UniqueConstraint(proposal, member)` enforces one vote per member per proposal at the database level, on top of the application-level check in `vote()`.
+
+### API
+
+- **`POST /api/v1/circles/circle-proposals/`** — `IsPoolManager`. Creates a proposal with `status="open"`; `created_by` is set to the requesting user.
+- **`GET /api/v1/circles/circle-proposals/`** — any authenticated user, filterable by `?pool=<id>`. Each proposal's serialized response nests its `votes`.
+- **`POST /api/v1/circles/circle-proposals/{id}/vote/`** — any authenticated user (staff recording a vote on a member's behalf, same pattern as `record_contribution`/`flag_arrears`). Body: `{member_id, decision}`. Rejects with 400 if the proposal isn't `open`, if the member has already voted on this proposal (checked before the DB constraint would raise, so the error is a clean validation message), or if `decision` isn't one of `approve`/`reject`/`abstain`.
+- **`POST /api/v1/circles/circle-proposals/{id}/close/`** — `IsPoolManager` only. Rejects with 400 if the proposal is already closed. Tallies all recorded votes: `status` becomes `approved` if `approve` count > `reject` count, otherwise `rejected` (a tie rejects, since a rotating-savings circle change needs a clear majority, not a plurality). Sets `closed_at`. Response includes the updated proposal plus a `vote_counts: {approve, reject, abstain}` breakdown.
+
+### Frontend (`src/pages/CommunityCircles.tsx`)
+
+Fourth tab, **Proposals & Voting**, alongside Member Roster / Rotation & Payouts / Hardship & Arrears:
+
+- Table of proposals: title, type, status `Badge`, voting deadline, and an approve/reject/abstain vote tally computed client-side from each proposal's nested `votes`.
+- **"+ New Proposal"** button (Pool Manager only) opens a `Modal` form (title, description, proposal type select, voting deadline).
+- **"Record Vote"** button on each open proposal's row opens a `Modal` with a member select (active members only) and a decision select (approve/reject/abstain) — one vote-record modal per row rather than an inline per-member UI, since a circle typically has more members than fit comfortably in a table row.
+- **"Close Voting"** button (Pool Manager only, shown while a proposal is `open`) calls the close endpoint directly and refreshes the table to show the new status and final tally.
+
+`src/api/circleProposals.ts` holds `fetchCircleProposals`, `fetchCircleProposal`, `createCircleProposal`, `recordVote`, `closeCircleProposal`, following the same flat-function-per-endpoint shape as `src/api/circles.ts`.
+
+**Manually verified via real HTTP requests** in `apps/circles/test_proposals.py` (8 tests, all passing): Pool Manager can create a proposal but a non-Pool-Manager role cannot (403); a member can vote once and a second vote from the same member is rejected (400, vote count stays at 1); closing with 2 approve vs 1 reject yields `status="approved"` with the correct `vote_counts`; closing with 2 reject vs 1 approve yields `status="rejected"`; a non-Pool-Manager cannot close (403); voting on an already-closed proposal is rejected (400); closing an already-closed proposal is rejected (400). `npm run build` is clean.
+
+## Internationalization (i18n) Foundation
+
+This is a **foundation only** — it proves the pattern works end-to-end (library, translation files, language switcher, RTL layout flip) on a small set of screens. Translating the rest of the app is explicitly out of scope for now and is future work, to be done incrementally by following the same pattern below.
+
+### What's wired up
+
+- **Library**: `react-i18next` + `i18next` (lightweight, standard React i18n choice — no custom context needed).
+- **Translation files**: `frontend/src/i18n/en.json` and `frontend/src/i18n/ur.json`, both keyed the same way (`nav.*`, `common.*`, `login.*`, `commandCenter.*`). `frontend/src/i18n/index.ts` initializes `i18next`, restores the last-selected language from `localStorage` (`language` key) on load, and sets `<html dir>`/`<html lang>` whenever the language changes.
+- **Language switcher**: `frontend/src/components/LanguageSwitcher.tsx`, an "EN / اردو" toggle in the `TopBar` next to the Tenant Switcher. Selection persists in `localStorage` and survives reloads.
+- **RTL support**: selecting Urdu sets `<html dir="rtl">`. Tailwind v4's default utilities (`ms-*`, `me-*`, `ps-*`, `pe-*`, flex/grid direction) are logical-property-based already, so the existing Sidebar/TopBar layout re-flows correctly (Sidebar moves to the right) without extra RTL-specific CSS.
+- **Translated screens** (foundation-proof set only): Sidebar navigation labels, the Login screen, Command Center (title/subtitle/StatCard labels), and the common button vocabulary (`common.save`, `common.cancel`, `common.submit`, `common.approve`, `common.reject`, `common.export`) available for any screen to consume as it's migrated.
+
+### Everything else stays in English
+
+All other screens (Pools, Allocation, Investments, Circles, Governance, Risk, Finance, AI/Analytics, Reports, Administration, etc.) are **not yet translated** and will continue to render in English regardless of the selected language — this is expected and not a bug.
+
+### Adding a new translated string (the pattern to repeat)
+
+1. Add the English string to `en.json` under an appropriate namespace, and its Urdu translation to `ur.json` under the same key.
+2. In the component, `import { useTranslation } from "react-i18next"`, call `const { t } = useTranslation()`, and replace the hardcoded string with `t("namespace.key")`.
+3. No provider wiring needed beyond what already exists — `./i18n` is initialized once in `main.tsx`.
+
 ## Notes
 
 - Never commit `.env` (backend or frontend) — both are already in `.gitignore`.

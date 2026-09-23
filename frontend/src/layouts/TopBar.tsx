@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../api/auth"
 import { TenantSwitcher } from "../components/TenantSwitcher"
+import { LanguageSwitcher } from "../components/LanguageSwitcher"
 
 export function TopBar() {
   const navigate = useNavigate()
@@ -33,6 +34,7 @@ export function TopBar() {
         <TenantSwitcher />
       </div>
       <div className="flex items-center gap-4">
+        <LanguageSwitcher />
         <button
           type="button"
           aria-label="Notifications"

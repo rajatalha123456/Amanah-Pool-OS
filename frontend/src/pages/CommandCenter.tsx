@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { PageHeader } from "../components/PageHeader"
@@ -27,6 +28,7 @@ function poolStatusBadgeVariant(status: string): BadgeVariant {
 }
 
 export function CommandCenter() {
+  const { t } = useTranslation()
   const [connectionState, setConnectionState] = useState<ConnectionState>("loading")
   const [healthStatus, setHealthStatus] = useState<string>("")
   const [connectionError, setConnectionError] = useState<string>("")
@@ -82,8 +84,8 @@ export function CommandCenter() {
   return (
     <div>
       <PageHeader
-        title="Executive Command Center"
-        subtitle="Enterprise visibility across all pool models"
+        title={t("commandCenter.title")}
+        subtitle={t("commandCenter.subtitle")}
       />
 
       <Card title="Backend Connection" className="mb-6">
@@ -122,10 +124,10 @@ export function CommandCenter() {
       {dashboardState === "loaded" && (
         <>
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Pools" value={String(totalPools)} deltaTone="neutral" />
-            <StatCard label="Active Pools" value={String(activePools)} deltaTone="neutral" />
-            <StatCard label="Draft Pools" value={String(draftPools)} deltaTone="neutral" />
-            <StatCard label="Total Products" value={String(totalProducts)} deltaTone="neutral" />
+            <StatCard label={t("commandCenter.totalPools")} value={String(totalPools)} deltaTone="neutral" />
+            <StatCard label={t("commandCenter.activePools")} value={String(activePools)} deltaTone="neutral" />
+            <StatCard label={t("commandCenter.draftPools")} value={String(draftPools)} deltaTone="neutral" />
+            <StatCard label={t("commandCenter.totalProducts")} value={String(totalProducts)} deltaTone="neutral" />
           </div>
 
           <Card title="Pools">
