@@ -71,6 +71,8 @@ export function SignIn() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t("login.emailPlaceholder")}
               disabled={isSubmitting}
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? "signin-error" : undefined}
               className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none disabled:opacity-60"
             />
           </div>
@@ -89,14 +91,31 @@ export function SignIn() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               disabled={isSubmitting}
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? "signin-error" : undefined}
               className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-emerald-500 focus:outline-none disabled:opacity-60"
             />
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          <p id="signin-error" role="alert" aria-live="polite" className="text-sm text-red-400">
+            {error}
+          </p>
 
-          <Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner className="h-4 w-4" /> : t("login.signIn")}
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Spinner className="h-4 w-4" />
+                <span className="sr-only">{t("login.signIn")}</span>
+              </>
+            ) : (
+              t("login.signIn")
+            )}
           </Button>
         </form>
       </Card>

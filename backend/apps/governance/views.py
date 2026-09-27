@@ -57,6 +57,7 @@ class ExceptionCaseViewSet(
         pool_id = self.request.query_params.get("pool")
         status_param = self.request.query_params.get("status")
         severity = self.request.query_params.get("severity")
+        detected_by = self.request.query_params.get("detected_by")
 
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
@@ -64,6 +65,8 @@ class ExceptionCaseViewSet(
             queryset = queryset.filter(status=status_param)
         if severity:
             queryset = queryset.filter(severity=severity)
+        if detected_by:
+            queryset = queryset.filter(detected_by=detected_by)
 
         return queryset
 

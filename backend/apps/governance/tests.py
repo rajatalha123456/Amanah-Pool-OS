@@ -375,4 +375,78 @@ class RiskDashboardAggregationApiTests(APITestCase):
 		]
 		self.assertEqual(len(pending_purification), 1)
 
+
+class ExceptionCaseDetectedByFilterApiTests(APITestCase):
+	"""
+	Backs AIAnomalyQueue.tsx: confirms GET /governance/exceptions/?detected_by=system
+	only returns system/AI-detected exceptions, excluding manually-raised ones.
+	"""
+
+	def setUp(self):
+		self.tenant = Tenant.objects.create(
+			name="Anomaly Queue Test Tenant", code="ANOMALY-QUEUE-TEST", data_residency="PK"
+		)
+		set_current_tenant(self.tenant)
+		self.risk_user = User.objects.create_user(
+			email="anomaly-risk@example.com",
+			password="password",
+			full_name="Risk Reviewer",
+			role=UserRole.RISK_COMPLIANCE,
+			tenant=self.tenant,
+		)
+		product = Product.objects.create(
+			tenant=self.tenant,
+			name="Anomaly Queue Product",
+			code="ANOMALY-QUEUE-PRODUCT",
+			operating_model=OperatingModel.BANK_POOL,
+			contract_template=ContractTemplate.objects.create(
+				tenant=self.tenant,
+				name="Anomaly Queue Contract",
+				contract_type=ContractType.MUDARABAH_UNRESTRICTED,
+				version="1.0",
+				clauses={},
+			),
+		)
+		self.pool = Pool.objects.create(
+			tenant=self.tenant,
+			name="Anomaly Queue Pool",
+			code="ANOMALY-QUEUE-POOL",
+			product=product,
+			effective_date=date(2026, 1, 1),
+		)
+
+		self.client.defaults["HTTP_X_TENANT_CODE"] = self.tenant.code
+		self.client.force_authenticate(user=self.risk_user)
+
+	def test_detected_by_system_filter_excludes_manual_exceptions(self):
+		# `detected_by` is read-only on the API (only backend code such as
+		# apps.core.exceptions_helper.create_exception_case sets it), so
+		# a system-detected case is created directly via that helper.
+		from apps.core.exceptions_helper import create_exception_case
+
+		create_exception_case(
+			tenant=self.tenant,
+			source_module="allocation",
+			title="System-detected variance",
+			description="Auto-raised by the allocation engine.",
+			severity="high",
+			pool=self.pool,
+		)
+		from apps.governance.models import ExceptionCase
+
+		ExceptionCase.objects.create(
+			tenant=self.tenant,
+			source_module="other",
+			severity="low",
+			title="Manually raised case",
+			description="Raised by a human reviewer.",
+			detected_by="manual",
+		)
+
+		response = self.client.get(reverse("exception-case-list"), {"detected_by": "system"})
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(response.data), 1)
+		self.assertEqual(response.data[0]["title"], "System-detected variance")
+		self.assertEqual(response.data[0]["detected_by"], "system")
+
 # Create your tests here.

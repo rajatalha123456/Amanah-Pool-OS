@@ -46,6 +46,11 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
+class PreferredLanguage(models.TextChoices):
+    ENGLISH = "en", "English"
+    URDU = "ur", "Urdu"
+
+
 class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
@@ -60,6 +65,13 @@ class User(AbstractUser):
     )
     totp_secret = models.CharField(max_length=64, null=True, blank=True)
     mfa_enabled = models.BooleanField(default=False)
+    # Storage only for now - this does not translate backend error/response
+    # messages. It exists so the frontend can persist a user's language
+    # choice server-side (instead of only in localStorage) and restore it
+    # on login from any device. See README "Backend Preferred Language" note.
+    preferred_language = models.CharField(
+        max_length=2, choices=PreferredLanguage.choices, default=PreferredLanguage.ENGLISH
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["full_name", "role"]

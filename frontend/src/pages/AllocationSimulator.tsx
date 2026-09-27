@@ -10,10 +10,19 @@ import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
 import { createAllocationRun, fetchAllocationRuns, simulateAllocation } from "../api/allocationRuns"
 import { extractErrorMessage } from "../api/errors"
+import { ScenarioSimulator } from "./ScenarioSimulator"
 import type { AllocationLine, AllocationRun, BadgeVariant, Pool, SimulateAllocationResult } from "../types"
+
+type AllocationEngineTab = "simulator" | "scenarios"
+
+const TABS: { key: AllocationEngineTab; label: string }[] = [
+  { key: "simulator", label: "Simulator" },
+  { key: "scenarios", label: "Scenario Comparison" },
+]
 
 export function AllocationSimulator() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<AllocationEngineTab>("simulator")
 
   const [pools, setPools] = useState<Pool[]>([])
   const [isLoadingPools, setIsLoadingPools] = useState(true)
@@ -130,6 +139,27 @@ export function AllocationSimulator() {
     <div>
       <PageHeader title="Allocation Simulator" subtitle="What-if analysis before changing economics" />
 
+      <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-1 pb-2 font-medium transition-colors ${
+              activeTab === tab.key
+                ? "border-b-2 border-emerald-500 text-ink-primary"
+                : "text-ink-secondary hover:text-ink-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "scenarios" && <ScenarioSimulator />}
+
+      {activeTab === "simulator" && (
+        <>
       <Card title="Run Parameters" className="mb-6">
         {isLoadingPools ? (
           <div className="flex items-center gap-2 text-sm text-ink-secondary">
@@ -254,6 +284,8 @@ export function AllocationSimulator() {
           />
         )}
       </Card>
+        </>
+      )}
     </div>
   )
 }

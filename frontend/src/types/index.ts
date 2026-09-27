@@ -17,6 +17,7 @@ export interface User {
   tenant: string | null
   tenant_code: string | null
   mfa_enabled: boolean
+  preferred_language: string
 }
 
 export interface AIModelRegistry {

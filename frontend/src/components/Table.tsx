@@ -21,6 +21,7 @@ export function Table<T>({ columns, data, keyField, onRowClick }: TableProps<T>)
             {columns.map((col) => (
               <th
                 key={col.header}
+                scope="col"
                 className="px-4 py-3 text-left text-xs font-semibold tracking-wide text-ink-secondary uppercase"
               >
                 {col.header}

@@ -22,6 +22,7 @@ from .serializers import (
     LoginSerializer,
     MfaSetupSerializer,
     MfaVerifySerializer,
+    UpdatePreferredLanguageSerializer,
     UserCreateSerializer,
     UserListSerializer,
     UserSerializer,
@@ -136,6 +137,15 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        # Self-service profile fields only (currently just
+        # preferred_language) - role/tenant/is_active changes still go
+        # through UserManagementViewSet's admin-gated update.
+        serializer = UpdatePreferredLanguageSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(UserSerializer(request.user).data)
 
 

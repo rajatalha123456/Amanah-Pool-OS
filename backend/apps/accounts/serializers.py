@@ -32,7 +32,14 @@ class UserSerializer(serializers.ModelSerializer):
             "tenant",
             "tenant_code",
             "mfa_enabled",
+            "preferred_language",
         )
+
+
+class UpdatePreferredLanguageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("preferred_language",)
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -65,12 +72,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("full_name", "role", "tenant", "is_active")
+        fields = ("full_name", "role", "tenant", "is_active", "preferred_language")
         extra_kwargs = {
             "full_name": {"required": False},
             "role": {"required": False},
             "tenant": {"required": False},
             "is_active": {"required": False},
+            "preferred_language": {"required": False},
         }
 
     def validate_role(self, value):

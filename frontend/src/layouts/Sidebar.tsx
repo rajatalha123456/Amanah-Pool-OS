@@ -23,7 +23,7 @@ export function Sidebar() {
                 to={item.path}
                 end={item.path === "/"}
                 className={({ isActive }) =>
-                  `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  `block rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
                     isActive
                       ? "bg-emerald-600/15 text-emerald-400"
                       : "text-ink-secondary hover:bg-white/5 hover:text-ink-primary"

@@ -1533,8 +1533,244 @@ All other screens (Pools, Allocation, Investments, Circles, Governance, Risk, Fi
 2. In the component, `import { useTranslation } from "react-i18next"`, call `const { t } = useTranslation()`, and replace the hardcoded string with `t("namespace.key")`.
 3. No provider wiring needed beyond what already exists — `./i18n` is initialized once in `main.tsx`.
 
+## Accessibility (WCAG 2.2 AA) Foundation
+
+This is a **foundation only** — the same pattern as [Internationalization](#internationalization-i18n-foundation) above: shared components and two screens (Login, Command Center) are made accessible so every future screen inherits the fixes for free, and everything else remains as-is until it's migrated.
+
+### What's covered
+
+**Shared components** (`frontend/src/components/`):
+
+- **`Button.tsx`** — `disabled` now also sets `aria-disabled`; a new `aria-busy` pass-through lets a loading button announce its busy state to assistive tech.
+- **`Modal.tsx`** (critical fix) — now a real accessible dialog: `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing at the title. On open, focus moves inside the dialog (to its first focusable element); `Tab`/`Shift+Tab` are trapped within it (a full loop, not leaking to the page behind); `Escape` closes it; on close, focus returns to whatever triggered it. Every existing usage across the app (Products, Pools, Governance, Administration, Circles, etc.) gets this for free since they all render the same `Modal` component.
+- **`Table.tsx`** — every `<th>` now has `scope="col"`. No column is currently sortable anywhere in the app, so `aria-sort` wasn't added — add it alongside `scope` when sortable columns are introduced.
+- **`Badge.tsx`** — audited, no change needed: every existing usage already renders readable text inside the badge (e.g. `<Badge variant="gold">Disconnected</Badge>`, `{account.status}`), so color is never the sole signal. Keep this true for new usages — don't introduce a color-only badge.
+- **`Spinner.tsx`** — `role="status"` and `aria-label="Loading"` added, so a loading state is announced instead of being visually silent.
+
+**Keyboard navigation:**
+
+- **`Sidebar.tsx`** — nav items are native `<NavLink>`s (already Tab-reachable); added an explicit `focus-visible` outline (emerald, matching the rest of the app) instead of relying on the browser default.
+- Forms already submit on `Enter` where a `<form onSubmit>` wraps a submit `<button>` (verified on the Login form); no change needed.
+
+**Color contrast** (Tailwind tokens in `frontend/src/index.css`) — checked against the `navy-950`/`navy-900`/`navy-800`/`navy-700` backgrounds they're actually used on, using the WCAG relative-luminance formula:
+
+| Token | Ratio range | AA (4.5:1) text use |
+|---|---|---|
+| `ink-primary` | 13.5–17.7 : 1 | Pass |
+| `ink-secondary` | 5.9–7.7 : 1 | Pass |
+| `emerald-400` | 7.8–10.2 : 1 | Pass |
+| `gold-500` / `gold-400` | 7.1–11.7 : 1 | Pass |
+| `ink-muted` | 3.1–4.0 : 1 | **Fails AA** for normal text |
+| `violet-500` | 3.5–4.6 : 1 | **Fails AA** except on `navy-950` |
+
+**`ink-muted` and `violet-500` do not meet 4.5:1 and are flagged, not fixed** — darkening/lightening either is a brand color decision, not an accessibility-only change, so it's left for a deliberate design pass. In the meantime, avoid using `ink-muted` for body text that conveys meaning (it's fine for pure decoration) and avoid `violet-500` as text color outside `navy-950` surfaces.
+
+**Fully accessible screens** (foundation-proof set):
+
+- **Login (`SignIn.tsx`)** — labels were already correctly associated via `<label htmlFor>`; the error message is now `role="alert" aria-live="polite"` so it's announced when it appears, and both inputs get `aria-invalid`/`aria-describedby` pointing at it while an error is showing. The submit button's spinner state carries `aria-busy` plus a `sr-only` label so screen readers still announce "Sign In" while it's spinning, instead of nothing.
+- **Command Center** — `StatCard` values and deltas were already plain text (e.g. `"+8.4%"`), not icon-only arrows, so screen readers already get the full number; no change was needed here beyond confirming this.
+
+### Manually verified in-browser
+
+- Opened a Modal (e.g. "+ New Product") and tabbed through it — focus stayed inside the dialog and looped back to the first field after the last.
+- Pressed `Escape` — the Modal closed and focus returned to the button that opened it.
+- Tabbed through the entire Sidebar using only the keyboard — every item reachable, focus ring visible.
+- Read through the Login screen as a screen reader would announce it — labels, placeholder, and the live-announced error all make sense together.
+
+### Future scope (not covered by this pass)
+
+- Accessibility audit of the rest of the app's ~30 screens (Pools, Allocation, Investments, Circles, Governance, Risk, Finance, AI/Analytics, Reports, Administration).
+- Automated testing via `axe-core` (or similar) integrated into the build/test pipeline, so regressions are caught automatically instead of relying on manual review.
+- A deliberate design pass on `ink-muted` and `violet-500` to bring them to 4.5:1 against the surfaces they're actually used on.
+- `aria-sort` on `Table.tsx` once sortable columns exist.
+
+## Security & Tenant Isolation Verification
+
+This app is multi-tenant end-to-end: every business record carries a `tenant` FK, and `TenantScopedManager` (`apps/core/models.py`) auto-filters every `Model.objects.all()` query to `apps.core.context.get_current_tenant()`, returning `.none()` if no tenant context is set at all. `apps/core/middleware.py`'s `TenantMiddleware` sets that context from the `X-Tenant-Code` request header on every non-exempt request. A dedicated test suite (`apps/tenants/test_comprehensive_isolation.py` + its factory helper `apps/tenants/test_isolation_factories.py`) verifies this holds for every tenant-scoped model in the codebase, not just a sample.
+
+### What's covered
+
+- **33 of 33 concrete `TenantScopedModel` subclasses** across every app (`products`, `pools`, `allocation`, `accounting`, `governance`, `investments`, `circles`, plus the framework's own `core.TenantIsolationTestRecord`) — the full list is discovered dynamically from Django's app registry (`ManagerIsolationTests`), so a new model added anywhere in the project is automatically included in this suite. `test_every_tenant_scoped_model_is_covered_by_a_builder` fails loudly if a new model has no isolation-test builder yet, so this can't silently go stale.
+- **ORM/manager-level isolation** — for all 33 models: no tenant context set → `.objects.all()` returns nothing; scoped to Tenant A → only Tenant A's row is visible (and Tenant B's is not fetchable by primary key); scoped to Tenant B → the mirror image.
+- **HTTP/endpoint-level isolation** — for the **27 models with a real REST list/detail endpoint** (mapped from each app's `urls.py` router registrations): authenticated as a Tenant B user with `X-Tenant-Code: <Tenant B>`, Tenant A's row never appears in the list response and 404s on direct fetch by id. This also guards the "class-level `queryset = Model.objects.all()`" footgun several viewsets' own code comments warn about (a class-level queryset would freeze in whatever tenant happened to be active at import time instead of the request's tenant). 3 of those 27 (`DailyBalance`, `BalanceImportBatch`, `Payout`) are intentionally list-only viewsets with no detail route, so they're covered by the list check only.
+- **Missing/invalid `X-Tenant-Code` header** — confirmed every one of the 27 endpoints returns a hard `403` (via the middleware, before the view/queryset ever runs) when the header is absent, and that an unknown tenant code is also rejected with `403` rather than silently falling through to unfiltered or empty data.
+- **A known, pre-existing gap, made explicit rather than hidden:** `LegalEntity` (`apps/tenants/models.py`) has a `tenant` foreign key but inherits plain `BaseModel`, not `TenantScopedModel` — so unlike everything else in the system, a raw `LegalEntity.objects.all()` is **not** automatically filtered by tenant. `LegalEntityKnownGapTests` documents this with a passing test that would start failing (as a deliberate tripwire) if `LegalEntity` is ever migrated to `TenantScopedModel`, at which point this note and that test should be removed. `LegalEntity` has no REST endpoint today, so this gap is not yet HTTP-reachable, but any future endpoint or admin tooling built against it must filter by tenant manually until it's migrated onto the shared base class.
+
+### Results
+
+All isolation tests pass: `python manage.py test apps.tenants.test_comprehensive_isolation` → 10 tests, 0 failures, covering 33 models at the ORM level and 27 at the HTTP level. The full existing test suite (`python manage.py test`) was also re-run after adding this suite to confirm no regressions.
+
+### Not covered by this pass (future scope)
+
+- `AuditLog` and `User` are intentionally excluded from the generic sweep — neither is a `TenantScopedModel` (see their docstrings/comments), and both are already manually tenant-filtered in their respective `get_queryset()`s (`apps/core/views.py`, `apps/accounts/views.py`). A future task could add explicit regression tests for those two manual filters specifically, since a refactor could silently drop them without this generic suite noticing (they're outside `ALL_TENANT_SCOPED_MODELS` by design).
+- `PoolVersion`, `AllocationLine`, `DepositorStatement`, `JournalEntry`, and `CircleVote` have no standalone REST endpoint (created only as a side effect of another action, e.g. `CircleVote` via `circle-proposal-vote`), so they're covered at the ORM level only, not the HTTP level, in this pass.
+- Cross-tenant write attempts (e.g. POSTing a payload that references another tenant's `pool`/`product` FK id) aren't exercised here — this suite is about read isolation. A follow-up could assert that creating a record referencing a foreign-tenant's related object is rejected rather than silently succeeding.
+
+## AI Anomaly Queue (new tab, no new backend model)
+
+A fourth tab on the **AI & Analytics** page (`src/pages/ShariahCopilot.tsx`, alongside Ask / Documents / Model Governance), backed entirely by the existing `ExceptionCase` model — no new backend model was needed.
+
+- **Backend**: `GET /api/v1/governance/exceptions/` gained a `?detected_by=` query param (`apps/governance/views.py::ExceptionCaseViewSet.get_queryset()`, alongside the pre-existing `pool`/`status`/`severity` filters). `detected_by` is a read-only field on the serializer (only backend code like `apps.core.exceptions_helper.create_exception_case()` sets it — API-created cases can't fake being system-detected), with three real choices: `system`, `ai_agent`, `manual`.
+- **Frontend**: `src/pages/governance/AIAnomalyQueue.tsx` calls `fetchExceptions({ detected_by: "system" })` plus `fetchPools()` (to resolve pool names), and renders a `Table` — Title, Source (`Badge`, mapped from the model's actual `source_module` choices: `accounting`→"Reconciliation", `allocation`→"Allocation", plus Balance Import/Pool Lifecycle/Asset Assignment/Other), Severity (`Badge`), Pool, Detected At — client-side sorted critical → high → medium → low. Row click navigates to the existing `ExceptionCaseDetail.tsx` at `/exceptions/{id}` (no new detail page).
+- Note: today every system-raised exception actually uses `detected_by="system"` (set by `apps.core.exceptions_helper.create_exception_case()`, called from `apps/allocation/anomaly_detector.py` and `apps/accounting/reconciliation.py`); `ai_agent` is a defined choice with no current caller, reserved for when an AI-agent-specific detection path exists.
+
+**Verified via a real HTTP test** (`apps/governance/tests.py::ExceptionCaseDetectedByFilterApiTests`): created one exception via `create_exception_case()` (`detected_by="system"`) and one directly via the ORM with `detected_by="manual"`, then confirmed `GET .../exceptions/?detected_by=system` returns exactly the first one. `npm run build` is clean.
+
+## Scenario Simulator (new tab, reuses the existing simulate endpoint)
+
+A second tab ("Scenario Comparison") on the **Allocation Engine** page, alongside the existing Allocation Simulator (`src/pages/AllocationSimulator.tsx` now renders a small tab bar; the original single-scenario form is unchanged, just moved under the "Simulator" tab). No new backend endpoint — this calls the existing `POST /api/v1/allocation/allocation-runs/simulate/` twice, once per scenario.
+
+- `src/pages/ScenarioSimulator.tsx`: two independent input columns ("Scenario A" / "Scenario B"), each with its own Pool selector, Value Date, Gross Income, and Direct Expenses.
+- **Compare** fires both `simulateAllocation()` calls via `Promise.all` and renders two tables: a **Summary Comparison** (Distributable / Depositor Share / Mudarib Share, A vs B vs a `%` difference computed client-side) and a **Per-Participant-Class Comparison** (allocated amount per class, A vs B vs `%` difference, unioning the participant classes present in either scenario in case they differ). Nothing is saved — both scenarios are preview-only, matching the existing Simulator's behavior.
+
+**Verified via real HTTP requests** against the seeded demo pool: called `simulate/` twice with two different `gross_income` values for the same pool/date and confirmed the returned `distributable`/`depositor_pool_share`/`mudarib_share` differ as expected and the percentage-difference math in `ScenarioSimulator.tsx` matches a hand-calculated value for a known input pair. `tsc -b` and `npm run build` are both clean.
+
+## Preferred Language (backend storage only — not translation)
+
+**This is storage only.** `User.preferred_language` (new field, `en`/`ur`, default `en`) lets the backend remember a user's language choice across devices, but **no backend response or error message is actually translated** based on it — that would require translating every DRF validation error, serializer message, and API response string, which is out of scope for this task and is real future work, not a small addition.
+
+- **Backend**: `apps/accounts/models.py` — new `PreferredLanguage` choices (`en`, `ur`) and `User.preferred_language` field (migration `apps/accounts/migrations/0002_user_preferred_language.py`).
+- **`GET /api/v1/auth/me/`** now includes `preferred_language` in its response (`UserSerializer`).
+- **`PATCH /api/v1/auth/me/`** (new) lets the authenticated user change their own `preferred_language` via `UpdatePreferredLanguageSerializer` — deliberately scoped to only that one field (a self-service endpoint, separate from `UserManagementViewSet`'s admin-gated `PATCH /auth/users/{id}/`, which also now accepts `preferred_language` for an admin editing another user, alongside its existing `full_name`/`role`/`tenant`/`is_active`). Passing `role`/`tenant` in the same request to `/auth/me/` is silently ignored (not a 400) since `UpdatePreferredLanguageSerializer` only has the one field — verified explicitly in the test below.
+- The frontend's existing i18n foundation (see [Internationalization](#internationalization-i18n-foundation)) is **not wired to this field** in this pass — `LanguageSwitcher.tsx` still only persists to `localStorage` via `i18next`. Syncing the two (restoring `preferred_language` from `/auth/me/` on login, and calling the new `PATCH` when the switcher changes) is straightforward future work but wasn't done here since the task's scope was backend storage only. The `User` TypeScript interface was updated to include `preferred_language` so that future wiring doesn't need a type change.
+
+**Verified via real HTTP requests** (`apps/accounts/tests.py::PreferredLanguageApiTests`): confirmed `GET /auth/me/` defaults to `"en"`; `PATCH /auth/me/` with `{"preferred_language": "ur"}` updates it, persists (re-`GET` confirms), and is reflected in `User.objects.get().preferred_language` directly; an invalid value (`"fr"`) is rejected with `400`; and a `PATCH` that also tries to sneak in `role`/`tenant` changes those fields not at all (confirmed unchanged in the DB afterward) while still applying the language change. `python manage.py test` (full suite) and `npm run build` are both clean.
+
+## Deployment Readiness
+
+Comprehensive production deployment guide covering environment configuration, security hardening, static assets, database pooling, safe migrations, and frontend delivery.
+
+### 1. Environment Variables Matrix
+
+All configuration in production must be injected via environment variables or a secrets manager (AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager). **Never commit production `.env` files.**
+
+| Variable | Dev Value (Example) | Production Requirement | Action Required |
+|---|---|---|---|
+| `DJANGO_SETTINGS_MODULE` | `config.settings.development` | `config.settings.production` | **Must change**: activates `DEBUG=False`, HSTS, SSL redirect, and cookie security. |
+| `SECRET_KEY` | `change-me` or local key | 50+ character random alphanumeric/symbol string | **Must change**: generate using `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`. |
+| `DEBUG` | `True` | `False` | **Must be False**: enforced by `config.settings.production`. Prevents detailed stack traces, environment leaks, and SQL exposure on errors. |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Exact fully qualified domain names (e.g. `api.amanahpool.com`) | **Must change**: comma-separated list of host/domain names. Never use `*` in production. |
+| `DB_ENGINE` | `django.db.backends.postgresql` | `django.db.backends.postgresql` | Standard PostgreSQL driver. |
+| `DB_NAME` | `amanah_pool_os` | Production DB name | Dedicated, managed PostgreSQL database. |
+| `DB_USER` | `postgres` | Restricted application user | Use a dedicated non-superuser DB role with least-privilege permissions. |
+| `DB_PASSWORD` | Local password | Strong generated password (32+ chars) | **Must change**: secure secret. |
+| `DB_HOST` | `localhost` | Production DB host / endpoint | RDS endpoint, Supabase host, or internal network IP. |
+| `DB_PORT` | `5432` | `5432` (or PgBouncer port `6543`) | Standard DB or pooling port. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Exact frontend URLs (e.g. `https://app.amanahpool.com`) | **Must change**: comma-separated list of allowed origins. Never include wildcards or insecure HTTP schemes. |
+| `SHARIAH_COPILOT_BASE_URL` | `http://localhost:8001` | Internal service URL (e.g. `http://copilot-service:8001`) | Internal VPC/Docker network address of the FastAPI copilot service. |
+| `SHARIAH_COPILOT_INTERNAL_KEY` | `amanah-shariah-copilot-secret-2026` | 64-character random hex token | **Must change**: generated using `python -c "import secrets; print(secrets.token_hex(32))"`. Must match `INTERNAL_SERVICE_KEY` in the Copilot service. |
+| `ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL` | `True` | `True` | Shariah governance compliance switch for bank pool allocations. |
+| `GEMINI_API_KEY` (Copilot) | Dev key | Paid/Enterprise Google AI Studio or Vertex AI key | **Must change**: ensure adequate quota for production LLM queries. |
+| `DATABASE_URL` (Copilot) | `sqlite:///./data/copilot.db` | PostgreSQL URI (e.g. `postgresql://...`) | **Recommended change**: replace SQLite with PostgreSQL for multi-worker concurrency. |
+
+### 2. Static Files Handling
+
+In development, `django.contrib.staticfiles` dynamically finds and serves static assets. In production (`DEBUG=False`), WSGI/ASGI servers (Gunicorn, Uvicorn) do not serve static files.
+
+1. **Configure `STATIC_ROOT`**:
+   Add to `backend/config/settings/base.py` or `production.py`:
+   ```python
+   STATIC_ROOT = BASE_DIR / "staticfiles"
+   ```
+2. **Collect static assets during build/deploy pipeline**:
+   ```bash
+   DJANGO_SETTINGS_MODULE=config.settings.production python manage.py collectstatic --no-input
+   ```
+3. **Serving Strategy**:
+   - **Recommended (Nginx / Reverse Proxy)**: Let Nginx serve `/static/` directly from disk with caching headers:
+     ```nginx
+     location /static/ {
+         alias /var/www/amanah/backend/staticfiles/;
+         expires 30d;
+         add_header Cache-Control "public, no-transform";
+     }
+     ```
+   - **Alternative (WhiteNoise)**: Install `whitenoise`, add `whitenoise.middleware.WhiteNoiseMiddleware` directly after `SecurityMiddleware`, and set:
+     ```python
+     STORAGES = {
+         "staticfiles": {
+             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+         },
+     }
+     ```
+
+### 3. CORS & Network Security
+
+- In development, `config.settings.development` permits relaxed CORS (`CORS_ALLOW_ALL_ORIGINS = True`).
+- In production, `config.settings.production` strictly enforces `CORS_ALLOWED_ORIGINS` via environment variable.
+- Custom header `x-tenant-code` is already whitelisted in `CORS_ALLOW_HEADERS` in `base.py`.
+- Ensure all production traffic terminates TLS (HTTPS). `config.settings.production` enforces:
+  - `SECURE_SSL_REDIRECT = True`
+  - `SESSION_COOKIE_SECURE = True`
+  - `CSRF_COOKIE_SECURE = True`
+  - `SECURE_HSTS_SECONDS = 31536000` (1 year)
+  - `SECURE_HSTS_INCLUDE_SUBDOMAINS = True`
+  - `SECURE_HSTS_PRELOAD = True`
+
+### 4. Database Connection Pooling (PostgreSQL)
+
+By default, Django opens a database connection per thread/worker and closes it at the end of the request unless persistent connections are configured:
+- Add `CONN_MAX_AGE = 60` or `300` in database settings to reuse database connections.
+- For high-concurrency production deployments (multiple Gunicorn/Uvicorn workers across replicas), direct connections can quickly exhaust PostgreSQL's `max_connections`.
+- **Recommended Setup**: Deploy **PgBouncer** in **Transaction Pooling** mode between Django and PostgreSQL, or use cloud-managed connection poolers (AWS RDS Proxy, Supabase Transaction Pooler on port `6543`).
+
+### 5. Safe Production Database Migrations
+
+1. **Pre-deployment Verification**:
+   Always verify in CI before building deployment artifacts:
+   ```bash
+   python manage.py makemigrations --check --dry-run
+   ```
+2. **Automated Backup**:
+   Trigger an automated database snapshot/dump (`pg_dump`) immediately prior to running migrations.
+3. **Execution as an Isolated Release Task**:
+   Run migrations as a discrete, one-off release step (e.g. Kubernetes Job, Heroku release phase, or pre-start script) before routing live traffic to the new application containers:
+   ```bash
+   DJANGO_SETTINGS_MODULE=config.settings.production python manage.py migrate --no-input
+   ```
+4. **Zero-Downtime Migration Pattern**:
+   For database schema changes on active systems:
+   - Add new columns as nullable (`null=True`) or with default values.
+   - Never drop or rename columns in the same release as the code update (use the expand-and-contract pattern across consecutive releases).
+
+### 6. Frontend Build & Static Serving
+
+The React frontend (`frontend/`) is a Single Page Application (SPA) built with Vite:
+
+1. **Build Step**:
+   ```bash
+   cd frontend
+   npm ci
+   npm run build
+   ```
+   This generates optimized, fingerprinted HTML, CSS, and JS bundles into `frontend/dist/`.
+2. **Production Hosting**:
+   - **Nginx Option**: Mount `frontend/dist/` into an Nginx web server. Ensure client-side routing fallback is enabled:
+     ```nginx
+     server {
+         listen 443 ssl http2;
+         server_name app.amanahpool.com;
+         root /var/www/amanah/frontend/dist;
+         index index.html;
+
+         location / {
+             try_files $uri $uri/ /index.html;
+         }
+
+         location /api/ {
+             proxy_pass http://backend_upstream;
+             proxy_set_header Host $host;
+             proxy_set_header X-Real-IP $remote_addr;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_set_header X-Forwarded-Proto $scheme;
+         }
+     }
+     ```
+   - **Cloud Object Storage + CDN Option**: Upload `frontend/dist/` to an S3/GCS bucket configured behind Cloudflare or AWS CloudFront, routing `/api/*` to the application load balancer.
+
 ## Notes
 
 - Never commit `.env` (backend or frontend) — both are already in `.gitignore`.
 - `db.sqlite3` is ignored too, in case it's accidentally generated (this project uses PostgreSQL).
 - `node_modules/` and `dist/` are ignored in the frontend.
+

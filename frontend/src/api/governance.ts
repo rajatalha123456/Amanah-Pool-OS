@@ -9,6 +9,7 @@ interface FetchExceptionsParams {
   pool?: string
   status?: string
   severity?: string
+  detected_by?: string
 }
 
 export async function fetchExceptions(params: FetchExceptionsParams = {}): Promise<ExceptionCase[]> {
