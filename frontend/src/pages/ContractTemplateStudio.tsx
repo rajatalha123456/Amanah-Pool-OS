@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Card } from "../components/Card"
+import { Modal } from "../components/Modal"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
@@ -49,10 +50,12 @@ const labelClasses = "mb-1.5 block text-xs font-semibold tracking-wide text-ink-
 export function ContractTemplateStudio() {
   const { user } = useAuth()
   const canApprove = user?.role === "shariah_board"
+  const canCreate = user?.role === "product_manager" || user?.role === "platform_super_admin"
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
   function loadTemplates() {
@@ -83,6 +86,9 @@ export function ContractTemplateStudio() {
     try {
       const updated = await approveContractTemplate(template.id)
       setTemplates((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      if (selectedTemplate?.id === updated.id) {
+        setSelectedTemplate(updated)
+      }
     } catch (err) {
       setPageError(extractErrorMessage(err, "Unable to approve this contract template."))
     } finally {
@@ -103,16 +109,22 @@ export function ContractTemplateStudio() {
     { header: "Shariah Decision", accessor: (template) => template.shariah_decision_code ?? "—" },
     {
       header: "Action",
-      accessor: (template) =>
-        canApprove && template.status === "draft" ? (
-          <Button
-            variant="primary"
-            disabled={approvingId === template.id}
-            onClick={() => handleApprove(template)}
-          >
-            {approvingId === template.id ? <Spinner className="h-4 w-4" /> : "Approve"}
+      accessor: (template) => (
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setSelectedTemplate(template)}>
+            View Clauses
           </Button>
-        ) : null,
+          {canApprove && template.status === "draft" && (
+            <Button
+              variant="primary"
+              disabled={approvingId === template.id}
+              onClick={() => handleApprove(template)}
+            >
+              {approvingId === template.id ? <Spinner className="h-4 w-4" /> : "Approve"}
+            </Button>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -122,7 +134,7 @@ export function ContractTemplateStudio() {
         title="Product Catalogue"
         subtitle="Standard contract templates used by products"
         actions={
-          !isFormOpen ? (
+          !isFormOpen && canCreate ? (
             <Button variant="primary" onClick={() => setIsFormOpen(true)}>
               + New Template
             </Button>
@@ -174,7 +186,108 @@ export function ContractTemplateStudio() {
           )}
         </Card>
       )}
+
+      {selectedTemplate && (
+        <ViewTemplateModal
+          template={selectedTemplate}
+          onClose={() => setSelectedTemplate(null)}
+          canApprove={canApprove}
+          isApproving={approvingId === selectedTemplate.id}
+          onApprove={handleApprove}
+        />
+      )}
     </div>
+  )
+}
+
+function ViewTemplateModal({
+  template,
+  onClose,
+  canApprove,
+  isApproving,
+  onApprove,
+}: {
+  template: ContractTemplate
+  onClose: () => void
+  canApprove: boolean
+  isApproving: boolean
+  onApprove: (template: ContractTemplate) => void
+}) {
+  const clauseEntries = Object.entries(template.clauses || {})
+
+  return (
+    <Modal title={`Contract Template — ${template.name} v${template.version}`} onClose={onClose} maxWidth="max-w-2xl">
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <Badge variant={templateStatusBadgeVariant(template.status)}>
+              {template.status.toUpperCase()}
+            </Badge>
+            <span className="rounded bg-navy-800 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+              {template.contract_type}
+            </span>
+          </div>
+          <span className="text-xs text-ink-muted">
+            Version: <strong>{template.version}</strong>
+          </span>
+        </div>
+
+        <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-xs">
+          <span className="block font-semibold text-emerald-400 uppercase tracking-wider mb-1">
+            Linked Shariah Decision / Fatwa
+          </span>
+          <p className="text-ink-primary font-medium">
+            {template.shariah_decision_code ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300 font-mono">
+                  {template.shariah_decision_code}
+                </span>
+                <span>(Official Shariah Board Approval)</span>
+              </span>
+            ) : (
+              <span className="text-amber-400/90">No Shariah Decision linked yet.</span>
+            )}
+          </p>
+        </div>
+
+        <div>
+          <span className="block text-xs font-semibold text-ink-muted uppercase tracking-wider mb-2">
+            Contract Clauses ({clauseEntries.length})
+          </span>
+          {clauseEntries.length === 0 ? (
+            <p className="text-sm text-ink-secondary">No clauses defined.</p>
+          ) : (
+            <div className="divide-y divide-white/5 rounded-lg border border-white/8 bg-navy-800/40">
+              {clauseEntries.map(([key, val]) => (
+                <div key={key} className="p-3 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-1">
+                  <span className="font-semibold text-ink-secondary font-mono capitalize">
+                    {key.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-ink-primary sm:text-right max-w-sm whitespace-pre-wrap">
+                    {typeof val === "object" ? JSON.stringify(val) : String(val ?? "—")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+          <Button variant="secondary" onClick={onClose} disabled={isApproving}>
+            Close
+          </Button>
+          {canApprove && template.status === "draft" && (
+            <Button
+              variant="primary"
+              disabled={isApproving}
+              onClick={() => onApprove(template)}
+            >
+              {isApproving ? <Spinner className="h-4 w-4" /> : "Approve Contract Template"}
+            </Button>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }
 

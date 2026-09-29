@@ -9,6 +9,14 @@ class ShariahDecisionStatus(models.TextChoices):
     SUPERSEDED = "superseded", "Superseded"
 
 
+class ShariahDecisionType(models.TextChoices):
+    PRODUCT_APPROVAL = "product_approval", "Product Approval"
+    POLICY_RULING = "policy_ruling", "Policy Ruling"
+    ANNUAL_REVIEW = "annual_review", "Annual Review"
+    PURIFICATION_DIRECTIVE = "purification_directive", "Purification Directive"
+    EXEMPTION = "exemption", "Exemption"
+
+
 class ContractType(models.TextChoices):
     MUDARABAH_UNRESTRICTED = "mudarabah_unrestricted", "Mudarabah (Unrestricted)"
     MUDARABAH_RESTRICTED = "mudarabah_restricted", "Mudarabah (Restricted)"
@@ -40,11 +48,30 @@ class ProductStatus(models.TextChoices):
 class ShariahDecision(TenantScopedModel):
     decision_code = models.CharField(max_length=50, unique=True)
     title = models.CharField(max_length=255)
+    decision_type = models.CharField(
+        max_length=30,
+        choices=ShariahDecisionType.choices,
+        default=ShariahDecisionType.PRODUCT_APPROVAL,
+    )
+    meeting_reference = models.CharField(max_length=100, null=True, blank=True)
+    scholars_signatories = models.TextField(null=True, blank=True)
+    fiqh_reference = models.TextField(null=True, blank=True)
     description = models.TextField()
+    mandatory_caveats = models.TextField(null=True, blank=True)
+    fatwa_arabic_text = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=ShariahDecisionStatus.choices, default=ShariahDecisionStatus.DRAFT
     )
     effective_date = models.DateField()
+    expiry_date = models.DateField(null=True, blank=True)
+    document_url = models.URLField(max_length=500, null=True, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_shariah_decisions",
+    )
     approved_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -52,9 +79,11 @@ class ShariahDecision(TenantScopedModel):
         blank=True,
         related_name="approved_shariah_decisions",
     )
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return self.decision_code
+        return f"{self.decision_code} - {self.title}"
+
 
 
 class ContractTemplate(TenantScopedModel):

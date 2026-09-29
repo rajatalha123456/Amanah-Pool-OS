@@ -4,6 +4,9 @@ from .models import ContractTemplate, Product, ShariahDecision
 
 
 class ShariahDecisionSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    approved_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ShariahDecision
         fields = (
@@ -11,15 +14,48 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
             "tenant",
             "decision_code",
             "title",
+            "decision_type",
+            "meeting_reference",
+            "scholars_signatories",
+            "fiqh_reference",
             "description",
+            "mandatory_caveats",
+            "fatwa_arabic_text",
             "status",
             "effective_date",
+            "expiry_date",
+            "document_url",
+            "created_by",
+            "created_by_name",
             "approved_by",
+            "approved_by_name",
+            "approved_at",
             "is_active",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "tenant", "approved_by", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "tenant",
+            "status",
+            "created_by",
+            "created_by_name",
+            "approved_by",
+            "approved_by_name",
+            "approved_at",
+            "created_at",
+            "updated_at",
+        )
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.full_name or obj.created_by.email
+        return None
+
+    def get_approved_by_name(self, obj):
+        if obj.approved_by:
+            return obj.approved_by.full_name or obj.approved_by.email
+        return None
 
 
 class ContractTemplateSerializer(serializers.ModelSerializer):

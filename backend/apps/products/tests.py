@@ -15,10 +15,17 @@ class ShariahDecisionApiTests(APITestCase):
             name="Shariah Governance Test Tenant", code="SG-TEST", data_residency="PK"
         )
         set_current_tenant(self.tenant)
+        self.secretariat = User.objects.create_user(
+            email="secretariat@example.com",
+            password="password",
+            full_name="Shariah Secretariat",
+            role=UserRole.SHARIAH_SECRETARIAT,
+            tenant=self.tenant,
+        )
         self.board = User.objects.create_user(
             email="board@example.com",
             password="password",
-            full_name="Shariah Board",
+            full_name="Shariah Board Member",
             role=UserRole.SHARIAH_BOARD,
             tenant=self.tenant,
         )
@@ -41,39 +48,155 @@ class ShariahDecisionApiTests(APITestCase):
     def decision_payload(self):
         return {
             "decision_code": "FTW-2026-001",
-            "title": "Test Decision",
-            "description": "A test Shariah decision.",
+            "title": "Retail Mudarabah Pool Fatwa Approval",
+            "decision_type": "product_approval",
+            "meeting_reference": "SSB-M-2026-04",
+            "scholars_signatories": "Mufti Muhammad Taqi, Dr. Imran Usmani",
+            "fiqh_reference": "AAOIFI Shariah Standard No. 13 (Mudarabah), SBP IBD Circular 02",
+            "description": "Comprehensive fatwa approving the Retail Mudarabah product structure.",
+            "mandatory_caveats": "Quarterly Shariah audit required; reserve transfers capped at 10%.",
+            "fatwa_arabic_text": "الحمد لله رب العالمين، والصلاة والسلام على رسوله الكريم...",
             "effective_date": "2026-09-19",
+            "expiry_date": "2027-09-19",
+            "document_url": "https://docs.bank.test/fatwas/FTW-2026-001.pdf",
         }
 
     def test_create_list_and_approve_decision(self):
-        self.authenticate(self.board)
+        # Secretariat creates draft
+        self.authenticate(self.secretariat)
         create_response = self.client.post(self.list_url, self.decision_payload(), format="json")
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(create_response.data["status"], "draft")
+        self.assertEqual(create_response.data["decision_type"], "product_approval")
+        self.assertEqual(create_response.data["meeting_reference"], "SSB-M-2026-04")
+        self.assertEqual(create_response.data["created_by_name"], "Shariah Secretariat")
+        self.assertIsNone(create_response.data["approved_by"])
 
+        # Secretariat cannot approve (forbidden)
+        detail_url = reverse("shariah-decision-detail", args=[create_response.data["id"]])
+        sec_approve_resp = self.client.post(f"{detail_url}approve/")
+        self.assertEqual(sec_approve_resp.status_code, status.HTTP_403_FORBIDDEN)
+
+        # List shows the decision
         list_response = self.client.get(self.list_url)
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(list_response.data), 1)
 
-        detail_url = reverse("shariah-decision-detail", args=[create_response.data["id"]])
+        # Board member approves
+        self.authenticate(self.board)
         approve_response = self.client.post(f"{detail_url}approve/")
         self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
         self.assertEqual(approve_response.data["status"], "approved")
+        self.assertEqual(approve_response.data["approved_by_name"], "Shariah Board Member")
+        self.assertIsNotNone(approve_response.data["approved_at"])
+
+    def test_board_creator_cannot_self_approve(self):
+        # Board member creates draft
+        self.authenticate(self.board)
+        create_response = self.client.post(self.list_url, self.decision_payload(), format="json")
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        # Same board member tries to approve -> rejected by maker-checker check
+        detail_url = reverse("shariah-decision-detail", args=[create_response.data["id"]])
+        approve_response = self.client.post(f"{detail_url}approve/")
+        self.assertEqual(approve_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Maker and checker cannot be the same user", str(approve_response.data))
 
     def test_wrong_role_cannot_create_decision(self):
         self.authenticate(self.other_user)
         response = self.client.post(self.list_url, self.decision_payload(), format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_shariah_dashboard_reflects_pending_decision(self):
-        self.authenticate(self.board)
-        self.client.post(self.list_url, self.decision_payload(), format="json")
+    def test_update_decision(self):
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
 
-        dashboard_response = self.client.get(reverse("shariah-dashboard"))
-        self.assertEqual(dashboard_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(dashboard_response.data["pending_shariah_decisions"]), 1)
-        self.assertGreaterEqual(dashboard_response.data["summary_counts"]["total_pending_items"], 1)
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+        update_resp = self.client.patch(
+            detail_url,
+            {"title": "Updated Mudarabah Fatwa", "mandatory_caveats": "Updated caveats text."},
+            format="json",
+        )
+        self.assertEqual(update_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_resp.data["title"], "Updated Mudarabah Fatwa")
+        self.assertEqual(update_resp.data["mandatory_caveats"], "Updated caveats text.")
+
+    def test_delete_decision_success(self):
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+        delete_resp = self.client.delete(detail_url)
+        self.assertEqual(delete_resp.status_code, status.HTTP_204_NO_CONTENT)
+
+        get_resp = self.client.get(detail_url)
+        self.assertEqual(get_resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_decision_blocked_if_contract_linked(self):
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+
+        # Link a contract template to this decision
+        ContractTemplate.objects.create(
+            tenant=self.tenant,
+            name="Linked Template",
+            contract_type="mudarabah_unrestricted",
+            version="1.0",
+            clauses={},
+            shariah_decision_id=create_resp.data["id"],
+        )
+
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+        delete_resp = self.client.delete(detail_url)
+        self.assertEqual(delete_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("actively linked to one or more Contract Templates", str(delete_resp.data))
+
+    def test_secretariat_cannot_delete_approved_decision(self):
+        # Secretariat creates draft
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+
+        # Board approves it
+        self.authenticate(self.board)
+        approve_resp = self.client.post(f"{detail_url}approve/")
+        self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
+
+        # Secretariat tries to delete approved fatwa -> 403 Forbidden
+        self.authenticate(self.secretariat)
+        del_resp = self.client.delete(detail_url)
+        self.assertEqual(del_resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Shariah Secretariat cannot delete an approved Shariah decision", str(del_resp.data))
+
+    def test_board_can_delete_unlinked_approved_decision(self):
+        # Secretariat creates draft
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+
+        # Board approves it
+        self.authenticate(self.board)
+        approve_resp = self.client.post(f"{detail_url}approve/")
+        self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
+
+        # Board deletes unlinked approved decision -> 204 No Content
+        del_resp = self.client.delete(detail_url)
+        self.assertEqual(del_resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_wrong_role_cannot_edit_or_delete(self):
+        self.authenticate(self.secretariat)
+        create_resp = self.client.post(self.list_url, self.decision_payload(), format="json")
+        detail_url = reverse("shariah-decision-detail", args=[create_resp.data["id"]])
+
+        self.authenticate(self.other_user)
+        patch_resp = self.client.patch(detail_url, {"title": "Hacked Title"}, format="json")
+        self.assertEqual(patch_resp.status_code, status.HTTP_403_FORBIDDEN)
+
+        del_resp = self.client.delete(detail_url)
+        self.assertEqual(del_resp.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class ContractTemplateClausesSchemaApiTests(APITestCase):

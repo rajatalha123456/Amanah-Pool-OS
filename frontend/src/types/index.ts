@@ -849,17 +849,34 @@ export interface CreatePurificationEntryInput {
   identified_date: string
 }
 
-// --- Shariah Governance: Dashboard + Fatwa Register (apps.governance / apps.products) ---
+export type ShariahDecisionType =
+  | "product_approval"
+  | "policy_ruling"
+  | "annual_review"
+  | "purification_directive"
+  | "exemption"
 
 export interface ShariahDecision {
   id: string
   tenant: string
   decision_code: string
   title: string
+  decision_type: ShariahDecisionType
+  meeting_reference?: string | null
+  scholars_signatories?: string | null
+  fiqh_reference?: string | null
   description: string
-  status: string
+  mandatory_caveats?: string | null
+  fatwa_arabic_text?: string | null
+  status: "draft" | "approved" | "superseded"
   effective_date: string
-  approved_by: number | null
+  expiry_date?: string | null
+  document_url?: string | null
+  created_by?: number | null
+  created_by_name?: string | null
+  approved_by?: number | null
+  approved_by_name?: string | null
+  approved_at?: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -868,8 +885,16 @@ export interface ShariahDecision {
 export interface CreateShariahDecisionInput {
   decision_code: string
   title: string
+  decision_type?: ShariahDecisionType
+  meeting_reference?: string | null
+  scholars_signatories?: string | null
+  fiqh_reference?: string | null
   description: string
+  mandatory_caveats?: string | null
+  fatwa_arabic_text?: string | null
   effective_date: string
+  expiry_date?: string | null
+  document_url?: string | null
 }
 
 export interface ShariahDashboardItem {

@@ -2,13 +2,14 @@ import { useState, type FormEvent } from "react"
 import { Modal } from "../../components/Modal"
 import { Button } from "../../components/Button"
 import { Spinner } from "../../components/Spinner"
-import { createShariahDecision } from "../../api/shariahGovernance"
+import { updateShariahDecision } from "../../api/shariahGovernance"
 import { extractErrorMessage } from "../../api/errors"
 import type { ShariahDecision, ShariahDecisionType } from "../../types"
 
-interface NewShariahDecisionModalProps {
+interface EditShariahDecisionModalProps {
+  decision: ShariahDecision
   onClose: () => void
-  onCreated: (decision: ShariahDecision) => void
+  onUpdated: (decision: ShariahDecision) => void
 }
 
 const inputClasses =
@@ -23,19 +24,19 @@ const DECISION_TYPES: { value: ShariahDecisionType; label: string }[] = [
   { value: "exemption", label: "Exemption" },
 ]
 
-export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisionModalProps) {
-  const [decisionCode, setDecisionCode] = useState("")
-  const [decisionType, setDecisionType] = useState<ShariahDecisionType>("product_approval")
-  const [title, setTitle] = useState("")
-  const [meetingReference, setMeetingReference] = useState("")
-  const [scholarsSignatories, setScholarsSignatories] = useState("")
-  const [fiqhReference, setFiqhReference] = useState("")
-  const [fatwaArabicText, setFatwaArabicText] = useState("")
-  const [description, setDescription] = useState("")
-  const [mandatoryCaveats, setMandatoryCaveats] = useState("")
-  const [effectiveDate, setEffectiveDate] = useState("")
-  const [expiryDate, setExpiryDate] = useState("")
-  const [documentUrl, setDocumentUrl] = useState("")
+export function EditShariahDecisionModal({ decision, onClose, onUpdated }: EditShariahDecisionModalProps) {
+  const [decisionCode, setDecisionCode] = useState(decision.decision_code)
+  const [decisionType, setDecisionType] = useState<ShariahDecisionType>(decision.decision_type)
+  const [title, setTitle] = useState(decision.title)
+  const [meetingReference, setMeetingReference] = useState(decision.meeting_reference || "")
+  const [scholarsSignatories, setScholarsSignatories] = useState(decision.scholars_signatories || "")
+  const [fiqhReference, setFiqhReference] = useState(decision.fiqh_reference || "")
+  const [fatwaArabicText, setFatwaArabicText] = useState(decision.fatwa_arabic_text || "")
+  const [description, setDescription] = useState(decision.description)
+  const [mandatoryCaveats, setMandatoryCaveats] = useState(decision.mandatory_caveats || "")
+  const [effectiveDate, setEffectiveDate] = useState(decision.effective_date)
+  const [expiryDate, setExpiryDate] = useState(decision.expiry_date || "")
+  const [documentUrl, setDocumentUrl] = useState(decision.document_url || "")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -44,60 +45,70 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
     setError("")
     setIsSubmitting(true)
     try {
-      const decision = await createShariahDecision({
+      const updated = await updateShariahDecision(decision.id, {
         decision_code: decisionCode,
         decision_type: decisionType,
         title,
-        meeting_reference: meetingReference.trim() || undefined,
-        scholars_signatories: scholarsSignatories.trim() || undefined,
-        fiqh_reference: fiqhReference.trim() || undefined,
-        fatwa_arabic_text: fatwaArabicText.trim() || undefined,
+        meeting_reference: meetingReference.trim() || null,
+        scholars_signatories: scholarsSignatories.trim() || null,
+        fiqh_reference: fiqhReference.trim() || null,
+        fatwa_arabic_text: fatwaArabicText.trim() || null,
         description,
-        mandatory_caveats: mandatoryCaveats.trim() || undefined,
+        mandatory_caveats: mandatoryCaveats.trim() || null,
         effective_date: effectiveDate,
-        expiry_date: expiryDate.trim() || undefined,
-        document_url: documentUrl.trim() || undefined,
+        expiry_date: expiryDate.trim() || null,
+        document_url: documentUrl.trim() || null,
       })
-      onCreated(decision)
+      onUpdated(updated)
     } catch (err) {
-      setError(extractErrorMessage(err, "Unable to create Shariah decision."))
+      setError(extractErrorMessage(err, "Unable to update Shariah decision."))
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const isApproved = decision.status === "approved"
+
   return (
-    <Modal title="Draft New Shariah Decision / Fatwa" onClose={onClose} maxWidth="max-w-2xl">
+    <Modal title={`Edit Shariah Ruling — ${decision.decision_code}`} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
-        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-ink-secondary">
-          <p className="font-semibold text-emerald-400">Maker-Checker Compliance Rule (SBP & AAOIFI Standards)</p>
-          <p className="mt-0.5">
-            This fatwa ruling will be saved in <strong>Draft</strong> status. Under Islamic banking governance segregation, only an independent <strong>Shariah Board Member</strong> can formally review and approve it.
-          </p>
-        </div>
+        {isApproved ? (
+          <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300">
+            <p className="font-semibold">Notice: Editing an Approved Ruling</p>
+            <p className="mt-0.5 text-amber-200/80">
+              This fatwa has already been approved. All edits will be logged with an immutable audit trail in the Auditor Portal.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-md border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-300">
+            <p className="font-semibold">Draft Status: Pre-Approval Revisions</p>
+            <p className="mt-0.5 text-blue-200/80">
+              Update any operative text, Arabic phrasing, or references before final Shariah Board sign-off.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="decision-code" className={labelClasses}>
+            <label htmlFor="edit-decision-code" className={labelClasses}>
               Decision / Fatwa Code *
             </label>
             <input
-              id="decision-code"
+              id="edit-decision-code"
               type="text"
               value={decisionCode}
               onChange={(e) => setDecisionCode(e.target.value)}
-              placeholder="e.g. FTW-2026-001 or SBD-2026-044"
               required
               className={inputClasses}
             />
           </div>
 
           <div>
-            <label htmlFor="decision-type" className={labelClasses}>
+            <label htmlFor="edit-decision-type" className={labelClasses}>
               Ruling Category *
             </label>
             <select
-              id="decision-type"
+              id="edit-decision-type"
               value={decisionType}
               onChange={(e) => setDecisionType(e.target.value as ShariahDecisionType)}
               required
@@ -113,15 +124,14 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         </div>
 
         <div>
-          <label htmlFor="title" className={labelClasses}>
+          <label htmlFor="edit-title" className={labelClasses}>
             Subject / Title *
           </label>
           <input
-            id="title"
+            id="edit-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Mudarabah Retail Deposit Structure & PER Policy"
             required
             className={inputClasses}
           />
@@ -129,11 +139,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="meeting-ref" className={labelClasses}>
+            <label htmlFor="edit-meeting-ref" className={labelClasses}>
               Board Meeting Reference
             </label>
             <input
-              id="meeting-ref"
+              id="edit-meeting-ref"
               type="text"
               value={meetingReference}
               onChange={(e) => setMeetingReference(e.target.value)}
@@ -143,11 +153,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
           </div>
 
           <div>
-            <label htmlFor="scholars-signatories" className={labelClasses}>
+            <label htmlFor="edit-scholars-signatories" className={labelClasses}>
               Signatory Scholars
             </label>
             <input
-              id="scholars-signatories"
+              id="edit-scholars-signatories"
               type="text"
               value={scholarsSignatories}
               onChange={(e) => setScholarsSignatories(e.target.value)}
@@ -158,11 +168,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         </div>
 
         <div>
-          <label htmlFor="fiqh-reference" className={labelClasses}>
+          <label htmlFor="edit-fiqh-reference" className={labelClasses}>
             Fiqh & Regulatory Standard Reference
           </label>
           <input
-            id="fiqh-reference"
+            id="edit-fiqh-reference"
             type="text"
             value={fiqhReference}
             onChange={(e) => setFiqhReference(e.target.value)}
@@ -172,11 +182,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         </div>
 
         <div>
-          <label htmlFor="fatwa-arabic-text" className={labelClasses}>
+          <label htmlFor="edit-fatwa-arabic-text" className={labelClasses}>
             Arabic Text / Nass al-Fatwa (نص الفتوى الشرعية)
           </label>
           <textarea
-            id="fatwa-arabic-text"
+            id="edit-fatwa-arabic-text"
             value={fatwaArabicText}
             onChange={(e) => setFatwaArabicText(e.target.value)}
             rows={2}
@@ -187,41 +197,39 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         </div>
 
         <div>
-          <label htmlFor="description" className={labelClasses}>
+          <label htmlFor="edit-description" className={labelClasses}>
             Operative Shariah Ruling / Description *
           </label>
           <textarea
-            id="description"
+            id="edit-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
             rows={3}
-            placeholder="Detailed description of the approval, structure, and operational requirements..."
             className={inputClasses}
           />
         </div>
 
         <div>
-          <label htmlFor="mandatory-caveats" className={labelClasses}>
+          <label htmlFor="edit-mandatory-caveats" className={labelClasses}>
             Mandatory Caveats & Special Conditions
           </label>
           <textarea
-            id="mandatory-caveats"
+            id="edit-mandatory-caveats"
             value={mandatoryCaveats}
             onChange={(e) => setMandatoryCaveats(e.target.value)}
             rows={2}
-            placeholder="e.g. 1. Quarterly Shariah audit mandatory. 2. Reserve allocation must not exceed 10% without prior Board re-approval."
             className={inputClasses}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="effective-date" className={labelClasses}>
+            <label htmlFor="edit-effective-date" className={labelClasses}>
               Effective Date *
             </label>
             <input
-              id="effective-date"
+              id="edit-effective-date"
               type="date"
               value={effectiveDate}
               onChange={(e) => setEffectiveDate(e.target.value)}
@@ -231,11 +239,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
           </div>
 
           <div>
-            <label htmlFor="expiry-date" className={labelClasses}>
+            <label htmlFor="edit-expiry-date" className={labelClasses}>
               Expiry / Review Date (Optional)
             </label>
             <input
-              id="expiry-date"
+              id="edit-expiry-date"
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
@@ -245,11 +253,11 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         </div>
 
         <div>
-          <label htmlFor="document-url" className={labelClasses}>
+          <label htmlFor="edit-document-url" className={labelClasses}>
             Signed Fatwa Document Link (PDF / Document Repository)
           </label>
           <input
-            id="document-url"
+            id="edit-document-url"
             type="url"
             value={documentUrl}
             onChange={(e) => setDocumentUrl(e.target.value)}
@@ -265,7 +273,7 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? <Spinner className="h-4 w-4" /> : "Save Draft Ruling"}
+            {isSubmitting ? <Spinner className="h-4 w-4" /> : "Save Changes"}
           </Button>
         </div>
       </form>

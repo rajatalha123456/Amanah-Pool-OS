@@ -4,12 +4,13 @@ interface ModalProps {
   title: string
   onClose: () => void
   children: ReactNode
+  maxWidth?: string
 }
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, children, maxWidth }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = "modal-title"
 
@@ -63,7 +64,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md rounded-xl border border-white/8 bg-navy-900 p-6 shadow-lg outline-none"
+        className={`w-full ${maxWidth ?? "max-w-md"} rounded-xl border border-white/8 bg-navy-900 p-6 shadow-lg outline-none`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id={titleId} className="text-lg font-semibold text-ink-primary">

@@ -22,3 +22,15 @@ export async function approveShariahDecision(id: string): Promise<ShariahDecisio
   const response = await apiClient.post<ShariahDecision>(`products/shariah-decisions/${id}/approve/`)
   return response.data
 }
+
+export async function updateShariahDecision(
+  id: string,
+  data: Partial<CreateShariahDecisionInput>
+): Promise<ShariahDecision> {
+  const response = await apiClient.patch<ShariahDecision>(`products/shariah-decisions/${id}/`, data)
+  return response.data
+}
+
+export async function deleteShariahDecision(id: string): Promise<void> {
+  await apiClient.delete(`products/shariah-decisions/${id}/`)
+}

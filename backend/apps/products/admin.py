@@ -5,9 +5,19 @@ from .models import ContractTemplate, Product, ShariahDecision
 
 @admin.register(ShariahDecision)
 class ShariahDecisionAdmin(admin.ModelAdmin):
-    list_display = ("decision_code", "title", "tenant", "status", "effective_date", "approved_by")
-    list_filter = ("status", "tenant")
-    search_fields = ("decision_code", "title")
+    list_display = (
+        "decision_code",
+        "decision_type",
+        "title",
+        "tenant",
+        "status",
+        "effective_date",
+        "created_by",
+        "approved_by",
+        "approved_at",
+    )
+    list_filter = ("status", "decision_type", "tenant")
+    search_fields = ("decision_code", "title", "meeting_reference")
 
 
 @admin.register(ContractTemplate)

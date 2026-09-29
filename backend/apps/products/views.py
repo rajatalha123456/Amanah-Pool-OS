@@ -1,6 +1,7 @@
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -24,27 +25,76 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         return ShariahDecision.objects.all()
 
     def get_permissions(self):
-        if self.action in ("create", "approve"):
-            return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat"])()]
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat", "platform_super_admin"])()]
+        if self.action == "approve":
+            return [IsAuthenticated(), IsShariahBoard()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        instance = serializer.save(tenant=self.request.user.tenant)
+        instance = serializer.save(
+            tenant=self.request.user.tenant,
+            created_by=self.request.user,
+        )
         log_action(
             tenant=instance.tenant,
             actor=self.request.user,
             action="create",
             model_name="ShariahDecision",
             object_id=str(instance.id),
+            changes={"status": instance.status, "decision_code": instance.decision_code},
+            request=self.request,
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="update",
+            model_name="ShariahDecision",
+            object_id=str(instance.id),
+            changes={"updated_fields": list(serializer.validated_data.keys()), "decision_code": instance.decision_code},
+            request=self.request,
+        )
+
+    def perform_destroy(self, instance):
+        if instance.status == ShariahDecisionStatus.APPROVED:
+            if getattr(self.request.user, "role", None) not in ("shariah_board", "platform_super_admin"):
+                raise PermissionDenied(
+                    "Shariah Secretariat cannot delete an approved Shariah decision. Only the Shariah Supervisory Board can delete or revoke approved rulings."
+                )
+        if instance.contract_templates.exists():
+            raise ValidationError(
+                "Cannot delete this Shariah decision: it is actively linked to one or more Contract Templates."
+            )
+        object_id = str(instance.id)
+        tenant = instance.tenant
+        code = instance.decision_code
+        instance.delete()
+        log_action(
+            tenant=tenant,
+            actor=self.request.user,
+            action="delete",
+            model_name="ShariahDecision",
+            object_id=object_id,
+            changes={"deleted_decision_code": code},
             request=self.request,
         )
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         decision = self.get_object()
+        if decision.status == ShariahDecisionStatus.APPROVED:
+            raise ValidationError("This decision has already been approved.")
+        if decision.created_by and decision.created_by == request.user:
+            raise ValidationError(
+                "Maker and checker cannot be the same user: the user who drafted this Shariah decision cannot approve it."
+            )
         decision.status = ShariahDecisionStatus.APPROVED
         decision.approved_by = request.user
-        decision.save(update_fields=["status", "approved_by", "updated_at"])
+        decision.approved_at = timezone.now()
+        decision.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
         log_action(
             tenant=decision.tenant,
             actor=request.user,
