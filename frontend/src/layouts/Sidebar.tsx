@@ -3,16 +3,17 @@ import { useTranslation } from "react-i18next"
 import { navItems } from "./navItems"
 
 export function Sidebar() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isUrdu = i18n.language?.startsWith("ur")
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-navy-950 border-r border-white/5">
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-navy-950 border-r rtl:border-r-0 rtl:border-l border-white/5">
       <div className="px-6 pt-6 pb-5">
         <p className="text-[11px] font-semibold tracking-widest text-gold-500 uppercase">
-          Novu Labs
+          {isUrdu ? "نووو لیبز" : "Novu Labs"}
         </p>
         <p className="mt-0.5 text-sm font-semibold text-ink-primary">
-          Amanah Pool OS
+          {isUrdu ? "امانہ پول او ایس" : "Amanah Pool OS"}
         </p>
       </div>
       <nav className="flex-1 overflow-y-auto px-3">
@@ -37,7 +38,9 @@ export function Sidebar() {
         </ul>
       </nav>
       <div className="border-t border-white/5 px-6 py-4">
-        <p className="text-xs text-ink-muted">Moneeb A. Jaffari • Chairman</p>
+        <p className="text-xs text-ink-muted">
+          {isUrdu ? "منیب اے جعفری • چیئرمین" : "Moneeb A. Jaffari • Chairman"}
+        </p>
       </div>
     </aside>
   )

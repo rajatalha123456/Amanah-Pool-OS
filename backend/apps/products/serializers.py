@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ContractTemplate, Product, ShariahDecision
+from .models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision
 
 
 class ShariahDecisionSerializer(serializers.ModelSerializer):
@@ -126,3 +126,23 @@ class ProductSerializer(serializers.ModelSerializer):
         if queryset.exists():
             raise serializers.ValidationError("A product with this code already exists.")
         return value
+
+
+class JurisdictionRulePackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JurisdictionRulePack
+        fields = (
+            "id",
+            "tenant",
+            "code",
+            "name",
+            "version",
+            "effective_date",
+            "is_active",
+            "is_default",
+            "description",
+            "rules_config",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "tenant", "created_at", "updated_at")

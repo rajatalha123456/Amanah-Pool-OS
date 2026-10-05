@@ -31,6 +31,8 @@ from .models import (
     BalanceImportBatchStatus,
     DailyBalance,
     DailyBalanceStatus,
+    PeriodCloseChecklist,
+    PeriodCloseStatus,
     Pool,
     PoolStatus,
     PoolVersion,
@@ -41,6 +43,7 @@ from .serializers import (
     BalanceImportBatchSerializer,
     BulkBalanceImportSerializer,
     DailyBalanceSerializer,
+    PeriodCloseChecklistSerializer,
     PoolSerializer,
     PoolVersionSerializer,
 )
@@ -473,3 +476,79 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             },
             status=201,
         )
+
+
+class PeriodCloseChecklistViewSet(viewsets.ModelViewSet):
+    """
+    Screen 16: Period Close Manager - Close checklist, locks and certification.
+    """
+
+    serializer_class = PeriodCloseChecklistSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = PeriodCloseChecklist.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        default_checklist = {
+            "reconciled": True,
+            "shariah_parameters_sealed": True,
+            "exceptions_cleared": True,
+            "allocation_signed": True,
+            "journals_posted": True,
+        }
+        checklist = serializer.validated_data.get("checklist_data") or default_checklist
+        instance = serializer.save(
+            tenant=self.request.user.tenant,
+            checklist_data=checklist,
+        )
+        log_action(
+            tenant=instance.tenant,
+            actor=self.request.user,
+            action="create",
+            model_name="PeriodCloseChecklist",
+            object_id=str(instance.id),
+            request=self.request,
+        )
+
+    @action(detail=True, methods=["post"], url_path="certify")
+    def certify(self, request, pk=None):
+        instance = self.get_object()
+        instance.status = PeriodCloseStatus.CERTIFIED
+        instance.certified_by = request.user
+        instance.certified_at = timezone.now()
+        instance.decision_note = request.data.get(
+            "decision_note", "Variance is within tolerance. Certified for close."
+        )
+        instance.save(
+            update_fields=["status", "certified_by", "certified_at", "decision_note", "updated_at"]
+        )
+        log_action(
+            tenant=instance.tenant,
+            actor=request.user,
+            action="certify",
+            model_name="PeriodCloseChecklist",
+            object_id=str(instance.id),
+            request=request,
+        )
+        return Response(self.get_serializer(instance).data)
+
+    @action(detail=True, methods=["post"], url_path="lock")
+    def lock(self, request, pk=None):
+        instance = self.get_object()
+        instance.status = PeriodCloseStatus.LOCKED
+        instance.save(update_fields=["status", "updated_at"])
+        log_action(
+            tenant=instance.tenant,
+            actor=request.user,
+            action="lock",
+            model_name="PeriodCloseChecklist",
+            object_id=str(instance.id),
+            request=request,
+        )
+        return Response(self.get_serializer(instance).data)
+

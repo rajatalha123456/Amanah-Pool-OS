@@ -8,8 +8,21 @@ from rest_framework.response import Response
 from apps.accounts.permissions import HasAnyRole, IsProductManager, IsShariahBoard
 from apps.core.audit import log_action
 
-from .models import ContractTemplate, ContractTemplateStatus, Product, ProductStatus, ShariahDecision, ShariahDecisionStatus
-from .serializers import ContractTemplateSerializer, ProductSerializer, ShariahDecisionSerializer
+from .models import (
+    ContractTemplate,
+    ContractTemplateStatus,
+    JurisdictionRulePack,
+    Product,
+    ProductStatus,
+    ShariahDecision,
+    ShariahDecisionStatus,
+)
+from .serializers import (
+    ContractTemplateSerializer,
+    JurisdictionRulePackSerializer,
+    ProductSerializer,
+    ShariahDecisionSerializer,
+)
 
 
 class ShariahDecisionViewSet(viewsets.ModelViewSet):
@@ -245,3 +258,38 @@ class ProductViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(product).data)
+
+
+class JurisdictionRulePackViewSet(viewsets.ModelViewSet):
+    serializer_class = JurisdictionRulePackSerializer
+
+    def get_queryset(self):
+        return JurisdictionRulePack.objects.all()
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy", "activate"):
+            return [IsAuthenticated(), HasAnyRole(["platform_super_admin", "risk_manager", "compliance_officer"])()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant)
+
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        pack = self.get_object()
+        is_default = request.data.get("is_default", False)
+        if is_default:
+            JurisdictionRulePack.objects.filter(tenant=pack.tenant).update(is_default=False)
+            pack.is_default = True
+        pack.is_active = True
+        pack.save()
+        log_action(
+            tenant=pack.tenant,
+            actor=request.user,
+            action="activate_rule_pack",
+            model_name="JurisdictionRulePack",
+            object_id=str(pack.id),
+            changes={"is_active": True, "is_default": pack.is_default},
+            request=request,
+        )
+        return Response(self.get_serializer(pack).data)

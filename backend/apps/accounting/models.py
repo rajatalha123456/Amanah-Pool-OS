@@ -99,3 +99,54 @@ class IncomeExpenseEvent(TenantScopedModel):
 
     def __str__(self):
         return f"{self.event_type} {self.category} {self.amount} - {self.pool.name} ({self.status})"
+
+
+class ReconciliationStatus(models.TextChoices):
+    MATCHED = "matched", "Matched"
+    VARIANCE_FLAGGED = "variance_flagged", "Variance Flagged"
+    CLEARED = "cleared", "Cleared"
+
+
+class ReconciliationBatch(TenantScopedModel):
+    """
+    Screen 11: Reconciliation Center - Core, bank, subledger and GL matching.
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="reconciliation_batches"
+    )
+    reconciliation_date = models.DateField()
+    source_system = models.CharField(max_length=100, default="Core Banking CBS / GL")
+    total_records = models.IntegerField(default=0)
+    matched_records = models.IntegerField(default=0)
+    exception_count = models.IntegerField(default=0)
+    variance_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    status = models.CharField(
+        max_length=20, choices=ReconciliationStatus.choices, default=ReconciliationStatus.MATCHED
+    )
+    control_total_status = models.CharField(max_length=20, default="BalancedPASS")
+    performed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-reconciliation_date", "-created_at"]
+
+    def __str__(self):
+        return f"Reconciliation for {self.pool.name} @ {self.reconciliation_date} ({self.status})"
+
+
+class ReconciliationItem(TenantScopedModel):
+    batch = models.ForeignKey(
+        ReconciliationBatch, on_delete=models.CASCADE, related_name="items"
+    )
+    account_reference = models.CharField(max_length=100)
+    cbs_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    gl_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    variance = models.DecimalField(max_digits=18, decimal_places=2)
+    status = models.CharField(max_length=20, default="matched")
+    resolution_notes = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.account_reference}: CBS={self.cbs_amount}, GL={self.gl_amount}"

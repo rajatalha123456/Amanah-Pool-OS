@@ -193,3 +193,26 @@ class BulkBalanceImportSerializer(serializers.Serializer):
         if not records:
             raise serializers.ValidationError("At least one record is required.")
         return records
+
+
+class PeriodCloseChecklistSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import PeriodCloseChecklist
+
+        model = PeriodCloseChecklist
+        fields = (
+            "id",
+            "tenant",
+            "pool",
+            "period_start",
+            "period_end",
+            "status",
+            "checklist_data",
+            "decision_note",
+            "certified_by",
+            "certified_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "tenant", "created_at", "updated_at")
+

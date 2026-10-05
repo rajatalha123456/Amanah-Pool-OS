@@ -118,6 +118,69 @@ export function SignIn() {
             )}
           </Button>
         </form>
+
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+            Quick Fill Demo Roles (NOVU-DEMO):
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("superadmin@novulabsdemo.test")
+                setPassword("Amanah@2026!")
+              }}
+              className="rounded border border-white/10 bg-navy-900/60 p-2 text-left hover:border-emerald-500/40 hover:bg-navy-800 transition-colors"
+            >
+              <span className="font-medium text-ink-primary block">Super Admin</span>
+              <span className="text-[10px] text-ink-secondary">Full System Control</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("board@novulabsdemo.test")
+                setPassword("Amanah@2026!")
+              }}
+              className="rounded border border-white/10 bg-navy-900/60 p-2 text-left hover:border-emerald-500/40 hover:bg-navy-800 transition-colors"
+            >
+              <span className="font-medium text-ink-primary block">Shariah Board</span>
+              <span className="text-[10px] text-ink-secondary">Approvals & Fatwas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("maker@novulabsdemo.test")
+                setPassword("Amanah@2026!")
+              }}
+              className="rounded border border-white/10 bg-navy-900/60 p-2 text-left hover:border-emerald-500/40 hover:bg-navy-800 transition-colors"
+            >
+              <span className="font-medium text-ink-primary block">Finance Maker</span>
+              <span className="text-[10px] text-ink-secondary">Balances & Inflows</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("checker@novulabsdemo.test")
+                setPassword("Amanah@2026!")
+              }}
+              className="rounded border border-white/10 bg-navy-900/60 p-2 text-left hover:border-emerald-500/40 hover:bg-navy-800 transition-colors"
+            >
+              <span className="font-medium text-ink-primary block">Finance Checker</span>
+              <span className="text-[10px] text-ink-secondary">Post & Clear Variance</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail("risk@novulabsdemo.test")
+                setPassword("Amanah@2026!")
+              }}
+              className="rounded border border-white/10 bg-navy-900/60 p-2 text-left hover:border-emerald-500/40 hover:bg-navy-800 transition-colors col-span-2"
+            >
+              <span className="font-medium text-ink-primary block">Risk & Compliance</span>
+              <span className="text-[10px] text-ink-secondary">KYC Verification & AML Suitability</span>
+            </button>
+          </div>
+        </div>
       </Card>
     </AuthLayout>
   )

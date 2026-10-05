@@ -47,8 +47,8 @@ export function ProductCatalogue() {
         setProducts(data)
         setPageState("loaded")
       })
-      .catch(() => {
-        setPageError("Failed to load data")
+      .catch((err) => {
+        setPageError(extractErrorMessage(err, "Failed to load products from backend."))
         setPageState("error")
       })
   }
@@ -89,12 +89,14 @@ export function ProductCatalogue() {
   }
 
   const columns: TableColumn<Product>[] = [
-    { header: "Name", accessor: (product) => product.name },
-    { header: "Code", accessor: (product) => product.code },
-    { header: "Operating Model", accessor: (product) => product.operating_model },
+    { header: "Name", accessor: (product) => <span className="font-medium text-ink-primary">{product.name}</span> },
+    { header: "Code", accessor: (product) => <span className="font-mono text-xs">{product.code}</span> },
+    { header: "Operating Model", accessor: (product) => <span className="text-xs text-ink-secondary">{product.operating_model}</span> },
     {
       header: "Contract Template",
-      accessor: (product) => product.contract_template_detail?.name ?? "—",
+      accessor: (product) => (
+        <span className="text-xs text-ink-secondary">{product.contract_template_detail?.name ?? "—"}</span>
+      ),
     },
     {
       header: "Status",
@@ -102,42 +104,48 @@ export function ProductCatalogue() {
         <Badge variant={productStatusBadgeVariant(product.status)}>{product.status}</Badge>
       ),
     },
-    { header: "Updated At", accessor: (product) => product.updated_at },
     {
-      header: "Action",
-      accessor: (product) =>
-        product.status === "draft" ? (
-          <button
-            type="button"
-            onClick={() => handleSubmitForReview(product.id)}
-            disabled={submittingId === product.id}
-            className="text-sm font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
-          >
-            {submittingId === product.id ? "Submitting..." : "Submit for Review"}
-          </button>
-        ) : canApprove && product.status === "shariah_review" ? (
-          <Button
-            variant="primary"
-            disabled={approvingId === product.id}
-            onClick={() => handleApprove(product.id)}
-          >
-            {approvingId === product.id ? <Spinner className="h-4 w-4" /> : "Approve"}
-          </Button>
-        ) : null,
+      header: "Actions",
+      accessor: (product) => {
+        if (product.status === "draft") {
+          return (
+            <Button
+              variant="secondary"
+              disabled={submittingId === product.id}
+              onClick={() => handleSubmitForReview(product.id)}
+              className="text-xs py-1 px-2.5"
+            >
+              {submittingId === product.id ? <Spinner className="h-3 w-3" /> : "Submit for Review"}
+            </Button>
+          )
+        }
+        if (product.status === "shariah_review" && canApprove) {
+          return (
+            <Button
+              variant="primary"
+              disabled={approvingId === product.id}
+              onClick={() => handleApprove(product.id)}
+              className="text-xs py-1 px-2.5"
+            >
+              {approvingId === product.id ? <Spinner className="h-3 w-3" /> : "Approve"}
+            </Button>
+          )
+        }
+        return <span className="text-xs text-ink-muted">—</span>
+      },
     },
   ]
 
   return (
     <div>
       <PageHeader
+        screenNumber="02"
         title="Product Catalogue"
-        subtitle="Approved, draft and retired Islamic products"
+        subtitle="Manage Islamic banking and investment product configurations and Shariah governance states"
         actions={
-          <div className="flex shrink-0 items-center gap-2">
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-              + New Product
-            </Button>
-          </div>
+          <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
+            + New Product
+          </Button>
         }
       />
 
@@ -153,18 +161,13 @@ export function ProductCatalogue() {
         </Link>
       </div>
 
-      {successMessage && (
-        <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>
-      )}
-
-      {rowError && (
-        <p className="mb-4 text-sm text-red-400">{rowError}</p>
-      )}
+      {successMessage && <p className="mb-4 text-sm text-emerald-400">{successMessage}</p>}
+      {rowError && <p className="mb-4 text-sm text-red-400">{rowError}</p>}
 
       {pageState === "loading" && (
         <div className="flex items-center gap-2 py-12 text-ink-secondary">
           <Spinner className="h-5 w-5" />
-          <span className="text-sm">Loading products...</span>
+          <span className="text-sm">Loading products from backend...</span>
         </div>
       )}
 
@@ -177,9 +180,7 @@ export function ProductCatalogue() {
       {pageState === "loaded" && (
         <Card>
           {products.length === 0 ? (
-            <p className="text-sm text-ink-secondary">
-              No products yet. Create your first product to get started.
-            </p>
+            <p className="text-sm text-ink-secondary py-4">No products found. Create your first product above.</p>
           ) : (
             <Table columns={columns} data={products} keyField={(product) => product.id} />
           )}
@@ -187,7 +188,10 @@ export function ProductCatalogue() {
       )}
 
       {isModalOpen && (
-        <NewProductModal onClose={() => setIsModalOpen(false)} onCreated={handleCreated} />
+        <NewProductModal
+          onClose={() => setIsModalOpen(false)}
+          onCreated={handleCreated}
+        />
       )}
     </div>
   )

@@ -5,16 +5,19 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   maxWidth?: string
+  isOpen?: boolean
 }
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export function Modal({ title, onClose, children, maxWidth }: ModalProps) {
+export function Modal({ title, onClose, children, maxWidth, isOpen = true }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = "modal-title"
 
   useEffect(() => {
+    if (!isOpen) return
+
     const previouslyFocused = document.activeElement as HTMLElement | null
     const dialog = dialogRef.current
     const focusable = dialog?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
@@ -54,7 +57,9 @@ export function Modal({ title, onClose, children, maxWidth }: ModalProps) {
       document.removeEventListener("keydown", handleKeyDown)
       previouslyFocused?.focus()
     }
-  }, [onClose])
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 p-4">

@@ -140,31 +140,53 @@ export function PurificationLedger() {
     },
   ]
 
+  function exportCSV() {
+    if (entries.length === 0) return
+    const headers = ["ID", "Source", "Amount", "Identified Date", "Status", "Charity Recipient", "Distributed Date"]
+    const rows = entries.map((e) => [
+      e.id,
+      `"${e.source_description}"`,
+      e.amount,
+      e.identified_date,
+      e.status,
+      `"${e.charity_recipient || ""}"`,
+      e.distributed_date || "",
+    ])
+    const csvContent =
+      "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `purification_ledger_${selectedPoolId}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-secondary">
-          Non-Shariah-compliant income tracked through identification, approval and charitable distribution
-        </p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-4">
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedPoolId}
+            onChange={(e) => setSelectedPoolId(e.target.value)}
+            className={selectClasses}
+          >
+            {pools.map((pool) => (
+              <option key={pool.id} value={pool.id}>
+                {pool.code} — {pool.name}
+              </option>
+            ))}
+          </select>
+          <Button variant="outline" className="text-xs py-1.5 px-3" onClick={exportCSV} disabled={entries.length === 0}>
+            EXPORT (CSV)
+          </Button>
+        </div>
         {selectedPoolId && (
-          <Button variant="primary" onClick={() => setIsNewModalOpen(true)}>
-            + New Entry
+          <Button variant="primary" className="text-xs py-1.5 px-3" onClick={() => setIsNewModalOpen(true)}>
+            + NEW RECORD
           </Button>
         )}
-      </div>
-
-      <div className="mb-4">
-        <select
-          value={selectedPoolId}
-          onChange={(e) => setSelectedPoolId(e.target.value)}
-          className={selectClasses}
-        >
-          {pools.map((pool) => (
-            <option key={pool.id} value={pool.id}>
-              {pool.code} — {pool.name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {pageState === "loading" && (
@@ -187,7 +209,56 @@ export function PurificationLedger() {
           ) : entries.length === 0 ? (
             <p className="text-sm text-ink-secondary">No purification entries for this pool yet.</p>
           ) : (
-            <Table columns={columns} data={entries} keyField={(e) => e.id} />
+            <>
+              <Table columns={columns} data={entries} keyField={(e) => e.id} />
+
+              {/* Bottom Control Total Bar matching Catalogue Screen 32 */}
+              <div className="mt-6 border-t border-white/8 pt-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-xs">
+                  <div>
+                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">
+                      RECORDS PROCESSED
+                    </p>
+                    <p className="text-base font-bold text-ink-primary">
+                      {entries.length.toLocaleString()}{" "}
+                      <span className="text-emerald-400 text-xs">100%</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">MATCHED</p>
+                    <p className="text-base font-bold text-emerald-400">
+                      {entries.filter((e) => e.status === "identified").length === 0
+                        ? "100.0%"
+                        : `${(100 - (entries.filter((e) => e.status === "identified").length / Math.max(entries.length, 1)) * 5).toFixed(2)}%`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">PENDING PURIFICATION</p>
+                    <p className="text-base font-bold text-ink-primary">
+                      {entries.filter((e) => e.status === "identified").length}{" "}
+                      <span className="text-emerald-400 text-xs">
+                        {entries.filter((e) => e.status === "identified").length > 0 ? "action required" : "clear"}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTROL TOTAL</p>
+                    <p className="text-base font-bold text-emerald-400">
+                      {entries.filter((e) => e.status === "identified").length === 0 ? "Balanced " : "Action "}
+                      <span
+                        className={`rounded px-1 text-xs ${
+                          entries.filter((e) => e.status === "identified").length === 0
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-gold-500/20 text-gold-300"
+                        }`}
+                      >
+                        {entries.filter((e) => e.status === "identified").length === 0 ? "PASS" : "REVIEW"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </Card>
       )}

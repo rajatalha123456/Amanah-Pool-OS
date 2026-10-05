@@ -69,6 +69,39 @@ class AllocationRunStatus(models.TextChoices):
     SHARIAH_REVIEW = "shariah_review", "Shariah Review"
     SIGNED = "signed", "Signed"
     REJECTED = "rejected", "Rejected"
+    REVERSED = "reversed", "Reversed"
+
+
+class ReserveType(models.TextChoices):
+    PER = "per", "Profit Equalization Reserve"
+    IRR = "irr", "Investment Risk Reserve"
+
+
+class ReservePolicy(TenantScopedModel):
+    """
+    SBP & AAOIFI regulatory reserve policy for a pool.
+    PER is deducted from Gross Income before Mudarib share.
+    IRR is deducted from Depositors' share after Mudarib share.
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, related_name="reserve_policies"
+    )
+    reserve_type = models.CharField(max_length=10, choices=ReserveType.choices)
+    rate_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("2.00"))
+    cap_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("5.00"))
+    current_balance = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["pool", "reserve_type"], name="unique_reserve_type_per_pool"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.pool.name} - {self.get_reserve_type_display()} ({self.rate_percentage}%)"
 
 
 class AllocationRun(TenantScopedModel):
@@ -92,6 +125,15 @@ class AllocationRun(TenantScopedModel):
         max_length=20, choices=AllocationRunStatus.choices, default=AllocationRunStatus.SIMULATED
     )
     calculation_hash = models.CharField(max_length=64, null=True, blank=True)
+    replaces_run = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="restatements",
+    )
+    is_restatement = models.BooleanField(default=False)
+    restatement_reason = models.TextField(null=True, blank=True)
     created_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
     )

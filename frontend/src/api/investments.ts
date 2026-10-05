@@ -84,6 +84,35 @@ export async function fetchImpairmentEvents(poolId: string): Promise<ImpairmentE
   return response.data
 }
 
+export async function fetchAllSubscriptions(capitalAccountId?: string): Promise<Subscription[]> {
+  const response = await apiClient.get<Subscription[]>("investments/subscriptions/", {
+    params: capitalAccountId ? { capital_account: capitalAccountId } : undefined,
+  })
+  return response.data
+}
+
+export async function fetchAllRedemptions(capitalAccountId?: string): Promise<Redemption[]> {
+  const response = await apiClient.get<Redemption[]>("investments/redemptions/", {
+    params: capitalAccountId ? { capital_account: capitalAccountId } : undefined,
+  })
+  return response.data
+}
+
+export async function createImpairmentEvent(data: {
+  pool: string
+  valuation_date: string
+  loss_amount: string
+  reason: string
+}): Promise<ImpairmentEvent> {
+  const response = await apiClient.post<ImpairmentEvent>("investments/impairment-events/", data)
+  return response.data
+}
+
+export async function approveImpairmentEvent(id: string): Promise<ImpairmentEvent> {
+  const response = await apiClient.post<ImpairmentEvent>(`investments/impairment-events/${id}/approve/`)
+  return response.data
+}
+
 export async function fetchLatestNAV(poolId: string): Promise<NAVSnapshot | null> {
   try {
     const response = await apiClient.get<NAVSnapshot>("investments/nav-snapshots/latest/", {
@@ -98,3 +127,4 @@ export async function fetchLatestNAV(poolId: string): Promise<NAVSnapshot | null
     throw error
   }
 }
+

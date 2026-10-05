@@ -18,12 +18,19 @@ dependency (e.g. Pool is reused by CapitalAccount, WeightageBand, etc.).
 from datetime import date
 from decimal import Decimal
 
-from apps.accounting.models import IncomeExpenseEvent, JournalBatch, JournalEntry
+from apps.accounting.models import (
+    IncomeExpenseEvent,
+    JournalBatch,
+    JournalEntry,
+    ReconciliationBatch,
+    ReconciliationItem,
+)
 from apps.allocation.models import (
     AllocationLine,
     AllocationRun,
     DepositorStatement,
     ProfitSharingRatio,
+    ReservePolicy,
     WeightageBand,
 )
 from apps.circles.models import (
@@ -39,6 +46,8 @@ from apps.governance.models import (
     ExceptionCase,
     PurificationEntry,
     RelatedPartyTransaction,
+    ShariahAuditFinding,
+    ShariahAuditPlan,
     SupportRequest,
 )
 from apps.investments.models import (
@@ -49,8 +58,16 @@ from apps.investments.models import (
     Redemption,
     Subscription,
 )
-from apps.pools.models import Asset, AssetAssignment, BalanceImportBatch, DailyBalance, Pool, PoolVersion
-from apps.products.models import ContractTemplate, Product, ShariahDecision
+from apps.pools.models import (
+    Asset,
+    AssetAssignment,
+    BalanceImportBatch,
+    DailyBalance,
+    PeriodCloseChecklist,
+    Pool,
+    PoolVersion,
+)
+from apps.products.models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision
 
 _D = date(2026, 1, 1)
 
@@ -176,6 +193,32 @@ class _Cache:
                 description="Description",
                 proposal_type="amount_change",
                 voting_deadline=_D,
+            ),
+        )
+
+    def reconciliation_batch(self):
+        return self.get(
+            "reconciliation_batch",
+            lambda: ReconciliationBatch.objects.create(
+                tenant=self.tenant,
+                pool=self.pool(),
+                reconciliation_date=_D,
+                total_records=10,
+                matched_records=10,
+                variance_amount=Decimal("0.00"),
+                status="matched",
+            ),
+        )
+
+    def shariah_audit_plan(self):
+        return self.get(
+            "shariah_audit_plan",
+            lambda: ShariahAuditPlan.objects.create(
+                tenant=self.tenant,
+                plan_year=2026,
+                title=f"Plan {self.tenant.code}",
+                scope="All pools",
+                target_samples_count=50,
             ),
         )
 
@@ -463,30 +506,98 @@ def _build_tenant_isolation_test_record(tenant, cache):
     return TenantIsolationTestRecord.objects.create(tenant=tenant, label=f"Record {tenant.code}")
 
 
+def _build_reserve_policy(tenant, cache):
+    return ReservePolicy.objects.create(
+        tenant=tenant,
+        pool=cache.pool(),
+        reserve_type="per",
+        rate_percentage=Decimal("2.00"),
+        cap_percentage=Decimal("5.00"),
+        current_balance=Decimal("0.00"),
+        is_active=True,
+    )
+
+
+def _build_reconciliation_batch(tenant, cache):
+    return cache.reconciliation_batch()
+
+
+def _build_reconciliation_item(tenant, cache):
+    return ReconciliationItem.objects.create(
+        tenant=tenant,
+        batch=cache.reconciliation_batch(),
+        account_reference=f"REF-{tenant.code}",
+        cbs_amount=Decimal("500.00"),
+        gl_amount=Decimal("500.00"),
+        variance=Decimal("0.00"),
+        status="matched",
+    )
+
+
+def _build_period_close_checklist(tenant, cache):
+    return PeriodCloseChecklist.objects.create(
+        tenant=tenant,
+        pool=cache.pool(),
+        period_start=_D,
+        period_end=date(2026, 1, 31),
+    )
+
+
+def _build_shariah_audit_plan(tenant, cache):
+    return cache.shariah_audit_plan()
+
+
+def _build_shariah_audit_finding(tenant, cache):
+    return ShariahAuditFinding.objects.create(
+        tenant=tenant,
+        audit_plan=cache.shariah_audit_plan(),
+        title="Sample Finding",
+        severity="medium",
+        observation="Observation details",
+    )
+
+
+def _build_jurisdiction_rule_pack(tenant, cache):
+    return JurisdictionRulePack.objects.create(
+        tenant=tenant,
+        code=f"JRP-{tenant.code}",
+        name=f"Rule Pack {tenant.code}",
+        version="2026.01",
+        effective_date=_D,
+    )
+
+
 # "app_label.ModelName" -> (model_class, builder(tenant, cache) -> instance)
 BUILDERS = {
     "core.TenantIsolationTestRecord": (TenantIsolationTestRecord, _build_tenant_isolation_test_record),
     "products.ShariahDecision": (ShariahDecision, _build_shariah_decision),
     "products.ContractTemplate": (ContractTemplate, _build_contract_template),
     "products.Product": (Product, _build_product),
+    "products.JurisdictionRulePack": (JurisdictionRulePack, _build_jurisdiction_rule_pack),
     "pools.Pool": (Pool, _build_pool),
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),
     "pools.AssetAssignment": (AssetAssignment, _build_asset_assignment),
     "pools.DailyBalance": (DailyBalance, _build_daily_balance),
     "pools.BalanceImportBatch": (BalanceImportBatch, _build_balance_import_batch),
+    "pools.PeriodCloseChecklist": (PeriodCloseChecklist, _build_period_close_checklist),
     "allocation.WeightageBand": (WeightageBand, _build_weightage_band),
     "allocation.ProfitSharingRatio": (ProfitSharingRatio, _build_psr),
     "allocation.AllocationRun": (AllocationRun, _build_allocation_run),
     "allocation.AllocationLine": (AllocationLine, _build_allocation_line),
     "allocation.DepositorStatement": (DepositorStatement, _build_depositor_statement),
+    "allocation.ReservePolicy": (ReservePolicy, _build_reserve_policy),
     "accounting.JournalBatch": (JournalBatch, _build_journal_batch),
     "accounting.JournalEntry": (JournalEntry, _build_journal_entry),
     "accounting.IncomeExpenseEvent": (IncomeExpenseEvent, _build_income_expense_event),
+    "accounting.ReconciliationBatch": (ReconciliationBatch, _build_reconciliation_batch),
+    "accounting.ReconciliationItem": (ReconciliationItem, _build_reconciliation_item),
     "governance.ExceptionCase": (ExceptionCase, _build_exception_case),
     "governance.PurificationEntry": (PurificationEntry, _build_purification_entry),
     "governance.RelatedPartyTransaction": (RelatedPartyTransaction, _build_related_party_transaction),
     "governance.SupportRequest": (SupportRequest, _build_support_request),
+    "governance.ShariahAuditPlan": (ShariahAuditPlan, _build_shariah_audit_plan),
+    "governance.ShariahAuditFinding": (ShariahAuditFinding, _build_shariah_audit_finding),
     "investments.CapitalAccount": (CapitalAccount, _build_capital_account),
     "investments.InvestorProfile": (InvestorProfile, _build_investor_profile),
     "investments.ImpairmentEvent": (ImpairmentEvent, _build_impairment_event),

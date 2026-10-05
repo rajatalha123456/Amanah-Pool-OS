@@ -1,3 +1,4 @@
+from decimal import Decimal
 import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -27,6 +28,7 @@ from .models import (
     DepositorStatement,
     PSRStatus,
     ProfitSharingRatio,
+    ReservePolicy,
     WeightageBand,
     WeightageBandStatus,
 )
@@ -35,6 +37,8 @@ from .serializers import (
     AllocationRunSerializer,
     DepositorStatementSerializer,
     PSRSerializer,
+    ReservePolicySerializer,
+    RestatementInputSerializer,
     WeightageBandSerializer,
 )
 from .statements import generate_statement_narrative
@@ -173,6 +177,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             return [IsAuthenticated(), IsShariahSecretariat()]
         if self.action in ("approve", "reject"):
             return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "restate":
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker"])()]
         return [IsAuthenticated()]
 
     def _run_calculation(self, request):
@@ -205,6 +211,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 "total_weighted_funds": result["total_weighted_funds"],
                 "depositor_pool_share": result["depositor_pool_share"],
                 "mudarib_share": result["mudarib_share"],
+                "per_amount": result.get("per_amount", Decimal("0.00")),
+                "irr_amount": result.get("irr_amount", Decimal("0.00")),
+                "is_loss": result.get("is_loss", False),
                 "lines": result["lines"],
             }
         )
@@ -533,3 +542,136 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         run = self.get_object()
         statements = run.statements.all()
         return Response(DepositorStatementSerializer(statements, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def restate(self, request, pk=None):
+        """
+        Screen 17: Restatement Wizard - Controlled reversal and linked rerun.
+        BR-004: A signed allocation run is immutable; corrections require reversal
+        and a linked rerun.
+        """
+        old_run = self.get_object()
+        if old_run.status != AllocationRunStatus.SIGNED:
+            raise ValidationError("Only a signed AllocationRun can be restated.")
+
+        serializer = RestatementInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        restatement_reason = serializer.validated_data["restatement_reason"]
+        new_gross_income = serializer.validated_data["gross_income"]
+        new_direct_expenses = serializer.validated_data.get("direct_expenses", Decimal("0"))
+
+        # 1. Reverse the old run
+        old_run.status = AllocationRunStatus.REVERSED
+        old_run.save(update_fields=["status", "updated_at"])
+
+        # 2. Reversal journal entries (if batch exists)
+        from apps.accounting.models import JournalBatch, JournalBatchStatus, JournalEntry, JournalEntryType
+
+        old_batch = getattr(old_run, "journal_batch", None)
+        if old_batch and old_batch.status == JournalBatchStatus.POSTED:
+            reversal_batch = JournalBatch.objects.create(
+                tenant=old_run.tenant,
+                allocation_run=None,
+                pool=old_run.pool,
+                batch_date=old_run.value_date,
+                total_debit=old_batch.total_debit,
+                total_credit=old_batch.total_credit,
+                posted_by=request.user,
+            )
+            for entry in old_batch.entries.all():
+                contra_type = (
+                    JournalEntryType.CREDIT
+                    if entry.entry_type == JournalEntryType.DEBIT
+                    else JournalEntryType.DEBIT
+                )
+                JournalEntry.objects.create(
+                    tenant=old_run.tenant,
+                    batch=reversal_batch,
+                    account_name=f"Reversal: {entry.account_name}",
+                    entry_type=contra_type,
+                    amount=entry.amount,
+                )
+
+        # 3. Compute and create the new restatement run in draft/simulated status
+        calc_result = calculate_allocation(
+            old_run.pool,
+            old_run.value_date,
+            new_gross_income,
+            new_direct_expenses,
+        )
+
+        hashable_data = {
+            "pool_id": str(old_run.pool.id),
+            "value_date": old_run.value_date.isoformat(),
+            "gross_income": str(new_gross_income),
+            "direct_expenses": str(new_direct_expenses),
+            "distributable": str(calc_result["distributable"]),
+            "total_weighted_funds": str(calc_result["total_weighted_funds"]),
+            "depositor_pool_share": str(calc_result["depositor_pool_share"]),
+            "mudarib_share": str(calc_result["mudarib_share"]),
+            "lines": [
+                {k: str(v) for k, v in line.items()} for line in calc_result["lines"]
+            ],
+            "restatement_of": str(old_run.id),
+        }
+        calc_hash = calculate_hash(hashable_data)
+
+        new_run = AllocationRun.objects.create(
+            tenant=request.user.tenant,
+            pool=old_run.pool,
+            value_date=old_run.value_date,
+            gross_income=new_gross_income,
+            direct_expenses=new_direct_expenses,
+            distributable_amount=calc_result["distributable"],
+            total_weighted_funds=calc_result["total_weighted_funds"],
+            depositor_pool_share=calc_result["depositor_pool_share"],
+            mudarib_share=calc_result["mudarib_share"],
+            status=AllocationRunStatus.SIMULATED,
+            calculation_hash=calc_hash,
+            created_by=request.user,
+            replaces_run=old_run,
+            is_restatement=True,
+            restatement_reason=restatement_reason,
+        )
+
+        AllocationLine.objects.bulk_create(
+            [
+                AllocationLine(
+                    tenant=request.user.tenant,
+                    allocation_run=new_run,
+                    participant_class=line["participant_class"],
+                    daily_funds=line["daily_funds"],
+                    weightage=line["weightage"],
+                    weighted_funds=line["weighted_funds"],
+                    allocated_amount=line["allocated_amount"],
+                )
+                for line in calc_result["lines"]
+            ]
+        )
+
+        log_action(
+            tenant=old_run.tenant,
+            actor=request.user,
+            action="restate",
+            model_name="AllocationRun",
+            object_id=str(new_run.id),
+            reason=restatement_reason,
+            changes={"replaces_run": str(old_run.id)},
+            request=request,
+        )
+        return Response(self.get_serializer(new_run).data, status=201)
+
+
+class ReservePolicyViewSet(viewsets.ModelViewSet):
+    serializer_class = ReservePolicySerializer
+
+    def get_queryset(self):
+        queryset = ReservePolicy.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant)
+

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useLocation, useParams } from "react-router-dom"
+import { useLocation, useParams, Link } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -100,8 +100,22 @@ export function PoolDetail() {
     { header: "Created At", accessor: (version) => version.created_at },
     {
       header: "Snapshot Summary",
-      accessor: (version) =>
-        `${version.snapshot.product.name} (${version.snapshot.product.status}) — ${version.snapshot.contract_template.name} v${version.snapshot.contract_template.version}`,
+      accessor: (version) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const snap = version.snapshot as any
+        if (snap?.product?.name && snap?.contract_template?.name) {
+          return `${snap.product.name} (${snap.product.status ?? "—"}) — ${snap.contract_template.name} v${snap.contract_template.version ?? "1.0"}`
+        }
+        if (snap?.name) {
+          return `${snap.name}${snap.target_yield_pct ? ` (Target Yield: ${snap.target_yield_pct}%)` : ""}`
+        }
+        if (typeof snap === "object" && snap !== null) {
+          const keys = Object.keys(snap)
+          if (keys.length === 0) return "—"
+          return JSON.stringify(snap)
+        }
+        return "—"
+      },
     },
   ]
 
@@ -125,9 +139,19 @@ export function PoolDetail() {
   return (
     <div>
       <PageHeader
-        title={pool.name}
-        subtitle={pool.code}
-        actions={<Badge variant={poolStatusBadgeVariant(pool.status)}>{pool.status}</Badge>}
+        screenNumber="04"
+        title={`Pool 360° Overview — ${pool.name}`}
+        subtitle="Funds, assets, yield, controls and versions"
+        actions={
+          <div className="flex items-center gap-2">
+            <Link to={`/period-close/${pool.id}`}>
+              <Button variant="secondary" className="text-xs">
+                Period Close
+              </Button>
+            </Link>
+            <Badge variant={poolStatusBadgeVariant(pool.status)}>{pool.status}</Badge>
+          </div>
+        }
       />
 
       <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">

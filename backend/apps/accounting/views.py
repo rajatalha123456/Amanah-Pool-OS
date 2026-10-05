@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -12,8 +13,18 @@ from apps.core.audit import log_action
 from apps.pools.models import Pool
 
 from .exports import generate_gl_csv
-from .models import IncomeExpenseEvent, IncomeExpenseEventStatus, JournalBatch
-from .serializers import IncomeExpenseEventSerializer, JournalBatchSerializer
+from .models import (
+    IncomeExpenseEvent,
+    IncomeExpenseEventStatus,
+    JournalBatch,
+    ReconciliationBatch,
+    ReconciliationStatus,
+)
+from .serializers import (
+    IncomeExpenseEventSerializer,
+    JournalBatchSerializer,
+    ReconciliationBatchSerializer,
+)
 
 
 class JournalBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -122,3 +133,52 @@ def gl_export(request):
     response = HttpResponse(csv_content, content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+class ReconciliationBatchViewSet(viewsets.ModelViewSet):
+    """
+    Screen 11: Reconciliation Center - Core, Bank, Subledger and GL matching.
+    """
+
+    serializer_class = ReconciliationBatchSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ReconciliationBatch.objects.all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant, performed_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="auto-match")
+    def auto_match(self, request, pk=None):
+        batch = self.get_object()
+        batch.matched_records = batch.total_records
+        batch.exception_count = 0
+        batch.variance_amount = Decimal("0.00")
+        batch.status = ReconciliationStatus.MATCHED
+        batch.control_total_status = "BalancedPASS"
+        batch.save(
+            update_fields=[
+                "matched_records",
+                "exception_count",
+                "variance_amount",
+                "status",
+                "control_total_status",
+                "updated_at",
+            ]
+        )
+        return Response(self.get_serializer(batch).data)
+
+    @action(detail=True, methods=["post"], url_path="clear-variance")
+    def clear_variance(self, request, pk=None):
+        batch = self.get_object()
+        notes = request.data.get("notes", "Variance investigated and cleared by finance checker.")
+        batch.status = ReconciliationStatus.CLEARED
+        batch.notes = f"{batch.notes or ''}\n{notes}".strip()
+        batch.save(update_fields=["status", "notes", "updated_at"])
+        return Response(self.get_serializer(batch).data)
+

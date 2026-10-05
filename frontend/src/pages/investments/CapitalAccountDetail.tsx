@@ -76,11 +76,12 @@ export function CapitalAccountDetail() {
   return (
     <div>
       <PageHeader
+        screenNumber="20"
         title={account ? account.investor_name : "Capital Account"}
         subtitle={account ? `${account.investor_reference} — read-only portfolio summary` : undefined}
         actions={
           <Link to="/investments" className="text-sm text-emerald-400 hover:text-emerald-300">
-            ← Back to Investment Pools
+            ← Back to Investments
           </Link>
         }
       />

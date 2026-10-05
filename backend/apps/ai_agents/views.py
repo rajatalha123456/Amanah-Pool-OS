@@ -89,7 +89,7 @@ def _forward_copilot_error(exc: copilot.ShariahCopilotError):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat"])])
+@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "platform_super_admin"])])
 def upload_document(request):
     _ensure_copilot_enabled()
     file = request.FILES.get("file")
@@ -119,7 +119,7 @@ def upload_document(request):
 
 @api_view(["GET"])
 @permission_classes(
-    [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance"])]
+    [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance", "platform_super_admin"])]
 )
 def list_documents(request):
     _ensure_copilot_enabled()
@@ -137,7 +137,7 @@ def list_documents(request):
 
 @api_view(["POST"])
 @permission_classes(
-    [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance"])]
+    [IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "risk_compliance", "platform_super_admin"])]
 )
 def ask(request):
     _ensure_copilot_enabled()
@@ -181,3 +181,18 @@ def review(request, evidence_pack_id):
         request=request,
     )
     return Response(result)
+
+
+from .services.contract_analyzer import analyze_contract_text
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "product_manager", "platform_super_admin"])])
+def analyze_contract(request):
+    text = request.data.get("contract_text", "").strip()
+    if not text:
+        raise drf_exceptions.ValidationError({"contract_text": ["This field is required."]})
+
+    result = analyze_contract_text(text)
+    return Response(result)
+

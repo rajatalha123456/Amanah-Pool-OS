@@ -50,11 +50,37 @@ export function ShariahCopilot() {
   const canUpload = user?.role === "shariah_board" || user?.role === "shariah_secretariat"
   const canReview = user?.role === "shariah_board"
 
+  const activeMeta =
+    activeTab === "anomalies"
+      ? {
+          num: "36",
+          title: "AI Anomaly Queue",
+          sub: "Unusual transaction detection and human review queue",
+        }
+      : activeTab === "models"
+      ? {
+          num: "39",
+          title: "Model Governance",
+          sub: "AI model registry, versioning, drift, and hallucination monitoring",
+        }
+      : activeTab === "documents"
+      ? {
+          num: "38",
+          title: "Shariah Reference Corpus",
+          sub: "Approved standards, fatwas, and disclosure policies",
+        }
+      : {
+          num: "38",
+          title: "AI Shariah Copilot",
+          sub: "Explainable reasoning and Shariah standard citations",
+        }
+
   return (
     <div>
       <PageHeader
-        title="Shariah Policy Copilot"
-        subtitle="Research assistant for approved Shariah rulings — never issues a fatwa"
+        screenNumber={activeMeta.num}
+        title={activeMeta.title}
+        subtitle={activeMeta.sub}
       />
 
       <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">

@@ -72,13 +72,23 @@ export function AssetRegistry() {
   return (
     <div>
       <PageHeader
-        title="Risk & Compliance"
-        subtitle="Asset registry and system-flagged exceptions"
+        screenNumber="07"
+        title="Asset Assignment"
+        subtitle="Eligibility, ring-fencing and transfer controls"
         actions={
           activeTab === "assets" ? (
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-              + New Asset
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
+                + NEW RECORD
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => alert("Exporting Asset Registry...")}
+                className="text-xs uppercase tracking-wider"
+              >
+                EXPORT
+              </Button>
+            </div>
           ) : undefined
         }
       />

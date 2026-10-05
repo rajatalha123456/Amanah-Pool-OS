@@ -228,3 +228,61 @@ class SupportRequest(TenantScopedModel):
 
     def __str__(self):
         return f"[{self.request_type}] {self.subject}"
+
+
+class AuditPlanStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    APPROVED = "approved", "Approved"
+    IN_PROGRESS = "in_progress", "In Progress"
+    COMPLETED = "completed", "Completed"
+
+
+class ShariahAuditPlan(TenantScopedModel):
+    """
+    Screen 33: Shariah Audit Plan - Risk-based universe, samples and findings.
+    """
+
+    plan_year = models.IntegerField()
+    title = models.CharField(max_length=255)
+    scope = models.CharField(max_length=255, default="All Islamic Pools & Products")
+    frequency = models.CharField(max_length=50, default="Quarterly")
+    status = models.CharField(
+        max_length=20, choices=AuditPlanStatus.choices, default=AuditPlanStatus.DRAFT
+    )
+    target_samples_count = models.IntegerField(default=50)
+    tested_samples_count = models.IntegerField(default=0)
+    findings_count = models.IntegerField(default=0)
+    approved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_shariah_audit_plans",
+    )
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-plan_year", "-created_at"]
+
+    def __str__(self):
+        return f"{self.plan_year} - {self.title} ({self.status})"
+
+
+class ShariahAuditFinding(TenantScopedModel):
+    audit_plan = models.ForeignKey(
+        ShariahAuditPlan, on_delete=models.CASCADE, related_name="findings"
+    )
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    title = models.CharField(max_length=255)
+    severity = models.CharField(
+        max_length=10, choices=ExceptionSeverity.choices, default=ExceptionSeverity.MEDIUM
+    )
+    status = models.CharField(max_length=20, default="open")
+    observation = models.TextField()
+    management_response = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"[{self.severity}] {self.title}"
+

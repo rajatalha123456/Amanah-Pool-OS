@@ -63,7 +63,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAuditor])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin"])])
 def audit_log_export(request):
     queryset = _filtered_audit_log_queryset(request)
 

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
+import { translateToUrdu } from "../i18n/urduDictionary"
 
 export interface TableColumn<T> {
   header: string
@@ -13,20 +15,26 @@ interface TableProps<T> {
 }
 
 export function Table<T>({ columns, data, keyField, onRowClick }: TableProps<T>) {
+  const { i18n } = useTranslation()
+  const isUrdu = i18n.language?.startsWith("ur")
+
   return (
     <div className="overflow-x-auto rounded-xl border border-white/8">
       <table className="min-w-full text-sm">
         <thead className="bg-navy-800">
           <tr>
-            {columns.map((col) => (
-              <th
-                key={col.header}
-                scope="col"
-                className="px-4 py-3 text-left text-xs font-semibold tracking-wide text-ink-secondary uppercase"
-              >
-                {col.header}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const displayHeader = isUrdu ? translateToUrdu(col.header) : col.header
+              return (
+                <th
+                  key={col.header}
+                  scope="col"
+                  className="px-4 py-3 text-left rtl:text-right text-xs font-semibold tracking-wide text-ink-secondary uppercase"
+                >
+                  {displayHeader}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5 bg-navy-900">

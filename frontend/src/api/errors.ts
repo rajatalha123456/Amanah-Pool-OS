@@ -39,7 +39,7 @@ export function extractCopilotErrorMessage(error: unknown, fallback: string): st
   return extractErrorMessage(error, fallback)
 }
 
-export function extractErrorMessage(error: unknown, fallback: string): string {
+export function extractErrorMessage(error: unknown, fallback = "An unexpected error occurred."): string {
   if (isAxiosError(error)) {
     const data = error.response?.data
 

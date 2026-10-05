@@ -9,10 +9,12 @@ import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import {
+  analyzeContractWithAI,
   approveContractTemplate,
   createContractTemplate,
   fetchClausesSchema,
   fetchContractTemplates,
+  type ContractAnalysisResult,
 } from "../api/products"
 import { fetchShariahDecisions } from "../api/shariahGovernance"
 import { extractErrorMessage } from "../api/errors"
@@ -55,6 +57,7 @@ export function ContractTemplateStudio() {
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isAnalyzerOpen, setIsAnalyzerOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
@@ -131,14 +134,25 @@ export function ContractTemplateStudio() {
   return (
     <div>
       <PageHeader
-        title="Product Catalogue"
-        subtitle="Standard contract templates used by products"
+        screenNumber="05"
+        title="Contract Template Studio"
+        subtitle="Controlled clauses and commercial parameters"
         actions={
-          !isFormOpen && canCreate ? (
-            <Button variant="primary" onClick={() => setIsFormOpen(true)}>
-              + New Template
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsAnalyzerOpen(true)}
+              className="text-xs border border-emerald-500/40 text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60"
+            >
+              ✨ AI Contract Analyzer
             </Button>
-          ) : undefined
+            {!isFormOpen && canCreate && (
+              <Button variant="primary" onClick={() => setIsFormOpen(true)} className="text-xs">
+                + NEW RECORD
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -153,6 +167,10 @@ export function ContractTemplateStudio() {
           Contract Templates
         </span>
       </div>
+
+      {isAnalyzerOpen && (
+        <AIContractAnalyzerModal onClose={() => setIsAnalyzerOpen(false)} />
+      )}
 
       {isFormOpen && (
         <NewContractTemplateForm
@@ -532,3 +550,126 @@ const CLAUSE_SCHEMA_FALLBACK: ContractClauseSchemaField[] = [
   { key: "dispute_resolution", label: "Dispute Resolution", description: "Mechanism for resolving disagreements (e.g. Shariah arbitration)." },
   { key: "purification_clause", label: "Purification Clause", description: "How incidental non-Shariah-compliant income is handled." },
 ]
+
+function AIContractAnalyzerModal({ onClose }: { onClose: () => void }) {
+  const [contractText, setContractText] = useState("")
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysis, setAnalysis] = useState<ContractAnalysisResult | null>(null)
+  const [error, setError] = useState("")
+
+  async function handleAnalyze() {
+    if (!contractText.trim()) return
+    setIsAnalyzing(true)
+    setError("")
+    try {
+      const res = await analyzeContractWithAI(contractText)
+      setAnalysis(res)
+    } catch (err) {
+      setError(extractErrorMessage(err, "Failed to analyze contract."))
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  return (
+    <Modal title="AI Shariah Contract Analyzer (BRD Section 9)" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-xs text-ink-secondary">
+          Paste legal contract clauses or draft agreements. The AI will extract contract type, PSR ratios, and detect prohibited clauses (e.g., capital guarantees).
+        </p>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase text-ink-secondary">
+            Contract Terms / Draft Text *
+          </label>
+          <textarea
+            rows={5}
+            value={contractText}
+            onChange={(e) => setContractText(e.target.value)}
+            placeholder="e.g. The bank shall manage investor funds under Mudarabah principles. Profits shall be shared 70% to depositors and 30% to Mudarib. Capital loss is borne by capital provider..."
+            className="w-full rounded-md border border-white/10 bg-navy-800 p-2.5 text-xs text-ink-primary focus:border-emerald-500 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="secondary"
+            className="text-xs"
+            onClick={() =>
+              setContractText(
+                "This Agreement governs an Unrestricted Mudarabah Investment Pool. The Rabb-ul-Mal deposits funds with the Bank as Mudarib. Profits realized shall be shared 75% to Depositors and 25% to Mudarib. In the event of capital loss, the entire financial loss shall be borne by the Rabb-ul-Mal pro-rata to capital, and the Mudarib shall receive zero profit.",
+              )
+            }
+          >
+            Load Sample Mudarabah
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={isAnalyzing || !contractText.trim()}
+            onClick={handleAnalyze}
+            className="text-xs"
+          >
+            {isAnalyzing ? <Spinner className="h-3 w-3" /> : "⚡ Analyze Contract with AI"}
+          </Button>
+        </div>
+
+        {error && <p className="text-xs text-rose-400">{error}</p>}
+
+        {analysis && (
+          <div className="space-y-3 rounded-lg border border-white/10 bg-navy-950/60 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-ink-primary uppercase tracking-wider">
+                Analysis Verdict:
+              </span>
+              <Badge variant={analysis.shariah_verdict === "COMPLIANT" ? "emerald" : "gold"}>
+                {analysis.shariah_verdict}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded bg-navy-900 border border-white/5">
+                <span className="text-ink-muted block text-[10px]">Identified Archetype:</span>
+                <span className="font-semibold text-emerald-400 capitalize">
+                  {analysis.contract_type.replace(/_/g, " ")}
+                </span>
+              </div>
+              <div className="p-2 rounded bg-navy-900 border border-white/5">
+                <span className="text-ink-muted block text-[10px]">Confidence Score:</span>
+                <span className="font-mono text-ink-primary">
+                  {(analysis.confidence_score * 100).toFixed(0)}% Match
+                </span>
+              </div>
+              <div className="p-2 rounded bg-navy-900 border border-white/5">
+                <span className="text-ink-muted block text-[10px]">Depositor / Mudarib PSR:</span>
+                <span className="font-semibold text-ink-primary">
+                  {analysis.depositor_psr ? `${analysis.depositor_psr}% / ${analysis.mudarib_psr}%` : "Fee-based"}
+                </span>
+              </div>
+              <div className="p-2 rounded bg-navy-900 border border-white/5">
+                <span className="text-ink-muted block text-[10px]">Calculation Frequency:</span>
+                <span className="text-ink-primary">{analysis.profit_calculation_frequency}</span>
+              </div>
+            </div>
+
+            {analysis.prohibited_terms_detected.length > 0 && (
+              <div className="rounded border border-rose-500/30 bg-rose-950/20 p-2.5 text-xs text-rose-300">
+                <p className="font-semibold mb-1">⚠️ Non-Negotiable Shariah Flags:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  {analysis.prohibited_terms_detected.map((term, i) => (
+                    <li key={i}>{term}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="text-[11px] text-ink-muted pt-1">
+              <span className="font-semibold text-ink-secondary">Loss Clause:</span> {analysis.loss_absorption_mechanism}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}

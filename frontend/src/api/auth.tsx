@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -33,15 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(access)
   }, [])
 
-  const loadCurrentUser = useCallback(async () => {
-    const currentUser = await fetchCurrentUser()
-    setUser(currentUser)
-    if (currentUser.tenant_code) {
-      localStorage.setItem(TENANT_CODE_KEY, currentUser.tenant_code)
-    }
-    return currentUser
-  }, [])
-
   const logout = useCallback(() => {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -49,6 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null)
     setUser(null)
   }, [])
+
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      const currentUser = await fetchCurrentUser()
+      setUser(currentUser)
+      if (currentUser.tenant_code) {
+        localStorage.setItem(TENANT_CODE_KEY, currentUser.tenant_code)
+      }
+      return currentUser
+    } catch (err) {
+      logout()
+      throw err
+    }
+  }, [logout])
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      logout()
+    }
+    window.addEventListener("amanah_auth_expired", handleAuthExpired)
+    return () => {
+      window.removeEventListener("amanah_auth_expired", handleAuthExpired)
+    }
+  }, [logout])
 
   const value = useMemo(
     () => ({

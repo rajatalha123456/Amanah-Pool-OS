@@ -23,7 +23,11 @@ import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
 import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
 import { AuditorPortal } from "./pages/AuditorPortal"
-import { PlaceholderPage } from "./pages/PlaceholderPage"
+import { RestatementWizard } from "./pages/RestatementWizard"
+import { ReconciliationCenter } from "./pages/ReconciliationCenter"
+import { PeriodCloseManager } from "./pages/PeriodCloseManager"
+import { ShariahAuditPlan } from "./pages/governance/ShariahAuditPlan"
+import { JurisdictionRulePacks } from "./pages/administration/JurisdictionRulePacks"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
@@ -63,10 +67,16 @@ function App() {
         <Route path="allocation-simulator" element={<AllocationSimulator />} />
         <Route path="allocation-runs/:id" element={<AllocationRunDetail />} />
         <Route path="statements/:id" element={<StatementView />} />
+        <Route path="restatement-wizard/:runId" element={<RestatementWizard />} />
+        <Route path="reconciliation" element={<ReconciliationCenter />} />
+        <Route path="period-close" element={<PeriodCloseManager />} />
+        <Route path="period-close/:poolId" element={<PeriodCloseManager />} />
+        <Route path="shariah-audit-plan" element={<ShariahAuditPlan />} />
+        <Route path="jurisdiction-rule-packs" element={<JurisdictionRulePacks />} />
         <Route path="investments/capital-accounts/:id" element={<CapitalAccountDetail />} />
+        <Route path="circles/members/:id" element={<MemberMobileHome />} />
+        <Route path="circles/contributions/:id/receipt" element={<ContributionReceipt />} />
         <Route path="exceptions/:id" element={<ExceptionCaseDetail />} />
-        <Route path="community-circles/members/:id" element={<MemberMobileHome />} />
-        <Route path="community-circles/contributions/:id" element={<ContributionReceipt />} />
         <Route path="contract-templates" element={<ContractTemplateStudio />} />
         {navItems
           .filter((item) => item.path !== "/")
@@ -74,7 +84,7 @@ function App() {
             <Route
               key={item.path}
               path={item.path.slice(1)}
-              element={CUSTOM_ROUTES[item.path] ?? <PlaceholderPage title={item.label} />}
+              element={CUSTOM_ROUTES[item.path]}
             />
           ))}
       </Route>

@@ -52,3 +52,25 @@ export async function fetchClausesSchema(templateId: string): Promise<ContractCl
   )
   return response.data
 }
+
+export interface ContractAnalysisResult {
+  contract_type: string
+  name_suggestion: string
+  depositor_psr: number | null
+  mudarib_psr: number | null
+  wakalah_fee_percentage: number | null
+  profit_calculation_frequency: string
+  loss_absorption_mechanism: string
+  prohibited_terms_detected: string[]
+  shariah_verdict: "COMPLIANT" | "CONTAINS_POTENTIAL_VIOLATIONS"
+  confidence_score: number
+  clauses: { clause_code: string; clause_title: string; content: string }[]
+}
+
+export async function analyzeContractWithAI(contract_text: string): Promise<ContractAnalysisResult> {
+  const response = await apiClient.post<ContractAnalysisResult>(
+    "ai/contract-analyzer/analyze/",
+    { contract_text }
+  )
+  return response.data
+}

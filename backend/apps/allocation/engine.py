@@ -19,7 +19,14 @@ from django.db.models import Q
 
 from apps.pools.models import DailyBalance
 
-from .models import PSRStatus, ProfitSharingRatio, WeightageBand, WeightageBandStatus
+from .models import (
+    PSRStatus,
+    ProfitSharingRatio,
+    ReservePolicy,
+    ReserveType,
+    WeightageBand,
+    WeightageBandStatus,
+)
 
 TWO_PLACES = Decimal("0.01")
 
@@ -118,29 +125,81 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
     if psr is None:
         raise ValueError(f"No approved ProfitSharingRatio found for pool={pool} on {value_date}.")
 
-    depositor_pool_share = distributable * (Decimal(psr.depositor_share) / Decimal("100"))
-    mudarib_share = distributable * (Decimal(psr.mudarib_share) / Decimal("100"))
+    is_loss = distributable < 0
+    per_amount = Decimal("0.00")
+    irr_amount = Decimal("0.00")
 
-    lines = []
-    for line in lines_input:
-        allocation_ratio = line["weighted_funds"] / total_weighted_funds
-        allocated_amount = depositor_pool_share * allocation_ratio
+    if is_loss:
+        # Shariah Loss Waterfall (BRD Section 2, 4, 7):
+        # Mudarib does not bear capital loss; Mudarib share = 0.
+        # Capital loss is absorbed by capital providers strictly pro-rata by daily unweighted funds.
+        mudarib_share = Decimal("0.00")
+        depositor_pool_share = distributable  # negative amount
+        total_daily_funds = sum((line["daily_funds"] for line in lines_input), Decimal("0"))
 
-        lines.append(
-            {
-                "participant_class": line["participant_class"],
-                "daily_funds": _round(line["daily_funds"]),
-                "weightage": line["weightage"],
-                "weighted_funds": _round(line["weighted_funds"]),
-                "allocated_amount": _round(allocated_amount),
-            }
-        )
+        lines = []
+        for line in lines_input:
+            loss_ratio = line["daily_funds"] / total_daily_funds if total_daily_funds > 0 else Decimal("0")
+            loss_share = depositor_pool_share * loss_ratio
+            lines.append(
+                {
+                    "participant_class": line["participant_class"],
+                    "daily_funds": _round(line["daily_funds"]),
+                    "weightage": line["weightage"],
+                    "weighted_funds": _round(line["weighted_funds"]),
+                    "allocated_amount": _round(loss_share),
+                }
+            )
+    else:
+        # 1. PER (Profit Equalization Reserve) Deduction (BRD Sec 5 & 7.1)
+        # PER is deducted from Gross Pool Distributable Profit before Mudarib share
+        per_policy = ReservePolicy.objects.filter(
+            pool=pool, reserve_type=ReserveType.PER, is_active=True
+        ).first()
+        if per_policy and per_policy.rate_percentage > 0:
+            per_amount = _round(distributable * (Decimal(per_policy.rate_percentage) / Decimal("100")))
+            net_after_per = max(Decimal("0.00"), distributable - per_amount)
+        else:
+            net_after_per = distributable
+
+        # 2. PSR Split (BRD Sec 7.1)
+        depositor_share_pre_irr = net_after_per * (Decimal(psr.depositor_share) / Decimal("100"))
+        mudarib_share = net_after_per * (Decimal(psr.mudarib_share) / Decimal("100"))
+
+        # 3. IRR (Investment Risk Reserve) Deduction (BRD Sec 5 & 7.1)
+        # IRR is deducted from Depositors' share after Mudarib share
+        irr_policy = ReservePolicy.objects.filter(
+            pool=pool, reserve_type=ReserveType.IRR, is_active=True
+        ).first()
+        if irr_policy and irr_policy.rate_percentage > 0:
+            irr_amount = _round(depositor_share_pre_irr * (Decimal(irr_policy.rate_percentage) / Decimal("100")))
+            depositor_pool_share = max(Decimal("0.00"), depositor_share_pre_irr - irr_amount)
+        else:
+            depositor_pool_share = depositor_share_pre_irr
+
+        lines = []
+        for line in lines_input:
+            allocation_ratio = line["weighted_funds"] / total_weighted_funds
+            allocated_amount = depositor_pool_share * allocation_ratio
+
+            lines.append(
+                {
+                    "participant_class": line["participant_class"],
+                    "daily_funds": _round(line["daily_funds"]),
+                    "weightage": line["weightage"],
+                    "weighted_funds": _round(line["weighted_funds"]),
+                    "allocated_amount": _round(allocated_amount),
+                }
+            )
 
     return {
         "distributable": _round(distributable),
         "total_weighted_funds": _round(total_weighted_funds),
         "depositor_pool_share": _round(depositor_pool_share),
         "mudarib_share": _round(mudarib_share),
+        "per_amount": _round(per_amount),
+        "irr_amount": _round(irr_amount),
+        "is_loss": is_loss,
         "lines": lines,
     }
 

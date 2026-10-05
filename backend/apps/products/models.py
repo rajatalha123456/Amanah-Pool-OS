@@ -123,3 +123,30 @@ class Product(TenantScopedModel):
 
     def __str__(self):
         return self.name
+
+
+class JurisdictionRulePack(TenantScopedModel):
+    """
+    Screen 42: Administration & Rule Packs - Jurisdictions, roles and effective versions.
+    """
+
+    code = models.CharField(max_length=50)
+    name = models.CharField(max_length=255)
+    version = models.CharField(max_length=20, default="2025.01")
+    effective_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    description = models.TextField(blank=True)
+    rules_config = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "code", "version"], name="unique_rulepack_version_per_tenant"
+            ),
+        ]
+        ordering = ["-effective_date"]
+
+    def __str__(self):
+        return f"{self.name} v{self.version} ({self.code})"
+

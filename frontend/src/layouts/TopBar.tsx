@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { useAuth } from "../api/auth"
 import { TenantSwitcher } from "../components/TenantSwitcher"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -7,6 +8,8 @@ import { LanguageSwitcher } from "../components/LanguageSwitcher"
 export function TopBar() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { i18n } = useTranslation()
+  const isUrdu = i18n.language?.startsWith("ur")
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -30,14 +33,16 @@ export function TopBar() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/5 bg-navy-950 px-6">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-ink-primary">Amanah Capital</span>
+        <span className="text-sm font-medium text-ink-primary">
+          {isUrdu ? "امانہ کیپیٹل" : "Amanah Capital"}
+        </span>
         <TenantSwitcher />
       </div>
       <div className="flex items-center gap-4">
         <LanguageSwitcher />
         <button
           type="button"
-          aria-label="Notifications"
+          aria-label={isUrdu ? "اطلاعات" : "Notifications"}
           className="rounded-full p-2 text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
         >
           <svg
@@ -66,18 +71,18 @@ export function TopBar() {
               {initial}
             </div>
             <span className="text-sm text-ink-secondary">
-              {user?.full_name ?? "User"}
+              {user?.full_name ?? (isUrdu ? "صارف" : "User")}
             </span>
           </button>
 
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-md border border-white/8 bg-navy-900 py-1 shadow-lg">
+            <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-44 rounded-md border border-white/8 bg-navy-900 py-1 shadow-lg z-50">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="block w-full px-3 py-2 text-left text-sm text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
+                className="block w-full px-3 py-2 text-left rtl:text-right text-sm text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
               >
-                Logout
+                {isUrdu ? "لاگ آؤٹ" : "Logout"}
               </button>
             </div>
           )}

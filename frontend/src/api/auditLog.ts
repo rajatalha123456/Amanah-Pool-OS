@@ -1,24 +1,36 @@
 import { apiClient } from "./axios"
-import type { AuditLogEntry, AuditLogFilters } from "../types"
+import type { AuditLogEntry } from "../types"
 
-export async function fetchAuditLog(filters: AuditLogFilters): Promise<AuditLogEntry[]> {
-  const response = await apiClient.get<AuditLogEntry[]>("core/audit-log/", {
-    params: filters,
+export interface FetchAuditLogParams {
+  model_name?: string
+  date_from?: string
+  date_to?: string
+  tenant?: string
+}
+
+export async function fetchAuditLogs(params: FetchAuditLogParams = {}): Promise<AuditLogEntry[]> {
+  const response = await apiClient.get<AuditLogEntry[]>("core/audit-log/", { params })
+  return response.data
+}
+
+export const fetchAuditLog = fetchAuditLogs
+
+export async function exportAuditLogsCsv(params: FetchAuditLogParams = {}): Promise<Blob> {
+  const response = await apiClient.get("core/audit-log/export/", {
+    params,
+    responseType: "blob",
   })
   return response.data
 }
 
-export async function downloadAuditLogCsv(filters: AuditLogFilters): Promise<void> {
-  const response = await apiClient.get("core/audit-log/export/", {
-    params: filters,
-    responseType: "blob",
-  })
-  const url = window.URL.createObjectURL(new Blob([response.data]))
-  const link = document.createElement("a")
-  link.href = url
-  link.setAttribute("download", "audit_log_export.csv")
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
+export async function downloadAuditLogCsv(params: FetchAuditLogParams = {}): Promise<void> {
+  const blob = await exportAuditLogsCsv(params)
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `audit_log_export_${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
   window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
 }

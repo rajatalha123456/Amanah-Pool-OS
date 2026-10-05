@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -42,4 +42,30 @@ body {
   background-color: var(--color-navy-950);
   color: var(--color-ink-primary);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Explicit LTR styling to guarantee pure English appearance */
+[dir="ltr"] {
+  font-family: var(--font-sans);
+  direction: ltr;
+  text-align: left;
+}
+
+/* RTL Localization styles */
+[dir="rtl"] {
+  font-family: "Noto Sans Arabic", "Noto Nastaliq Urdu", system-ui, -apple-system, sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] input,
+[dir="rtl"] select,
+[dir="rtl"] textarea {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right;
 }

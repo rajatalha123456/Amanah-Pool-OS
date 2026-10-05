@@ -1,14 +1,38 @@
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import type { SupportedLanguage } from "../i18n"
+import { applyDocumentDirection, LANGUAGE_STORAGE_KEY, type SupportedLanguage } from "../i18n"
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation()
-  const currentLanguage = (i18n.language === "ur" ? "ur" : "en") as SupportedLanguage
+  const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>(() => {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    if (stored === "ur") return "ur"
+    if (i18n.language?.startsWith("ur")) return "ur"
+    return "en"
+  })
+
+  useEffect(() => {
+    function onLangChange(lng: string) {
+      const next = (lng?.startsWith("ur") ? "ur" : "en") as SupportedLanguage
+      setCurrentLanguage(next)
+      applyDocumentDirection(next)
+    }
+
+    i18n.on("languageChanged", onLangChange)
+    return () => {
+      i18n.off("languageChanged", onLangChange)
+    }
+  }, [i18n])
 
   function setLanguage(language: SupportedLanguage) {
-    if (language !== currentLanguage) {
-      i18n.changeLanguage(language)
+    setCurrentLanguage(language)
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+    } catch {
+      // ignore
     }
+    applyDocumentDirection(language)
+    i18n.changeLanguage(language)
   }
 
   return (
@@ -17,10 +41,10 @@ export function LanguageSwitcher() {
         type="button"
         onClick={() => setLanguage("en")}
         aria-pressed={currentLanguage === "en"}
-        className={`rounded px-2 py-1 transition-colors ${
+        className={`rounded px-2.5 py-1 font-semibold transition-all ${
           currentLanguage === "en"
-            ? "bg-emerald-600 text-white"
-            : "text-ink-secondary hover:text-ink-primary"
+            ? "bg-emerald-600 text-white shadow-sm"
+            : "text-ink-secondary hover:text-ink-primary hover:bg-white/5"
         }`}
       >
         EN
@@ -29,10 +53,10 @@ export function LanguageSwitcher() {
         type="button"
         onClick={() => setLanguage("ur")}
         aria-pressed={currentLanguage === "ur"}
-        className={`rounded px-2 py-1 transition-colors ${
+        className={`rounded px-2.5 py-1 font-semibold transition-all ${
           currentLanguage === "ur"
-            ? "bg-emerald-600 text-white"
-            : "text-ink-secondary hover:text-ink-primary"
+            ? "bg-emerald-600 text-white shadow-sm"
+            : "text-ink-secondary hover:text-ink-primary hover:bg-white/5"
         }`}
       >
         اردو

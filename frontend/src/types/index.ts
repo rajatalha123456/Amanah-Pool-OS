@@ -350,6 +350,9 @@ export interface SimulateAllocationResult {
   total_weighted_funds: string
   depositor_pool_share: string
   mudarib_share: string
+  per_amount?: string
+  irr_amount?: string
+  is_loss?: boolean
   lines: AllocationLine[]
 }
 
@@ -436,6 +439,9 @@ export interface AllocationRun {
   shariah_signed_off_by: number | null
   shariah_signed_off_at: string | null
   shariah_review_note: string | null
+  is_restatement?: boolean
+  restatement_reason?: string | null
+  replaces_run?: string | null
   lines: AllocationLine[]
   journal_batch: JournalBatch | null
   created_at: string
@@ -988,3 +994,204 @@ export interface LiquidityForecast {
   known_outflows: string | null
   projected_balance: string | null
 }
+
+export interface ReservePolicy {
+  id: string
+  tenant: string
+  pool: string
+  pool_name?: string
+  pool_code?: string
+  reserve_type: 'per' | 'irr'
+  regulatory_ceiling_pct: string
+  board_approved_target_pct: string
+  current_balance: string
+  effective_from: string
+  effective_to: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface RestatementInput {
+  restatement_reason: string
+  notes?: string
+}
+
+export type ReconciliationStatus = 'pending' | 'matched' | 'variance_flagged' | 'cleared' | 'discrepancy' | 'resolved'
+
+export interface ReconciliationItem {
+  id: string
+  tenant?: string
+  batch?: string
+  account_reference?: string
+  source_reference?: string
+  cbs_amount?: string
+  cbs_balance?: string
+  gl_amount?: string
+  gl_balance?: string
+  variance: string
+  status: string
+  resolution_notes?: string | null
+  variance_reason?: string | null
+  resolved_at?: string | null
+  created_at?: string
+}
+
+export interface ReconciliationBatch {
+  id: string
+  tenant?: string
+  pool: string
+  pool_name?: string
+  pool_code?: string
+  reconciliation_date?: string
+  batch_date?: string
+  source_system?: string
+  total_records?: number
+  matched_records?: number
+  matched_items_count?: number
+  exception_count?: number
+  unmatched_items_count?: number
+  variance_amount?: string
+  total_variance?: string
+  total_cbs_balance?: string
+  total_gl_balance?: string
+  control_total_status?: string
+  status: ReconciliationStatus
+  notes?: string | null
+  performed_by?: number | null
+  reconciled_by?: number | null
+  reconciled_by_name?: string | null
+  reconciled_at?: string | null
+  items?: ReconciliationItem[]
+  created_at?: string
+  updated_at?: string
+}
+
+export type PeriodCloseStatus = 'open' | 'pending_review' | 'certified' | 'locked'
+
+export interface PeriodCloseChecklist {
+  id: string
+  tenant: string
+  pool: string
+  pool_name?: string
+  pool_code?: string
+  period_start: string
+  period_end: string
+  status: PeriodCloseStatus
+  checklist_data?: Record<string, boolean>
+  checklist_items?: Record<string, boolean>
+  decision_note?: string | null
+  certified_by: number | null
+  certified_by_name?: string | null
+  certified_at: string | null
+  locked_by?: number | null
+  locked_by_name?: string | null
+  locked_at?: string | null
+  lock_hash?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export type AuditPlanStatus = 'draft' | 'approved' | 'in_progress' | 'completed'
+export type AuditSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type FindingStatus = 'open' | 'under_review' | 'remediated' | 'closed'
+
+export interface ShariahAuditFinding {
+  id: string
+  tenant: string
+  audit_plan: string
+  finding_ref: string
+  title: string
+  description: string
+  severity: AuditSeverity
+  shariah_standard_ref: string
+  remediation_plan: string
+  status: FindingStatus
+  identified_date: string
+  remediation_deadline: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShariahAuditPlan {
+  id: string
+  tenant: string
+  year: number
+  title: string
+  universe_scope: string
+  target_samples: number
+  tested_samples: number
+  findings_count: number
+  status: AuditPlanStatus
+  approved_by: number | null
+  approved_by_name?: string | null
+  findings?: ShariahAuditFinding[]
+  created_at: string
+  updated_at: string
+}
+
+export interface JurisdictionRulePack {
+  id: string
+  tenant: string
+  code: string
+  name: string
+  version: string
+  effective_date: string
+  is_active: boolean
+  is_default: boolean
+  description: string
+  rules_config: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AuditLogEntry {
+  id: string
+  tenant: string | null
+  actor: number | null
+  actor_email: string | null
+  action: string
+  model_name: string
+  object_id: string
+  changes: Record<string, unknown> | null
+  reason: string | null
+  ip_address: string | null
+  created_at: string
+}
+
+export interface LegalEntityRecord {
+  id: string
+  tenant: string
+  name: string
+  registration_number: string | null
+  jurisdiction: string
+  base_currency: string
+  timezone: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TenantRecord {
+  id: string
+  name: string
+  code: string
+  domain: string | null
+  data_residency: string
+  is_suspended: boolean
+  is_active: boolean
+  user_count: number
+  pool_count: number
+  legal_entities: LegalEntityRecord[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateTenantInput {
+  name: string
+  code: string
+  domain?: string
+  data_residency: string
+}
+

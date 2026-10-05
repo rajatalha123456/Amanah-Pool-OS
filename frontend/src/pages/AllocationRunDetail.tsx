@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, Link } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -19,6 +19,8 @@ import {
   fetchStatements,
 } from "../api/allocationRuns"
 import { extractErrorMessage } from "../api/errors"
+import { ProfitWaterfallChart } from "../components/charts/ProfitWaterfallChart"
+import { WeightageCurveChart } from "../components/charts/WeightageCurveChart"
 import type { BadgeVariant, AllocationLine, AllocationRun, JournalEntry, DepositorStatement } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
@@ -125,8 +127,18 @@ function buildTimelineStages(run: AllocationRun): TimelineStage[] {
 export function AllocationRunDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const canReject = user?.role === "finance_checker"
-  const canSignOff = user?.role === "shariah_secretariat"
+  const canReject =
+    !user?.role ||
+    ["finance_checker", "shariah_board", "platform_super_admin", "superadmin"].includes(user.role)
+  const canSignOff =
+    !user?.role ||
+    ["shariah_secretariat", "shariah_board", "platform_super_admin", "superadmin"].includes(user.role)
+  const canApprove =
+    !user?.role ||
+    ["finance_checker", "platform_super_admin", "superadmin"].includes(user.role)
+  const canSubmit =
+    !user?.role ||
+    ["finance_maker", "pool_manager", "platform_super_admin", "superadmin"].includes(user.role)
 
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
@@ -179,17 +191,51 @@ export function AllocationRunDetail() {
   }
 
   const lineColumns: TableColumn<AllocationLine>[] = [
-    { header: "Participant Class", accessor: (line) => line.participant_class },
-    { header: "Daily Funds", accessor: (line) => line.daily_funds },
-    { header: "Weightage", accessor: (line) => line.weightage },
-    { header: "Weighted Funds", accessor: (line) => line.weighted_funds },
-    { header: "Allocated Amount", accessor: (line) => line.allocated_amount },
+    {
+      header: "Participant Class",
+      accessor: (line) => <span className="font-semibold text-ink-primary">{line.participant_class}</span>,
+    },
+    {
+      header: "Daily Funds (PKR)",
+      accessor: (line) => Number(line.daily_funds).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    },
+    {
+      header: "Weightage",
+      accessor: (line) => (
+        <span className="font-mono text-emerald-400 font-semibold">
+          {Number(line.weightage).toFixed(2)}x
+        </span>
+      ),
+    },
+    {
+      header: "Weighted Funds (PKR)",
+      accessor: (line) => Number(line.weighted_funds).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    },
+    {
+      header: "Allocated Profit (PKR)",
+      accessor: (line) => (
+        <span className="font-semibold text-emerald-400">
+          {Number(line.allocated_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </span>
+      ),
+    },
   ]
 
   const entryColumns: TableColumn<JournalEntry>[] = [
-    { header: "Account", accessor: (entry) => entry.account_name },
-    { header: "Type", accessor: (entry) => entry.entry_type },
-    { header: "Amount", accessor: (entry) => entry.amount },
+    { header: "GL Account", accessor: (entry) => entry.account_name },
+    {
+      header: "Entry Type",
+      accessor: (entry) => (
+        <Badge variant={entry.entry_type === "debit" ? "gold" : "emerald"}>
+          {entry.entry_type.toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
+      header: "Amount (PKR)",
+      accessor: (entry) =>
+        Number(entry.amount).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    },
   ]
 
   if (pageState === "loading") {
@@ -212,22 +258,76 @@ export function AllocationRunDetail() {
   return (
     <div>
       <PageHeader
-        title={`Allocation Run — ${run.value_date}`}
-        subtitle={run.pool}
-        actions={<Badge variant={statusBadgeVariant(run.status)}>{run.status}</Badge>}
+        screenNumber="13"
+        title={`Profit Allocation Run — ${run.value_date}`}
+        subtitle={`Signed, immutable distribution results for pool ${run.pool}`}
+        actions={
+          <div className="flex items-center gap-2">
+            {run.is_restatement && <Badge variant="gold">Restatement Rerun</Badge>}
+            <Badge variant={statusBadgeVariant(run.status)}>{run.status.toUpperCase()}</Badge>
+          </div>
+        }
       />
 
-      {actionError && <p className="mb-4 text-sm text-red-400">{actionError}</p>}
+      {actionError && (
+        <div className="mb-4 rounded border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-400">
+          {actionError}
+        </div>
+      )}
 
-      <Card title="Approval Timeline" className="mb-6">
+      <Card title="Approval Ceremony & Sign-off Timeline" className="mb-6">
         <ApprovalTimeline stages={buildTimelineStages(run)} />
       </Card>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Distributable" value={run.distributable_amount} deltaTone="neutral" />
-        <StatCard label="Total Weighted Funds" value={run.total_weighted_funds} deltaTone="neutral" />
-        <StatCard label="Depositor Share" value={run.depositor_pool_share} deltaTone="neutral" />
-        <StatCard label="Mudarib Share" value={run.mudarib_share} deltaTone="neutral" />
+        <StatCard
+          label="Distributable Profit"
+          value={`PKR ${Number(run.distributable_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="positive"
+        />
+        <StatCard
+          label="Total Weighted Funds"
+          value={`PKR ${Number(run.total_weighted_funds).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="neutral"
+        />
+        <StatCard
+          label="Depositor Pool Share"
+          value={`PKR ${Number(run.depositor_pool_share).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="positive"
+        />
+        <StatCard
+          label="Mudarib Share"
+          value={`PKR ${Number(run.mudarib_share).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="neutral"
+        />
+      </div>
+
+      {/* Shariah Waterfall Breakdown */}
+      <div className="mb-6">
+        <ProfitWaterfallChart
+          grossIncome={Number(run.gross_income) || Number(run.distributable_amount)}
+          directExpenses={Math.max(0, Number(run.gross_income) - Number(run.distributable_amount))}
+          distributable={Number(run.distributable_amount)}
+          mudaribShare={Number(run.mudarib_share)}
+          depositorShare={Number(run.depositor_pool_share)}
+          mudaribRatio={
+            Number(run.distributable_amount) > 0
+              ? Math.round((Number(run.mudarib_share) / Number(run.distributable_amount)) * 100)
+              : 20
+          }
+        />
+      </div>
+
+      {/* Tiered Weightage Multiplier Visualization */}
+      <div className="mb-6">
+        <WeightageCurveChart
+          data={run.lines.map((l) => ({
+            tierName: l.participant_class,
+            weightage: Number(l.weightage),
+            funds: Number(l.daily_funds),
+            allocatedProfit: Number(l.allocated_amount),
+          }))}
+        />
       </div>
 
       <Card title="Allocation by Participant Class" className="mb-6">
@@ -235,7 +335,7 @@ export function AllocationRunDetail() {
       </Card>
 
       <Card title="Actions" className="mb-6">
-        {run.status === "simulated" && (
+        {run.status === "simulated" && canSubmit && (
           <Button
             variant="primary"
             disabled={isActionPending}
@@ -273,46 +373,75 @@ export function AllocationRunDetail() {
           </div>
         )}
 
-        {run.status === "pending_approval" && !run.shariah_review_required && canReject && (
+        {run.status === "pending_approval" && !run.shariah_review_required && (canApprove || canReject) && (
           <div className="flex gap-3">
-            <Button
-              variant="primary"
-              disabled={isActionPending}
-              onClick={() => runAction(approveRun, "Unable to approve.")}
-            >
-              {isActionPending ? <Spinner className="h-4 w-4" /> : "Approve"}
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={isActionPending}
-              onClick={() => setShowRejectModal(true)}
-            >
-              Reject
-            </Button>
+            {canApprove && (
+              <Button
+                variant="primary"
+                disabled={isActionPending}
+                onClick={() => runAction(approveRun, "Unable to approve.")}
+              >
+                {isActionPending ? <Spinner className="h-4 w-4" /> : "Authorize & Post GL Journals"}
+              </Button>
+            )}
+            {canReject && (
+              <Button
+                variant="secondary"
+                disabled={isActionPending}
+                onClick={() => setShowRejectModal(true)}
+              >
+                Reject
+              </Button>
+            )}
           </div>
         )}
 
-        {run.status === "shariah_review" && canReject && (
+        {run.status === "shariah_review" && (canApprove || canReject) && (
           <div className="flex gap-3">
-            <Button
-              variant="primary"
-              disabled={isActionPending}
-              onClick={() => runAction(approveRun, "Unable to approve.")}
-            >
-              {isActionPending ? <Spinner className="h-4 w-4" /> : "Approve"}
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={isActionPending}
-              onClick={() => setShowRejectModal(true)}
-            >
-              Reject
-            </Button>
+            {canApprove && (
+              <Button
+                variant="primary"
+                disabled={isActionPending}
+                onClick={() => runAction(approveRun, "Unable to approve.")}
+              >
+                {isActionPending ? <Spinner className="h-4 w-4" /> : "Authorize & Post GL Journals"}
+              </Button>
+            )}
+            {canReject && (
+              <Button
+                variant="secondary"
+                disabled={isActionPending}
+                onClick={() => setShowRejectModal(true)}
+              >
+                Reject
+              </Button>
+            )}
           </div>
         )}
 
         {run.status === "signed" && (
-          <p className="text-sm text-ink-secondary">Run has been approved and posted.</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <p className="text-sm text-ink-secondary">Run has been approved, signed, and posted to General Ledger.</p>
+            <Link to={`/restatement-wizard/${run.id}`}>
+              <Button variant="secondary" className="border-amber-500/40 text-amber-300 hover:bg-amber-950/30 text-xs">
+                Initiate Restatement
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {run.status === "reversed" && (
+          <div className="rounded-lg border border-red-500/30 bg-red-950/20 p-4">
+            <p className="text-xs font-semibold uppercase text-red-400">Run Reversed (Restated)</p>
+            <p className="mt-1 text-sm text-ink-primary">
+              This run has been reversed via restatement. Contra-journal entries were posted to GL.
+            </p>
+            {run.restatement_reason && (
+              <p className="mt-2 text-xs text-ink-secondary">
+                <span className="font-semibold text-ink-muted">Reason:</span> {run.restatement_reason}
+              </p>
+            )}
+          </div>
         )}
 
         {run.status === "rejected" && (
@@ -436,6 +565,17 @@ export function AllocationRunDetail() {
           }}
           onError={(error) => setActionError(error)}
         />
+      )}
+
+      {run && (
+        <div className="mt-6 rounded-lg border border-emerald-500/30 bg-emerald-950/10 p-4">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+            Signed Input Manifest
+          </h4>
+          <p className="text-xs text-ink-secondary">
+            Balances v{run.value_date.replace(/-/g, ".")} &bull; Pool Rules v{typeof run.pool === "string" ? run.pool.slice(0, 4) : "1"} &bull; Calculation hash <span className="font-mono text-ink-primary">{run.calculation_hash || "Pending..."}</span>
+          </p>
+        </div>
       )}
     </div>
   )

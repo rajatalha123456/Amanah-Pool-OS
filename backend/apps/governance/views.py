@@ -21,6 +21,7 @@ from apps.pools.models import Pool, PoolStatus
 from apps.products.models import ContractTemplate, ContractTemplateStatus, ShariahDecision, ShariahDecisionStatus
 
 from .models import (
+    AuditPlanStatus,
     ExceptionCase,
     ExceptionSeverity,
     ExceptionStatus,
@@ -28,6 +29,8 @@ from .models import (
     PurificationStatus,
     RelatedPartyDisclosureStatus,
     RelatedPartyTransaction,
+    ShariahAuditFinding,
+    ShariahAuditPlan,
     SupportRequest,
     SupportRequestStatus,
 )
@@ -35,6 +38,8 @@ from .serializers import (
     ExceptionCaseSerializer,
     PurificationEntrySerializer,
     RelatedPartyTransactionSerializer,
+    ShariahAuditFindingSerializer,
+    ShariahAuditPlanSerializer,
     SupportRequestSerializer,
 )
 
@@ -629,3 +634,45 @@ def shariah_dashboard(request):
             },
         }
     )
+
+
+class ShariahAuditPlanViewSet(viewsets.ModelViewSet):
+    """
+    Screen 33: Shariah Audit Plan - Risk-based universe, samples and findings.
+    """
+
+    serializer_class = ShariahAuditPlanSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ShariahAuditPlan.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant)
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        plan = self.get_object()
+        plan.status = AuditPlanStatus.APPROVED
+        plan.approved_by = request.user
+        plan.save(update_fields=["status", "approved_by", "updated_at"])
+        return Response(self.get_serializer(plan).data)
+
+
+class ShariahAuditFindingViewSet(viewsets.ModelViewSet):
+    serializer_class = ShariahAuditFindingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ShariahAuditFinding.objects.all()
+        plan_id = self.request.query_params.get("audit_plan")
+        if plan_id:
+            queryset = queryset.filter(audit_plan_id=plan_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        instance = serializer.save(tenant=self.request.user.tenant)
+        plan = instance.audit_plan
+        plan.findings_count = plan.findings.count()
+        plan.save(update_fields=["findings_count"])
+

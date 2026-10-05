@@ -3,7 +3,14 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import AllocationLine, AllocationRun, DepositorStatement, ProfitSharingRatio, WeightageBand
+from .models import (
+    AllocationLine,
+    AllocationRun,
+    DepositorStatement,
+    ProfitSharingRatio,
+    ReservePolicy,
+    WeightageBand,
+)
 from .validators import check_no_overlap
 
 
@@ -136,6 +143,9 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "mudarib_share",
             "status",
             "calculation_hash",
+            "replaces_run",
+            "is_restatement",
+            "restatement_reason",
             "created_by",
             "checked_by",
             "checked_at",
@@ -158,6 +168,32 @@ class AllocationRunSerializer(serializers.ModelSerializer):
 
         batch = getattr(obj, "journal_batch", None)
         return JournalBatchSerializer(batch).data if batch else None
+
+
+class ReservePolicySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReservePolicy
+        fields = (
+            "id",
+            "tenant",
+            "pool",
+            "reserve_type",
+            "rate_percentage",
+            "cap_percentage",
+            "current_balance",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "tenant", "created_at", "updated_at")
+
+
+class RestatementInputSerializer(serializers.Serializer):
+    restatement_reason = serializers.CharField(required=True)
+    gross_income = serializers.DecimalField(max_digits=18, decimal_places=2, required=True)
+    direct_expenses = serializers.DecimalField(
+        max_digits=18, decimal_places=2, required=False, default=Decimal("0")
+    )
 
 
 class AllocationRunInputSerializer(serializers.Serializer):

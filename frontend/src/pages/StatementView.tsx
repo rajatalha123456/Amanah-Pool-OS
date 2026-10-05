@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
+import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
+import { Button } from "../components/Button"
 import { fetchStatements } from "../api/allocationRuns"
 import type { DepositorStatement } from "../types"
 
@@ -41,6 +43,19 @@ export function StatementView() {
 
   return (
     <div className="space-y-12 p-8">
+      <div className="max-w-4xl mx-auto print:hidden mb-4">
+        <PageHeader
+          screenNumber="41"
+          title="Depositor / Investor Statement"
+          subtitle="Verified profit distribution statement with Shariah disclosures"
+          actions={
+            <Button variant="primary" onClick={() => window.print()} className="text-xs">
+              🖨️ Print / Save as PDF
+            </Button>
+          }
+        />
+      </div>
+
       {statements.map((stmt, idx) => (
         <div key={stmt.id} className="page-break border-b border-white/10 pb-12 last:border-0">
           {idx > 0 && <div className="break-before-page my-12" />}

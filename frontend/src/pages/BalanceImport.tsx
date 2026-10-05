@@ -3,6 +3,7 @@ import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Spinner } from "../components/Spinner"
+import { StatCard } from "../components/StatCard"
 import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
 import { fetchImportHistory, importBalances } from "../api/balances"
@@ -29,7 +30,7 @@ export function BalanceImport() {
   const [isLoadingPools, setIsLoadingPools] = useState(true)
   const [selectedPoolId, setSelectedPoolId] = useState("")
 
-  const [valueDate, setValueDate] = useState("")
+  const [valueDate, setValueDate] = useState(new Date().toISOString().split("T")[0])
   const [controlTotalExpected, setControlTotalExpected] = useState("")
   const [rows, setRows] = useState<RecordRow[]>([{ participant_class: "", balance_amount: "" }])
 
@@ -58,7 +59,7 @@ export function BalanceImport() {
     setHistoryError("")
     fetchImportHistory(poolId)
       .then(setHistory)
-      .catch(() => setHistoryError("Failed to load data"))
+      .catch(() => setHistoryError("Failed to load import history"))
       .finally(() => setIsLoadingHistory(false))
   }
 
@@ -80,6 +81,20 @@ export function BalanceImport() {
     setRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev))
   }
 
+  function fillSampleTiers() {
+    const samples: RecordRow[] = [
+      { participant_class: "Retail Mudarabah (Tier 1 - 30D)", balance_amount: "15000000.00" },
+      { participant_class: "Corporate Term Deposit (1-Year)", balance_amount: "45000000.00" },
+      { participant_class: "HNW Wakalah Special Investment", balance_amount: "75000000.00" },
+      { participant_class: "Financial Institutions Placement", balance_amount: "120000000.00" },
+    ]
+    setRows(samples)
+    const sum = samples.reduce((acc, r) => acc + Number(r.balance_amount), 0)
+    setControlTotalExpected(sum.toFixed(2))
+  }
+
+  const currentRecordsTotal = rows.reduce((sum, r) => sum + (Number(r.balance_amount) || 0), 0)
+
   async function handleImport(event: FormEvent) {
     event.preventDefault()
     setFormError("")
@@ -91,7 +106,7 @@ export function BalanceImport() {
         pool: selectedPoolId,
         value_date: valueDate,
         control_total_expected: controlTotalExpected || null,
-        records: rows,
+        records: rows.filter((r) => r.participant_class.trim() && r.balance_amount.trim()),
       })
       setResult(importResult)
       loadHistory(selectedPoolId)
@@ -106,16 +121,36 @@ export function BalanceImport() {
     { header: "Value Date", accessor: (batch) => batch.value_date },
     {
       header: "Status",
-      accessor: (batch) => <Badge variant={batchStatusBadgeVariant(batch.status)}>{batch.status}</Badge>,
+      accessor: (batch) => <Badge variant={batchStatusBadgeVariant(batch.status)}>{batch.status.toUpperCase()}</Badge>,
     },
-    { header: "Control Total Actual", accessor: (batch) => batch.control_total_actual ?? "—" },
+    {
+      header: "Control Total Expected",
+      accessor: (batch) =>
+        batch.control_total_expected
+          ? `PKR ${Number(batch.control_total_expected).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+          : "—",
+    },
+    {
+      header: "Control Total Actual",
+      accessor: (batch) =>
+        batch.control_total_actual
+          ? `PKR ${Number(batch.control_total_actual).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+          : "—",
+    },
   ]
 
   return (
-    <div>
-      <Card title="Import Balances" className="mb-6">
+    <div className="space-y-6">
+      <Card
+        title="Balance Ingestion & Control Total Validation"
+        actions={
+          <Button variant="secondary" className="text-xs" onClick={fillSampleTiers}>
+            + Fill Standard Deposit Tiers
+          </Button>
+        }
+      >
         {isLoadingPools ? (
-          <div className="flex items-center gap-2 text-sm text-ink-secondary">
+          <div className="flex items-center gap-2 py-4 text-sm text-ink-secondary">
             <Spinner className="h-4 w-4" />
             Loading pools...
           </div>
@@ -126,7 +161,7 @@ export function BalanceImport() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                  Pool
+                  Target Pool *
                 </label>
                 <select
                   value={selectedPoolId}
@@ -135,7 +170,7 @@ export function BalanceImport() {
                 >
                   {pools.map((pool) => (
                     <option key={pool.id} value={pool.id}>
-                      {pool.name} ({pool.code})
+                      {pool.code} — {pool.name}
                     </option>
                   ))}
                 </select>
@@ -143,7 +178,7 @@ export function BalanceImport() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                  Value Date
+                  Value Date *
                 </label>
                 <input
                   type="date"
@@ -156,23 +191,31 @@ export function BalanceImport() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                  Control Total Expected
+                  Expected Control Total (PKR)
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   value={controlTotalExpected}
                   onChange={(e) => setControlTotalExpected(e.target.value)}
-                  placeholder="Optional"
+                  placeholder="Optional validation total"
                   className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                Records
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                  Participant Balances & Tiers
+                </p>
+                <span className="text-xs text-ink-secondary">
+                  Sum:{" "}
+                  <strong className="text-emerald-400">
+                    PKR {currentRecordsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </strong>
+                </span>
+              </div>
               <div className="space-y-2">
                 {rows.map((row, index) => (
                   <div key={index} className="flex gap-2">
@@ -180,7 +223,7 @@ export function BalanceImport() {
                       type="text"
                       value={row.participant_class}
                       onChange={(e) => updateRow(index, "participant_class", e.target.value)}
-                      placeholder="Participant class"
+                      placeholder="Participant class / tier name (e.g. Retail Mudarabah Savings)"
                       required
                       className="flex-1 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
                     />
@@ -189,9 +232,9 @@ export function BalanceImport() {
                       step="0.01"
                       value={row.balance_amount}
                       onChange={(e) => updateRow(index, "balance_amount", e.target.value)}
-                      placeholder="Balance amount"
+                      placeholder="Balance amount (PKR)"
                       required
-                      className="flex-1 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      className="w-48 sm:w-64 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
                     />
                     <button
                       type="button"
@@ -205,53 +248,64 @@ export function BalanceImport() {
                   </div>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={addRow}
-                className="mt-2 text-sm font-medium text-emerald-400 hover:text-emerald-300"
-              >
-                + Add Row
-              </button>
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={addRow}
+                  className="text-sm font-medium text-emerald-400 hover:text-emerald-300"
+                >
+                  + Add Another Class / Tier
+                </button>
+              </div>
             </div>
 
-            {formError && <p className="text-sm text-red-400">{formError}</p>}
+            {formError && (
+              <div className="rounded border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-400">
+                {formError}
+              </div>
+            )}
 
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? <Spinner className="h-4 w-4" /> : "Import"}
-            </Button>
+            <div className="pt-2">
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                {isSubmitting ? <Spinner className="h-4 w-4" /> : "Ingest & Validate Balances"}
+              </Button>
+            </div>
           </form>
         )}
       </Card>
 
       {result && (
-        <Card title="Import Summary" className="mb-6">
-          <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-ink-secondary">
-            <span>Total Records: {result.total_records}</span>
-            <span>Matched: {result.matched_records}</span>
-            <span>Exceptions: {result.exception_count}</span>
-            <Badge variant={batchStatusBadgeVariant(result.status)}>{result.status}</Badge>
+        <Card title="Ingestion & Control Total Result">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-4">
+            <StatCard label="Total Ingested" value={String(result.total_records)} deltaTone="neutral" />
+            <StatCard label="Matched Records" value={String(result.matched_records)} deltaTone="positive" />
+            <StatCard label="Exceptions" value={String(result.exception_count)} deltaTone={result.exception_count > 0 ? "negative" : "positive"} />
+            <StatCard label="Batch Status" value={result.status.toUpperCase()} deltaTone={result.status === "balanced" ? "positive" : "neutral"} />
           </div>
           {result.errors.length > 0 && (
-            <ul className="list-inside list-disc space-y-1 text-sm text-red-400">
-              {result.errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
+            <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-300">
+              <p className="font-semibold mb-1">Warnings / Notes:</p>
+              <ul className="list-inside list-disc space-y-1">
+                {result.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </Card>
       )}
 
-      <Card title="Import History">
+      <Card title="Batch Ingestion History">
         {isLoadingHistory && (
-          <div className="flex items-center gap-2 text-sm text-ink-secondary">
+          <div className="flex items-center gap-2 py-4 text-sm text-ink-secondary">
             <Spinner className="h-4 w-4" />
-            Loading...
+            Loading batch history...
           </div>
         )}
         {historyError && <p className="text-sm text-red-400">{historyError}</p>}
         {!isLoadingHistory && !historyError && (
           history.length === 0 ? (
-            <p className="text-sm text-ink-secondary">No import history yet.</p>
+            <p className="text-sm text-ink-secondary py-4">No balance imports recorded for this pool yet.</p>
           ) : (
             <Table columns={historyColumns} data={history} keyField={(batch) => batch.id} />
           )

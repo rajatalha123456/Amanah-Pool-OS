@@ -60,8 +60,8 @@ export function AuditorPortal() {
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
     })
-      .then((data) => setEntries(data))
-      .catch((error) => setPageError(extractErrorMessage(error, "Unable to load audit log.")))
+      .then((data: AuditLogEntry[]) => setEntries(data))
+      .catch((error: unknown) => setPageError(extractErrorMessage(error, "Unable to load audit log.")))
       .finally(() => setIsLoading(false))
   }
 
@@ -131,7 +131,11 @@ export function AuditorPortal() {
 
   return (
     <div>
-      <PageHeader title="Reports" subtitle="Auditor Evidence Portal" />
+      <PageHeader
+        screenNumber="40"
+        title="Auditor Evidence Portal"
+        subtitle="Immutable tamper-evident audit logs and signed manifests"
+      />
 
       <Card title="Audit Log">
         <div className="mb-4 flex flex-wrap items-end gap-3">

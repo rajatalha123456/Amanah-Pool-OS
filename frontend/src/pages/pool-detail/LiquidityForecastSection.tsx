@@ -3,6 +3,7 @@ import { Card } from "../../components/Card"
 import { Spinner } from "../../components/Spinner"
 import { fetchLiquidityForecast } from "../../api/liquidity"
 import { extractErrorMessage } from "../../api/errors"
+import { LiquidityProjectionChart } from "../../components/charts/LiquidityProjectionChart"
 import type { LiquidityForecast } from "../../types"
 
 const HORIZON_DAYS = 30
@@ -22,46 +23,34 @@ export function LiquidityForecastSection({ poolId }: { poolId: string }) {
   }, [poolId])
 
   return (
-    <Card title="Liquidity Forecast">
+    <Card title="Prudential Liquidity & Cash Runway">
       {isLoading ? (
-        <div className="flex items-center gap-2 py-4 text-ink-secondary">
+        <div className="flex items-center gap-2 py-6 text-ink-secondary">
           <Spinner className="h-4 w-4" />
-          <span className="text-sm">Loading...</span>
+          <span className="text-sm">Calculating 30-day liquidity trajectory...</span>
         </div>
       ) : loadError ? (
         <p className="text-sm text-red-400">{loadError}</p>
       ) : !forecast || forecast.insufficient_data ? (
-        <p className="text-sm text-ink-secondary">Not enough history yet.</p>
+        <div className="rounded-lg border border-dashed border-white/10 bg-navy-900/30 p-6 text-center text-xs text-ink-muted">
+          Not enough historical balance points yet to compute 30-day liquidity forecast. Minimum 3 daily cycles required.
+        </div>
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-ink-secondary">Current Balance</span>
-            <span className="text-sm font-medium text-ink-primary">{forecast.current_balance}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-ink-secondary">Projected Balance ({forecast.horizon_days} days)</span>
-            <span className="text-sm font-medium text-ink-primary">{forecast.projected_balance}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-ink-secondary">Daily Trend</span>
-            <span
-              className={`flex items-center gap-1 text-sm font-medium ${
-                Number(forecast.trend_per_day) >= 0 ? "text-emerald-400" : "text-gold-400"
-              }`}
-            >
-              {Number(forecast.trend_per_day) >= 0 ? "▲" : "▼"} {forecast.trend_per_day}/day
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-ink-secondary">Known Upcoming Outflows</span>
-            <span className="text-sm font-medium text-ink-primary">{forecast.known_outflows}</span>
-          </div>
-          <p className="pt-1 text-xs text-ink-secondary">
-            Simple trend-based projection from the last 30 days of balance history plus known pending
-            outflows. Not an ML-based forecast.
+        <div className="space-y-4">
+          <LiquidityProjectionChart
+            currentBalance={Number(forecast.current_balance)}
+            projectedBalance={Number(forecast.projected_balance)}
+            trendPerDay={Number(forecast.trend_per_day)}
+            horizonDays={forecast.horizon_days}
+            knownOutflows={Number(forecast.known_outflows)}
+          />
+
+          <p className="text-xs text-ink-muted">
+            SBP Prudential Regulations buffer model: Daily linear balance regression over {forecast.horizon_days} days factoring verified pending settlement outflows.
           </p>
         </div>
       )}
     </Card>
   )
 }
+

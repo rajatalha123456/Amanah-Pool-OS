@@ -13,11 +13,25 @@ const TABS: { key: Tab; label: string }[] = [
 export function FinanceLedger() {
   const [activeTab, setActiveTab] = useState<Tab>("journal-batches")
 
+  const activeMeta =
+    activeTab === "income-expense"
+      ? {
+          num: "10",
+          title: "Income & Expense Workbench",
+          sub: "Pool-attributable performance events",
+        }
+      : {
+          num: "15",
+          title: "Journal Batch Review",
+          sub: "Posted journal entries and immutable audit subledger",
+        }
+
   return (
     <div>
       <PageHeader
-        title="Finance & Ledger"
-        subtitle="Posted journal entries, audit trail, and manual income/expense events"
+        screenNumber={activeMeta.num}
+        title={activeMeta.title}
+        subtitle={activeMeta.sub}
       />
 
       <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">
@@ -37,7 +51,7 @@ export function FinanceLedger() {
         ))}
       </div>
 
-      {activeTab === "journal-batches" && <JournalBatchReview />}
+      {activeTab === "journal-batches" && <JournalBatchReview hideHeader />}
       {activeTab === "income-expense" && <IncomeExpenseWorkbench />}
     </div>
   )

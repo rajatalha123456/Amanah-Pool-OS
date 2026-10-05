@@ -1,5 +1,5 @@
 import { apiClient } from "./axios"
-import type { AllocationRun, AllocationRunInput, SimulateAllocationResult, DepositorStatement } from "../types"
+import type { AllocationRun, AllocationRunInput, SimulateAllocationResult, DepositorStatement, RestatementInput } from "../types"
 
 export async function simulateAllocation(data: AllocationRunInput): Promise<SimulateAllocationResult> {
   const response = await apiClient.post<SimulateAllocationResult>(
@@ -14,9 +14,13 @@ export async function createAllocationRun(data: AllocationRunInput): Promise<All
   return response.data
 }
 
-export async function fetchAllocationRuns(poolId: string): Promise<AllocationRun[]> {
+export async function fetchAllocationRuns(poolId?: string): Promise<AllocationRun[]> {
+  const params: Record<string, string> = {}
+  if (poolId) {
+    params.pool = poolId
+  }
   const response = await apiClient.get<AllocationRun[]>("allocation/allocation-runs/", {
-    params: { pool: poolId },
+    params,
   })
   return response.data
 }
@@ -66,6 +70,17 @@ export async function generateStatements(id: string): Promise<DepositorStatement
 export async function fetchStatements(id: string): Promise<DepositorStatement[]> {
   const response = await apiClient.get<DepositorStatement[]>(
     `allocation/allocation-runs/${id}/statements/`,
+  )
+  return response.data
+}
+
+export async function restateRun(
+  id: string,
+  data: RestatementInput,
+): Promise<{ original_run: AllocationRun; draft_rerun: AllocationRun; message: string }> {
+  const response = await apiClient.post<{ original_run: AllocationRun; draft_rerun: AllocationRun; message: string }>(
+    `allocation/allocation-runs/${id}/restate/`,
+    data,
   )
   return response.data
 }
