@@ -193,7 +193,7 @@ def analyze_contract(request):
     if not text:
         raise drf_exceptions.ValidationError({"contract_text": ["This field is required."]})
 
-    result = analyze_contract_text(text)
+    result = analyze_contract_text(text, request.user.tenant.code, str(request.user.id))
     return Response(result)
 
 

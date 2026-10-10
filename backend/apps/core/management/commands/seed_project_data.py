@@ -6,6 +6,9 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.core.context import set_current_tenant
+from apps.participants.models import Participant, ParticipantAccount
+from apps.participants.models import KYCStatus
+from apps.participants.seed_ledger import make_pk_iban, seed_circle_first_cycle, seed_participant_ledger
 from apps.tenants.models import LegalEntity, Tenant
 from apps.accounts.models import User, UserRole
 from apps.products.models import (
@@ -171,6 +174,8 @@ class Command(BaseCommand):
 
             # 4. Accounting
             JournalEntry.objects.filter(tenant=tenant).delete()
+            # Reversal batches point at the batch they reverse (PROTECT): delete them first.
+            JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
             JournalBatch.objects.filter(tenant=tenant).delete()
             IncomeExpenseEvent.objects.filter(tenant=tenant).delete()
             ReconciliationItem.objects.filter(tenant=tenant).delete()
@@ -187,6 +192,8 @@ class Command(BaseCommand):
             # 6. Pools
             AssetAssignment.objects.filter(tenant=tenant).delete()
             DailyBalance.objects.filter(tenant=tenant).delete()
+            ParticipantAccount.objects.filter(tenant=tenant).delete()
+            Participant.objects.filter(tenant=tenant).delete()
             BalanceImportBatch.objects.filter(tenant=tenant).delete()
             PeriodCloseChecklist.objects.filter(tenant=tenant).delete()
             Asset.objects.filter(tenant=tenant).delete()
@@ -226,6 +233,7 @@ class Command(BaseCommand):
             ("board@novulabsdemo.test", "Sheikh Dr. Yusuf Al-Qaradawi", UserRole.SHARIAH_BOARD),
             ("auditor@novulabsdemo.test", "Rashid & Co Statutory Auditor", UserRole.AUDITOR),
             ("pm@novulabsdemo.test", "Maryam Nawaz", UserRole.PRODUCT_MANAGER),
+            ("investor@novulabsdemo.test", "Noor Fatima", UserRole.INVESTOR_MEMBER),
         ]
 
         users_by_role = {}
@@ -696,40 +704,20 @@ class Command(BaseCommand):
             )
         self.stdout.write(self.style.SUCCESS("[OK] Assets & Assignments Seeded"))
 
-        # 11. Daily Balances & Import Batch (Screen 09)
-        import_batch, _ = BalanceImportBatch.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            value_date=date(2026, 9, 28),
-            defaults={
-                "total_records": 4,
-                "matched_records": 4,
-                "exception_count": 0,
-                "control_total_expected": Decimal("100000000.00"),
-                "control_total_actual": Decimal("100000000.00"),
-                "status": BalanceImportBatchStatus.BALANCED,
-                "imported_by": maker,
-            },
+        # 11. Participants, account-level Daily Balances and Allocation Runs (Screens 09, 13-18, 20)
+        # Runs are created through the real workflow (maker -> Shariah Board -> checker),
+        # so hashes, journals, reserve movements, lines and statements are genuine.
+        seed_participant_ledger(
+            tenant,
+            pool_gen,
+            maker=maker,
+            checker=checker,
+            board_user=board_user,
+            pm_user=pm_user,
+            risk_user=risk_user,
+            investor_user=users_by_role[UserRole.INVESTOR_MEMBER],
+            stdout=self.stdout,
         )
-
-        for p_class, amt in [
-            ("Retail Regular", Decimal("25000000.00")),
-            ("Premium Saver", Decimal("35000000.00")),
-            ("HNW Depositor", Decimal("20000000.00")),
-            ("Corporate / Institutional", Decimal("20000000.00")),
-        ]:
-            DailyBalance.objects.get_or_create(
-                tenant=tenant,
-                pool=pool_gen,
-                value_date=date(2026, 9, 28),
-                participant_class=p_class,
-                defaults={
-                    "balance_amount": amt,
-                    "source": BalanceSource.FILE_IMPORT,
-                    "status": DailyBalanceStatus.VALIDATED,
-                },
-            )
-        self.stdout.write(self.style.SUCCESS("[OK] Daily Balances Seeded"))
 
         # 12. Income & Expense Events (Screen 10)
         events_data = [
@@ -756,155 +744,6 @@ class Command(BaseCommand):
             )
         self.stdout.write(self.style.SUCCESS("[OK] Income & Expense Events Seeded"))
 
-        # 13. Allocation Runs & Journal Batches (Screens 13, 14, 15, 17, 18, 20)
-        # Run 1: Certified / Signed Run for August 2026
-        run_aug, _ = AllocationRun.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            value_date=date(2026, 8, 31),
-            defaults={
-                "gross_income": Decimal("4500000.00"),
-                "direct_expenses": Decimal("210000.00"),
-                "distributable_amount": Decimal("4290000.00"),
-                "total_weighted_funds": Decimal("128500000.00"),
-                "depositor_pool_share": Decimal("3003000.00"),
-                "mudarib_share": Decimal("1287000.00"),
-                "status": AllocationRunStatus.SIGNED,
-                "calculation_hash": "a8f3b4c129e874cd9912beff3847e0915a2c418f773618402bc093e1176b92e8",
-                "created_by": maker,
-                "checked_by": checker,
-                "checked_at": timezone.now() - timedelta(days=28),
-                "shariah_signed_off_by": board_user,
-                "shariah_signed_off_at": timezone.now() - timedelta(days=28),
-                "shariah_review_note": "Certified conforming to AAOIFI FAS-30 and SBP IBD Circular 03/2012.",
-            },
-        )
-
-        for p_class, wt_funds, alloc_amt in [
-            ("Retail Regular", Decimal("25000000.00"), Decimal("584241.00")),
-            ("Premium Saver", Decimal("40250000.00"), Decimal("940628.00")),
-            ("HNW Depositor", Decimal("26000000.00"), Decimal("607611.00")),
-            ("Corporate / Institutional", Decimal("29000000.00"), Decimal("677720.00")),
-        ]:
-            AllocationLine.objects.get_or_create(
-                tenant=tenant,
-                allocation_run=run_aug,
-                participant_class=p_class,
-                defaults={
-                    "daily_funds": wt_funds,
-                    "weightage": Decimal("1.00"),
-                    "weighted_funds": wt_funds,
-                    "allocated_amount": alloc_amt,
-                },
-            )
-            DepositorStatement.objects.get_or_create(
-                tenant=tenant,
-                allocation_run=run_aug,
-                participant_class=p_class,
-                defaults={
-                    "period_start": date(2026, 8, 1),
-                    "period_end": date(2026, 8, 31),
-                    "opening_balance": wt_funds,
-                    "net_deposits": Decimal("0.00"),
-                    "profit_allocated": alloc_amt,
-                    "closing_balance": wt_funds + alloc_amt,
-                    "narrative": f"Islamic profit distribution for {p_class} based on August 2026 Mudarabah allocation.",
-                },
-            )
-
-        batch_aug, _ = JournalBatch.objects.get_or_create(
-            tenant=tenant,
-            allocation_run=run_aug,
-            pool=pool_gen,
-            defaults={
-                "batch_date": date(2026, 8, 31),
-                "total_debit": Decimal("4290000.00"),
-                "total_credit": Decimal("4290000.00"),
-                "status": JournalBatchStatus.POSTED,
-                "posted_by": checker,
-            },
-        )
-        JournalEntry.objects.get_or_create(
-            tenant=tenant,
-            batch=batch_aug,
-            account_name="Pool Distributable Income Clearing",
-            entry_type=JournalEntryType.DEBIT,
-            defaults={"amount": Decimal("4290000.00")},
-        )
-        JournalEntry.objects.get_or_create(
-            tenant=tenant,
-            batch=batch_aug,
-            account_name="Depositors Profit Payable Control",
-            entry_type=JournalEntryType.CREDIT,
-            defaults={"amount": Decimal("3003000.00")},
-        )
-        JournalEntry.objects.get_or_create(
-            tenant=tenant,
-            batch=batch_aug,
-            account_name="Mudarib Fee Income Accrual",
-            entry_type=JournalEntryType.CREDIT,
-            defaults={"amount": Decimal("1287000.00")},
-        )
-
-        # Run 2: Reversed Run for July 2026 (Restatement Testing - Screen 17)
-        run_july_rev, _ = AllocationRun.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            value_date=date(2026, 7, 31),
-            status=AllocationRunStatus.REVERSED,
-            defaults={
-                "gross_income": Decimal("4100000.00"),
-                "direct_expenses": Decimal("180000.00"),
-                "distributable_amount": Decimal("3920000.00"),
-                "total_weighted_funds": Decimal("120000000.00"),
-                "depositor_pool_share": Decimal("2744000.00"),
-                "mudarib_share": Decimal("1176000.00"),
-                "is_restatement": True,
-                "restatement_reason": "[Regulatory Examination Finding (SBP / Central Bank)] Late CBS asset accrual adjustment.",
-                "created_by": maker,
-                "checked_by": checker,
-            },
-        )
-
-        # Run 3: Draft Rerun for July Restatement
-        AllocationRun.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            value_date=date(2026, 7, 31),
-            is_restatement=True,
-            status=AllocationRunStatus.SIMULATED,
-            defaults={
-                "replaces_run": run_july_rev,
-                "gross_income": Decimal("4150000.00"),
-                "direct_expenses": Decimal("180000.00"),
-                "distributable_amount": Decimal("3970000.00"),
-                "total_weighted_funds": Decimal("120000000.00"),
-                "depositor_pool_share": Decimal("2779000.00"),
-                "mudarib_share": Decimal("1191000.00"),
-                "restatement_reason": "[Corrected Rerun] Updated with late clearing accruals.",
-                "created_by": maker,
-            },
-        )
-
-        # Run 4: Pending Approval Run for Current Cycle (September 2026)
-        AllocationRun.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            value_date=date(2026, 9, 30),
-            defaults={
-                "gross_income": Decimal("5200000.00"),
-                "direct_expenses": Decimal("240000.00"),
-                "distributable_amount": Decimal("4960000.00"),
-                "total_weighted_funds": Decimal("135000000.00"),
-                "depositor_pool_share": Decimal("3472000.00"),
-                "mudarib_share": Decimal("1488000.00"),
-                "status": AllocationRunStatus.PENDING_APPROVAL,
-                "created_by": maker,
-                "shariah_signed_off_by": board_user,
-                "shariah_signed_off_at": timezone.now(),
-                "shariah_review_note": "Pre-screened and certified for end-of-quarter distribution.",
-            },
-        )
         self.stdout.write(self.style.SUCCESS("[OK] Allocation Runs, Statements & Journal Batches Seeded"))
 
         # 14. Reconciliation Center Batches & Items (Screen 11)
@@ -1308,6 +1147,9 @@ class Command(BaseCommand):
                     "payout_position": pos,
                     "status": CircleMemberStatus.ACTIVE,
                     "joined_date": date(2026, 1, 1),
+                    "kyc_status": KYCStatus.VERIFIED,
+                    "iban": make_pk_iban("MEZN", f"{(len(created_members) + 1) * 7777777:016d}"),
+                    "bank_name": "Meezan Bank Ltd",
                 },
             )
             created_members.append(mem)
@@ -1325,19 +1167,8 @@ class Command(BaseCommand):
                 },
             )
 
-        # Disbursed Payout for Cycle 1
-        Payout.objects.get_or_create(
-            tenant=tenant,
-            member=created_members[0],
-            pool=pool_circle,
-            cycle_number=1,
-            defaults={
-                "amount": Decimal("50000.00"),
-                "payout_date": date(2026, 9, 10),
-                "status": PayoutStatus.DISBURSED,
-                "disbursed_by": maker,
-            },
-        )
+        # Cycle 1 payout through the real workflow (request -> independent approval -> settlement).
+        seed_circle_first_cycle(tenant, pool_circle, created_members, maker=maker, checker=checker, pm_user=users_by_role[UserRole.POOL_MANAGER])
 
         # Circle Proposal & Votes
         prop, _ = CircleProposal.objects.get_or_create(

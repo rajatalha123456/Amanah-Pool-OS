@@ -1,5 +1,10 @@
 """
-Core-Banking Clearing & Raast / 1LINK Payout Batch Simulator
+Core-Banking Clearing & Raast / 1LINK Payout Batch (SIMULATED RAILS)
+
+Batches are persisted (PayoutBatchRecord) and built from real signed allocation
+lines and participant beneficiary data. The *rails* are simulated: no message is
+transmitted to Raast/1LINK and no money moves; every batch and result carries
+mode = "SIMULATION" until a real switch integration exists.
 BRD Module 14 / Screen 35: Payout Execution Engine & Clearing Rails
 
 Implements:
@@ -17,123 +22,9 @@ from datetime import datetime, date
 from django.utils import timezone
 from django.db import transaction
 
-# Demo Pakistani Islamic Banking Depositors Universe with mathematically valid MOD-97 IBANs
-DEPOSITOR_RECIPIENTS = [
-    {
-        "name": "Tariq Mehmood",
-        "cnic": "42101-1234567-1",
-        "iban": "PK85MEZN0001002345670101",
-        "bank_name": "Meezan Bank Ltd",
-        "bic": "MEZNPKKA",
-        "participant_class": "Retail Regular",
-        "tax_status": "filer",  # 15% WHT
-        "zakat_exempt": False,
-        "default_channel": "raast",
-    },
-    {
-        "name": "Syeda Fatima Zahra",
-        "cnic": "35202-9876543-2",
-        "iban": "PK43FAYS0009876543210102",
-        "bank_name": "Faysal Islamic Bank",
-        "bic": "FAYSPKKA",
-        "participant_class": "Retail Regular",
-        "tax_status": "filer",  # 15% WHT
-        "zakat_exempt": True,  # CZ-50 submitted
-        "default_channel": "raast",
-    },
-    {
-        "name": "Bilal Ahmed Khan",
-        "cnic": "42201-5554443-3",
-        "iban": "PK47BAHL0005554443330103",
-        "bank_name": "Bank AL Habib Islamic",
-        "bic": "BAHLPKKA",
-        "participant_class": "Retail Regular",
-        "tax_status": "non_filer",  # 30% WHT
-        "zakat_exempt": False,
-        "default_channel": "raast",
-    },
-    {
-        "name": "Dr. Salman Qureshi",
-        "cnic": "61101-4445556-5",
-        "iban": "PK38MCIB0004445556660104",
-        "bank_name": "MCB Islamic Bank",
-        "bic": "MCIBPKKA",
-        "participant_class": "Premium Saver",
-        "tax_status": "filer",
-        "zakat_exempt": True,
-        "default_channel": "raast",
-    },
-    {
-        "name": "Zainab Bibi",
-        "cnic": "37405-1112223-4",
-        "iban": "PK21DUBA0001112223330105",
-        "bank_name": "Dubai Islamic Bank Pakistan",
-        "bic": "DUBAPKKAL",
-        "participant_class": "Premium Saver",
-        "tax_status": "filer",
-        "zakat_exempt": False,
-        "default_channel": "raast",
-    },
-    {
-        "name": "Malik Jahangir Aslam",
-        "cnic": "38403-7778889-1",
-        "iban": "PK82BIPL0002223334440106",
-        "bank_name": "BankIslami Pakistan Ltd",
-        "bic": "BIPLPKKA",
-        "participant_class": "HNW Depositor",
-        "tax_status": "filer",
-        "zakat_exempt": True,
-        "default_channel": "one_link",
-    },
-    {
-        "name": "Begum Nusrat Haroon",
-        "cnic": "42301-3332221-6",
-        "iban": "PK02ALHB0007776665550107",
-        "bank_name": "Habib Metropolitan Islamic",
-        "bic": "ALHBPKKA",
-        "participant_class": "HNW Depositor",
-        "tax_status": "non_filer",
-        "zakat_exempt": False,
-        "default_channel": "one_link",
-    },
-    {
-        "name": "Packages Limited Shariah Treasury",
-        "cnic": "NTN-0814523-8",
-        "iban": "PK16SCBL0003332221110108",
-        "bank_name": "Standard Chartered Saadiq",
-        "bic": "SCBLPKKA",
-        "participant_class": "Corporate / Institutional",
-        "tax_status": "filer",
-        "zakat_exempt": True,
-        "default_channel": "one_link",
-    },
-    {
-        "name": "Engro Islamic Mudarabah Yield Fund",
-        "cnic": "NTN-1429810-4",
-        "iban": "PK21UNIL0008889990000109",
-        "bank_name": "UBL Ameen Islamic Banking",
-        "bic": "UNILPKKA",
-        "participant_class": "Corporate / Institutional",
-        "tax_status": "filer",
-        "zakat_exempt": True,
-        "default_channel": "one_link",
-    },
-    {
-        "name": "Amanah Internal Staff Provident Fund",
-        "cnic": "NTN-9988221-1",
-        "iban": "PK11NOVU0001000000000110",
-        "bank_name": "Amanah Islamic Bank (Intra-Bank)",
-        "bic": "NOVUPKKA",
-        "participant_class": "Corporate / Institutional",
-        "tax_status": "filer",
-        "zakat_exempt": True,
-        "default_channel": "ibt",
-    },
-]
 
 
-# In-memory session store for simulated clearing batches (tenant scoped)
-_PAYOUT_BATCH_STORE = {}
+MODE_SIMULATION = "SIMULATION"
 
 
 def _validate_pakistan_iban(iban: str) -> bool:
@@ -160,9 +51,20 @@ class PayoutClearingEngine:
 
     @classmethod
     def get_or_create_batch_for_run(cls, allocation_run, tenant, force_regenerate=False):
-        batch_key = f"{tenant.code}:{allocation_run.id}"
-        if not force_regenerate and batch_key in _PAYOUT_BATCH_STORE:
-            return _PAYOUT_BATCH_STORE[batch_key]
+        from apps.allocation.models import PayoutBatchRecord
+
+        existing = PayoutBatchRecord._base_manager.filter(
+            tenant_id=allocation_run.tenant_id, allocation_run_id=allocation_run.id
+        ).first()
+        if existing is not None:
+            if not force_regenerate:
+                return existing.payload
+            if existing.status not in ("draft", "validated"):
+                raise ValueError(
+                    f"A batch in status '{existing.status}' can no longer be regenerated."
+                )
+        if allocation_run.status != "signed":
+            raise ValueError("Payout batches can only be built from a signed allocation run.")
 
         pool = allocation_run.pool
         value_date = allocation_run.value_date
@@ -170,14 +72,34 @@ class PayoutClearingEngine:
 
         # Read allocation lines from allocation run
         from apps.allocation.models import AllocationLine
-        lines = list(AllocationLine._base_manager.filter(allocation_run=allocation_run))
-        class_allocated_map = {l.participant_class: l.allocated_amount for l in lines}
 
-        # Calculate per-depositor profit distribution proportionally
-        class_recipient_counts = {}
-        for dep in DEPOSITOR_RECIPIENTS:
-            p_class = dep["participant_class"]
-            class_recipient_counts[p_class] = class_recipient_counts.get(p_class, 0) + 1
+        # One payment per participant account that earned a profit. Beneficiary
+        # details come from the participant record; class-level (legacy) lines
+        # have no beneficiary and so produce no payment.
+        lines = list(
+            AllocationLine._base_manager.filter(allocation_run=allocation_run, account__isnull=False)
+            .select_related("account__participant")
+            .order_by("participant_class", "account__account_number")
+        )
+        recipients = []
+        for line in lines:
+            participant = line.account.participant
+            if line.allocated_amount <= 0:
+                continue
+            recipients.append(
+                {
+                    "name": participant.full_name,
+                    "cnic": participant.cnic_ntn,
+                    "iban": participant.iban,
+                    "bank_name": participant.bank_name,
+                    "bic": participant.bic,
+                    "participant_class": line.participant_class,
+                    "tax_status": participant.tax_status,
+                    "zakat_exempt": participant.zakat_exempt,
+                    "default_channel": participant.default_channel,
+                    "profit": line.allocated_amount,
+                }
+            )
 
         transactions = []
         total_gross = Decimal("0.00")
@@ -185,14 +107,10 @@ class PayoutClearingEngine:
         total_zakat = Decimal("0.00")
         total_net = Decimal("0.00")
 
-        for idx, dep in enumerate(DEPOSITOR_RECIPIENTS, start=1):
+        for idx, dep in enumerate(recipients, start=1):
             p_class = dep["participant_class"]
-            total_class_profit = class_allocated_map.get(p_class, Decimal("250000.00"))
-            count = class_recipient_counts.get(p_class, 1)
+            base_share = Decimal(dep["profit"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-            # Distribute weighted share with slight variation per customer
-            base_share = (total_class_profit / Decimal(str(count))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            
             # WHT rate: Filer 15%, Non-Filer 30% (FBR / SBP Income Tax Ordinance)
             wht_rate = Decimal("0.15") if dep["tax_status"] == "filer" else Decimal("0.30")
             wht_amount = (base_share * wht_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -257,7 +175,8 @@ class PayoutClearingEngine:
             "total_net_disbursed": float(total_net),
             "batch_hash": batch_hash,
             "iso_msg_id": iso_msg_id,
-            "maker_email": "poolmanager@novulabsdemo.test",
+            # The batch is prepared on behalf of whoever created the allocation run.
+            "maker_email": allocation_run.created_by.email if allocation_run.created_by else None,
             "checker_email": None,
             "authorized_at": None,
             "dispatched_at": None,
@@ -265,10 +184,28 @@ class PayoutClearingEngine:
             "journal_batch_id": None,
             "gates_verified": False,
             "gate_results": {},
+            "mode": MODE_SIMULATION,
+            "tenant_id": str(allocation_run.tenant_id),
             "transactions": transactions,
         }
 
-        _PAYOUT_BATCH_STORE[batch_key] = batch_obj
+        cls._persist(batch_obj)
+        return batch_obj
+
+    @classmethod
+    def _persist(cls, batch_obj):
+        """Saves the batch document (one record per allocation run)."""
+        from apps.allocation.models import PayoutBatchRecord
+
+        PayoutBatchRecord._base_manager.update_or_create(
+            tenant_id=batch_obj["tenant_id"],
+            allocation_run_id=batch_obj["allocation_run_id"],
+            defaults={
+                "batch_code": batch_obj["batch_code"],
+                "status": batch_obj["status"],
+                "payload": batch_obj,
+            },
+        )
         return batch_obj
 
     @classmethod
@@ -276,30 +213,39 @@ class PayoutClearingEngine:
         """Runs the 5 Pre-Disbursement Compliance Gates required by SBP."""
         transactions = batch_obj["transactions"]
 
-        # Gate 1: Shariah Fatwa Quorum Seal
-        from apps.products.models import ShariahDecision, ShariahDecisionStatus
-        approved_fatwas = list(
-            ShariahDecision._base_manager.filter(tenant=tenant, status=ShariahDecisionStatus.APPROVED)
-        )
-        has_fatwa_seal = len(approved_fatwas) > 0
-        latest_fatwa_code = approved_fatwas[-1].decision_code if approved_fatwas else "NONE"
+        # Gate 1: the pool's contract must be backed by an approved, in-force Shariah decision.
+        from apps.pools.models import Pool
+        from apps.products.shariah import shariah_decision_for
 
-        # Gate 2: MOD-97 IBAN Checksum Verification
+        pool = Pool._base_manager.get(id=batch_obj["pool_id"])
+        decision = shariah_decision_for(pool)
+        has_fatwa_seal = decision is not None
+        latest_fatwa_code = decision.decision_code if decision else "NONE"
+
+        # Gate 2: MOD-97 IBAN checksum (format check only - no bank directory lookup).
         invalid_ibans = [t for t in transactions if not t.get("iban_valid")]
-        gate2_passed = len(invalid_ibans) == 0
+        gate2_passed = len(invalid_ibans) == 0 and len(transactions) > 0
 
-        # Gate 3: FBR Active Taxpayer List (ATL) Tax Computation Check
-        # Verified that 100% of transactions have non-zero gross and compliant WHT rate
+        # Gate 3: withholding applied at the statutory rate for the filer status recorded on
+        # each participant (the FBR Active Taxpayer List itself is not integrated).
         gate3_passed = all(
             (t["tax_status"] == "filer" and t["wht_rate_pct"] == 15.0) or
             (t["tax_status"] == "non_filer" and t["wht_rate_pct"] == 30.0)
             for t in transactions
         )
 
-        # Gate 4: SBP Nostro / Settlement Balance Adequacy
-        # Simulated SBP Clearing Account has Rs. 100,000,000 balance
-        sbp_clearing_available = 100_000_000.00
-        gate4_passed = sbp_clearing_available >= batch_obj["total_net_disbursed"]
+        # Gate 4: settlement-account liquidity. There is no live SBP/nostro balance feed, so the
+        # balance comes from configuration (PAYOUT_SETTLEMENT_ACCOUNT_BALANCE); if it is not
+        # configured the gate fails rather than assuming funds.
+        from django.conf import settings
+
+        configured_balance = getattr(settings, "PAYOUT_SETTLEMENT_ACCOUNT_BALANCE", None)
+        if configured_balance is None:
+            sbp_clearing_available = None
+            gate4_passed = False
+        else:
+            sbp_clearing_available = float(configured_balance)
+            gate4_passed = sbp_clearing_available >= batch_obj["total_net_disbursed"]
 
         # Gate 5: Maker-Checker Role Separation
         # Prepared by maker, ready for checker authorization
@@ -311,25 +257,37 @@ class PayoutClearingEngine:
             "gate_1_fatwa_seal": {
                 "name": "SBP Shariah Fatwa Quorum Seal",
                 "passed": has_fatwa_seal,
-                "details": f"Active Fatwa Reference: {latest_fatwa_code} (Super-majority quorum validated)",
+                "details": (
+                    f"Approved Shariah decision backing the pool contract: {latest_fatwa_code}"
+                    if has_fatwa_seal
+                    else "No approved, in-force Shariah decision is linked to this pool's contract."
+                ),
                 "status": "PASS" if has_fatwa_seal else "FAIL",
             },
             "gate_2_iban_integrity": {
                 "name": "PK MOD-97 IBAN Checksum Integrity",
                 "passed": gate2_passed,
-                "details": f"All {len(transactions)} recipient IBANs verified valid against SBP Clearing Directory",
+                "details": (
+                    f"All {len(transactions)} recipient IBANs pass the MOD-97 checksum"
+                    if gate2_passed
+                    else (f"{len(invalid_ibans)} invalid IBAN(s)" if transactions else "Batch has no payable recipients.")
+                ),
                 "status": "PASS" if gate2_passed else "FAIL",
             },
             "gate_3_tax_withholding": {
                 "name": "FBR Withholding Tax (WHT) Statutory Rate Compliance",
                 "passed": gate3_passed,
-                "details": f"Active Taxpayer List (ATL) verified: Filer (15%) & Non-Filer (30%) applied correctly",
+                "details": "Filer (15%) and non-filer (30%) rates applied per the recorded participant status; ATL not integrated.",
                 "status": "PASS" if gate3_passed else "FAIL",
             },
             "gate_4_settlement_liquidity": {
                 "name": "SBP RTGS & Raast Nostro Settlement Liquidity",
                 "passed": gate4_passed,
-                "details": f"Available SBP Raast Clearing Balance: PKR {sbp_clearing_available:,.2f} (Sufficient for PKR {batch_obj['total_net_disbursed']:,.2f})",
+                "details": (
+                    "No settlement-account balance is configured (PAYOUT_SETTLEMENT_ACCOUNT_BALANCE); liquidity cannot be confirmed."
+                    if sbp_clearing_available is None
+                    else f"Configured settlement balance PKR {sbp_clearing_available:,.2f} vs PKR {batch_obj['total_net_disbursed']:,.2f} to pay (no live balance feed)."
+                ),
                 "status": "PASS" if gate4_passed else "FAIL",
             },
             "gate_5_dual_authorization": {
@@ -345,7 +303,7 @@ class PayoutClearingEngine:
         if all_passed and batch_obj["status"] == "draft":
             batch_obj["status"] = "validated"
 
-        return batch_obj
+        return cls._persist(batch_obj)
 
     @classmethod
     def authorize_batch(cls, batch_obj, checker_user):
@@ -355,10 +313,13 @@ class PayoutClearingEngine:
         if batch_obj.get("maker_email") == checker_user.email:
             raise ValueError("Maker-Checker violation: The user who created the batch cannot authorize it.")
 
+        if batch_obj.get("status") != "validated":
+            raise ValueError(f"Only a validated batch can be authorized (current status: {batch_obj.get('status')}).")
+
         batch_obj["status"] = "authorized"
         batch_obj["checker_email"] = checker_user.email
         batch_obj["authorized_at"] = timezone.now().isoformat()
-        return batch_obj
+        return cls._persist(batch_obj)
 
     @classmethod
     def simulate_dispatch(cls, batch_obj, inject_edge_case=False):
@@ -406,8 +367,9 @@ class PayoutClearingEngine:
         batch_obj["status"] = "partially_settled" if failed_count > 0 else "settled"
         batch_obj["settled_records"] = settled_count
         batch_obj["failed_records"] = failed_count
+        batch_obj["mode"] = MODE_SIMULATION  # nothing was transmitted; the results above are simulated
 
-        return batch_obj
+        return cls._persist(batch_obj)
 
     @classmethod
     def post_contra_accounting_voucher(cls, batch_obj, tenant, user):
@@ -420,6 +382,9 @@ class PayoutClearingEngine:
         """
         from apps.accounting.models import JournalBatch, JournalEntry, JournalBatchStatus, JournalEntryType
         from apps.pools.models import Pool
+
+        if batch_obj.get("journal_batch_id"):
+            raise ValueError("The contra voucher for this batch has already been posted.")
 
         pool = Pool._base_manager.get(id=batch_obj["pool_id"])
         total_gross = Decimal(str(batch_obj["total_gross_profit"])).quantize(Decimal("0.01"))
@@ -438,7 +403,10 @@ class PayoutClearingEngine:
                 failed_net += net_amt
 
         # Balanced double-entry
-        total_debit = total_gross
+        total_debit = sum(
+            (Decimal(str(t["gross_profit"])).quantize(Decimal("0.01")) for t in batch_obj["transactions"]),
+            Decimal("0.00"),
+        )
         total_credit = total_wht + total_zakat + settled_net + failed_net
 
         # Adjust any rounding penny to ensure absolute ledger equality
@@ -458,14 +426,21 @@ class PayoutClearingEngine:
                 posted_by=user if user.is_authenticated else None,
             )
 
-            # 1. Dr. Depositor Profit Payable Liability
-            JournalEntry.objects.create(
-                tenant=tenant,
-                batch=jb,
-                account_name="2101-001 Pool Depositor Profit Payable Liability",
-                entry_type=JournalEntryType.DEBIT,
-                amount=total_debit,
-            )
+            # 1. Dr. the same per-class Depositor Payable control accounts that the signed
+            #    allocation run credited, so the liability clears exactly.
+            gross_by_class = {}
+            for txn in batch_obj["transactions"]:
+                gross_by_class[txn["participant_class"]] = gross_by_class.get(
+                    txn["participant_class"], Decimal("0.00")
+                ) + Decimal(str(txn["gross_profit"])).quantize(Decimal("0.01"))
+            for participant_class in sorted(gross_by_class):
+                JournalEntry.objects.create(
+                    tenant=tenant,
+                    batch=jb,
+                    account_name=f"Depositor Payable - {participant_class}",
+                    entry_type=JournalEntryType.DEBIT,
+                    amount=gross_by_class[participant_class],
+                )
 
             # 2. Cr. FBR Withholding Tax Payable
             if total_wht > Decimal("0.00"):
@@ -509,7 +484,7 @@ class PayoutClearingEngine:
 
         batch_obj["journal_batch_id"] = str(jb.id)
         batch_obj["contra_voucher_code"] = f"JV-{jb.batch_date.strftime('%Y%m')}-{str(jb.id)[:8].upper()}"
-        return batch_obj
+        return cls._persist(batch_obj)
 
     @classmethod
     def generate_iso20022_pacs008_xml(cls, batch_obj):
@@ -520,6 +495,7 @@ class PayoutClearingEngine:
         now_iso = timezone.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         lines = [
             '<?xml version="1.0" encoding="UTF-8"?>',
+            '<!-- SIMULATION: generated for review only; not transmitted to any switch -->',
             '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
             '  <FIToFICstmrCdtTrf>',
             '    <GrpHdr>',

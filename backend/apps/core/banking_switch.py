@@ -89,6 +89,8 @@ def execute_banking_settlement(
     if simulate_failure_code == "51":
         return {
             "success": False,
+            "simulated": True,
+            "mode": "SIMULATION",
             "response_code": "51",
             "response_message": "DECLINED: Insufficient Funds in Source Account.",
             "stan": stan,
@@ -103,6 +105,8 @@ def execute_banking_settlement(
     elif simulate_failure_code == "91":
         return {
             "success": False,
+            "simulated": True,
+            "mode": "SIMULATION",
             "response_code": "91",
             "response_message": "SWITCH TIMEOUT: 1LINK / SBP Raast core switch inoperative or unreachable.",
             "stan": stan,
@@ -119,8 +123,10 @@ def execute_banking_settlement(
     auth_code = f"AUTH-{uuid.uuid4().hex[:6].upper()}"
     return {
         "success": True,
+        "simulated": True,
+        "mode": "SIMULATION",
         "response_code": "00",
-        "response_message": "APPROVED: Settlement successfully executed and confirmed by Central Clearing Switch.",
+        "response_message": "SIMULATED APPROVAL: no real switch was contacted and no funds moved.",
         "e2e_id": e2e_id,
         "stan": stan,
         "rrn": rrn,
@@ -145,5 +151,5 @@ def execute_banking_settlement(
         },
         "purpose": purpose,
         "settlement_type": "REAL_TIME_GROSS_SETTLEMENT",
-        "regulatory_stamp": "STATE BANK OF PAKISTAN (SBP) RAAST DIRECT SETTLEMENT CONFIRMED",
+        "regulatory_stamp": "SIMULATION ONLY - NOT CONFIRMED BY SBP OR ANY SWITCH; NO FUNDS MOVED",
     }

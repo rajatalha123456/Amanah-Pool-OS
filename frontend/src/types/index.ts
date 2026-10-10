@@ -402,7 +402,8 @@ export interface BalanceImportBatch {
 }
 
 export interface BalanceImportRecordInput {
-  participant_class: string
+  account_number?: string
+  participant_class?: string
   balance_amount: string
 }
 
@@ -427,6 +428,9 @@ export interface BalanceImportResult {
 export interface AllocationLine {
   id?: string
   participant_class: string
+  account?: string | null
+  account_number?: string | null
+  participant_name?: string | null
   daily_funds: string
   weightage: string
   weighted_funds: string
@@ -435,6 +439,7 @@ export interface AllocationLine {
 
 export interface AllocationRunInput {
   pool: string
+  period_start?: string
   value_date: string
   gross_income: string
   direct_expenses?: string
@@ -539,6 +544,9 @@ export interface DepositorStatement {
   id: string
   allocation_run: string
   participant_class: string
+  account?: string | null
+  account_number?: string | null
+  participant_name?: string | null
   period_start: string
   period_end: string
   opening_balance: string
@@ -549,10 +557,40 @@ export interface DepositorStatement {
   generated_at: string
 }
 
+export interface Participant {
+  id: string
+  reference: string
+  full_name: string
+  participant_class: string
+  kyc_status: "pending" | "verified" | "rejected"
+  cnic_ntn: string
+  iban: string
+  bank_name: string
+  tax_status: string
+  zakat_exempt: boolean
+  default_channel: string
+  nominee_name: string
+  user: number | null
+}
+
+export interface ParticipantAccount {
+  id: string
+  participant: string
+  participant_name: string
+  participant_reference: string
+  participant_class: string
+  pool: string
+  account_number: string
+  opened_date: string
+  closed_date: string | null
+  status: string
+}
+
 export interface AllocationRun {
   id: string
   tenant: string
   pool: string
+  period_start: string | null
   value_date: string
   gross_income: string
   direct_expenses: string
@@ -691,6 +729,9 @@ export interface CreateNAVSnapshotInput {
 }
 
 export interface CircleMember {
+  kyc_status?: string
+  iban?: string
+  bank_name?: string
   id: string
   pool: string
   member_name: string
@@ -747,7 +788,9 @@ export interface Payout {
   cycle_number: number
   amount: string
   payout_date: string
-  status: "pending" | "disbursed"
+  status: "pending" | "approved" | "disbursed" | "rejected"
+  requested_by?: number | null
+  rejection_reason?: string | null
   disbursed_by: number | null
   disbursed_by_username?: string
   draw_seed: string | null
@@ -766,15 +809,12 @@ export interface Payout {
   updated_at: string
 }
 
-export interface DisbursePayoutInput {
-  cycle_number: number
-  amount: string
-  payout_date: string
-  settlement_rail?: string
-  settlement_utr?: string
-  recipient_iban?: string
-  recipient_bank?: string
-  biometric_auth_ref?: string
+
+export interface PayoutCheck {
+  key: string
+  label: string
+  passed: boolean
+  detail: string
 }
 
 export interface PayoutCeremonyReadiness {
@@ -791,14 +831,11 @@ export interface PayoutCeremonyReadiness {
     member_name: string
     member_reference: string
     payout_position: number
-    pot_amount: number
-    default_iban: string
-    default_bank: string
-    raast_alias: string
+    kyc_status: string
+    iban: string
+    bank_name: string
   } | null
   pot_summary: {
-    monthly_share_per_member: number
-    total_expected_pot: number
     total_collected_pot: number
     is_pot_fully_funded: boolean
     total_active_members: number
@@ -806,34 +843,23 @@ export interface PayoutCeremonyReadiness {
     pending_count: number
     pending_members: Array<{ id: string; name: string; reference: string }>
   }
-  shariah_preflight: {
-    contract_type: string
-    zero_time_value_uplift: boolean
-    zero_fee_deduction: boolean
-    bank_fee_absorption_note: string
-    rotation_parity_verified: boolean
-  }
-  settlement_rails_options: Array<{
-    key: string
-    title: string
-    latency: string
-    fee: string
-    recommended: boolean
-  }>
+  checks: PayoutCheck[]
+  can_request: boolean
+  shariah_decision: { decision_code: string; title: string } | null
+  open_payout: Payout | null
+  settlement_rails_options: Array<{ key: string; title: string }>
   historical_payouts: Payout[]
 }
 
-export interface ExecuteCeremonyDisbursalInput {
+export interface RequestPayoutInput {
   member_id: string
-  cycle_number: number
-  amount: number | string
-  payout_date?: string
   settlement_rail?: string
-  recipient_iban?: string
-  recipient_bank?: string
-  secondary_signer?: string
+  payout_date?: string
+}
+
+export interface SettlePayoutInput {
+  settlement_utr?: string
   biometric_auth_ref?: string
-  auto_reconcile_contributions?: boolean
 }
 
 export interface PayoutReceiptData {
@@ -847,15 +873,16 @@ export interface PayoutReceiptData {
   payout_date: string
   status: string
   settlement_rail: string
-  settlement_utr: string
+  settlement_utr: string | null
   recipient_iban: string
   recipient_bank: string
-  secondary_approved_by: string
+  requested_by: string | null
+  secondary_approved_by: string | null
   secondary_approved_at: string | null
-  shariah_certificate_number: string
-  biometric_auth_ref: string
-  ceremony_hash: string
-  legal_entity: string
+  settled_by: string | null
+  shariah_certificate_number: string | null
+  biometric_auth_ref: string | null
+  ceremony_hash: string | null
 }
 
 export interface ArrearsRecord {

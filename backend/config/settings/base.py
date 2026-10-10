@@ -2,6 +2,7 @@
 Base settings shared by all environments for the amanah_pool_os project.
 """
 
+from decimal import Decimal
 from pathlib import Path
 from datetime import timedelta
 
@@ -41,6 +42,7 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.products",
     "apps.pools",
+    "apps.participants",
     "apps.allocation",
     "apps.accounting",
     "apps.governance",
@@ -188,6 +190,11 @@ SHARIAH_COPILOT_INTERNAL_KEY = config("SHARIAH_COPILOT_INTERNAL_KEY", default=""
 ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL = config(
     "ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL", default=True, cast=bool
 )
+
+
+# Payout clearing: liquidity of the settlement (nostro) account. There is no live
+# balance feed, so the pre-disbursement liquidity gate fails unless this is set.
+PAYOUT_SETTLEMENT_ACCOUNT_BALANCE = config("PAYOUT_SETTLEMENT_ACCOUNT_BALANCE", default=None, cast=lambda v: Decimal(v) if v else None)
 
 
 # Logging

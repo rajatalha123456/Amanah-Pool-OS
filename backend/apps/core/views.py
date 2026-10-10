@@ -1,5 +1,7 @@
 import csv
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from django.http import HttpResponse
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -71,7 +73,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         """
         from .merkle_engine import MerkleAuditEngine
 
-        qs = self.get_queryset()
+        qs = AuditLog.objects.filter(tenant=request.tenant)  # whole chain: continuity can only be checked unfiltered
         result = MerkleAuditEngine.verify_merkle_chain(qs)
         return Response(result)
 
@@ -83,7 +85,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         """
         from .merkle_engine import MerkleAuditEngine
 
-        qs = self.get_queryset()
+        qs = AuditLog.objects.filter(tenant=request.tenant)
         target_height = request.data.get("target_height")
         if target_height is not None:
             try:
@@ -183,65 +185,60 @@ def process_banking_settlement(request):
     return Response(settlement_result)
 
 
+EVIDENCE_ROLES = ["auditor", "pool_manager", "finance_checker", "risk_compliance", "shariah_board"]
+
+
+def _compile_bundle_for(request, params):
+    """Shared by the JSON and ZIP endpoints. The pool must belong to the caller's tenant."""
+    from django.utils import timezone
+
+    from rest_framework.exceptions import ValidationError
+
+    from .evidence_bundle_engine import EvidenceBundleEngine
+
+    pool_id = params.get("pool_id")
+    if not pool_id:
+        raise ValidationError({"pool_id": ["This field is required."]})
+    try:
+        bundle = EvidenceBundleEngine.compile_bundle(
+            pool_id=pool_id,
+            period_date=params.get("period_date") or timezone.localdate().isoformat(),
+            audit_type=params.get("audit_type") or "Regulatory inspection",
+            user=request.user,
+            tenant=request.tenant,
+        )
+    except (ValueError, DjangoValidationError) as exc:
+        raise ValidationError(str(getattr(exc, "message", None) or exc)) from exc
+    return EvidenceBundleEngine, bundle
+
+
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin", "pool_manager", "finance_checker", "shariah_board"])])
+@permission_classes([IsAuthenticated, HasAnyRole(EVIDENCE_ROLES)])
 def compile_evidence_bundle(request):
     """
-    BRD AI & Assurance Screen 7 / Screen 39: Evidence Bundle Builder.
-    Assembles cryptographic, Shariah, GL, and clearing attestations into a unified SBP dossier.
+    BRD AI & Assurance Screen 7 / 39: Evidence Bundle Builder.
+    Seals recorded evidence (decision, period close, signed run, journals, payout batch,
+    risk, reconciliation, audit chain) for one of the caller's pools; missing evidence is
+    reported as unavailable, never invented.
     """
-    from .evidence_bundle_engine import EvidenceBundleEngine
-    from apps.pools.models import Pool
-
-    pool_id = request.data.get("pool_id")
-    period_date = request.data.get("period_date", "2026-09-30")
-    audit_type = request.data.get("audit_type", "SBP Comprehensive Inspection")
-
-    if not pool_id:
-        pool = Pool._base_manager.first()
-        pool_id = str(pool.id) if pool else None
-
-    if not pool_id:
-        return Response({"error": "No pool found for evidence compilation."}, status=400)
-
-    bundle = EvidenceBundleEngine.compile_bundle(
-        pool_id=pool_id,
-        period_date=period_date,
-        audit_type=audit_type,
-        user=request.user,
-        tenant=request.user.tenant,
+    _, bundle = _compile_bundle_for(request, request.data)
+    log_action(
+        tenant=request.tenant, actor=request.user, action="compile_evidence_bundle", model_name="EvidenceBundle",
+        object_id=bundle["bundle_id"], changes={"master_bundle_seal": bundle["master_bundle_seal"],
+                                                "all_verified": bundle["all_verified"]},
+        request=request,
     )
     return Response(bundle)
 
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin", "pool_manager", "finance_checker", "shariah_board"])])
+@permission_classes([IsAuthenticated, HasAnyRole(EVIDENCE_ROLES)])
 def download_evidence_bundle_zip(request):
-    """
-    Downloads the unified SBP Regulatory Evidence Bundle ZIP archive.
-    """
-    from .evidence_bundle_engine import EvidenceBundleEngine
-    from apps.pools.models import Pool
-
-    pool_id = request.query_params.get("pool_id") or request.data.get("pool_id")
-    period_date = request.query_params.get("period_date") or request.data.get("period_date", "2026-09-30")
-    audit_type = request.query_params.get("audit_type") or request.data.get("audit_type", "SBP Inspection")
-
-    if not pool_id:
-        pool = Pool._base_manager.first()
-        pool_id = str(pool.id) if pool else None
-
-    bundle = EvidenceBundleEngine.compile_bundle(
-        pool_id=pool_id,
-        period_date=period_date,
-        audit_type=audit_type,
-        user=request.user,
-        tenant=request.user.tenant,
-    )
-    zip_bytes = EvidenceBundleEngine.generate_zip_archive(bundle)
+    """Downloads the evidence bundle as a ZIP archive."""
+    params = request.query_params if request.method == "GET" else request.data
+    engine, bundle = _compile_bundle_for(request, params)
+    zip_bytes = engine.generate_zip_archive(bundle, tenant=request.tenant)
 
     response = HttpResponse(zip_bytes, content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{bundle["bundle_id"]}.zip"'
     return response
-
-

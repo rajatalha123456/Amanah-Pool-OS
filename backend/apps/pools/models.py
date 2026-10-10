@@ -132,6 +132,25 @@ class DailyBalance(TenantScopedModel):
     status = models.CharField(
         max_length=20, choices=DailyBalanceStatus.choices, default=DailyBalanceStatus.PENDING
     )
+    # Account-level balance (the real model). Null only for legacy
+    # class-level rows, which the allocation engine still understands.
+    account = models.ForeignKey(
+        "participants.ParticipantAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="daily_balances",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["pool", "value_date", "account"],
+                condition=models.Q(account__isnull=False),
+                name="unique_daily_balance_per_account_per_day",
+            ),
+        ]
+        indexes = [models.Index(fields=["pool", "value_date"], name="dailybal_pool_date_idx")]
 
     def __str__(self):
         return f"{self.pool.name} - {self.participant_class} @ {self.value_date}"

@@ -29,6 +29,7 @@ from apps.allocation.models import (
     AllocationLine,
     AllocationRun,
     DepositorStatement,
+    PayoutBatchRecord,
     ProfitSharingRatio,
     ReservePolicy,
     WeightageBand,
@@ -67,6 +68,7 @@ from apps.pools.models import (
     Pool,
     PoolVersion,
 )
+from apps.participants.models import Participant, ParticipantAccount
 from apps.products.models import (
     ContractTemplate,
     JurisdictionRulePack,
@@ -244,6 +246,32 @@ def _build_shariah_decision(tenant, cache):
         title="Decision",
         description="Description",
         effective_date=_D,
+    )
+
+
+def _build_payout_batch_record(tenant, cache):
+    return PayoutBatchRecord.objects.create(
+        tenant=tenant, allocation_run=cache.allocation_run(), batch_code=f"BATCH-{tenant.code}", payload={}
+    )
+
+
+def _build_participant(tenant, cache):
+    return Participant.objects.create(
+        tenant=tenant,
+        reference=f"PART-{tenant.code}",
+        full_name="Test Participant",
+        participant_class="savings_tier_a",
+    )
+
+
+def _build_participant_account(tenant, cache):
+    participant = Participant._base_manager.filter(tenant=tenant).first()
+    return ParticipantAccount.objects.create(
+        tenant=tenant,
+        participant=participant,
+        pool=cache.pool(),
+        account_number=f"ACC-{tenant.code}",
+        opened_date=_D,
     )
 
 
@@ -590,6 +618,9 @@ def _build_jurisdiction_rule_pack(tenant, cache):
 BUILDERS = {
     "core.TenantIsolationTestRecord": (TenantIsolationTestRecord, _build_tenant_isolation_test_record),
     "products.ShariahDecision": (ShariahDecision, _build_shariah_decision),
+    "allocation.PayoutBatchRecord": (PayoutBatchRecord, _build_payout_batch_record),
+    "participants.Participant": (Participant, _build_participant),
+    "participants.ParticipantAccount": (ParticipantAccount, _build_participant_account),
     "products.ShariahQuorumVote": (ShariahQuorumVote, _build_shariah_quorum_vote),
     "products.ContractTemplate": (ContractTemplate, _build_contract_template),
     "products.Product": (Product, _build_product),

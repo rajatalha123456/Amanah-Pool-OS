@@ -19,11 +19,12 @@ account, never silently absorbed by (or pushed to) an arbitrary participant.
 
 import hashlib
 import json
+from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Q
 
-from apps.pools.models import DailyBalance
+from apps.pools.models import DailyBalance, DailyBalanceStatus
 
 from .models import (
     PSRStatus,
@@ -36,6 +37,73 @@ from .models import (
 
 TWO_PLACES = Decimal("0.01")
 HUNDRED = Decimal("100")
+
+# End-of-day balances are not delivered for non-business days; an account's
+# last known balance is carried forward over such gaps. The look-back window
+# only bounds how far before the period start we search for the opening balance.
+CARRY_FORWARD_DAYS = 10
+MAX_PERIOD_DAYS = 366
+
+
+def _days_between(start, end):
+    return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
+
+
+def _load_entities(pool, start, end):
+    """
+    Groups the pool's end-of-day balances by participant account (or, for
+    legacy rows without an account, by participant class) and returns
+    {key: {"account", "participant_class", "series": {date: Decimal}}}.
+    """
+
+    rows = (
+        DailyBalance.objects.filter(
+            pool=pool,
+            value_date__gte=start - timedelta(days=CARRY_FORWARD_DAYS),
+            value_date__lte=end,
+        )
+        .exclude(status=DailyBalanceStatus.REJECTED)
+        .select_related("account__participant")
+    )
+
+    entities = {}
+    for row in rows:
+        if row.account_id:
+            key = ("account", str(row.account_id))
+            participant_class = row.account.participant.participant_class
+            account = row.account
+        else:
+            key = ("class", row.participant_class)
+            participant_class = row.participant_class
+            account = None
+
+        entity = entities.setdefault(
+            key, {"account": account, "participant_class": participant_class, "series": {}}
+        )
+        entity["series"][row.value_date] = entity["series"].get(row.value_date, Decimal("0")) + Decimal(
+            row.balance_amount
+        )
+    return entities
+
+
+def _daily_balances(entity, days, start):
+    """Balance of the entity on each day of the period (last known balance carried forward)."""
+
+    series = entity["series"]
+    account = entity["account"]
+    prior_dates = [d for d in series if d < start]
+    last = series[max(prior_dates)] if prior_dates else Decimal("0")
+
+    balances = []
+    for day in days:
+        if day in series:
+            last = series[day]
+        balance = last
+        if account is not None:
+            if day < account.opened_date or (account.closed_date and day > account.closed_date):
+                balance = Decimal("0")
+        balances.append(balance)
+    return balances
 
 
 def _round(value):
@@ -76,9 +144,14 @@ def _reserve_amount(policy, base, total_daily_funds):
     return amount
 
 
-def calculate_allocation(pool, value_date, gross_income, direct_expenses):
+def calculate_allocation(pool, value_date, gross_income, direct_expenses, period_start=None):
     """
     Returns a dict with all computed values; does NOT save anything to DB.
+
+    The allocation covers the period [period_start, value_date] (a single day
+    when period_start is omitted). Each participant account's *daily weighted
+    funds* are averaged over the period - daily balance x the weightage band
+    effective on that day - and profit is shared pro-rata to that average.
 
     Return shape:
         {
@@ -113,51 +186,84 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
     direct_expenses = Decimal(direct_expenses)
     distributable = gross_income - direct_expenses
 
-    daily_balances = list(DailyBalance.objects.filter(pool=pool, value_date=value_date))
-    if not daily_balances:
-        raise ValueError(f"No DailyBalance records found for pool={pool} on {value_date}.")
+    period_start = period_start or value_date
+    if period_start > value_date:
+        raise ValueError("period_start cannot be after the period end date.")
+    days = _days_between(period_start, value_date)
+    if len(days) > MAX_PERIOD_DAYS:
+        raise ValueError(f"An allocation period cannot exceed {MAX_PERIOD_DAYS} days.")
+    day_count = Decimal(len(days))
 
-    lines_input = []
-    band_snapshot = []
-    for balance in daily_balances:
-        participant_class = balance.participant_class
-        daily_funds = Decimal(balance.balance_amount)
-
-        band = (
-            WeightageBand.objects.filter(
-                pool=pool,
-                participant_class=participant_class,
-                status=WeightageBandStatus.APPROVED,
-            )
-            .filter(_covers_date(value_date))
-            .first()
+    entities = _load_entities(pool, period_start, value_date)
+    if not entities:
+        raise ValueError(
+            f"No DailyBalance records found for pool={pool} between {period_start} and {value_date}."
         )
 
-        if band is None:
-            raise ValueError(
-                f"No approved WeightageBand found for participant_class="
-                f"'{participant_class}' on {value_date}."
-            )
+    bands_by_class = {}
+    for band in WeightageBand.objects.filter(
+        pool=pool, status=WeightageBandStatus.APPROVED, effective_from__lte=value_date
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=period_start)):
+        bands_by_class.setdefault(band.participant_class, []).append(band)
 
-        weightage = Decimal(band.weightage)
-        weighted_funds = daily_funds * weightage
+    def band_for(participant_class, day):
+        for band in bands_by_class.get(participant_class, []):
+            if band.effective_from <= day and (band.effective_to is None or band.effective_to >= day):
+                return band
+        return None
 
+    lines_input = []
+    used_bands = {}
+    for entity in sorted(
+        entities.values(),
+        key=lambda e: (e["participant_class"], e["account"].account_number if e["account"] else ""),
+    ):
+        participant_class = entity["participant_class"]
+        sum_balance = Decimal("0")
+        sum_weighted = Decimal("0")
+        for day, balance in zip(days, _daily_balances(entity, days, period_start)):
+            if balance <= 0:
+                continue
+            band = band_for(participant_class, day)
+            if band is None:
+                raise ValueError(
+                    f"No approved WeightageBand found for participant_class="
+                    f"'{participant_class}' on {day}."
+                )
+            used_bands[str(band.id)] = band
+            sum_balance += balance
+            sum_weighted += balance * Decimal(band.weightage)
+
+        if sum_balance == 0:
+            continue
+
+        average_funds = sum_balance / day_count
+        average_weighted = sum_weighted / day_count
+        account = entity["account"]
         lines_input.append(
             {
                 "participant_class": participant_class,
-                "daily_funds": daily_funds,
-                "weightage": weightage,
-                "weighted_funds": weighted_funds,
+                "account": account,
+                "daily_funds": average_funds,
+                "weightage": (average_weighted / average_funds).quantize(TWO_PLACES, rounding=ROUND_HALF_UP),
+                "weighted_funds": average_weighted,
             }
         )
-        band_snapshot.append(
-            {
-                "id": str(band.id),
-                "participant_class": participant_class,
-                "weightage": str(band.weightage),
-                "effective_from": band.effective_from.isoformat(),
-            }
+
+    if not lines_input:
+        raise ValueError(
+            f"No positive balances found for pool={pool} between {period_start} and {value_date}."
         )
+
+    band_snapshot = [
+        {
+            "id": band_id,
+            "participant_class": band.participant_class,
+            "weightage": str(band.weightage),
+            "effective_from": band.effective_from.isoformat(),
+        }
+        for band_id, band in used_bands.items()
+    ]
 
     total_weighted_funds = sum((line["weighted_funds"] for line in lines_input), Decimal("0"))
     total_daily_funds = sum((line["daily_funds"] for line in lines_input), Decimal("0"))
@@ -165,14 +271,22 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
     if total_weighted_funds == 0:
         raise ValueError("total_weighted_funds is zero; cannot allocate (division by zero).")
 
-    psr = (
-        ProfitSharingRatio.objects.filter(pool=pool, status=PSRStatus.APPROVED)
-        .filter(_covers_date(value_date))
-        .first()
-    )
+    def _psr_on(day):
+        return (
+            ProfitSharingRatio.objects.filter(pool=pool, status=PSRStatus.APPROVED)
+            .filter(_covers_date(day))
+            .first()
+        )
 
+    psr = _psr_on(value_date)
     if psr is None:
         raise ValueError(f"No approved ProfitSharingRatio found for pool={pool} on {value_date}.")
+    psr_at_start = _psr_on(period_start)
+    if psr_at_start is None or psr_at_start.pk != psr.pk:
+        raise ValueError(
+            "The approved profit-sharing ratio changes within this period; "
+            "split the allocation at the PSR change date."
+        )
 
     per_policy = ReservePolicy.objects.filter(
         pool=pool, reserve_type=ReserveType.PER, is_active=True
@@ -215,9 +329,13 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
 
     lines = []
     for line, raw_amount in zip(lines_input, raw_line_amounts):
+        account = line["account"]
         lines.append(
             {
                 "participant_class": line["participant_class"],
+                "account_id": str(account.id) if account else None,
+                "account_number": account.account_number if account else None,
+                "participant_name": account.participant.full_name if account else None,
                 "daily_funds": _round(line["daily_funds"]),
                 "weightage": line["weightage"],
                 "weighted_funds": _round(line["weighted_funds"]),
@@ -267,6 +385,11 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses):
             for kind, policy in (("per", per_policy), ("irr", irr_policy))
         },
         "total_daily_funds": str(_round(total_daily_funds)),
+        "period": {
+            "start": period_start.isoformat(),
+            "end": value_date.isoformat(),
+            "days": len(days),
+        },
     }
 
     return {
@@ -308,9 +431,10 @@ def run_hash_payload(run):
     re-verifies it at approval.
     """
 
-    lines = sorted(run.lines.all(), key=lambda line: line.participant_class)
+    lines = sorted(run.lines.all(), key=lambda line: (line.participant_class, str(line.account_id or "")))
     payload = {
         "pool_id": str(run.pool_id),
+        "period_start": run.effective_period_start.isoformat(),
         "value_date": run.value_date.isoformat(),
         "gross_income": str(run.gross_income),
         "direct_expenses": str(run.direct_expenses),
@@ -326,6 +450,7 @@ def run_hash_payload(run):
         "lines": [
             {
                 "participant_class": line.participant_class,
+                "account_id": str(line.account_id) if line.account_id else None,
                 "daily_funds": str(line.daily_funds),
                 "weightage": str(line.weightage),
                 "weighted_funds": str(line.weighted_funds),

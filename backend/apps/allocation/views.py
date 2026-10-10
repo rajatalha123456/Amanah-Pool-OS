@@ -3,6 +3,7 @@ import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -44,12 +45,12 @@ from .serializers import (
     RestatementInputSerializer,
     WeightageBandSerializer,
 )
-from .statements import generate_statement_narrative
+from .statements import generate_statement_narrative, statement_balances
 
 logger = logging.getLogger("apps")
 
 
-def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, result, **extra):
+def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, result, period_start=None, **extra):
     """
     Stores a calculated result as an AllocationRun (status "simulated") with
     its lines and seals it with the calculation hash. Used by both the normal
@@ -60,6 +61,7 @@ def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, resul
         run = AllocationRun.objects.create(
             tenant=user.tenant,
             pool=pool,
+            period_start=period_start,
             value_date=value_date,
             gross_income=gross_income,
             direct_expenses=direct_expenses,
@@ -83,6 +85,7 @@ def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, resul
                     tenant=user.tenant,
                     allocation_run=run,
                     participant_class=line["participant_class"],
+                    account_id=line.get("account_id"),
                     daily_funds=line["daily_funds"],
                     weightage=line["weightage"],
                     weighted_funds=line["weighted_funds"],
@@ -97,6 +100,24 @@ def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, resul
         run.calculation_hash = compute_run_hash(run)
         run.save(update_fields=["calculation_hash", "updated_at"])
     return run
+
+
+def _batch_for(run, tenant, force_regenerate=False):
+    """Loads (or builds) the persisted payout batch of a signed run; engine errors become 400s."""
+
+    from .payout_clearing_engine import PayoutClearingEngine
+
+    try:
+        return PayoutClearingEngine.get_or_create_batch_for_run(run, tenant, force_regenerate=force_regenerate)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+
+
+def _run_or_400(run_id):
+    try:
+        return AllocationRun.objects.get(id=run_id)
+    except (AllocationRun.DoesNotExist, ValueError, DjangoValidationError):
+        raise ValidationError({"allocation_run": ["Allocation run not found."]})
 
 
 def _reverse_replaced_run(new_run, user):
@@ -246,12 +267,18 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         # `queryset = Model.objects.all()` attribute (TenantScopedManager +
         # import-time evaluation bug).
         queryset = AllocationRun.objects.all()
+        # Investors/members never see runs (they would expose every
+        # participant's allocation); they use "my-statements" instead.
+        if self.request.user.role == "investor_member":
+            return queryset.none()
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
         return queryset
 
     def get_permissions(self):
+        if self.action == "my_statements":
+            return [IsAuthenticated(), HasAnyRole(["investor_member"])()]
         if self.action in ("create", "simulate", "generate_statements"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         if self.action == "submit_for_checking":
@@ -280,6 +307,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 value_date=data["value_date"],
                 gross_income=data["gross_income"],
                 direct_expenses=data["direct_expenses"],
+                period_start=data.get("period_start"),
             )
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
@@ -315,11 +343,14 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         data, result = self._run_calculation(request)
 
         # A closed period accepts no new runs; corrections go through restatement.
-        assert_period_open(data["pool"], data["value_date"], what="an allocation run")
+        assert_period_open(
+            data["pool"], data["value_date"], what="an allocation run", start=data.get("period_start")
+        )
 
         run = _persist_run(
             user=request.user,
             pool=data["pool"],
+            period_start=data.get("period_start"),
             value_date=data["value_date"],
             gross_income=data["gross_income"],
             direct_expenses=data["direct_expenses"],
@@ -459,7 +490,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             )
 
         if not run.is_restatement:
-            assert_period_open(run.pool, run.value_date, what="an allocation run")
+            assert_period_open(
+                run.pool, run.value_date, what="an allocation run", start=run.effective_period_start
+            )
 
         try:
             with transaction.atomic():
@@ -467,13 +500,24 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 if run.is_restatement:
                     reversal_batch = _reverse_replaced_run(run, request.user)
                 else:
-                    duplicate = AllocationRun.objects.filter(
-                        pool=run.pool, value_date=run.value_date, status=AllocationRunStatus.SIGNED
-                    ).exclude(pk=run.pk)
+                    # No two signed runs of a pool may cover the same day.
+                    duplicate = (
+                        AllocationRun.objects.filter(
+                            pool=run.pool,
+                            status=AllocationRunStatus.SIGNED,
+                            value_date__gte=run.effective_period_start,
+                        )
+                        .filter(
+                            Q(period_start__lte=run.value_date)
+                            | Q(period_start__isnull=True, value_date__lte=run.value_date)
+                        )
+                        .exclude(pk=run.pk)
+                    )
                     if duplicate.exists():
                         raise ValidationError(
-                            f"A signed allocation run already exists for {run.pool.code} on "
-                            f"{run.value_date}; use a restatement to correct it."
+                            f"A signed allocation run already covers part of "
+                            f"{run.effective_period_start} to {run.value_date} for {run.pool.code}; "
+                            "use a restatement to correct it."
                         )
 
                 apply_reserve_movements(run)
@@ -603,11 +647,13 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             return Response(DepositorStatementSerializer(existing, many=True).data)
 
         statements = []
-        for line in run.lines.all():
-            opening_balance = line.daily_funds
-            net_deposits = 0
+        for line in run.lines.select_related("account__participant"):
+            # Per-participant figures: principal at period start/end from the
+            # account's own balances, plus the profit allocated by the signed run.
+            opening_balance, closing_principal = statement_balances(run, line)
+            net_deposits = closing_principal - opening_balance
             profit_allocated = line.allocated_amount
-            closing_balance = opening_balance + net_deposits + profit_allocated
+            closing_balance = closing_principal + profit_allocated
 
             narrative = generate_statement_narrative(
                 participant_class=line.participant_class,
@@ -615,6 +661,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 profit_allocated=profit_allocated,
                 weightage=line.weightage,
                 allocation_run=run,
+                participant_name=line.account.participant.full_name if line.account else None,
+                average_funds=line.daily_funds,
             )
 
             statements.append(
@@ -622,7 +670,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                     tenant=run.tenant,
                     allocation_run=run,
                     participant_class=line.participant_class,
-                    period_start=run.value_date,
+                    account=line.account,
+                    period_start=run.effective_period_start,
                     period_end=run.value_date,
                     opening_balance=opening_balance,
                     net_deposits=net_deposits,
@@ -649,7 +698,20 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
     @action(detail=True, methods=["get"])
     def statements(self, request, pk=None):
         run = self.get_object()
-        statements = run.statements.all()
+        statements = run.statements.select_related("account__participant").all()
+        return Response(DepositorStatementSerializer(statements, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="my-statements")
+    def my_statements(self, request):
+        """Self-service: an investor/member sees only statements of their own accounts."""
+        statements = (
+            DepositorStatement.objects.filter(
+                account__participant__user=request.user,
+                allocation_run__status=AllocationRunStatus.SIGNED,
+            )
+            .select_related("account__participant")
+            .order_by("-period_end")
+        )
         return Response(DepositorStatementSerializer(statements, many=True).data)
 
     @action(detail=True, methods=["post"])
@@ -695,7 +757,11 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         try:
             calc_result = calculate_allocation(
-                old_run.pool, old_run.value_date, new_gross_income, new_direct_expenses
+                old_run.pool,
+                old_run.value_date,
+                new_gross_income,
+                new_direct_expenses,
+                period_start=old_run.effective_period_start,
             )
         except ValueError as exc:
             # No silent fallback: a restatement must be recalculated from the
@@ -705,6 +771,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         new_run = _persist_run(
             user=request.user,
             pool=old_run.pool,
+            period_start=old_run.period_start,
             value_date=old_run.value_date,
             gross_income=new_gross_income,
             direct_expenses=new_direct_expenses,
@@ -830,12 +897,12 @@ class PayoutClearingViewSet(viewsets.ViewSet):
         from .payout_clearing_engine import PayoutClearingEngine
 
         runs = AllocationRun.objects.filter(
-            status__in=[AllocationRunStatus.SIGNED, AllocationRunStatus.PENDING_APPROVAL, AllocationRunStatus.SHARIAH_REVIEW]
+            status=AllocationRunStatus.SIGNED
         ).order_by("-value_date")
 
         batches = []
         for r in runs:
-            b = PayoutClearingEngine.get_or_create_batch_for_run(r, request.user.tenant)
+            b = _batch_for(r, request.user.tenant)
             batches.append({
                 "allocation_run_id": str(r.id),
                 "pool_code": r.pool.code,
@@ -865,12 +932,12 @@ class PayoutClearingViewSet(viewsets.ViewSet):
             raise ValidationError({"allocation_run": ["Query param is required."]})
 
         try:
-            run = AllocationRun.objects.get(id=run_id)
+            run = _run_or_400(run_id)
         except AllocationRun.DoesNotExist:
             raise ValidationError({"allocation_run": ["Allocation run not found."]})
 
         force_regen = request.query_params.get("force_regenerate") == "true"
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant, force_regenerate=force_regen)
+        batch_obj = _batch_for(run, request.user.tenant, force_regenerate=force_regen)
         return Response(batch_obj)
 
     @action(detail=False, methods=["post"], url_path="verify-gates")
@@ -883,8 +950,8 @@ class PayoutClearingViewSet(viewsets.ViewSet):
         if not run_id:
             raise ValidationError({"allocation_run": ["Field is required."]})
 
-        run = AllocationRun.objects.get(id=run_id)
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant)
+        run = _run_or_400(run_id)
+        batch_obj = _batch_for(run, request.user.tenant)
         updated_batch = PayoutClearingEngine.verify_pre_disbursement_gates(batch_obj, request.user.tenant)
         return Response(updated_batch)
 
@@ -898,8 +965,8 @@ class PayoutClearingViewSet(viewsets.ViewSet):
         if not run_id:
             raise ValidationError({"allocation_run": ["Field is required."]})
 
-        run = AllocationRun.objects.get(id=run_id)
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant)
+        run = _run_or_400(run_id)
+        batch_obj = _batch_for(run, request.user.tenant)
         try:
             updated_batch = PayoutClearingEngine.authorize_batch(batch_obj, request.user)
             return Response(updated_batch)
@@ -917,8 +984,8 @@ class PayoutClearingViewSet(viewsets.ViewSet):
             raise ValidationError({"allocation_run": ["Field is required."]})
 
         inject_edge_case = request.data.get("inject_edge_case", False)
-        run = AllocationRun.objects.get(id=run_id)
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant)
+        run = _run_or_400(run_id)
+        batch_obj = _batch_for(run, request.user.tenant)
 
         # Dispatch must follow explicit gate verification and checker authorisation.
         if not batch_obj.get("gates_verified"):
@@ -940,8 +1007,8 @@ class PayoutClearingViewSet(viewsets.ViewSet):
         if not run_id:
             raise ValidationError({"allocation_run": ["Query param is required."]})
 
-        run = AllocationRun.objects.get(id=run_id)
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant)
+        run = _run_or_400(run_id)
+        batch_obj = _batch_for(run, request.user.tenant)
         xml_content = PayoutClearingEngine.generate_iso20022_pacs008_xml(batch_obj)
 
         response = HttpResponse(xml_content, content_type="application/xml")
@@ -958,14 +1025,17 @@ class PayoutClearingViewSet(viewsets.ViewSet):
         if not run_id:
             raise ValidationError({"allocation_run": ["Field is required."]})
 
-        run = AllocationRun.objects.get(id=run_id)
-        batch_obj = PayoutClearingEngine.get_or_create_batch_for_run(run, request.user.tenant)
+        run = _run_or_400(run_id)
+        batch_obj = _batch_for(run, request.user.tenant)
 
         if batch_obj.get("status") not in ["settled", "partially_settled"]:
             raise ValidationError("Batch must be settled before posting contra-accounting vouchers.")
 
-        updated_batch = PayoutClearingEngine.post_contra_accounting_voucher(
-            batch_obj, request.user.tenant, request.user
-        )
+        try:
+            updated_batch = PayoutClearingEngine.post_contra_accounting_voucher(
+                batch_obj, request.user.tenant, request.user
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
         return Response(updated_batch)
 

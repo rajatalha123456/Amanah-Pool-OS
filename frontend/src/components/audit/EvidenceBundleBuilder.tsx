@@ -261,7 +261,9 @@ export function EvidenceBundleBuilder() {
                 </span>
                 <span>•</span>
                 <span>
-                  Verified Artifacts: <strong className="text-emerald-400">{bundle.artifacts_count} / 8 Included</strong>
+                  Evidence: <strong className="text-emerald-400">{bundle.artifacts_verified} verified</strong>
+                  {" · "}
+                  {bundle.artifacts_available} available of {bundle.artifacts_count}
                 </span>
                 <span>•</span>
                 <span>
@@ -322,8 +324,16 @@ export function EvidenceBundleBuilder() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xl">{icon}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        CONFIRMED
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${
+                          a.verified
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : a.meta.available
+                              ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                              : "bg-white/5 text-text-muted border-white/10"
+                        }`}
+                      >
+                        {a.verified ? "VERIFIED" : a.meta.available ? "NOT VERIFIED" : "UNAVAILABLE"}
                       </span>
                     </div>
 
@@ -333,6 +343,7 @@ export function EvidenceBundleBuilder() {
                     <h4 className="text-xs font-bold text-text-primary line-clamp-2 leading-snug">
                       {a.meta.name}
                     </h4>
+                    {a.meta.reason && <p className="mt-1 text-[10px] text-text-muted">{String(a.meta.reason)}</p>}
 
                     <div className="mt-3 text-[10px] font-mono text-text-muted truncate">
                       SHA-256: {a.hash.slice(0, 16)}...

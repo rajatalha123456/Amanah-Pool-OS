@@ -49,6 +49,7 @@ export interface PayoutBatchDetail {
   total_net_disbursed: number
   batch_hash: string
   iso_msg_id: string
+  mode?: string
   maker_email?: string | null
   checker_email?: string | null
   authorized_at?: string | null

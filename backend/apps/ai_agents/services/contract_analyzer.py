@@ -27,16 +27,17 @@ CONTRACT TEXT TO ANALYZE:
 Respond ONLY with the JSON object. Do not include markdown code block syntax (like ```json), commentary, or extra text.
 """
 
-def analyze_contract_text(contract_text: str) -> dict:
+def analyze_contract_text(contract_text: str, tenant_code: str, user_id: str = "") -> dict:
     prompt = CONTRACT_ANALYZER_PROMPT.replace("{contract_text}", contract_text)
     
     # We call the copilot service's direct LLM or generate
     copilot_url = f"{settings.SHARIAH_COPILOT_BASE_URL}/query/ask"
     headers = {
         "X-Internal-Key": settings.SHARIAH_COPILOT_INTERNAL_KEY,
-        "X-User-Id": "system-contract-analyzer",
+        "X-User-Id": str(user_id) or "contract-analyzer",
         "X-User-Role": "shariah_reviewer",
-        "X-Tenant-Id": "system",
+        # Retrieval stays inside the caller's own tenant (BR-010).
+        "X-Tenant-Id": tenant_code,
     }
     
     # Alternatively call Copilot's raw LLM or use fallbacks
@@ -56,56 +57,60 @@ def analyze_contract_text(contract_text: str) -> dict:
                 start = summary.find("{")
                 end = summary.rfind("}")
                 if start != -1 and end != -1:
-                    return json.loads(summary[start:end+1])
+                    return _with_review_flags(json.loads(summary[start:end+1]), source="shariah_copilot_llm")
             except Exception:
                 pass
     except Exception as exc:
         logger.warning(f"Copilot direct analysis call failed: {exc}")
 
-    # Fallback rule-based structured extraction for high resilience
+    # Fallback when the AI service is unavailable or returns nothing usable: a plain
+    # keyword screen. It never guesses commercial terms (PSR, fees, clauses) and always
+    # routes to a human (BRD Section 9: low confidence routes to human).
     text_lower = contract_text.lower()
-    c_type = "mudarabah_unrestricted"
-    if "restricted mudarabah" in text_lower or "restricted" in text_lower:
+    c_type = None
+    if "restricted mudarabah" in text_lower or ("restricted" in text_lower and "mudarabah" in text_lower):
         c_type = "mudarabah_restricted"
-    elif "musharakah" in text_lower or "venture" in text_lower or "partnership" in text_lower:
+    elif "mudarabah" in text_lower:
+        c_type = "mudarabah_unrestricted"
+    elif "musharakah" in text_lower:
         c_type = "musharakah"
-    elif "wakalah" in text_lower or "agency" in text_lower:
+    elif "wakalah" in text_lower:
         c_type = "wakalah"
-    elif "qard" in text_lower or "loan" in text_lower or "circle" in text_lower:
+    elif "qard" in text_lower:
         c_type = "qard"
 
     prohibited = []
     if "guarantee" in text_lower and ("capital" in text_lower or "profit" in text_lower):
-        prohibited.append("Potential capital/profit guarantee clause detected (violates AAOIFI Standard on risk-sharing).")
-    if "interest" in text_lower or "late payment fee of" in text_lower:
-        prohibited.append("Late payment commercial fee clause detected (must be routed strictly to charity).")
+        prohibited.append("Possible capital/profit guarantee wording - needs Shariah review.")
+    if "interest" in text_lower or "late payment fee" in text_lower:
+        prohibited.append("Possible interest / late-payment fee wording - needs Shariah review.")
 
-    return {
-        "contract_type": c_type,
-        "name_suggestion": f"{c_type.replace('_', ' ').title()} Standard Commercial Charter",
-        "depositor_psr": 70.0 if "mudarabah" in c_type or "musharakah" in c_type else None,
-        "mudarib_psr": 30.0 if "mudarabah" in c_type else None,
-        "wakalah_fee_percentage": 1.25 if c_type == "wakalah" else None,
-        "profit_calculation_frequency": "Daily funds, monthly distribution",
-        "loss_absorption_mechanism": "Capital loss allocated strictly to capital providers pro-rata. Manager incurs loss of effort only.",
-        "prohibited_terms_detected": prohibited,
-        "shariah_verdict": "CONTAINS_POTENTIAL_VIOLATIONS" if prohibited else "COMPLIANT",
-        "confidence_score": 0.94,
-        "clauses": [
-            {
-                "clause_code": "CL-01",
-                "clause_title": "Capital Provision & Roles",
-                "content": "Rabb-ul-Mal provides funds, Mudarib acts as investment manager without capital guarantee."
-            },
-            {
-                "clause_code": "CL-02",
-                "clause_title": "Profit Sharing Ratio (PSR)",
-                "content": "Profits distributed according to approved PSR. No fixed returns permitted."
-            },
-            {
-                "clause_code": "CL-03",
-                "clause_title": "Loss Allocation",
-                "content": "Capital loss borne solely by investor unless manager misconduct or gross negligence is established."
-            }
-        ]
-    }
+    return _with_review_flags(
+        {
+            "contract_type": c_type,
+            "name_suggestion": None,
+            "depositor_psr": None,
+            "mudarib_psr": None,
+            "wakalah_fee_percentage": None,
+            "profit_calculation_frequency": None,
+            "loss_absorption_mechanism": None,
+            "prohibited_terms_detected": prohibited,
+            "shariah_verdict": "CONTAINS_POTENTIAL_VIOLATIONS" if prohibited else "REQUIRES_HUMAN_REVIEW",
+            "confidence_score": 0.2,
+            "clauses": [],
+        },
+        source="keyword_screen_fallback",
+    )
+
+
+def _with_review_flags(result: dict, source: str) -> dict:
+    """Every AI output carries its source, confidence and whether a human must review it (BR-009)."""
+    try:
+        confidence = float(result.get("confidence_score"))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    result["confidence_score"] = confidence
+    result["source"] = source
+    result["requires_human_review"] = confidence < 0.8 or source != "shariah_copilot_llm"
+    result["disclaimer"] = "AI-assisted extraction only; it is not a Shariah ruling and must be confirmed by a qualified reviewer."
+    return result

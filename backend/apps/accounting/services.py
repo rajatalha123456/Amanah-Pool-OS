@@ -82,8 +82,15 @@ def build_allocation_entries(allocation_run):
     _add_signed_credit(entries, PER_RESERVE, allocation_run.per_amount)
     _add_signed_credit(entries, IRR_RESERVE, allocation_run.irr_amount)
     _add_signed_credit(entries, MUDARIB_PAYABLE, allocation_run.mudarib_share)
+    # The GL carries one control account per participant class; the
+    # per-participant sub-ledger is the allocation lines themselves.
+    payable_by_class = {}
     for line in lines:
-        _add_signed_credit(entries, f"Depositor Payable - {line.participant_class}", line.allocated_amount)
+        payable_by_class[line.participant_class] = (
+            payable_by_class.get(line.participant_class, Decimal("0")) + line.allocated_amount
+        )
+    for participant_class in sorted(payable_by_class):
+        _add_signed_credit(entries, f"Depositor Payable - {participant_class}", payable_by_class[participant_class])
     _add_signed_credit(entries, ROUNDING_ACCOUNT, allocation_run.rounding_residual)
 
     return entries

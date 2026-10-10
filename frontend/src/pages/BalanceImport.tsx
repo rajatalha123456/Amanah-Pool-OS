@@ -12,6 +12,7 @@ import { CbsSftpDaemonPanel } from "../components/banking/CbsSftpDaemonPanel"
 import type { BadgeVariant, BalanceImportBatch, BalanceImportResult, Pool } from "../types"
 
 interface RecordRow {
+  account_number: string
   participant_class: string
   balance_amount: string
 }
@@ -34,7 +35,7 @@ export function BalanceImport() {
   const [valueDate, setValueDate] = useState(new Date().toISOString().split("T")[0])
   const [controlTotalExpected, setControlTotalExpected] = useState("")
   const [ingestionMode, setIngestionMode] = useState<"cbs_sftp" | "manual">("cbs_sftp")
-  const [rows, setRows] = useState<RecordRow[]>([{ participant_class: "", balance_amount: "" }])
+  const [rows, setRows] = useState<RecordRow[]>([{ account_number: "", participant_class: "", balance_amount: "" }])
 
   const [formError, setFormError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -76,7 +77,7 @@ export function BalanceImport() {
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { participant_class: "", balance_amount: "" }])
+    setRows((prev) => [...prev, { account_number: "", participant_class: "", balance_amount: "" }])
   }
 
   function removeRow(index: number) {
@@ -85,10 +86,10 @@ export function BalanceImport() {
 
   function fillSampleTiers() {
     const samples: RecordRow[] = [
-      { participant_class: "Retail Mudarabah (Tier 1 - 30D)", balance_amount: "15000000.00" },
-      { participant_class: "Corporate Term Deposit (1-Year)", balance_amount: "45000000.00" },
-      { participant_class: "HNW Wakalah Special Investment", balance_amount: "75000000.00" },
-      { participant_class: "Financial Institutions Placement", balance_amount: "120000000.00" },
+      { account_number: "", participant_class: "Retail Mudarabah (Tier 1 - 30D)", balance_amount: "15000000.00" },
+      { account_number: "", participant_class: "Corporate Term Deposit (1-Year)", balance_amount: "45000000.00" },
+      { account_number: "", participant_class: "HNW Wakalah Special Investment", balance_amount: "75000000.00" },
+      { account_number: "", participant_class: "Financial Institutions Placement", balance_amount: "120000000.00" },
     ]
     setRows(samples)
     const sum = samples.reduce((acc, r) => acc + Number(r.balance_amount), 0)
@@ -108,7 +109,15 @@ export function BalanceImport() {
         pool: selectedPoolId,
         value_date: valueDate,
         control_total_expected: controlTotalExpected || null,
-        records: rows.filter((r) => r.participant_class.trim() && r.balance_amount.trim()),
+        // Pools with participant accounts import per account number; the class
+        // is then taken from the participant, so only one of the two is sent.
+        records: rows
+          .filter((r) => (r.account_number.trim() || r.participant_class.trim()) && r.balance_amount.trim())
+          .map((r) =>
+            r.account_number.trim()
+              ? { account_number: r.account_number.trim(), balance_amount: r.balance_amount }
+              : { participant_class: r.participant_class.trim(), balance_amount: r.balance_amount },
+          ),
       })
       setResult(importResult)
       loadHistory(selectedPoolId)
@@ -260,11 +269,19 @@ export function BalanceImport() {
                   <div key={index} className="flex gap-2">
                     <input
                       type="text"
+                      value={row.account_number}
+                      onChange={(e) => updateRow(index, "account_number", e.target.value)}
+                      placeholder="Account no. (e.g. AMN-GEN-0001)"
+                      className="w-44 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
                       value={row.participant_class}
                       onChange={(e) => updateRow(index, "participant_class", e.target.value)}
-                      placeholder="Participant class / tier name (e.g. Retail Mudarabah Savings)"
-                      required
-                      className="flex-1 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      placeholder="Class / tier (only for pools without accounts)"
+                      required={!row.account_number.trim()}
+                      disabled={Boolean(row.account_number.trim())}
+                      className="flex-1 rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none disabled:opacity-50"
                     />
                     <input
                       type="number"

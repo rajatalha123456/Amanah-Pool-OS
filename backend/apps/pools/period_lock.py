@@ -27,11 +27,32 @@ def get_closed_period(pool, on_date):
     )
 
 
-def assert_period_open(pool, on_date, what="record"):
-    closed = get_closed_period(pool, on_date)
+def get_closed_period_overlapping(pool, start, end):
+    return (
+        PeriodCloseChecklist._base_manager.filter(
+            tenant_id=pool.tenant_id,
+            pool=pool,
+            status__in=CLOSED_STATUSES,
+            period_start__lte=end,
+            period_end__gte=start,
+        )
+        .order_by("-period_end")
+        .first()
+    )
+
+
+def assert_period_open(pool, on_date, what="record", start=None):
+    """Raise if `on_date` (or any day of start..on_date) falls in a closed period."""
+
+    if start is None or start == on_date:
+        closed = get_closed_period(pool, on_date)
+        label = f"{on_date}"
+    else:
+        closed = get_closed_period_overlapping(pool, start, on_date)
+        label = f"{start} to {on_date}"
     if closed is not None:
         raise ValidationError(
-            f"Cannot post {what} dated {on_date}: the period {closed.period_start} to "
+            f"Cannot post {what} dated {label}: the period {closed.period_start} to "
             f"{closed.period_end} for pool '{pool.code}' is {closed.status}. "
             "Back-dated changes require an approved restatement."
         )

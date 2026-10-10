@@ -18,11 +18,14 @@ export interface EvidenceBundlePayload {
   period_month: string
   target_date: string
   audit_type: string
-  regulatory_framework: string
+  regulatory_framework?: string
   compiled_at: string
   compiled_by_email: string
   master_bundle_seal: string
   artifacts_count: number
+  artifacts_available: number
+  artifacts_verified: number
+  all_verified: boolean
   artifacts: EvidenceArtifact[]
   xml_pacs008_available: boolean
 }

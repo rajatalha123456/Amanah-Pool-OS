@@ -167,8 +167,18 @@ class BalanceImportBatchSerializer(serializers.ModelSerializer):
 
 
 class BulkBalanceImportRecordSerializer(serializers.Serializer):
-    participant_class = serializers.CharField()
+    # Pools with participant accounts import per account_number; participant_class
+    # alone (legacy class-level balances) is only accepted for pools without accounts.
+    account_number = serializers.CharField(required=False, allow_blank=False)
+    participant_class = serializers.CharField(required=False, allow_blank=False)
     balance_amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+
+    def validate(self, attrs):
+        if not attrs.get("account_number") and not attrs.get("participant_class"):
+            raise serializers.ValidationError("Either account_number or participant_class is required.")
+        if attrs["balance_amount"] < 0:
+            raise serializers.ValidationError({"balance_amount": "Balance cannot be negative."})
+        return attrs
 
 
 class BulkBalanceImportSerializer(serializers.Serializer):

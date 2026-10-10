@@ -10,7 +10,6 @@ import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import {
   createCircleMember,
-  disbursePayout,
   fetchArrearsRecordsForPool,
   fetchCircleMembers,
   fetchContributionsForPool,
@@ -180,7 +179,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
   const [lastDraw, setLastDraw] = useState<RunDrawResponse | null>(null)
 
   const [contributionModalMember, setContributionModalMember] = useState<CircleMember | null>(null)
-  const [disburseModalMember, setDisburseModalMember] = useState<CircleMember | null>(null)
   const [bankingModal, setBankingModal] = useState<{
     isOpen: boolean
     amount: number | string
@@ -298,27 +296,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
       setContributionModalMember(null)
     } catch (error) {
       setActionError(extractErrorMessage(error, "Unable to record contribution."))
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  async function handleDisburse(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!disburseModalMember) return
-    const form = new FormData(event.currentTarget)
-    setActionError("")
-    setIsSaving(true)
-    try {
-      await disbursePayout(disburseModalMember.id, {
-        cycle_number: 1,
-        amount: String(form.get("amount")),
-        payout_date: String(form.get("payout_date")),
-      })
-      await loadCircleData(selectedPoolId)
-      setDisburseModalMember(null)
-    } catch (error) {
-      setActionError(extractErrorMessage(error, "Unable to disburse payout."))
     } finally {
       setIsSaving(false)
     }
@@ -769,13 +746,15 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                   <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
                     <p className="text-[11px] font-semibold text-ink-secondary uppercase">CYCLE 1 CONTRIBUTIONS</p>
                     <p className="mt-1 text-sm font-semibold text-emerald-400 font-mono">
-                      {contributions.length} Contributions Recorded (PKR 50,000 Total)
+                      {contributions.length} Contributions Recorded (PKR {contributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()} Total)
                     </p>
                   </div>
                   <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
                     <p className="text-[11px] font-semibold text-ink-secondary uppercase">CYCLE 1 PAYOUT STATUS</p>
                     <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {payouts.length > 0 ? "PKR 50,000 Disbursed to Cycle 1 Recipient" : "Ready for Draw Release"}
+                      {payouts.length > 0
+                        ? `PKR ${Number(payouts[0].amount).toLocaleString()} — ${payouts[0].status} (cycle ${payouts[0].cycle_number})`
+                        : "No payout released yet"}
                     </p>
                   </div>
                   <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
@@ -1007,10 +986,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
             <DrawRoomConsole
               poolId={selectedPoolId}
               onDrawExecuted={() => void loadCircleData(selectedPoolId)}
-              onDisburseRequested={(mId) => {
-                const mem = members.find((m) => m.id === mId)
-                if (mem) setDisburseModalMember(mem)
-              }}
+              onDisburseRequested={() => setActiveTab("payout")}
             />
           )}
 
@@ -1239,65 +1215,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
             <Button type="submit" disabled={isSaving}>
               {isSaving ? <Spinner className="h-4 w-4" /> : "Record Contribution"}
             </Button>
-          </form>
-        </Modal>
-      )}
-
-      {/* Modal: Disburse Payout */}
-      {disburseModalMember && (
-        <Modal
-          title={`Disburse Payout — ${disburseModalMember.member_name}`}
-          onClose={() => setDisburseModalMember(null)}
-        >
-          <form onSubmit={handleDisburse} className="space-y-4">
-            <label className={labelClasses}>
-              Amount (PKR)
-              <input name="amount" type="number" step="0.01" min="0" defaultValue="50000.00" required className={inputClasses} />
-            </label>
-            <label className={labelClasses}>
-              Payout Date
-              <input name="payout_date" type="date" defaultValue="2026-09-10" required className={inputClasses} />
-            </label>
-            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
-            <div className="flex gap-2">
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? <Spinner className="h-4 w-4" /> : "Manual Disburse"}
-              </Button>
-              <Button
-                type="button"
-                variant="gold"
-                disabled={isSaving}
-                onClick={() => {
-                  const member = disburseModalMember
-                  setDisburseModalMember(null)
-                  setBankingModal({
-                    isOpen: true,
-                    amount: 50000,
-                    senderTitle: "Amanah Circle Central Escrow Vault",
-                    senderIban: "PK55AMAN0000109928172601",
-                    recipientTitle: member.member_name,
-                    recipientIban: "PK44DIBP00089271635201",
-                    purpose: `Cycle Mutual Aid Payout Disbursement - ${member.member_name}`,
-                    mode: "disbursement",
-                    memberId: member.id,
-                    onSettled: async () => {
-                      try {
-                        await disbursePayout(member.id, {
-                          cycle_number: 1,
-                          amount: "50000.00",
-                          payout_date: new Date().toISOString().split("T")[0],
-                        })
-                        await loadCircleData(selectedPoolId)
-                      } catch (e) {
-                        console.error(e)
-                      }
-                    },
-                  })
-                }}
-              >
-                ⚡ Route via SBP Raast Switch
-              </Button>
-            </div>
           </form>
         </Modal>
       )}

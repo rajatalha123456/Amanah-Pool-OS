@@ -156,6 +156,7 @@ def simulate_cbs_sftp_ingestion(
         )
         return {
             "success": False,
+            "simulated": True,
             "status": "CHECKSUM_ERROR",
             "message": "Cryptographic SHA-256 sidecar checksum verification failed. Ingestion rejected.",
             "cbs_vendor": cbs_vendor,
@@ -264,6 +265,7 @@ def simulate_cbs_sftp_ingestion(
 
     return {
         "success": True,
+        "simulated": True,
         "status": "BALANCED" if not has_discrepancy else "EXCEPTION",
         "message": (
             f"CBS EOD batch successfully ingested from {cbs_vendor}."

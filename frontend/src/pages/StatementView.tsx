@@ -74,6 +74,14 @@ export function StatementView() {
                 Account Details
               </h2>
               <div className="grid grid-cols-2 gap-4 text-sm">
+                {stmt.participant_name && (
+                  <div>
+                    <p className="text-xs text-ink-secondary uppercase mb-1">Account Holder</p>
+                    <p className="text-ink-primary font-medium">
+                      {stmt.participant_name} {stmt.account_number && `(${stmt.account_number})`}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-ink-secondary uppercase mb-1">Participant Class</p>
                   <p className="text-ink-primary font-medium">{stmt.participant_class}</p>

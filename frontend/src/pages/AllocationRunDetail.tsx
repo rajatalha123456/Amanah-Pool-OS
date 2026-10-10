@@ -192,9 +192,17 @@ export function AllocationRunDetail() {
 
   const lineColumns: TableColumn<AllocationLine>[] = [
     {
-      header: "Participant Class",
-      accessor: (line) => <span className="font-semibold text-ink-primary">{line.participant_class}</span>,
+      header: "Participant / Account",
+      accessor: (line) => (
+        <span className="font-semibold text-ink-primary">
+          {line.participant_name ?? line.participant_class}
+          {line.account_number && (
+            <span className="ml-2 text-xs font-normal text-ink-secondary">{line.account_number}</span>
+          )}
+        </span>
+      ),
     },
+    { header: "Class", accessor: (line) => line.participant_class },
     {
       header: "Daily Funds (PKR)",
       accessor: (line) => Number(line.daily_funds).toLocaleString(undefined, { minimumFractionDigits: 2 }),
@@ -336,17 +344,38 @@ export function AllocationRunDetail() {
       {/* Tiered Weightage Multiplier Visualization */}
       <div className="mb-6">
         <WeightageCurveChart
-          data={run.lines.map((l) => ({
-            tierName: l.participant_class,
-            weightage: Number(l.weightage),
-            funds: Number(l.daily_funds),
-            allocatedProfit: Number(l.allocated_amount),
+          data={Object.values(
+            // The chart is per tier: roll the per-account lines up by class.
+            run.lines.reduce<Record<string, { tierName: string; weighted: number; funds: number; allocatedProfit: number }>>(
+              (acc, l) => {
+                const tier = (acc[l.participant_class] ??= {
+                  tierName: l.participant_class,
+                  weighted: 0,
+                  funds: 0,
+                  allocatedProfit: 0,
+                })
+                tier.weighted += Number(l.weighted_funds)
+                tier.funds += Number(l.daily_funds)
+                tier.allocatedProfit += Number(l.allocated_amount)
+                return acc
+              },
+              {},
+            ),
+          ).map((tier) => ({
+            tierName: tier.tierName,
+            weightage: tier.funds > 0 ? tier.weighted / tier.funds : 0,
+            funds: tier.funds,
+            allocatedProfit: tier.allocatedProfit,
           }))}
         />
       </div>
 
-      <Card title="Allocation by Participant Class" className="mb-6">
-        <Table columns={lineColumns} data={run.lines} keyField={(line) => line.participant_class} />
+      <Card title="Allocation by Participant Account" className="mb-6">
+        <Table
+          columns={lineColumns}
+          data={run.lines}
+          keyField={(line) => line.id ?? `${line.participant_class}-${line.account_number ?? ""}`}
+        />
       </Card>
 
       <Card title="Actions" className="mb-6">
@@ -529,7 +558,12 @@ export function AllocationRunDetail() {
                 <div key={stmt.id} className="border border-white/8 rounded p-4 hover:bg-white/5">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-ink-primary">{stmt.participant_class}</p>
+                      <p className="text-sm font-semibold text-ink-primary">
+                        {stmt.participant_name ?? stmt.participant_class}
+                        {stmt.account_number && (
+                          <span className="ml-2 text-xs font-normal text-ink-secondary">{stmt.account_number}</span>
+                        )}
+                      </p>
                       <p className="text-xs text-ink-secondary">
                         Period: {stmt.period_start} to {stmt.period_end}
                       </p>

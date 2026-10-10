@@ -4,8 +4,8 @@ import type {
   CircleMember,
   Contribution,
   CreateCircleMemberInput,
-  DisbursePayoutInput,
-  ExecuteCeremonyDisbursalInput,
+  RequestPayoutInput,
+  SettlePayoutInput,
   FlagArrearsInput,
   GrantHardshipInput,
   Payout,
@@ -76,14 +76,6 @@ export async function recordContribution(
 ): Promise<Contribution> {
   const response = await apiClient.post<Contribution>(
     `circles/circle-members/${memberId}/record-contribution/`,
-    data,
-  )
-  return response.data
-}
-
-export async function disbursePayout(memberId: string, data: DisbursePayoutInput): Promise<Payout> {
-  const response = await apiClient.post<Payout>(
-    `circles/circle-members/${memberId}/disburse-payout/`,
     data,
   )
   return response.data
@@ -240,31 +232,23 @@ export async function fetchCeremonyReadiness(poolId: string): Promise<PayoutCere
   return response.data
 }
 
-export async function executeCeremonyDisbursal(
-  poolId: string,
-  input: ExecuteCeremonyDisbursalInput,
-): Promise<{
-  status: string
-  message: string
-  payout: Payout
-  settlement_receipt: {
-    utr: string
-    certificate_number: string
-    ceremony_hash: string
-    settlement_rail: string
-    recipient_name: string
-    recipient_iban: string
-    recipient_bank: string
-    amount: number
-    payout_date: string
-    disbursed_by: string
-    shariah_seal: string
-  }
-}> {
-  const response = await apiClient.post(
-    `circles/payouts/execute-ceremony/${poolId}/`,
-    input,
-  )
+export async function requestPayout(poolId: string, input: RequestPayoutInput): Promise<Payout> {
+  const response = await apiClient.post<Payout>(`circles/payouts/request-payout/${poolId}/`, input)
+  return response.data
+}
+
+export async function approvePayout(payoutId: string): Promise<Payout> {
+  const response = await apiClient.post<Payout>(`circles/payouts/${payoutId}/approve/`)
+  return response.data
+}
+
+export async function rejectPayout(payoutId: string, reason: string): Promise<Payout> {
+  const response = await apiClient.post<Payout>(`circles/payouts/${payoutId}/reject/`, { reason })
+  return response.data
+}
+
+export async function settlePayout(payoutId: string, input: SettlePayoutInput): Promise<Payout> {
+  const response = await apiClient.post<Payout>(`circles/payouts/${payoutId}/settle/`, input)
   return response.data
 }
 

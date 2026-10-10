@@ -32,6 +32,7 @@ import { JurisdictionRulePacks } from "./pages/administration/JurisdictionRulePa
 import { RiskLimitDashboard } from "./pages/RiskLimitDashboard"
 import { PayoutExecutionEngine } from "./pages/PayoutExecutionEngine"
 import { IncomeExpenseWorkbench } from "./pages/IncomeExpenseWorkbench"
+import { ParticipantRegistry } from "./pages/ParticipantRegistry"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
@@ -40,6 +41,7 @@ import { navItems } from "./layouts/navItems"
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/products-pools": <ProductCatalogue />,
   "/risk-compliance": <AssetRegistry />,
+  "/participants": <ParticipantRegistry />,
   "/daily-operations": <DailyOperationsCockpit />,
   "/allocation-engine": <AllocationSimulator />,
   "/finance-ledger": <FinanceLedger />,

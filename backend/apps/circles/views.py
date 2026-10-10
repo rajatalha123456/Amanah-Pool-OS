@@ -1,5 +1,7 @@
 import hashlib
 import uuid
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, viewsets
@@ -10,7 +12,9 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker, IsPoolManager, IsRiskCompliance
 from apps.core.audit import log_action
+from apps.participants.models import KYCStatus
 from apps.pools.models import Pool
+from apps.products.shariah import shariah_decision_for
 
 from .models import (
     ArrearsRecord,
@@ -27,6 +31,7 @@ from .models import (
     SettlementRailType,
     VoteDecision,
 )
+from .payouts import build_preflight, create_payout_request, next_cycle_number, next_recipient
 from .rotation import run_draw as run_draw_for_pool
 from .serializers import (
     ArrearsRecordSerializer,
@@ -36,6 +41,10 @@ from .serializers import (
     ContributionSerializer,
     PayoutSerializer,
 )
+
+
+# Roles that may see payout pre-flight data (members never do).
+PAYOUT_READ_ROLES = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board"]
 
 
 def get_circle_pool(pool_id):
@@ -88,239 +97,261 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             queryset = queryset.filter(member_id=member_id)
         return queryset
 
+    def get_permissions(self):
+        if self.action == "ceremony_readiness":
+            return [IsAuthenticated(), HasAnyRole(PAYOUT_READ_ROLES)()]
+        if self.action == "request_payout":
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "settle":
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker"])()]
+        return [IsAuthenticated()]
+
     @action(detail=False, methods=["get"], url_path="ceremony-readiness/(?P<pool_id>[^/.]+)")
     def ceremony_readiness(self, request, pool_id=None):
+        """Live pre-flight for the next payout of a circle: real data and real checks only."""
         pool = get_circle_pool(pool_id)
+        rail = request.query_params.get("settlement_rail") or SettlementRailType.RAAST_RTGS
 
-        members = CircleMember.objects.filter(pool=pool).order_by("payout_position", "joined_date")
-        total_members_count = members.count()
-        paid_out_members = members.filter(status=CircleMemberStatus.PAID_OUT)
-        paid_out_count = paid_out_members.count()
-        current_cycle = paid_out_count + 1
+        cycle_number = next_cycle_number(pool)
+        recipient = next_recipient(pool)
 
-        next_member = members.filter(
-            status=CircleMemberStatus.ACTIVE, payout_position__isnull=False
-        ).order_by("payout_position").first()
-
-        latest_contrib = Contribution.objects.filter(member__pool=pool).first()
-        monthly_share = float(latest_contrib.amount) if latest_contrib else 50000.0
-        total_pot_expected = monthly_share * max(total_members_count, 1)
-
-        # Contributions for current cycle
-        active_members = members.filter(status=CircleMemberStatus.ACTIVE)
-        active_member_ids = set(active_members.values_list("id", flat=True))
-        received_contributions = Contribution.objects.filter(
-            member__pool=pool,
-            cycle_number=current_cycle,
-            status=ContributionStatus.RECEIVED,
+        active = CircleMember.objects.filter(pool=pool, status=CircleMemberStatus.ACTIVE)
+        received = Contribution.objects.filter(
+            member__pool=pool, cycle_number=cycle_number, status=ContributionStatus.RECEIVED
         )
-        received_member_ids = set(received_contributions.values_list("member_id", flat=True))
-        pending_member_ids = active_member_ids - received_member_ids
-
+        received_ids = set(received.values_list("member_id", flat=True))
         pending_members = [
             {"id": str(m.id), "name": m.member_name, "reference": m.member_reference}
-            for m in active_members if m.id in pending_member_ids
+            for m in active
+            if m.id not in received_ids
         ]
 
-        total_collected = float(sum(c.amount for c in received_contributions))
+        preflight = build_preflight(pool, recipient, cycle_number, rail) if recipient else None
+        decision = shariah_decision_for(pool)
+        open_payout = Payout.objects.filter(
+            pool=pool, status__in=[PayoutStatus.PENDING, PayoutStatus.APPROVED]
+        ).first()
 
-        historical_payouts = Payout.objects.filter(pool=pool).order_by("-payout_date", "-created_at")[:5]
-
-        recipient_data = None
-        if next_member:
-            clean_ref = next_member.member_reference.replace("-", "")
-            recipient_data = {
-                "member_id": str(next_member.id),
-                "member_name": next_member.member_name,
-                "member_reference": next_member.member_reference,
-                "payout_position": next_member.payout_position,
-                "pot_amount": total_pot_expected,
-                "default_iban": f"PK36MEZN000100{clean_ref[-8:].zfill(8)}01",
-                "default_bank": "Meezan Bank Limited",
-                "raast_alias": f"0300{clean_ref[-7:].zfill(7)}",
+        return Response(
+            {
+                "pool": {
+                    "id": str(pool.id),
+                    "name": pool.name,
+                    "code": pool.code,
+                    "status": pool.status,
+                    "total_members": CircleMember.objects.filter(pool=pool).count(),
+                },
+                "cycle_number": cycle_number,
+                "next_recipient": (
+                    {
+                        "member_id": str(recipient.id),
+                        "member_name": recipient.member_name,
+                        "member_reference": recipient.member_reference,
+                        "payout_position": recipient.payout_position,
+                        "kyc_status": recipient.kyc_status,
+                        "iban": recipient.iban,
+                        "bank_name": recipient.bank_name,
+                    }
+                    if recipient
+                    else None
+                ),
+                "pot_summary": {
+                    "total_collected_pot": float(sum((c.amount for c in received), Decimal("0.00"))),
+                    "total_active_members": active.count(),
+                    "received_count": len(received_ids & set(active.values_list("id", flat=True))),
+                    "pending_count": len(pending_members),
+                    "pending_members": pending_members,
+                    "is_pot_fully_funded": not pending_members and active.exists(),
+                },
+                "checks": preflight["checks"] if preflight else [],
+                "can_request": bool(preflight and preflight["ok"]),
+                "shariah_decision": (
+                    {"decision_code": decision.decision_code, "title": decision.title} if decision else None
+                ),
+                "open_payout": PayoutSerializer(open_payout).data if open_payout else None,
+                "settlement_rails_options": [
+                    {"key": key, "title": label} for key, label in SettlementRailType.choices
+                ],
+                "historical_payouts": PayoutSerializer(
+                    Payout.objects.filter(pool=pool).order_by("-payout_date", "-created_at")[:5], many=True
+                ).data,
             }
+        )
 
-        return Response({
-            "pool": {
-                "id": str(pool.id),
-                "name": pool.name,
-                "code": pool.code,
-                "status": pool.status,
-                "total_members": total_members_count,
-            },
-            "cycle_number": current_cycle,
-            "next_recipient": recipient_data,
-            "pot_summary": {
-                "monthly_share_per_member": monthly_share,
-                "total_expected_pot": total_pot_expected,
-                "total_collected_pot": total_collected,
-                "is_pot_fully_funded": len(pending_member_ids) == 0,
-                "total_active_members": active_members.count(),
-                "received_count": len(received_member_ids),
-                "pending_count": len(pending_member_ids),
-                "pending_members": pending_members,
-            },
-            "shariah_preflight": {
-                "contract_type": "Qard-e-Hasana Bilateral Mutual Pool",
-                "zero_time_value_uplift": True,
-                "zero_fee_deduction": True,
-                "bank_fee_absorption_note": "SBP Circular 03/2012: The bank absorbs all RTGS / Raast settlement fees. Recipient receives 100% of the pot without deduction.",
-                "rotation_parity_verified": True,
-            },
-            "settlement_rails_options": [
-                {
-                    "key": SettlementRailType.RAAST_RTGS,
-                    "title": "Raast Instant Settlement (RTGS P2P / P2B)",
-                    "latency": "Real-time (< 3 seconds)",
-                    "fee": "PKR 0.00 (Bank Absorbed)",
-                    "recommended": True,
-                },
-                {
-                    "key": SettlementRailType.ONELINK_IPS,
-                    "title": "1LINK 1IBFT Clearing Rail",
-                    "latency": "Real-time (Batch Settled)",
-                    "fee": "PKR 0.00 (Bank Absorbed)",
-                    "recommended": False,
-                },
-                {
-                    "key": SettlementRailType.INTERNAL_BOOK,
-                    "title": "Internal Islamic Branch Transfer",
-                    "latency": "Instant ledger debit/credit",
-                    "fee": "PKR 0.00",
-                    "recommended": False,
-                },
-            ],
-            "historical_payouts": PayoutSerializer(historical_payouts, many=True).data,
-        })
-
-    @action(detail=False, methods=["post"], url_path="execute-ceremony/(?P<pool_id>[^/.]+)")
-    def execute_ceremony(self, request, pool_id=None):
+    @action(detail=False, methods=["post"], url_path="request-payout/(?P<pool_id>[^/.]+)")
+    def request_payout(self, request, pool_id=None):
         pool = get_circle_pool(pool_id)
+        member = CircleMember.objects.filter(pk=request.data.get("member_id"), pool=pool).first()
+        if member is None:
+            raise ValidationError({"member_id": ["Recipient member not found in this pool."]})
 
-        member_id = request.data.get("member_id")
-        cycle_number = request.data.get("cycle_number")
-        amount = request.data.get("amount")
-        payout_date = request.data.get("payout_date") or str(timezone.now().date())
-        settlement_rail = request.data.get("settlement_rail") or SettlementRailType.RAAST_RTGS
-        recipient_iban = request.data.get("recipient_iban") or ""
-        recipient_bank = request.data.get("recipient_bank") or "Meezan Bank Limited"
-        biometric_auth_ref = request.data.get("biometric_auth_ref") or f"BIO-VERIFIED-{uuid.uuid4().hex[:6].upper()}"
-        auto_reconcile = request.data.get("auto_reconcile_contributions", True)
+        payout = create_payout_request(
+            pool=pool,
+            member=member,
+            user=request.user,
+            rail=request.data.get("settlement_rail") or SettlementRailType.RAAST_RTGS,
+            payout_date=request.data.get("payout_date") or timezone.localdate(),
+            cycle_number=request.data.get("cycle_number"),
+        )
+        log_action(
+            tenant=pool.tenant,
+            actor=request.user,
+            action="payout_requested",
+            model_name="Payout",
+            object_id=str(payout.id),
+            changes={
+                "member": member.member_reference,
+                "cycle_number": payout.cycle_number,
+                "amount": str(payout.amount),
+                "settlement_rail": payout.settlement_rail,
+            },
+            request=request,
+        )
+        return Response(PayoutSerializer(payout).data, status=201)
 
-        try:
-            member = CircleMember.objects.get(pk=member_id, pool=pool)
-        except CircleMember.DoesNotExist:
-            raise ValidationError("Recipient member not found in this pool.")
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        payout = self.get_object()
+        if payout.status != PayoutStatus.PENDING:
+            raise ValidationError(f"Only a pending payout can be approved (current status: '{payout.status}').")
+        if payout.requested_by_id == request.user.id:
+            raise ValidationError("Dual approval: the requester cannot approve their own payout.")
 
-        if member.status == CircleMemberStatus.PAID_OUT:
-            raise ValidationError(f"Member {member.member_name} has already been paid out.")
+        # Re-check the pre-conditions at approval time - things may have changed since the request.
+        preflight = build_preflight(payout.pool, payout.member, payout.cycle_number, payout.settlement_rail)
+        failed = [
+            f"{c['label']}: {c['detail']}".rstrip(": ")
+            for c in preflight["checks"]
+            if not c["passed"] and c["key"] not in ("no_open_payout", "member_has_turn")
+        ]
+        if failed:
+            raise ValidationError({"preflight": failed})
+        if preflight["amount"] != payout.amount:
+            raise ValidationError("The collected pot changed after the request; reject and re-request the payout.")
+
+        decision = shariah_decision_for(payout.pool)
+        payout.status = PayoutStatus.APPROVED
+        payout.secondary_approved_by = request.user
+        payout.secondary_approved_at = timezone.now()
+        payout.shariah_compliance_status = "approved_decision"
+        payout.shariah_certificate_number = decision.decision_code
+        payout.save()
+        log_action(
+            tenant=payout.tenant,
+            actor=request.user,
+            action="payout_approved",
+            model_name="Payout",
+            object_id=str(payout.id),
+            changes={"shariah_decision": decision.decision_code, "amount": str(payout.amount)},
+            request=request,
+        )
+        return Response(PayoutSerializer(payout).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        payout = self.get_object()
+        if payout.status not in (PayoutStatus.PENDING, PayoutStatus.APPROVED):
+            raise ValidationError(f"Payout cannot be rejected in status '{payout.status}'.")
+        reason = (request.data.get("reason") or "").strip()
+        if not reason:
+            raise ValidationError({"reason": ["A reason is required."]})
+        payout.status = PayoutStatus.REJECTED
+        payout.rejection_reason = reason
+        payout.save()
+        log_action(
+            tenant=payout.tenant,
+            actor=request.user,
+            action="payout_rejected",
+            model_name="Payout",
+            object_id=str(payout.id),
+            reason=reason,
+            request=request,
+        )
+        return Response(PayoutSerializer(payout).data)
+
+    @action(detail=True, methods=["post"])
+    def settle(self, request, pk=None):
+        """Records that the approved payout was settled, with the bank's own settlement reference."""
+        payout = self.get_object()
+        if payout.status != PayoutStatus.APPROVED:
+            raise ValidationError(f"Only an approved payout can be settled (current status: '{payout.status}').")
+
+        utr = (request.data.get("settlement_utr") or "").strip()
+        if payout.settlement_rail == SettlementRailType.INTERNAL_BOOK:
+            utr = utr or f"BOOK-{uuid.uuid4().hex[:10].upper()}"  # internal ledger reference
+        elif not utr:
+            raise ValidationError(
+                {"settlement_utr": ["The bank's settlement reference (UTR/RRN) is required to confirm settlement."]}
+            )
 
         with transaction.atomic():
-            if auto_reconcile:
-                active_mems = CircleMember.objects.filter(pool=pool, status=CircleMemberStatus.ACTIVE)
-                for am in active_mems:
-                    Contribution.objects.get_or_create(
-                        tenant=pool.tenant,
-                        member=am,
-                        cycle_number=cycle_number,
-                        defaults={
-                            "amount": float(amount) / max(active_mems.count(), 1),
-                            "contribution_date": timezone.now().date(),
-                            "status": ContributionStatus.RECEIVED,
-                        },
-                    )
+            payout.status = PayoutStatus.DISBURSED
+            payout.disbursed_by = request.user
+            payout.settlement_utr = utr
+            payout.biometric_auth_ref = (request.data.get("biometric_auth_ref") or "").strip() or None
+            payout.ceremony_hash = hashlib.sha256(
+                "|".join(
+                    [
+                        str(payout.id),
+                        payout.pool.code,
+                        payout.member.member_reference,
+                        str(payout.amount),
+                        str(payout.cycle_number),
+                        payout.settlement_rail,
+                        utr,
+                        str(payout.requested_by_id),
+                        str(payout.secondary_approved_by_id),
+                        str(request.user.id),
+                        payout.shariah_certificate_number or "",
+                        str(payout.payout_date),
+                    ]
+                ).encode("utf-8")
+            ).hexdigest()
+            payout.save()
 
-            settlement_utr = f"RAAST-PK-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
-            cert_no = f"SHAR-QARD-2025-{uuid.uuid4().hex[:6].upper()}"
+            payout.member.status = CircleMemberStatus.PAID_OUT
+            payout.member.save(update_fields=["status", "updated_at"])
 
-            hash_payload = f"{pool.code}:{member.member_reference}:{amount}:{settlement_utr}:{cycle_number}:{payout_date}"
-            ceremony_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
-
-            payout = Payout.objects.create(
-                tenant=pool.tenant,
-                member=member,
-                pool=pool,
-                cycle_number=cycle_number,
-                amount=amount,
-                payout_date=payout_date,
-                status=PayoutStatus.DISBURSED,
-                disbursed_by=request.user,
-                secondary_approved_by=request.user,
-                secondary_approved_at=timezone.now(),
-                settlement_rail=settlement_rail,
-                settlement_utr=settlement_utr,
-                recipient_iban=recipient_iban,
-                recipient_bank=recipient_bank,
-                shariah_compliance_status="certified_qard_hasana",
-                shariah_certificate_number=cert_no,
-                biometric_auth_ref=biometric_auth_ref,
-                ceremony_hash=ceremony_hash,
-            )
-
-            member.status = CircleMemberStatus.PAID_OUT
-            member.save(update_fields=["status", "updated_at"])
-
-            log_action(
-                tenant=pool.tenant,
-                actor=request.user,
-                action="payout_ceremony_disbursed",
-                model_name="Payout",
-                object_id=str(payout.id),
-                changes={
-                    "cycle_number": cycle_number,
-                    "member": member.member_reference,
-                    "amount": str(amount),
-                    "settlement_rail": settlement_rail,
-                    "settlement_utr": settlement_utr,
-                    "shariah_certificate": cert_no,
-                    "ceremony_hash": ceremony_hash,
-                },
-                request=request,
-            )
-
-        return Response({
-            "status": "CEREMONY_SUCCESS",
-            "message": f"Payout Release Ceremony concluded successfully. PKR {float(amount):,.2f} disbursed to {member.member_name} via {settlement_rail}.",
-            "payout": PayoutSerializer(payout).data,
-            "settlement_receipt": {
-                "utr": settlement_utr,
-                "certificate_number": cert_no,
-                "ceremony_hash": ceremony_hash,
-                "settlement_rail": settlement_rail,
-                "recipient_name": member.member_name,
-                "recipient_iban": recipient_iban,
-                "recipient_bank": recipient_bank,
-                "amount": float(amount),
-                "payout_date": str(payout_date),
-                "disbursed_by": request.user.username,
-                "shariah_seal": "VERIFIED ZERO RIBA - 100% PRINCIPAL DELIVERED",
-            },
-        }, status=201)
+        log_action(
+            tenant=payout.tenant,
+            actor=request.user,
+            action="payout_settled",
+            model_name="Payout",
+            object_id=str(payout.id),
+            changes={"settlement_utr": utr, "ceremony_hash": payout.ceremony_hash},
+            request=request,
+        )
+        return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["get"], url_path="receipt")
     def receipt(self, request, pk=None):
         payout = self.get_object()
-        return Response({
-            "payout_id": str(payout.id),
-            "circle_name": payout.pool.name,
-            "circle_code": payout.pool.code,
-            "recipient_name": payout.member.member_name,
-            "recipient_reference": payout.member.member_reference,
-            "cycle_number": payout.cycle_number,
-            "amount": float(payout.amount),
-            "payout_date": str(payout.payout_date),
-            "status": payout.status,
-            "settlement_rail": payout.settlement_rail,
-            "settlement_utr": payout.settlement_utr,
-            "recipient_iban": payout.recipient_iban,
-            "recipient_bank": payout.recipient_bank,
-            "secondary_approved_by": payout.secondary_approved_by.username if payout.secondary_approved_by else "Compliance Officer",
-            "secondary_approved_at": str(payout.secondary_approved_at) if payout.secondary_approved_at else None,
-            "shariah_certificate_number": payout.shariah_certificate_number,
-            "biometric_auth_ref": payout.biometric_auth_ref,
-            "ceremony_hash": payout.ceremony_hash,
-            "legal_entity": payout.pool.legal_entity.name if hasattr(payout.pool, "legal_entity") and payout.pool.legal_entity else "Amanah Islamic Banking Window",
-        })
+        return Response(
+            {
+                "payout_id": str(payout.id),
+                "circle_name": payout.pool.name,
+                "circle_code": payout.pool.code,
+                "recipient_name": payout.member.member_name,
+                "recipient_reference": payout.member.member_reference,
+                "cycle_number": payout.cycle_number,
+                "amount": float(payout.amount),
+                "payout_date": str(payout.payout_date),
+                "status": payout.status,
+                "settlement_rail": payout.settlement_rail,
+                "settlement_utr": payout.settlement_utr,
+                "recipient_iban": payout.recipient_iban,
+                "recipient_bank": payout.recipient_bank,
+                "requested_by": payout.requested_by.full_name if payout.requested_by else None,
+                "secondary_approved_by": payout.secondary_approved_by.full_name if payout.secondary_approved_by else None,
+                "secondary_approved_at": str(payout.secondary_approved_at) if payout.secondary_approved_at else None,
+                "settled_by": payout.disbursed_by.full_name if payout.disbursed_by else None,
+                "shariah_certificate_number": payout.shariah_certificate_number,
+                "biometric_auth_ref": payout.biometric_auth_ref,
+                "ceremony_hash": payout.ceremony_hash,
+            }
+        )
 
 
 class CircleMemberViewSet(
@@ -350,8 +381,8 @@ class CircleMemberViewSet(
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "record_contribution":
             return [IsAuthenticated(), IsFinanceMaker()]
-        if self.action == "disburse_payout":
-            return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "verify_kyc":
+            return [IsAuthenticated(), IsRiskCompliance()]
         if self.action == "flag_arrears":
             return [IsAuthenticated(), IsRiskCompliance()]
         return [IsAuthenticated()]
@@ -603,108 +634,22 @@ class CircleMemberViewSet(
         )
         return Response(ContributionSerializer(contribution).data, status=201)
 
-    @action(detail=True, methods=["post"], url_path="disburse-payout")
-    def disburse_payout(self, request, pk=None):
+    @action(detail=True, methods=["post"], url_path="verify-kyc")
+    def verify_kyc(self, request, pk=None):
         member = self.get_object()
-
-        cycle_number = request.data.get("cycle_number")
-        amount = request.data.get("amount")
-        payout_date = request.data.get("payout_date")
-
-        errors = {}
-        if not cycle_number:
-            errors["cycle_number"] = ["This field is required."]
-        if not amount:
-            errors["amount"] = ["This field is required."]
-        if not payout_date:
-            errors["payout_date"] = ["This field is required."]
-        if errors:
-            raise ValidationError(errors)
-
-        if member.payout_position is None:
-            raise ValidationError("This member has no payout_position assigned yet - run a draw first.")
-
-        active_members = CircleMember.objects.filter(
-            pool=member.pool, status=CircleMemberStatus.ACTIVE, payout_position__isnull=False
-        )
-
-        # The "turn" is whichever un-paid active member has the smallest
-        # payout_position. A member can only be disbursed to once every
-        # earlier position has already been paid out - this enforces the
-        # rotation sequence rather than letting positions be paid out of
-        # order.
-        next_turn = active_members.order_by("payout_position").first()
-        if next_turn is None or next_turn.id != member.id:
-            expected = next_turn.payout_position if next_turn else None
-            raise ValidationError(
-                f"It is not this member's turn. Current turn is payout_position "
-                f"{expected}, but this member is at position {member.payout_position}."
-            )
-
-        # Every active member must have a received Contribution for this
-        # cycle before anyone can be paid out of it.
-        active_member_ids = set(active_members.values_list("id", flat=True))
-        received_member_ids = set(
-            Contribution.objects.filter(
-                member_id__in=active_member_ids,
-                cycle_number=cycle_number,
-                status=ContributionStatus.RECEIVED,
-            ).values_list("member_id", flat=True)
-        )
-        missing = active_member_ids - received_member_ids
-        if missing:
-            raise ValidationError(
-                f"Not all active members have contributed for cycle {cycle_number} yet "
-                f"({len(missing)} member(s) still pending)."
-            )
-
-        settlement_rail = request.data.get("settlement_rail") or SettlementRailType.RAAST_RTGS
-        settlement_utr = request.data.get("settlement_utr") or f"RAAST-PK-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
-        recipient_iban = request.data.get("recipient_iban") or ""
-        recipient_bank = request.data.get("recipient_bank") or "Meezan Bank Limited"
-        cert_no = f"SHAR-QARD-2025-{uuid.uuid4().hex[:6].upper()}"
-        hash_payload = f"{member.pool.code}:{member.member_reference}:{amount}:{settlement_utr}:{cycle_number}:{payout_date}"
-        ceremony_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
-
-        payout = Payout.objects.create(
-            tenant=member.tenant,
-            member=member,
-            pool=member.pool,
-            cycle_number=cycle_number,
-            amount=amount,
-            payout_date=payout_date,
-            status=PayoutStatus.DISBURSED,
-            disbursed_by=request.user,
-            secondary_approved_by=request.user,
-            secondary_approved_at=timezone.now(),
-            settlement_rail=settlement_rail,
-            settlement_utr=settlement_utr,
-            recipient_iban=recipient_iban,
-            recipient_bank=recipient_bank,
-            shariah_compliance_status="certified_qard_hasana",
-            shariah_certificate_number=cert_no,
-            biometric_auth_ref=request.data.get("biometric_auth_ref") or f"BIO-VERIFIED-{uuid.uuid4().hex[:6].upper()}",
-            ceremony_hash=ceremony_hash,
-        )
-
-        member.status = CircleMemberStatus.PAID_OUT
-        member.save(update_fields=["status", "updated_at"])
-
+        previous = member.kyc_status
+        member.kyc_status = KYCStatus.VERIFIED
+        member.save(update_fields=["kyc_status", "updated_at"])
         log_action(
             tenant=member.tenant,
             actor=request.user,
-            action="disburse_payout",
-            model_name="Payout",
-            object_id=str(payout.id),
-            changes={
-                "member_id": str(member.id),
-                "cycle_number": payout.cycle_number,
-                "amount": str(payout.amount),
-                "status": payout.status,
-            },
+            action="verify_kyc",
+            model_name="CircleMember",
+            object_id=str(member.id),
+            changes={"kyc_status": {"before": previous, "after": member.kyc_status}},
             request=request,
         )
-        return Response(PayoutSerializer(payout).data, status=201)
+        return Response(self.get_serializer(member).data)
 
     @action(detail=True, methods=["post"], url_path="flag-arrears")
     def flag_arrears(self, request, pk=None):

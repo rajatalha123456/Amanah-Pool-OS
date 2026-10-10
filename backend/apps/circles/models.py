@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.core.models import TenantScopedModel
+from apps.participants.models import KYCStatus
 
 
 class CircleMemberStatus(models.TextChoices):
@@ -15,8 +17,10 @@ class ContributionStatus(models.TextChoices):
 
 
 class PayoutStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved"
     DISBURSED = "disbursed", "Disbursed"
+    REJECTED = "rejected", "Rejected"
 
 
 class ArrearsStatus(models.TextChoices):
@@ -44,6 +48,10 @@ class CircleMember(TenantScopedModel):
         max_length=20, choices=CircleMemberStatus.choices, default=CircleMemberStatus.ACTIVE
     )
     joined_date = models.DateField()
+    # BR-008: a payout is only released to a KYC-verified member with bank details.
+    kyc_status = models.CharField(max_length=10, choices=KYCStatus.choices, default=KYCStatus.PENDING)
+    iban = models.CharField(max_length=34, blank=True, default="")
+    bank_name = models.CharField(max_length=100, blank=True, default="")
 
     class Meta:
         constraints = [
@@ -95,9 +103,13 @@ class Payout(TenantScopedModel):
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     payout_date = models.DateField()
     status = models.CharField(max_length=20, choices=PayoutStatus.choices, default=PayoutStatus.PENDING)
+    requested_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="requested_payouts"
+    )
     disbursed_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
     )
+    rejection_reason = models.TextField(null=True, blank=True)
     draw_seed = models.CharField(max_length=64, null=True, blank=True)
     settlement_rail = models.CharField(
         max_length=30,
@@ -111,12 +123,18 @@ class Payout(TenantScopedModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="counter_approved_payouts"
     )
     secondary_approved_at = models.DateTimeField(null=True, blank=True)
-    shariah_compliance_status = models.CharField(
-        max_length=40, default="certified_qard_hasana"
-    )
+    # Set from the pool's approved Shariah decision when the payout is approved.
+    shariah_compliance_status = models.CharField(max_length=40, default="pending")
     shariah_certificate_number = models.CharField(max_length=64, null=True, blank=True)
     biometric_auth_ref = models.CharField(max_length=64, null=True, blank=True)
     ceremony_hash = models.CharField(max_length=64, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            prior = Payout._base_manager.filter(pk=self.pk).values_list("status", flat=True).first()
+            if prior in (PayoutStatus.DISBURSED, PayoutStatus.REJECTED):
+                raise ValidationError(f"A {prior} payout is final and cannot be modified.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.member.member_reference} cycle {self.cycle_number} - {self.amount} ({self.status})"

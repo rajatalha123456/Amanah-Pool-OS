@@ -114,6 +114,9 @@ class AllocationRun(TenantScopedModel):
     pool = models.ForeignKey(
         "pools.Pool", on_delete=models.CASCADE, related_name="allocation_runs"
     )
+    # value_date is the period end. period_start is null only on legacy
+    # single-day runs, which cover just their value_date.
+    period_start = models.DateField(null=True, blank=True)
     value_date = models.DateField()
     gross_income = models.DecimalField(max_digits=18, decimal_places=2)
     direct_expenses = models.DecimalField(max_digits=18, decimal_places=2, default=0)
@@ -205,6 +208,10 @@ class AllocationRun(TenantScopedModel):
         return f"{self.pool.name} allocation @ {self.value_date} ({self.status})"
 
     @property
+    def effective_period_start(self):
+        return self.period_start or self.value_date
+
+    @property
     def shariah_review_required(self) -> bool:
         """
         Whether this run must pass through PENDING_APPROVAL -> SHARIAH_REVIEW
@@ -228,6 +235,16 @@ class AllocationLine(TenantScopedModel):
         AllocationRun, on_delete=models.CASCADE, related_name="lines"
     )
     participant_class = models.CharField(max_length=100)
+    # One line per participant account; null only for legacy class-level lines.
+    # daily_funds is the account's average daily funds over the run's period and
+    # weightage the funds-weighted average of the daily weightages applied.
+    account = models.ForeignKey(
+        "participants.ParticipantAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="allocation_lines",
+    )
     daily_funds = models.DecimalField(max_digits=18, decimal_places=2)
     weightage = models.DecimalField(max_digits=5, decimal_places=2)
     weighted_funds = models.DecimalField(max_digits=18, decimal_places=2)
@@ -267,6 +284,13 @@ class DepositorStatement(TenantScopedModel):
         AllocationRun, on_delete=models.CASCADE, related_name="statements"
     )
     participant_class = models.CharField(max_length=100)
+    account = models.ForeignKey(
+        "participants.ParticipantAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="statements",
+    )
     period_start = models.DateField()
     period_end = models.DateField()
     opening_balance = models.DecimalField(max_digits=18, decimal_places=2)
@@ -278,3 +302,22 @@ class DepositorStatement(TenantScopedModel):
 
     def __str__(self):
         return f"{self.allocation_run} - {self.participant_class} statement"
+
+
+class PayoutBatchRecord(TenantScopedModel):
+    """
+    Persisted profit-payout clearing batch for a signed allocation run
+    (see apps.allocation.payout_clearing_engine). `payload` is the batch
+    document (recipients, taxes, gate results, status history); the rails it
+    is dispatched on are simulated - payload["mode"] says so.
+    """
+
+    allocation_run = models.OneToOneField(
+        AllocationRun, on_delete=models.PROTECT, related_name="payout_batch"
+    )
+    batch_code = models.CharField(max_length=100)
+    status = models.CharField(max_length=30, default="draft")
+    payload = models.JSONField(default=dict)
+
+    def __str__(self):
+        return f"{self.batch_code} ({self.status})"

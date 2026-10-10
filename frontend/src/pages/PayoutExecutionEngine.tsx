@@ -215,6 +215,10 @@ export function PayoutExecutionEngine() {
 
   return (
     <div className="space-y-6">
+      <div role="note" className="rounded-md border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs font-semibold text-amber-300">
+        SIMULATION MODE — recipients, taxes and approvals are real, but the Raast/1LINK rails are simulated: nothing is
+        transmitted to any switch and no funds move.
+      </div>
       {/* Top Banner / Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-default pb-4">
         <div>
@@ -227,7 +231,7 @@ export function PayoutExecutionEngine() {
           </div>
           <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-3">
             Payout Execution Engine & Clearing Rails
-            <Badge variant="emerald">SBP Raast / 1LINK</Badge>
+            <Badge variant="gold">Simulated rails</Badge>
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             End-to-end clearing file generation, pre-disbursement statutory validation gates, ISO 20022 pacs.008 XML

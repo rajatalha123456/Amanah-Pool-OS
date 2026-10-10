@@ -14,10 +14,14 @@ class CircleMemberSerializer(serializers.ModelSerializer):
             "payout_position",
             "status",
             "joined_date",
+            "kyc_status",
+            "iban",
+            "bank_name",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "payout_position", "status", "created_at", "updated_at")
+        # KYC changes only through the Risk & Compliance verify-kyc action.
+        read_only_fields = ("id", "payout_position", "status", "kyc_status", "created_at", "updated_at")
 
 
 class ContributionSerializer(serializers.ModelSerializer):
@@ -52,8 +56,8 @@ class PayoutSerializer(serializers.ModelSerializer):
     member_name = serializers.CharField(source="member.member_name", read_only=True)
     pool_name = serializers.CharField(source="pool.name", read_only=True)
     pool_code = serializers.CharField(source="pool.code", read_only=True)
-    disbursed_by_username = serializers.CharField(source="disbursed_by.username", read_only=True)
-    secondary_approved_by_username = serializers.CharField(source="secondary_approved_by.username", read_only=True)
+    disbursed_by_username = serializers.CharField(source="disbursed_by.full_name", read_only=True)
+    secondary_approved_by_username = serializers.CharField(source="secondary_approved_by.full_name", read_only=True)
 
     class Meta:
         model = Payout
@@ -69,6 +73,8 @@ class PayoutSerializer(serializers.ModelSerializer):
             "amount",
             "payout_date",
             "status",
+            "requested_by",
+            "rejection_reason",
             "disbursed_by",
             "disbursed_by_username",
             "draw_seed",
@@ -86,10 +92,28 @@ class PayoutSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        # Payouts are created and moved through their lifecycle only by the
+        # request/approve/settle actions - never written directly.
         read_only_fields = (
             "id",
+            "member",
+            "pool",
+            "cycle_number",
+            "amount",
+            "payout_date",
             "status",
+            "requested_by",
+            "rejection_reason",
             "disbursed_by",
+            "settlement_rail",
+            "settlement_utr",
+            "recipient_iban",
+            "recipient_bank",
+            "secondary_approved_by",
+            "secondary_approved_at",
+            "shariah_compliance_status",
+            "shariah_certificate_number",
+            "biometric_auth_ref",
             "draw_seed",
             "ceremony_hash",
             "created_at",

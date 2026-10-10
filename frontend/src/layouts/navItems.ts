@@ -3,6 +3,7 @@ import type { NavItem } from "../types"
 export const navItems: (NavItem & { labelKey: string })[] = [
   { label: "Command Center", labelKey: "nav.commandCenter", path: "/" },
   { label: "Products & Pools", labelKey: "nav.productsPools", path: "/products-pools" },
+  { label: "Participants", labelKey: "nav.participants", path: "/participants" },
   { label: "Daily Operations", labelKey: "nav.dailyOperations", path: "/daily-operations" },
   { label: "Allocation Engine", labelKey: "nav.allocationEngine", path: "/allocation-engine" },
   { label: "Investments", labelKey: "nav.investments", path: "/investments" },

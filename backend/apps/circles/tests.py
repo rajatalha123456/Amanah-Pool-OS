@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import User, UserRole
 from apps.core.context import set_current_tenant
 from apps.pools.models import Pool
-from apps.products.models import ContractTemplate, Product
+from apps.products.models import ContractTemplate, Product, ShariahDecision, ShariahDecisionStatus
 from apps.tenants.models import Tenant
 
 from .models import CircleMember, CircleMemberStatus
@@ -42,6 +42,14 @@ class CircleRotationApiTests(APITestCase):
             tenant=self.tenant,
         )
 
+        self.risk = User.objects.create_user(
+            email="risk@example.com",
+            password="password",
+            full_name="Risk Officer",
+            role=UserRole.RISK_COMPLIANCE,
+            tenant=self.tenant,
+        )
+
         self.pool = self._make_pool(self.tenant, "CIR-1")
 
         self.other_tenant = Tenant.objects.create(
@@ -66,12 +74,21 @@ class CircleRotationApiTests(APITestCase):
         self.client.defaults["HTTP_X_TENANT_CODE"] = (tenant or user.tenant).code
 
     def _make_pool(self, tenant, code_suffix):
+        decision = ShariahDecision.objects.create(
+            tenant=tenant,
+            decision_code="SD-CIRCLE-1" if code_suffix == "CIR-1" else f"SD-{code_suffix}",
+            title="Qard circle approval",
+            description="Approved",
+            status=ShariahDecisionStatus.APPROVED,
+            effective_date=date(2026, 1, 1),
+        )
         contract = ContractTemplate.objects.create(
             tenant=tenant,
             name=f"Contract {code_suffix}",
-            contract_type="mudarabah_unrestricted",
+            contract_type="qard",
             version="1",
             clauses={},
+            shariah_decision=decision,
         )
         product = Product.objects.create(
             tenant=tenant,
@@ -150,54 +167,85 @@ class CircleRotationApiTests(APITestCase):
             self.assertEqual(contrib_response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(contrib_response.data["status"], "received")
 
-        # Wrong role cannot disburse.
-        self.authenticate(self.maker)
-        forbidden_disburse = self.client.post(
-            reverse("circle-member-disburse-payout", args=[str(first_turn_member.id)]),
-            {"cycle_number": 1, "amount": "5000.00", "payout_date": "2026-09-10"},
-            format="json",
-        )
-        self.assertEqual(forbidden_disburse.status_code, status.HTTP_403_FORBIDDEN)
+        request_url = reverse("circle-payout-request-payout", args=[str(self.pool.id)])
+        body = {"member_id": str(first_turn_member.id), "settlement_rail": "raast_rtgs", "payout_date": "2026-09-10"}
 
-        # Wrong member (not first turn) cannot be disbursed to, even
-        # though it's a valid member of the circle.
+        # Wrong role cannot request a payout.
         self.authenticate(self.checker)
-        wrong_turn_response = self.client.post(
-            reverse("circle-member-disburse-payout", args=[str(second_turn_member.id)]),
-            {"cycle_number": 1, "amount": "5000.00", "payout_date": "2026-09-10"},
-            format="json",
-        )
-        self.assertEqual(wrong_turn_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.client.post(request_url, body, format="json").status_code, status.HTTP_403_FORBIDDEN)
 
-        # Correct (first-turn) member still can't be disbursed to since
-        # second_turn_member hasn't contributed for this cycle yet.
-        missing_contribution_response = self.client.post(
-            reverse("circle-member-disburse-payout", args=[str(first_turn_member.id)]),
-            {"cycle_number": 1, "amount": "5000.00", "payout_date": "2026-09-10"},
-            format="json",
-        )
-        self.assertEqual(missing_contribution_response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        # Now record the missing contribution and retry.
+        # Wrong member (not first turn) is refused even though they are a valid member.
         self.authenticate(self.maker)
+        wrong_turn = self.client.post(
+            request_url, {**body, "member_id": str(second_turn_member.id)}, format="json"
+        )
+        self.assertEqual(wrong_turn.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # The first-turn member can't be paid: one member hasn't contributed, and KYC/bank details are missing.
+        blocked = self.client.post(request_url, body, format="json")
+        self.assertEqual(blocked.status_code, status.HTTP_400_BAD_REQUEST)
+        failed_text = " ".join(str(item) for item in blocked.data["error"]["details"]["preflight"])
+        self.assertIn("contributed", failed_text)
+        self.assertIn("KYC", failed_text)
+
+        # Record the missing contribution; KYC (Risk) and bank details are still missing.
         contrib_response = self.client.post(
             reverse("circle-member-record-contribution", args=[str(second_turn_member.id)]),
             {"amount": "1000.00", "contribution_date": "2026-09-05", "cycle_number": 1},
             format="json",
         )
         self.assertEqual(contrib_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self.client.post(request_url, body, format="json").status_code, status.HTTP_400_BAD_REQUEST)
 
+        set_current_tenant(self.tenant)
+        first_turn_member.iban = "PK36MEZN0001001234567801"
+        first_turn_member.bank_name = "Meezan Bank Ltd"
+        first_turn_member.save()
+        # Only Risk & Compliance can verify KYC.
+        kyc_url = reverse("circle-member-verify-kyc", args=[str(first_turn_member.id)])
+        self.authenticate(self.maker)
+        self.assertEqual(self.client.post(kyc_url).status_code, status.HTTP_403_FORBIDDEN)
+        self.authenticate(self.risk)
+        self.assertEqual(self.client.post(kyc_url).status_code, status.HTTP_200_OK)
+
+        # Maker requests; the amount is the collected pot (5 x 1,000), not client input.
+        self.authenticate(self.maker)
+        requested = self.client.post(request_url, {**body, "amount": "999999.00"}, format="json")
+        self.assertEqual(requested.status_code, status.HTTP_201_CREATED, requested.data)
+        self.assertEqual(requested.data["status"], "pending")
+        self.assertEqual(requested.data["amount"], "5000.00")
+        payout_id = requested.data["id"]
+
+        # The requester cannot approve; settlement needs approval first.
+        approve_url = reverse("circle-payout-approve", args=[payout_id])
+        settle_url = reverse("circle-payout-settle", args=[payout_id])
+        self.assertEqual(self.client.post(approve_url).status_code, status.HTTP_403_FORBIDDEN)
         self.authenticate(self.checker)
-        disburse_response = self.client.post(
-            reverse("circle-member-disburse-payout", args=[str(first_turn_member.id)]),
-            {"cycle_number": 1, "amount": "5000.00", "payout_date": "2026-09-10"},
-            format="json",
+        self.assertEqual(
+            self.client.post(settle_url, {"settlement_utr": "RRN1"}, format="json").status_code,
+            status.HTTP_400_BAD_REQUEST,
         )
-        self.assertEqual(disburse_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(disburse_response.data["status"], "disbursed")
+
+        approved = self.client.post(approve_url)
+        self.assertEqual(approved.status_code, status.HTTP_200_OK, approved.data)
+        self.assertEqual(approved.data["status"], "approved")
+        self.assertEqual(approved.data["shariah_certificate_number"], "SD-CIRCLE-1")
+
+        # Settlement needs the bank's reference.
+        self.authenticate(self.maker)
+        self.assertEqual(self.client.post(settle_url, {}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+        settled = self.client.post(settle_url, {"settlement_utr": "RAAST-REAL-0001"}, format="json")
+        self.assertEqual(settled.status_code, status.HTTP_200_OK, settled.data)
+        self.assertEqual(settled.data["status"], "disbursed")
+        self.assertEqual(settled.data["settlement_utr"], "RAAST-REAL-0001")
+        self.assertEqual(len(settled.data["ceremony_hash"]), 64)
 
         first_turn_member.refresh_from_db()
         self.assertEqual(first_turn_member.status, "paid_out")
+
+        # A settled payout is final.
+        self.authenticate(self.checker)
+        self.assertEqual(self.client.post(approve_url).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_tenant_isolation_on_run_draw(self):
         self._create_member(self.pool, "TENANT-A-1")

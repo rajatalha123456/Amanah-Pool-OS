@@ -21,6 +21,7 @@ from apps.accounts.permissions import (
 )
 from apps.core.audit import log_action
 from apps.core.exceptions_helper import create_exception_case
+from apps.participants.models import AccountStatus, KYCStatus, ParticipantAccount
 from apps.products.models import ProductStatus
 
 from .liquidity import calculate_liquidity_forecast
@@ -551,23 +552,63 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         created_balances = []
         control_total_actual = Decimal("0.00")
 
+        accounts_by_number = {
+            account.account_number: account
+            for account in ParticipantAccount.objects.select_related("participant").filter(pool=pool)
+        }
+
         with transaction.atomic():
             for record in records:
-                participant_class = record["participant_class"]
                 balance_amount = record["balance_amount"]
+                account_number = record.get("account_number")
+                account = None
 
-                if DailyBalance.objects.filter(
-                    pool=pool, value_date=value_date, participant_class=participant_class
-                ).exists():
-                    errors.append(
-                        f"Duplicate balance for participant_class='{participant_class}' "
-                        f"on {value_date}: skipped."
-                    )
+                if account_number:
+                    account = accounts_by_number.get(account_number)
+                    if account is None:
+                        errors.append(f"Unknown account '{account_number}' for this pool: skipped.")
+                        continue
+                    if (
+                        account.opened_date > value_date
+                        or (account.closed_date and account.closed_date < value_date)
+                        or (account.status == AccountStatus.CLOSED and not account.closed_date)
+                    ):
+                        errors.append(
+                            f"Account '{account_number}' is not open on {value_date}: skipped."
+                        )
+                        continue
+                    if account.participant.kyc_status != KYCStatus.VERIFIED:
+                        errors.append(
+                            f"Account '{account_number}': participant KYC is "
+                            f"'{account.participant.kyc_status}', not verified: skipped."
+                        )
+                        continue
+                    participant_class = account.participant.participant_class
+                    duplicate = DailyBalance.objects.filter(
+                        pool=pool, value_date=value_date, account=account
+                    ).exists()
+                    duplicate_label = f"account '{account_number}'"
+                else:
+                    if accounts_by_number:
+                        errors.append(
+                            "This pool has participant accounts; account_number is required "
+                            "(class-level balances are not accepted): skipped."
+                        )
+                        continue
+                    participant_class = record["participant_class"]
+                    duplicate = DailyBalance.objects.filter(
+                        pool=pool, value_date=value_date, participant_class=participant_class, account__isnull=True
+                    ).exists()
+                    duplicate_label = f"participant_class='{participant_class}'"
+
+                if duplicate:
+                    errors.append(f"Duplicate balance for {duplicate_label} on {value_date}: skipped.")
                     continue
 
                 balance = DailyBalance.objects.create(
                     tenant=request.user.tenant,
                     pool=pool,
+                    account=account,
                     participant_class=participant_class,
                     value_date=value_date,
                     balance_amount=balance_amount,
@@ -678,6 +719,12 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             value_date = timezone.now().date()
 
         assert_period_open(pool, value_date, what="a balance import")
+
+        if ParticipantAccount.objects.filter(pool=pool).exists():
+            raise ValidationError(
+                "The CBS feed simulator only produces class-level balances and cannot be used "
+                "for a pool with participant accounts; import account-level balances instead."
+            )
 
         cbs_vendor = request.data.get("cbs_vendor", "Temenos T24")
         scenario = request.data.get("scenario", "clean")

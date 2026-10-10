@@ -110,11 +110,17 @@ class PSRSerializer(serializers.ModelSerializer):
 
 
 class AllocationLineSerializer(serializers.ModelSerializer):
+    account_number = serializers.CharField(source="account.account_number", read_only=True, default=None)
+    participant_name = serializers.CharField(source="account.participant.full_name", read_only=True, default=None)
+
     class Meta:
         model = AllocationLine
         fields = (
             "id",
             "participant_class",
+            "account",
+            "account_number",
+            "participant_name",
             "daily_funds",
             "weightage",
             "weighted_funds",
@@ -134,6 +140,7 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "id",
             "tenant",
             "pool",
+            "period_start",
             "value_date",
             "gross_income",
             "direct_expenses",
@@ -215,7 +222,10 @@ class AllocationRunInputSerializer(serializers.Serializer):
     in an empty result at import time.
     """
 
-    value_date = serializers.DateField()
+    value_date = serializers.DateField(help_text="Period end date.")
+    period_start = serializers.DateField(
+        required=False, allow_null=True, default=None, help_text="Period start; omit for a single-day run."
+    )
     gross_income = serializers.DecimalField(max_digits=18, decimal_places=2)
     direct_expenses = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, default=Decimal("0"))
 
@@ -225,14 +235,26 @@ class AllocationRunInputSerializer(serializers.Serializer):
 
         self.fields["pool"] = serializers.PrimaryKeyRelatedField(queryset=Pool.objects.all())
 
+    def validate(self, attrs):
+        period_start = attrs.get("period_start")
+        if period_start and period_start > attrs["value_date"]:
+            raise serializers.ValidationError({"period_start": "period_start cannot be after value_date."})
+        return attrs
+
 
 class DepositorStatementSerializer(serializers.ModelSerializer):
+    account_number = serializers.CharField(source="account.account_number", read_only=True, default=None)
+    participant_name = serializers.CharField(source="account.participant.full_name", read_only=True, default=None)
+
     class Meta:
         model = DepositorStatement
         fields = (
             "id",
             "allocation_run",
             "participant_class",
+            "account",
+            "account_number",
+            "participant_name",
             "period_start",
             "period_end",
             "opening_balance",
