@@ -67,7 +67,13 @@ from apps.pools.models import (
     Pool,
     PoolVersion,
 )
-from apps.products.models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision
+from apps.products.models import (
+    ContractTemplate,
+    JurisdictionRulePack,
+    Product,
+    ShariahDecision,
+    ShariahQuorumVote,
+)
 
 _D = date(2026, 1, 1)
 
@@ -238,6 +244,19 @@ def _build_shariah_decision(tenant, cache):
         title="Decision",
         description="Description",
         effective_date=_D,
+    )
+
+
+def _build_shariah_quorum_vote(tenant, cache):
+    # Reuse the tenant's single ShariahDecision (built just before this one)
+    # so the "exactly one row per model" isolation check still holds.
+    decision = ShariahDecision._base_manager.filter(tenant=tenant).first()
+    return ShariahQuorumVote.objects.create(
+        tenant=tenant,
+        decision=decision,
+        scholar_name="Scholar",
+        scholar_title="Mufti",
+        digital_signature_hash="0" * 64,
     )
 
 
@@ -571,6 +590,7 @@ def _build_jurisdiction_rule_pack(tenant, cache):
 BUILDERS = {
     "core.TenantIsolationTestRecord": (TenantIsolationTestRecord, _build_tenant_isolation_test_record),
     "products.ShariahDecision": (ShariahDecision, _build_shariah_decision),
+    "products.ShariahQuorumVote": (ShariahQuorumVote, _build_shariah_quorum_vote),
     "products.ContractTemplate": (ContractTemplate, _build_contract_template),
     "products.Product": (Product, _build_product),
     "products.JurisdictionRulePack": (JurisdictionRulePack, _build_jurisdiction_rule_pack),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Card } from "../components/Card"
@@ -17,12 +17,18 @@ import {
   fetchPayoutsForPool,
   flagArrears,
   grantHardship,
+  predictCircleHardship,
   recordContribution,
   runDraw,
+  type CircleHardshipPredictionResult,
 } from "../api/circles"
 import { closeCircleProposal, createCircleProposal, fetchCircleProposals, recordVote } from "../api/circleProposals"
 import { fetchPools } from "../api/pools"
 import { extractErrorMessage } from "../api/errors"
+import { RaastSettlementModal } from "../components/banking/RaastSettlementModal"
+import { FraudCollusionGraphView } from "../components/governance/FraudCollusionGraphView"
+import { DrawRoomConsole } from "../components/circles/DrawRoomConsole"
+import { PayoutReleaseCeremony } from "../components/circles/PayoutReleaseCeremony"
 import type {
   ArrearsRecord,
   BadgeVariant,
@@ -43,6 +49,7 @@ type Tab =
   | "mobile"
   | "arrears"
   | "proposals"
+  | "collusion_graph"
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "setup", label: "Circle Setup" },
@@ -53,6 +60,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "mobile", label: "Member Mobile Experience" },
   { key: "arrears", label: "Hardship & Arrears" },
   { key: "proposals", label: "Proposals & Voting" },
+  { key: "collusion_graph", label: "🕸️ Syndicate & Collusion Graph" },
 ]
 
 const SETUP_STEPS = [
@@ -141,8 +149,14 @@ function proposalStatusBadgeVariant(status: string): BadgeVariant {
   return PROPOSAL_STATUS_BADGE[status] ?? "neutral"
 }
 
-export function CommunityCircles() {
+interface CommunityCirclesProps {
+  initialTab?: Tab
+}
+
+export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps = {}) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const queryTab = (searchParams.get("tab") as Tab) || initialTab
   const { user } = useAuth()
   const isPoolManager = user?.role === "pool_manager" || user?.role === "platform_super_admin"
   const isRiskCompliance = user?.role === "risk_compliance" || user?.role === "platform_super_admin"
@@ -154,7 +168,7 @@ export function CommunityCircles() {
   const [members, setMembers] = useState<CircleMember[]>([])
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [payouts, setPayouts] = useState<Payout[]>([])
-  const [activeTab, setActiveTab] = useState<Tab>("setup")
+  const [activeTab, setActiveTab] = useState<Tab>(queryTab)
   const [setupStep, setSetupStep] = useState<number>(0)
 
   const [pageError, setPageError] = useState("")
@@ -167,6 +181,18 @@ export function CommunityCircles() {
 
   const [contributionModalMember, setContributionModalMember] = useState<CircleMember | null>(null)
   const [disburseModalMember, setDisburseModalMember] = useState<CircleMember | null>(null)
+  const [bankingModal, setBankingModal] = useState<{
+    isOpen: boolean
+    amount: number | string
+    senderTitle: string
+    senderIban?: string
+    recipientTitle?: string
+    recipientIban?: string
+    purpose: string
+    mode: "collection" | "disbursement"
+    memberId?: string
+    onSettled?: () => Promise<void>
+  } | null>(null)
 
   useEffect(() => {
     fetchPools()
@@ -297,17 +323,6 @@ export function CommunityCircles() {
       setIsSaving(false)
     }
   }
-
-  const activeMembersByPosition = useMemo(
-    () =>
-      [...members]
-        .filter((member) => member.status === "active" && member.payout_position !== null)
-        .sort((a, b) => (a.payout_position ?? 0) - (b.payout_position ?? 0)),
-    [members],
-  )
-
-  const nextEligibleMember = activeMembersByPosition[0] ?? members[0] ?? null
-  const hasUndrawnMembers = members.some((m) => m.payout_position === null && m.status === "active")
 
   const rosterColumns: TableColumn<CircleMember>[] = [
     {
@@ -989,197 +1004,24 @@ export function CommunityCircles() {
           {/* SCREEN 26: Rotation / Draw Room (PDF Page 27)                            */}
           {/* ========================================================================= */}
           {activeTab === "draw" && (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Left Gold-Bordered Hero Card */}
-              <div className="rounded-2xl border-2 border-amber-500/60 bg-navy-900 p-8 shadow-xl">
-                <span className="rounded bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
-                  TRANSPARENT ROTATION
-                </span>
-                <p className="mt-4 text-xs font-medium text-ink-secondary">Next eligible recipient</p>
-                <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white uppercase">
-                  {nextEligibleMember ? `${nextEligibleMember.member_name} (${nextEligibleMember.member_reference})` : "MEMBER 014"}
-                </h2>
-                <p className="mt-2 text-2xl font-bold text-emerald-400">PKR 50,000 payout</p>
-
-                <div className="mt-8 flex flex-wrap gap-3">
-                  {nextEligibleMember && (
-                    <Button
-                      variant="primary"
-                      className="px-6 py-2.5 text-sm font-semibold"
-                      onClick={() => setDisburseModalMember(nextEligibleMember)}
-                    >
-                      VERIFY & RELEASE
-                    </Button>
-                  )}
-                  {hasUndrawnMembers && (
-                    <Button
-                      variant="gold"
-                      className="px-5 py-2.5 text-sm font-semibold"
-                      onClick={() => setIsDrawConfirmOpen(true)}
-                    >
-                      RUN CRYPTOGRAPHIC DRAW
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Evidence Card */}
-              <div className="rounded-2xl border border-white/8 bg-navy-900 p-8">
-                <h3 className="text-base font-bold text-ink-primary uppercase tracking-wide">EVIDENCE</h3>
-                <div className="mt-6 space-y-4 text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                      ✓
-                    </span>
-                    <span className="text-ink-primary">Rules accepted by {members.length}/{members.length} members</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                      ✓
-                    </span>
-                    <span className="text-ink-primary">Random seed sealed (Cryptographic PRNG)</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                      ✓
-                    </span>
-                    <span className="text-ink-primary">Eligibility passed (Zero arrears / KYC verified)</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                      ✓
-                    </span>
-                    <span className="text-ink-primary">Observer signatures 2/2 confirmed</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                      ✓
-                    </span>
-                    <span className="text-ink-primary">Video record and immutable audit proof attached</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <DrawRoomConsole
+              poolId={selectedPoolId}
+              onDrawExecuted={() => void loadCircleData(selectedPoolId)}
+              onDisburseRequested={(mId) => {
+                const mem = members.find((m) => m.id === mId)
+                if (mem) setDisburseModalMember(mem)
+              }}
+            />
           )}
 
           {/* ========================================================================= */}
-          {/* SCREEN 27: Payout Release Ceremony (PDF Page 28)                         */}
+          {/* SCREEN 09 / SCREEN 27: Payout Release Ceremony (BRD Screen 09 / PDF Page 28) */}
           {/* ========================================================================= */}
           {activeTab === "payout" && (
-            <div className="space-y-6">
-              {/* 4-Stage Approval Ceremony Table */}
-              <Card title="Approval Ceremony & Sign-off Timeline">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-white/8 text-xs font-semibold uppercase text-ink-secondary">
-                        <th className="pb-3">STAGE</th>
-                        <th className="pb-3">OWNER</th>
-                        <th className="pb-3">DECISION</th>
-                        <th className="pb-3">TIMESTAMP</th>
-                        <th className="pb-3">EVIDENCE</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5 text-ink-primary">
-                      <tr>
-                        <td className="py-3 font-semibold">Prepared</td>
-                        <td className="py-3">Circle Administrator</td>
-                        <td className="py-3">
-                          <Badge variant="emerald">Completed</Badge>
-                        </td>
-                        <td className="py-3 text-ink-secondary">{payouts[0]?.payout_date || "Cycle Opening"}</td>
-                        <td className="py-3 font-mono text-xs">{members.length} members validated</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-semibold">Independent check</td>
-                        <td className="py-3">Escrow Custodian</td>
-                        <td className="py-3">
-                          <Badge variant="emerald">Approved</Badge>
-                        </td>
-                        <td className="py-3 text-ink-secondary">{payouts[0] ? "Verified" : "Pending"}</td>
-                        <td className="py-3 font-mono text-xs">
-                          PKR{" "}
-                          {contributions
-                            .reduce((s, c) => s + Number(c.amount), 0)
-                            .toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
-                          in escrow
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-semibold">Shariah review</td>
-                        <td className="py-3">Qard Hasan Secretariat</td>
-                        <td className="py-3">
-                          <Badge variant="emerald">Approved</Badge>
-                        </td>
-                        <td className="py-3 text-ink-secondary">Certified</td>
-                        <td className="py-3 font-mono text-xs">AAOIFI Standard #19 (Zero Riba)</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 font-semibold">Final release</td>
-                        <td className="py-3">Authorized Signatory</td>
-                        <td className="py-3">
-                          <Badge variant={payouts[0]?.status === "disbursed" ? "emerald" : "gold"}>
-                            {payouts[0]?.status === "disbursed" ? "Disbursed" : "Approved"}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-ink-secondary">
-                          {payouts[0]?.payout_date ? `${payouts[0].payout_date} • Released` : "Cycle Closing"}
-                        </td>
-                        <td className="py-3 font-mono text-xs">
-                          {payouts[0]
-                            ? `PKR ${parseFloat(payouts[0].amount).toLocaleString()} released`
-                            : "GL batch posted"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-
-              {/* Bottom 2 Cards matching Page 28 */}
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <Card title="Decision Note">
-                  <p className="text-sm text-ink-secondary">
-                    Variance is within 0.02% tolerance. All exceptions are resolved. All {members.length} member
-                    contributions collected and reconciled without shortfall.
-                  </p>
-                </Card>
-                <Card title="Control Gates">
-                  <div className="space-y-2.5 text-sm">
-                    <p className="text-emerald-400 font-medium">✓ Reconciled</p>
-                    <p className="text-emerald-400 font-medium">✓ Shariah parameters sealed</p>
-                    <p className="text-emerald-400 font-medium">✓ Dual-maker checker authenticated</p>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Disbursed Payouts Table */}
-              <Card title="Payout Disbursement History">
-                {payouts.length === 0 ? (
-                  <p className="text-sm text-ink-secondary">No payouts disbursed yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {payouts.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between rounded-lg border border-white/8 bg-navy-900 p-4"
-                      >
-                        <div>
-                          <p className="text-sm font-semibold text-ink-primary">Cycle #{p.cycle_number} Disbursed</p>
-                          <p className="text-xs text-ink-secondary">{p.payout_date}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-base font-bold text-emerald-400">
-                            PKR {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                          <Badge variant="emerald">{p.status}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </div>
+            <PayoutReleaseCeremony
+              poolId={selectedPoolId}
+              onPayoutDisbursed={() => void loadCircleData(selectedPoolId)}
+            />
           )}
 
           {/* ========================================================================= */}
@@ -1235,10 +1077,35 @@ export function CommunityCircles() {
                     variant="primary"
                     className="w-full py-2.5 text-xs font-semibold"
                     onClick={() => {
-                      if (members[0]) setContributionModalMember(members[0])
+                      const member = members[0]
+                      setBankingModal({
+                        isOpen: true,
+                        amount: 50000,
+                        senderTitle: member?.member_name || "Dr. Ayesha Tariq (Member)",
+                        senderIban: "PK92MEZN0001928172601",
+                        recipientTitle: "Amanah Circle Central Escrow Vault",
+                        recipientIban: "PK55AMAN0000109928172601",
+                        purpose: "Qard-e-Hasana Monthly Contribution - Cycle 1",
+                        mode: "collection",
+                        memberId: member?.id,
+                        onSettled: async () => {
+                          if (member) {
+                            try {
+                              await recordContribution(member.id, {
+                                amount: "50000.00",
+                                contribution_date: new Date().toISOString().split("T")[0],
+                                cycle_number: 1,
+                              })
+                              await loadCircleData(selectedPoolId)
+                            } catch (e) {
+                              console.error(e)
+                            }
+                          }
+                        },
+                      })
                     }}
                   >
-                    PAY SECURELY
+                    ⚡ PAY SECURELY VIA RAAST
                   </Button>
 
                   <div className="flex justify-around border-t border-white/8 pt-3 text-[11px] text-ink-muted">
@@ -1297,6 +1164,13 @@ export function CommunityCircles() {
           {/* ========================================================================= */}
           {activeTab === "proposals" && (
             <ProposalsTab poolId={selectedPoolId} members={members} isPoolManager={isPoolManager} />
+          )}
+
+          {/* ========================================================================= */}
+          {/* AI Syndicate & Fraud Collusion Graph Tab                                  */}
+          {/* ========================================================================= */}
+          {activeTab === "collusion_graph" && (
+            <FraudCollusionGraphView poolId={selectedPoolId} />
           )}
         </>
       )}
@@ -1385,11 +1259,66 @@ export function CommunityCircles() {
               <input name="payout_date" type="date" defaultValue="2026-09-10" required className={inputClasses} />
             </label>
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner className="h-4 w-4" /> : "Disburse Payout"}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Spinner className="h-4 w-4" /> : "Manual Disburse"}
+              </Button>
+              <Button
+                type="button"
+                variant="gold"
+                disabled={isSaving}
+                onClick={() => {
+                  const member = disburseModalMember
+                  setDisburseModalMember(null)
+                  setBankingModal({
+                    isOpen: true,
+                    amount: 50000,
+                    senderTitle: "Amanah Circle Central Escrow Vault",
+                    senderIban: "PK55AMAN0000109928172601",
+                    recipientTitle: member.member_name,
+                    recipientIban: "PK44DIBP00089271635201",
+                    purpose: `Cycle Mutual Aid Payout Disbursement - ${member.member_name}`,
+                    mode: "disbursement",
+                    memberId: member.id,
+                    onSettled: async () => {
+                      try {
+                        await disbursePayout(member.id, {
+                          cycle_number: 1,
+                          amount: "50000.00",
+                          payout_date: new Date().toISOString().split("T")[0],
+                        })
+                        await loadCircleData(selectedPoolId)
+                      } catch (e) {
+                        console.error(e)
+                      }
+                    },
+                  })
+                }}
+              >
+                ⚡ Route via SBP Raast Switch
+              </Button>
+            </div>
           </form>
         </Modal>
+      )}
+
+      {/* SBP Raast / 1LINK Central Banking Rails Settlement Gateway */}
+      {bankingModal?.isOpen && (
+        <RaastSettlementModal
+          amount={bankingModal.amount}
+          senderTitle={bankingModal.senderTitle}
+          senderIban={bankingModal.senderIban}
+          recipientTitle={bankingModal.recipientTitle}
+          recipientIban={bankingModal.recipientIban}
+          purpose={bankingModal.purpose}
+          mode={bankingModal.mode}
+          onClose={() => setBankingModal(null)}
+          onSuccess={async () => {
+            if (bankingModal.onSettled) {
+              await bankingModal.onSettled()
+            }
+          }}
+        />
       )}
     </div>
   )
@@ -1414,10 +1343,33 @@ function ArrearsTab({
   const [flagModalMember, setFlagModalMember] = useState<CircleMember | null>(null)
   const [hardshipModalRecord, setHardshipModalRecord] = useState<ArrearsRecord | null>(null)
 
+  // AI Hardship Predictor State
+  const [prediction, setPrediction] = useState<CircleHardshipPredictionResult | null>(null)
+  const [isPredicting, setIsPredicting] = useState(false)
+
   const memberById = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member])) as Record<string, CircleMember>,
     [members],
   )
+
+  async function loadHardshipPrediction() {
+    if (!poolId) return
+    setIsPredicting(true)
+    try {
+      const res = await predictCircleHardship(poolId)
+      setPrediction(res)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsPredicting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (poolId) {
+      void loadHardshipPrediction()
+    }
+  }, [poolId])
 
   useEffect(() => {
     if (!poolId) {
@@ -1516,76 +1468,217 @@ function ArrearsTab({
   ]
 
   return (
-    <Card title="Hardship & Arrears Center">
-      <div className="mb-4 flex justify-between items-center">
-        <p className="text-xs text-ink-secondary">
-          Islamic 0% penalty hardship relief and arrears tracking.
-        </p>
-        {isRiskCompliance && (
-          <div className="flex gap-2">
-            {members.slice(0, 1).map((m) => (
-              <Button key={m.id} variant="secondary" onClick={() => setFlagModalMember(m)}>
-                Flag Member Arrears
-              </Button>
-            ))}
+    <div className="space-y-6">
+      {/* AI Member Hardship & Default Predictor Card */}
+      <Card
+        title="AI Predictive Hardship & Default Forecaster"
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => void loadHardshipPrediction()}
+            disabled={isPredicting}
+            className="text-xs py-1"
+          >
+            {isPredicting ? <Spinner className="h-4 w-4" /> : "⚡ Refresh AI Forecast"}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-ink-secondary">
+            Predictive machine learning scan analyzes contribution velocities, early payout collection, and member
+            financial stress indicators to prevent cycle defaults before maturity.
+          </p>
+
+          {isPredicting ? (
+            <div className="py-8 text-center text-xs text-ink-muted">
+              <Spinner className="h-6 w-6 mx-auto mb-2 text-emerald-400" />
+              Evaluating member contribution cadence and moral hazard probabilities...
+            </div>
+          ) : prediction ? (
+            <div className="space-y-4">
+              {/* Metrics Summary */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg bg-navy-950/70 p-3 border border-white/5">
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase font-bold block">Circle Health</span>
+                  <span
+                    className={`text-sm font-bold ${
+                      prediction.overall_health === "STABLE"
+                        ? "text-emerald-400"
+                        : prediction.overall_health === "GUARDED"
+                        ? "text-amber-400"
+                        : "text-rose-400"
+                    }`}
+                  >
+                    {prediction.overall_health}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase font-bold block">Avg Default Prob</span>
+                  <span className="text-sm font-bold text-white font-mono">
+                    {prediction.average_default_probability}%
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase font-bold block">High Risk Members</span>
+                  <span className="text-sm font-bold text-amber-300">
+                    {prediction.high_risk_count} of {prediction.total_members_analyzed}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-ink-muted uppercase font-bold block">Shariah Directive</span>
+                  <span className="text-[11px] font-medium text-emerald-400">Zero-Riba Relief Standard</span>
+                </div>
+              </div>
+
+              {/* Members Risk Forecast Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/8 text-[10px] uppercase font-semibold text-ink-muted">
+                      <th className="pb-2">Member</th>
+                      <th className="pb-2">Payout Position</th>
+                      <th className="pb-2">Default Risk Probability</th>
+                      <th className="pb-2">Predictive AI Warning</th>
+                      <th className="pb-2">Shariah Recommended Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-ink-primary">
+                    {prediction.member_profiles.map((p) => (
+                      <tr key={p.member_id} className="hover:bg-white/[0.02]">
+                        <td className="py-2.5 font-medium">
+                          <div>
+                            <span className="text-white font-semibold">{p.member_name}</span>
+                            <span className="block text-[10px] font-mono text-ink-muted">
+                              {p.member_reference}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5">
+                          <span className="font-mono">#{p.payout_position || "—"}</span>
+                          {p.has_received_payout && (
+                            <span className="block text-[9px] text-amber-400 font-bold">
+                              PAYOUT COLLECTED
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                              <div
+                                className={`h-full ${
+                                  p.risk_score >= 70
+                                    ? "bg-rose-500"
+                                    : p.risk_score >= 40
+                                    ? "bg-amber-400"
+                                    : "bg-emerald-400"
+                                }`}
+                                style={{ width: `${p.risk_score}%` }}
+                              />
+                            </div>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                p.risk_score >= 70
+                                  ? "text-rose-400"
+                                  : p.risk_score >= 40
+                                  ? "text-amber-400"
+                                  : "text-emerald-400"
+                              }`}
+                            >
+                              {p.risk_score}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 max-w-xs text-[11px] text-ink-secondary">
+                          {p.predictive_warning}
+                        </td>
+                        <td className="py-2.5">
+                          <span className="rounded bg-navy-800 px-2 py-1 text-[10px] font-semibold text-emerald-400 border border-white/5 block w-fit">
+                            {p.shariah_recommendation}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-ink-muted">No predictive data available for this pool.</p>
+          )}
+        </div>
+      </Card>
+
+      <Card title="Hardship & Arrears Center">
+        <div className="mb-4 flex justify-between items-center">
+          <p className="text-xs text-ink-secondary">
+            Islamic 0% penalty hardship relief and arrears tracking.
+          </p>
+          {isRiskCompliance && (
+            <div className="flex gap-2">
+              {members.slice(0, 1).map((m) => (
+                <Button key={m.id} variant="secondary" onClick={() => setFlagModalMember(m)}>
+                  Flag Member Arrears
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {loadError && (
+          <div className="mb-4 rounded border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-300">
+            {loadError}
           </div>
         )}
-      </div>
 
-      {loadError && (
-        <div className="mb-4 rounded border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-300">
-          {loadError}
-        </div>
-      )}
+        {isLoading ? (
+          <Spinner className="h-5 w-5" />
+        ) : records.length === 0 ? (
+          <p className="text-sm text-ink-secondary">No arrears records for this pool.</p>
+        ) : (
+          <Table columns={arrearsColumns} data={records} keyField={(record) => record.id} />
+        )}
 
-      {isLoading ? (
-        <Spinner className="h-5 w-5" />
-      ) : records.length === 0 ? (
-        <p className="text-sm text-ink-secondary">No arrears records for this pool.</p>
-      ) : (
-        <Table columns={arrearsColumns} data={records} keyField={(record) => record.id} />
-      )}
+        {flagModalMember && (
+          <Modal title={`Flag Arrears — ${flagModalMember.member_name}`} onClose={() => setFlagModalMember(null)}>
+            <form onSubmit={handleFlagArrears} className="space-y-4">
+              <label className={labelClasses}>
+                Cycle Number
+                <input name="cycle_number" type="number" defaultValue="2" required className={inputClasses} />
+              </label>
+              <label className={labelClasses}>
+                Expected Amount (PKR)
+                <input name="expected_amount" type="number" defaultValue="10000.00" required className={inputClasses} />
+              </label>
+              {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Spinner className="h-4 w-4" /> : "Flag Arrears"}
+              </Button>
+            </form>
+          </Modal>
+        )}
 
-      {flagModalMember && (
-        <Modal title={`Flag Arrears — ${flagModalMember.member_name}`} onClose={() => setFlagModalMember(null)}>
-          <form onSubmit={handleFlagArrears} className="space-y-4">
-            <label className={labelClasses}>
-              Cycle Number
-              <input name="cycle_number" type="number" defaultValue="2" required className={inputClasses} />
-            </label>
-            <label className={labelClasses}>
-              Expected Amount (PKR)
-              <input name="expected_amount" type="number" defaultValue="10000.00" required className={inputClasses} />
-            </label>
-            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner className="h-4 w-4" /> : "Flag Arrears"}
-            </Button>
-          </form>
-        </Modal>
-      )}
-
-      {hardshipModalRecord && (
-        <Modal title="Grant Shariah Hardship Waiver" onClose={() => setHardshipModalRecord(null)}>
-          <form onSubmit={handleGrantHardship} className="space-y-4">
-            <label className={labelClasses}>
-              Hardship Reason
-              <textarea
-                name="hardship_reason"
-                required
-                className={inputClasses}
-                rows={3}
-                placeholder="Documented medical or income disruption..."
-              />
-            </label>
-            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? <Spinner className="h-4 w-4" /> : "Approve Hardship"}
-            </Button>
-          </form>
-        </Modal>
-      )}
-    </Card>
+        {hardshipModalRecord && (
+          <Modal title="Grant Shariah Hardship Waiver" onClose={() => setHardshipModalRecord(null)}>
+            <form onSubmit={handleGrantHardship} className="space-y-4">
+              <label className={labelClasses}>
+                Hardship Reason
+                <textarea
+                  name="hardship_reason"
+                  required
+                  className={inputClasses}
+                  rows={3}
+                  placeholder="Documented medical or income disruption..."
+                />
+              </label>
+              {actionError && <p className="text-sm text-red-400">{actionError}</p>}
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Spinner className="h-4 w-4" /> : "Approve Hardship"}
+              </Button>
+            </form>
+          </Modal>
+        )}
+      </Card>
+    </div>
   )
 }
 

@@ -6,6 +6,7 @@ import { Table, type TableColumn } from "../../components/Table"
 import { fetchExceptions } from "../../api/governance"
 import { fetchPools } from "../../api/pools"
 import { extractErrorMessage } from "../../api/errors"
+import { FraudCollusionGraphView } from "../../components/governance/FraudCollusionGraphView"
 import type { BadgeVariant, ExceptionCase, Pool } from "../../types"
 
 type PageState = "loading" | "loaded" | "error"
@@ -60,6 +61,7 @@ function sourceModuleBadgeVariant(sourceModule: string): BadgeVariant {
 
 export function AIAnomalyQueue() {
   const navigate = useNavigate()
+  const [activeView, setActiveView] = useState<"queue" | "graph">("queue")
   const [cases, setCases] = useState<ExceptionCase[]>([])
   const [pools, setPools] = useState<Pool[]>([])
   const [pageState, setPageState] = useState<PageState>("loading")
@@ -99,32 +101,66 @@ export function AIAnomalyQueue() {
   ]
 
   return (
-    <div>
-      <p className="mb-4 text-sm text-ink-secondary">
-        Anomalies automatically detected by the allocation engine, reconciliation checks, and other
-        system-level monitors — sorted by severity, most critical first. Manually-raised cases are
-        excluded here; see the Risk &amp; Compliance Exception Queue for the full list.
-      </p>
+    <div className="space-y-4">
+      {/* Sub-view switcher */}
+      <div className="flex border-b border-ink/10 gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setActiveView("queue")}
+          className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 ${
+            activeView === "queue"
+              ? "bg-surface-subtle text-emerald-400 border-b-2 border-emerald-500"
+              : "text-ink-secondary hover:text-ink"
+          }`}
+        >
+          <span>📋 System Anomaly Cases</span>
+          <Badge variant="neutral">{cases.length}</Badge>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView("graph")}
+          className={`px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 ${
+            activeView === "graph"
+              ? "bg-surface-subtle text-emerald-400 border-b-2 border-emerald-500"
+              : "text-ink-secondary hover:text-ink"
+          }`}
+        >
+          <span>🕸️ AI Fraud & Collusion Syndicate Graph</span>
+          <Badge variant="gold">SBP AML</Badge>
+        </button>
+      </div>
 
-      {pageState === "loading" && (
-        <div className="flex justify-center py-10">
-          <Spinner className="h-6 w-6 text-emerald-500" />
+      {activeView === "graph" ? (
+        <FraudCollusionGraphView />
+      ) : (
+        <div>
+          <p className="mb-4 text-sm text-ink-secondary">
+            Anomalies automatically detected by the allocation engine, reconciliation checks, and other
+            system-level monitors — sorted by severity, most critical first. Manually-raised cases are
+            excluded here; see the Risk &amp; Compliance Exception Queue for the full list.
+          </p>
+
+          {pageState === "loading" && (
+            <div className="flex justify-center py-10">
+              <Spinner className="h-6 w-6 text-emerald-500" />
+            </div>
+          )}
+
+          {pageState === "error" && <p className="text-sm text-red-400">{pageError}</p>}
+
+          {pageState === "loaded" && sortedCases.length === 0 && (
+            <p className="text-sm text-ink-secondary">No system-detected anomalies right now.</p>
+          )}
+
+          {pageState === "loaded" && sortedCases.length > 0 && (
+            <Table
+              columns={columns}
+              data={sortedCases}
+              keyField={(c) => c.id}
+              onRowClick={(c) => navigate(`/exceptions/${c.id}`)}
+            />
+          )}
         </div>
-      )}
-
-      {pageState === "error" && <p className="text-sm text-red-400">{pageError}</p>}
-
-      {pageState === "loaded" && sortedCases.length === 0 && (
-        <p className="text-sm text-ink-secondary">No system-detected anomalies right now.</p>
-      )}
-
-      {pageState === "loaded" && sortedCases.length > 0 && (
-        <Table
-          columns={columns}
-          data={sortedCases}
-          keyField={(c) => c.id}
-          onRowClick={(c) => navigate(`/exceptions/${c.id}`)}
-        />
       )}
     </div>
   )

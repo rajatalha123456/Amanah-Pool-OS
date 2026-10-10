@@ -4,6 +4,7 @@ import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Button } from "../components/Button"
 import { fetchStatements } from "../api/allocationRuns"
+import { PlainLanguageDisclosureCard } from "../components/allocation/PlainLanguageDisclosureCard"
 import type { DepositorStatement } from "../types"
 
 export function StatementView() {
@@ -115,6 +116,10 @@ export function StatementView() {
               <div className="bg-white/5 p-4 rounded text-sm text-ink-primary leading-relaxed">
                 {stmt.narrative}
               </div>
+            </div>
+
+            <div className="mb-8">
+              <PlainLanguageDisclosureCard statement={stmt} />
             </div>
 
             <div className="text-center text-xs text-ink-secondary mt-12 pt-8 border-t border-white/8">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -35,8 +36,12 @@ function assetStatusBadgeVariant(status: string): BadgeVariant {
   return ASSET_STATUS_BADGE[status] ?? "neutral"
 }
 
-export function AssetRegistry() {
-  const [activeTab, setActiveTab] = useState<RiskComplianceTab>("assets")
+export function AssetRegistry({ initialTab }: { initialTab?: RiskComplianceTab }) {
+  const [searchParams] = useSearchParams()
+  const tabFromQuery = searchParams.get("tab") as RiskComplianceTab
+  const [activeTab, setActiveTab] = useState<RiskComplianceTab>(
+    initialTab || (TABS.some((t) => t.key === tabFromQuery) ? tabFromQuery : "assets"),
+  )
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [assets, setAssets] = useState<Asset[]>([])
@@ -71,27 +76,29 @@ export function AssetRegistry() {
 
   return (
     <div>
-      <PageHeader
-        screenNumber="07"
-        title="Asset Assignment"
-        subtitle="Eligibility, ring-fencing and transfer controls"
-        actions={
-          activeTab === "assets" ? (
-            <div className="flex items-center gap-2">
-              <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
-                + NEW RECORD
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => alert("Exporting Asset Registry...")}
-                className="text-xs uppercase tracking-wider"
-              >
-                EXPORT
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+      {activeTab !== "risk-dashboard" && (
+        <PageHeader
+          screenNumber="07"
+          title="Asset Assignment"
+          subtitle="Eligibility, ring-fencing and transfer controls"
+          actions={
+            activeTab === "assets" ? (
+              <div className="flex items-center gap-2">
+                <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
+                  + NEW RECORD
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => alert("Exporting Asset Registry...")}
+                  className="text-xs uppercase tracking-wider"
+                >
+                  EXPORT
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
+      )}
 
       <div className="mb-6 flex gap-4 border-b border-white/8 text-sm">
         {TABS.map((tab) => (

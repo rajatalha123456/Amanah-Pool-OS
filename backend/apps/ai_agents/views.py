@@ -196,3 +196,61 @@ def analyze_contract(request):
     result = analyze_contract_text(text)
     return Response(result)
 
+
+from .services.audit_sampler import perform_audit_sampling_analysis
+
+
+@api_view(["POST", "GET"])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "shariah_board", "platform_super_admin"])])
+def run_audit_sampling(request):
+    """
+    Executes the AI Audit Sampling & Risk Ranker Engine for the current tenant.
+    """
+    tenant = request.user.tenant
+    if not tenant:
+        raise drf_exceptions.PermissionDenied("User must belong to a tenant.")
+
+    result = perform_audit_sampling_analysis(tenant)
+    return Response(result)
+
+
+from .services.hardship_predictor import analyze_pool_member_hardship
+from apps.pools.models import Pool
+
+
+@api_view(["POST", "GET"])
+@permission_classes([IsAuthenticated])
+def predict_circle_hardship(request, pool_id):
+    """
+    Executes the AI Member Hardship & Default Predictor for a given Circle pool.
+    """
+    try:
+        pool = Pool.objects.get(id=pool_id)
+    except Pool.DoesNotExist:
+        return Response({"error": "Pool not found."}, status=404)
+
+    result = analyze_pool_member_hardship(pool)
+    return Response(result)
+
+
+from .services.collusion_detector import detect_fraud_and_collusion_network
+
+
+@api_view(["POST", "GET"])
+@permission_classes([IsAuthenticated])
+def detect_collusion_network(request):
+    """
+    Executes AI Fraud & Collusion Graph Network analysis for circles/pools.
+    Accepts optional ?pool_id=<uuid> query parameter or JSON body.
+    """
+    tenant = request.user.tenant
+    if not tenant:
+        raise drf_exceptions.PermissionDenied("User must belong to a tenant.")
+
+    pool_id = request.query_params.get("pool_id") or request.data.get("pool_id")
+    result = detect_fraud_and_collusion_network(tenant=tenant, pool_id=pool_id)
+    return Response(result)
+
+
+
+

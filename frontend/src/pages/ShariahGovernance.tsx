@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
+import { useSearchParams } from "react-router-dom"
 import { PageHeader } from "../components/PageHeader"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
@@ -21,13 +22,15 @@ import { DeleteShariahDecisionModal } from "./governance/DeleteShariahDecisionMo
 import { ShariahDecisionDetailModal } from "./governance/ShariahDecisionDetailModal"
 import { PurificationLedger } from "./PurificationLedger"
 import { ShariahAuditPlan } from "./governance/ShariahAuditPlan"
+import { ShariahQuorumCeremony } from "../components/governance/ShariahQuorumCeremony"
 import { fetchPools } from "../api/pools"
 import type { BadgeVariant, ExceptionCase, ShariahDashboard, ShariahDecision, Pool } from "../types"
 
-type Tab = "workspace" | "fatwa-register" | "exception-cases" | "purification-ledger" | "audit-plan"
+type Tab = "workspace" | "quorum-ceremony" | "fatwa-register" | "exception-cases" | "purification-ledger" | "audit-plan"
 
 const TABS: { key: Tab; label: string; num: string }[] = [
   { key: "workspace", label: "Board Workspace", num: "" },
+  { key: "quorum-ceremony", label: "Multi-Mufti Quorum & Fatwa Seal", num: "24" },
   { key: "fatwa-register", label: "Fatwa Register", num: "" },
   { key: "exception-cases", label: "Exception Cases", num: "" },
   { key: "purification-ledger", label: "Purification Ledger", num: "" },
@@ -66,11 +69,21 @@ function statusBadgeVariant(status: string): BadgeVariant {
   return STATUS_BADGE[status] ?? "neutral"
 }
 
-export function ShariahGovernance() {
-  const [activeTab, setActiveTab] = useState<Tab>("workspace")
+export function ShariahGovernance({ initialTab }: { initialTab?: Tab }) {
+  const [searchParams] = useSearchParams()
+  const tabFromQuery = searchParams.get("tab") as Tab
+  const [activeTab, setActiveTab] = useState<Tab>(
+    initialTab || (TABS.some((t) => t.key === tabFromQuery) ? tabFromQuery : "workspace"),
+  )
 
   const activeMeta =
-    activeTab === "fatwa-register"
+    activeTab === "quorum-ceremony"
+      ? {
+          num: "24",
+          title: "Multi-Mufti Shariah Quorum & Digital Fatwa Seal",
+          sub: "Collective SSB signing ceremony and cryptographic certification",
+        }
+      : activeTab === "fatwa-register"
       ? {
           num: "30",
           title: "Fatwa & Decision Register",
@@ -128,7 +141,8 @@ export function ShariahGovernance() {
         })}
       </div>
 
-      {activeTab === "workspace" && <WorkspaceTab />}
+      {activeTab === "workspace" && <WorkspaceTab onNavigateTab={(tab) => setActiveTab(tab)} />}
+      {activeTab === "quorum-ceremony" && <QuorumTab />}
       {activeTab === "fatwa-register" && <FatwaRegisterTab />}
       {activeTab === "exception-cases" && <ExceptionCasesTab />}
       {activeTab === "purification-ledger" && <PurificationLedger />}
@@ -137,7 +151,34 @@ export function ShariahGovernance() {
   )
 }
 
-function WorkspaceTab() {
+function QuorumTab() {
+  const [decisions, setDecisions] = useState<ShariahDecision[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchShariahDecisions()
+      .then((data) => setDecisions(data))
+      .catch(() => setDecisions([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleDecisionUpdated = (updated: ShariahDecision) => {
+    setDecisions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-ink-secondary gap-3">
+        <Spinner className="h-6 w-6 text-emerald-400" />
+        <span className="text-sm">Loading Shariah Board Quorum sessions...</span>
+      </div>
+    )
+  }
+
+  return <ShariahQuorumCeremony decisions={decisions} onDecisionUpdated={handleDecisionUpdated} />
+}
+
+function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void }) {
   const [dashboard, setDashboard] = useState<ShariahDashboard | null>(null)
   const [exceptions, setExceptions] = useState<ExceptionCase[]>([])
   const [pools, setPools] = useState<Pool[]>([])
@@ -377,6 +418,15 @@ function WorkspaceTab() {
           title="Pending Shariah Decisions"
           items={dashboard.pending_shariah_decisions}
           renderItem={(item) => `${item.decision_code} — ${item.title}`}
+          actionButton={
+            <Button
+              variant="outline"
+              className="text-[11px] py-1 px-2.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+              onClick={() => onNavigateTab?.("fatwa-register")}
+            >
+              Open Fatwa Register →
+            </Button>
+          }
         />
         <WorkspaceList
           title="Pending Contract Templates"
@@ -412,13 +462,15 @@ function WorkspaceList({
   title,
   items,
   renderItem,
+  actionButton,
 }: {
   title: string
   items: { id: string; [key: string]: unknown }[]
   renderItem: (item: { id: string; [key: string]: unknown }) => string
+  actionButton?: React.ReactNode
 }) {
   return (
-    <Card title={title}>
+    <Card title={title} actions={actionButton}>
       {items.length === 0 ? (
         <p className="text-xs text-ink-secondary">Nothing pending.</p>
       ) : (
@@ -454,7 +506,9 @@ function formatCategoryLabel(type: string): string {
 
 function FatwaRegisterTab() {
   const { user } = useAuth()
-  const canCreate = user?.role === "shariah_board" || user?.role === "shariah_secretariat"
+  const canCreate =
+    user?.role === "shariah_board" ||
+    user?.role === "shariah_secretariat"
   const canApprove = user?.role === "shariah_board"
   const canManage =
     user?.role === "shariah_board" ||

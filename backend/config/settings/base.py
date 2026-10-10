@@ -143,9 +143,12 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.authentication.TenantBoundJWTAuthentication",
     ],
 }
+
+# Require TOTP MFA at login. Disable only for local development via env.
+MFA_ENFORCED = config("MFA_ENFORCED", default=True, cast=bool)
 
 
 # JWT (djangorestframework-simplejwt)

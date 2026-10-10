@@ -34,3 +34,20 @@ export async function updateShariahDecision(
 export async function deleteShariahDecision(id: string): Promise<void> {
   await apiClient.delete(`products/shariah-decisions/${id}/`)
 }
+
+export async function castShariahQuorumVote(
+  decisionId: string,
+  data: {
+    scholar_name: string
+    scholar_title?: string
+    vote: "approve" | "reject"
+    fiqh_opinion_notes?: string
+  }
+): Promise<ShariahDecision> {
+  const response = await apiClient.post<ShariahDecision>(
+    `products/shariah-decisions/${decisionId}/cast-quorum-vote/`,
+    data
+  )
+  return response.data
+}
+

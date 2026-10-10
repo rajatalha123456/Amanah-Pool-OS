@@ -1,5 +1,5 @@
 import { apiClient } from "./axios"
-import type { PeriodCloseChecklist } from "../types"
+import type { PeriodCloseChecklist, PeriodCloseStatus } from "../types"
 
 export interface CreatePeriodCloseInput {
   pool: string
@@ -59,3 +59,103 @@ export async function lockPeriodClose(id: string): Promise<PeriodCloseChecklist>
   const response = await apiClient.post<PeriodCloseChecklist>(`pools/period-closes/${id}/lock/`)
   return response.data
 }
+
+export interface GateVerificationResponse {
+  success: boolean
+  period_close_id: string
+  all_passed: boolean
+  gates: Record<string, {
+    passed: boolean
+    label: string
+    description: string
+    details: string
+    open_count?: number
+    run_id?: string
+  }>
+}
+
+export interface RoleSignOffResponse {
+  success: boolean
+  period_close_id: string
+  role: string
+  status: PeriodCloseStatus
+  signoffs: Record<string, {
+    signed: boolean
+    user_name?: string
+    user_email?: string
+    signed_at?: string
+    notes?: string
+    fatwa_ref?: string
+  }>
+}
+
+export interface LockCeremonyResponse {
+  success: boolean
+  period_close_id: string
+  status: PeriodCloseStatus
+  cryptographic_seal: string
+  locked_at: string
+  locked_by: string
+  sbp_package: SbpFilingPackage
+}
+
+export interface SbpFilingPackage {
+  certificate_id: string
+  regulatory_standard: string
+  pool_name: string
+  pool_code: string
+  period_range: string
+  audit_timestamp: string
+  cryptographic_seal: string
+  sha256_hash?: string
+  financial_summary: {
+    gross_income_pkr: number
+    direct_expenses_pkr?: number
+    distributable_profit_pkr: number
+    mudarib_fee_pkr: number
+    net_depositor_profit_pkr: number
+    total_weighted_funds_pkr?: number
+    effective_mudarib_pct?: number
+  }
+  signatories?: {
+    locked_by: string
+    pool_manager: string
+    shariah_reviewer: string
+    cfo_checker: string
+  }
+  legal_statement?: string
+  status?: string
+  is_locked?: boolean
+}
+
+export async function autoVerifyPeriodGates(id: string): Promise<GateVerificationResponse> {
+  const response = await apiClient.post<GateVerificationResponse>(`pools/period-closes/${id}/auto-verify-gates/`)
+  return response.data
+}
+
+export async function signOffPeriodRole(
+  id: string,
+  role: "pool_manager" | "shariah_reviewer" | "cfo_checker",
+  notes = "",
+  fatwaRef = "",
+): Promise<RoleSignOffResponse> {
+  const response = await apiClient.post<RoleSignOffResponse>(`pools/period-closes/${id}/sign-off-role/`, {
+    role,
+    notes,
+    fatwa_ref: fatwaRef,
+  })
+  return response.data
+}
+
+export async function executeLockCeremony(id: string, lockNote = ""): Promise<LockCeremonyResponse> {
+  const response = await apiClient.post<LockCeremonyResponse>(`pools/period-closes/${id}/lock-ceremony/`, {
+    lock_note: lockNote,
+  })
+  return response.data
+}
+
+export async function fetchSbpFilingPackage(id: string): Promise<SbpFilingPackage> {
+  const response = await apiClient.get<SbpFilingPackage>(`pools/period-closes/${id}/filing-package/`)
+  return response.data
+}
+

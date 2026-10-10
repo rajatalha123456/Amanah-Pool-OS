@@ -14,6 +14,9 @@ class HasRole(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
+            # No super-admin bypass: BRD Section 3 segregation of duties - the
+            # platform super admin provisions tenants, it does not act as
+            # maker/checker/approver on tenant business data.
             and request.user.role == self.role
         )
 
@@ -46,6 +49,20 @@ class IsShariahBoard(HasRole):
     role = UserRole.SHARIAH_BOARD
 
 
+class IsStrictShariahBoard(BasePermission):
+    """
+    SBP Shariah Governance Framework strict enforcement:
+    Only accredited Shariah Supervisory Board scholars (shariah_board) have
+    religious authority to approve or vote on Fatwas. Super Admin CANNOT bypass.
+    """
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == UserRole.SHARIAH_BOARD
+        )
+
+
 class IsRiskCompliance(HasRole):
     role = UserRole.RISK_COMPLIANCE
 
@@ -74,6 +91,7 @@ def HasAnyRole(roles):
             return bool(
                 request.user
                 and request.user.is_authenticated
+                # Super admin only passes when explicitly listed in `roles`.
                 and request.user.role in self.allowed_roles
             )
 

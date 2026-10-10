@@ -132,7 +132,7 @@ export function AllocationRunDetail() {
     ["finance_checker", "shariah_board", "platform_super_admin", "superadmin"].includes(user.role)
   const canSignOff =
     !user?.role ||
-    ["shariah_secretariat", "shariah_board", "platform_super_admin", "superadmin"].includes(user.role)
+    ["shariah_board"].includes(user.role)
   const canApprove =
     !user?.role ||
     ["finance_checker", "platform_super_admin", "superadmin"].includes(user.role)
@@ -263,6 +263,11 @@ export function AllocationRunDetail() {
         subtitle={`Signed, immutable distribution results for pool ${run.pool}`}
         actions={
           <div className="flex items-center gap-2">
+            <Link to={`/allocation-runs/${run.id}/hiba`}>
+              <Button variant="secondary" className="text-xs">
+                ⚡ Hiba / Yield Optimization
+              </Button>
+            </Link>
             {run.is_restatement && <Badge variant="gold">Restatement Rerun</Badge>}
             <Badge variant={statusBadgeVariant(run.status)}>{run.status.toUpperCase()}</Badge>
           </div>
@@ -298,6 +303,16 @@ export function AllocationRunDetail() {
         <StatCard
           label="Mudarib Share"
           value={`PKR ${Number(run.mudarib_share).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="neutral"
+        />
+        <StatCard
+          label="PER / IRR Reserves"
+          value={`PKR ${Number(run.per_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} / ${Number(run.irr_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          deltaTone="neutral"
+        />
+        <StatCard
+          label="Rounding Residual"
+          value={`PKR ${Number(run.rounding_residual).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           deltaTone="neutral"
         />
       </div>

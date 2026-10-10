@@ -11,20 +11,36 @@ class JournalEntrySerializer(serializers.ModelSerializer):
 
 
 class IncomeExpenseEventSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.ReadOnlyField(source="created_by.full_name")
+    posted_by_name = serializers.ReadOnlyField(source="posted_by.full_name")
+    pool_name = serializers.ReadOnlyField(source="pool.name")
+    pool_code = serializers.ReadOnlyField(source="pool.code")
+
     class Meta:
         model = IncomeExpenseEvent
         fields = (
             "id",
             "tenant",
             "pool",
+            "pool_name",
+            "pool_code",
             "event_type",
+            "cost_classification",
             "category",
             "amount",
+            "pool_chargeable_amount",
+            "bank_absorbed_amount",
+            "is_direct_expense",
+            "is_overhead_leakage",
+            "quarantined_to_charity",
             "event_date",
             "description",
+            "shariah_note",
             "status",
             "created_by",
+            "created_by_name",
             "posted_by",
+            "posted_by_name",
             "posted_at",
             "created_at",
             "updated_at",
@@ -38,6 +54,11 @@ class IncomeExpenseEventSerializer(serializers.ModelSerializer):
             "posted_at",
             "created_at",
             "updated_at",
+            "pool_chargeable_amount",
+            "bank_absorbed_amount",
+            "is_direct_expense",
+            "is_overhead_leakage",
+            "quarantined_to_charity",
         )
 
 

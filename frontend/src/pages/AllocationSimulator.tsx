@@ -220,6 +220,17 @@ export function AllocationSimulator() {
         screenNumber="12"
         title="Allocation Simulator"
         subtitle="What-if analysis and profit-sharing model verification before cycle commitment"
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex items-center gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs"
+            onClick={() => navigate("/mudarib-fee-optimization")}
+          >
+            <span>⚡</span>
+            <span>Mudarib Fee & Hiba Optimizer (Screen 19)</span>
+          </Button>
+        }
       />
 
       <div className="flex gap-4 border-b border-white/8 text-sm">

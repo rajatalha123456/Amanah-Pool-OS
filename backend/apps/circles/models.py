@@ -74,6 +74,12 @@ class Contribution(TenantScopedModel):
         return f"{self.member.member_reference} cycle {self.cycle_number} ({self.status})"
 
 
+class SettlementRailType(models.TextChoices):
+    RAAST_RTGS = "raast_rtgs", "Raast Real-Time P2P/P2B (Instant Settlement)"
+    ONELINK_IPS = "onelink_ips", "1LINK Inter-bank Funds Transfer (1IBFT)"
+    INTERNAL_BOOK = "internal_book", "Internal Islamic Branch Transfer"
+
+
 class Payout(TenantScopedModel):
     """
     draw_seed stores the secrets.token_hex() seed produced by
@@ -93,6 +99,24 @@ class Payout(TenantScopedModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
     )
     draw_seed = models.CharField(max_length=64, null=True, blank=True)
+    settlement_rail = models.CharField(
+        max_length=30,
+        choices=SettlementRailType.choices,
+        default=SettlementRailType.RAAST_RTGS,
+    )
+    settlement_utr = models.CharField(max_length=64, null=True, blank=True)
+    recipient_iban = models.CharField(max_length=34, null=True, blank=True)
+    recipient_bank = models.CharField(max_length=100, null=True, blank=True)
+    secondary_approved_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="counter_approved_payouts"
+    )
+    secondary_approved_at = models.DateTimeField(null=True, blank=True)
+    shariah_compliance_status = models.CharField(
+        max_length=40, default="certified_qard_hasana"
+    )
+    shariah_certificate_number = models.CharField(max_length=64, null=True, blank=True)
+    biometric_auth_ref = models.CharField(max_length=64, null=True, blank=True)
+    ceremony_hash = models.CharField(max_length=64, null=True, blank=True)
 
     def __str__(self):
         return f"{self.member.member_reference} cycle {self.cycle_number} - {self.amount} ({self.status})"

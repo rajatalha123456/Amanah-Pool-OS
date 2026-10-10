@@ -48,18 +48,41 @@ class ContributionSerializer(serializers.ModelSerializer):
 
 
 class PayoutSerializer(serializers.ModelSerializer):
+    member_reference = serializers.CharField(source="member.member_reference", read_only=True)
+    member_name = serializers.CharField(source="member.member_name", read_only=True)
+    pool_name = serializers.CharField(source="pool.name", read_only=True)
+    pool_code = serializers.CharField(source="pool.code", read_only=True)
+    disbursed_by_username = serializers.CharField(source="disbursed_by.username", read_only=True)
+    secondary_approved_by_username = serializers.CharField(source="secondary_approved_by.username", read_only=True)
+
     class Meta:
         model = Payout
         fields = (
             "id",
             "member",
+            "member_reference",
+            "member_name",
             "pool",
+            "pool_name",
+            "pool_code",
             "cycle_number",
             "amount",
             "payout_date",
             "status",
             "disbursed_by",
+            "disbursed_by_username",
             "draw_seed",
+            "settlement_rail",
+            "settlement_utr",
+            "recipient_iban",
+            "recipient_bank",
+            "secondary_approved_by",
+            "secondary_approved_by_username",
+            "secondary_approved_at",
+            "shariah_compliance_status",
+            "shariah_certificate_number",
+            "biometric_auth_ref",
+            "ceremony_hash",
             "created_at",
             "updated_at",
         )
@@ -68,6 +91,7 @@ class PayoutSerializer(serializers.ModelSerializer):
             "status",
             "disbursed_by",
             "draw_seed",
+            "ceremony_hash",
             "created_at",
             "updated_at",
         )

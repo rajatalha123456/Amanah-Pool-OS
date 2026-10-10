@@ -77,8 +77,10 @@ export async function fetchStatements(id: string): Promise<DepositorStatement[]>
 export async function restateRun(
   id: string,
   data: RestatementInput,
-): Promise<{ original_run: AllocationRun; draft_rerun: AllocationRun; message: string }> {
-  const response = await apiClient.post<{ original_run: AllocationRun; draft_rerun: AllocationRun; message: string }>(
+): Promise<AllocationRun> {
+  // The backend returns the newly created linked rerun (status "simulated");
+  // the original run stays signed until that rerun is approved.
+  const response = await apiClient.post<AllocationRun>(
     `allocation/allocation-runs/${id}/restate/`,
     data,
   )

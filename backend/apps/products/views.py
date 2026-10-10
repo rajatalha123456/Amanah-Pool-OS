@@ -1,3 +1,4 @@
+import hashlib
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -5,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import HasAnyRole, IsProductManager, IsShariahBoard
+from apps.accounts.permissions import HasAnyRole, IsProductManager, IsShariahBoard, IsStrictShariahBoard
 from apps.core.audit import log_action
 
 from .models import (
@@ -16,6 +17,7 @@ from .models import (
     ProductStatus,
     ShariahDecision,
     ShariahDecisionStatus,
+    ShariahQuorumVote,
 )
 from .serializers import (
     ContractTemplateSerializer,
@@ -40,8 +42,8 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat", "platform_super_admin"])()]
-        if self.action == "approve":
-            return [IsAuthenticated(), IsShariahBoard()]
+        if self.action in ("approve", "cast_quorum_vote"):
+            return [IsAuthenticated(), IsStrictShariahBoard()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -118,6 +120,61 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(decision).data)
+
+    @action(detail=True, methods=["post"], url_path="cast-quorum-vote")
+    def cast_quorum_vote(self, request, pk=None):
+        decision = self.get_object()
+        data = request.data
+        scholar_name = data.get("scholar_name", "").strip()
+        scholar_title = data.get("scholar_title", "Shariah Board Member").strip()
+        vote = data.get("vote", "approve")
+        fiqh_notes = data.get("fiqh_opinion_notes", "").strip()
+
+        if not scholar_name:
+            raise ValidationError({"scholar_name": ["Scholar name is required for quorum signature."]})
+
+        if decision.quorum_votes.filter(scholar_name=scholar_name).exists():
+            raise ValidationError(f"Scholar '{scholar_name}' has already cast a signature for this ruling.")
+
+        now = timezone.now()
+        sig_payload = f"{decision.decision_code}:{scholar_name}:{vote}:{now.isoformat()}"
+        sig_hash = hashlib.sha256(sig_payload.encode()).hexdigest()
+
+        ShariahQuorumVote.objects.create(
+            tenant=decision.tenant,
+            decision=decision,
+            scholar_name=scholar_name,
+            scholar_title=scholar_title,
+            decision_vote=vote,
+            fiqh_concurrence_notes=fiqh_notes,
+            digital_signature_hash=sig_hash,
+            signatory_user=request.user if request.user.is_authenticated else None,
+        )
+
+        approvals = decision.quorum_votes.filter(decision_vote="approve").count()
+        if approvals >= 2 and decision.status != ShariahDecisionStatus.APPROVED:
+            decision.status = ShariahDecisionStatus.APPROVED
+            decision.approved_by = request.user
+            decision.approved_at = now
+            decision.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+
+            log_action(
+                tenant=decision.tenant,
+                actor=request.user,
+                action="shariah_quorum_approved",
+                model_name="ShariahDecision",
+                object_id=str(decision.id),
+                changes={
+                    "status": {"before": ShariahDecisionStatus.DRAFT, "after": ShariahDecisionStatus.APPROVED},
+                    "quorum_approvals": approvals,
+                    "final_signatory": scholar_name,
+                },
+                reason="Shariah Board Quorum of 2 scholars achieved; Fatwa officially sealed.",
+                request=request,
+            )
+
+        return Response(self.get_serializer(decision).data)
+
 
 
 CONTRACT_CLAUSES_SCHEMA = [

@@ -31,8 +31,11 @@ export interface AIModelRegistry {
 }
 
 export interface LoginResponse {
-  access: string
-  refresh: string
+  access?: string
+  refresh?: string
+  mfa_required?: boolean
+  mfa_setup_required?: boolean
+  pending_token?: string
 }
 
 export interface MfaSetupResponse {
@@ -161,6 +164,98 @@ export interface PoolVersion {
   created_by: number | null
   is_current: boolean
   created_at: string
+}
+
+export interface VersionDiffItem {
+  category: string
+  key: string
+  label: string
+  v1_value: unknown
+  v2_value: unknown
+  unit?: string | null
+  is_changed: boolean
+  format: "text" | "percentage" | "currency" | "number" | "bps" | "boolean"
+  delta?: number | null
+  change_direction?: "increased" | "decreased" | "modified" | "unchanged"
+}
+
+export interface TierDiffItem {
+  code: string
+  name: string
+  v1_weight: number | null
+  v2_weight: number | null
+  v1_tenor_days: number | null
+  v2_tenor_days: number | null
+  is_changed: boolean
+  delta: number | null
+  change_type: "added" | "removed" | "modified" | "unchanged"
+}
+
+export interface PoolVersionDiffResponse {
+  pool: {
+    id: string
+    name: string
+    code: string
+    status: string
+  }
+  v1: {
+    id: string
+    version_number: number
+    is_current: boolean
+    created_at: string | null
+    created_by: string
+    snapshot_hash: string
+    shariah_resolution: string
+  }
+  v2: {
+    id: string
+    version_number: number
+    is_current: boolean
+    created_at: string | null
+    created_by: string
+    snapshot_hash: string
+    shariah_resolution: string
+  }
+  summary: {
+    total_changes: number
+    field_changes_count: number
+    tier_changes_count: number
+    risk_impact: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+    shariah_quorum_attested: boolean
+    requires_regulatory_filing: boolean
+  }
+  diff_matrix: VersionDiffItem[]
+  tiers_diff: TierDiffItem[]
+}
+
+export interface CreatePoolVersionInput {
+  psr?: {
+    mudarib_share_pct: number
+    rabbul_maal_share_pct: number
+    wakalah_fee_pct?: number
+    performance_incentive_pct?: number
+  }
+  reserve_policy?: {
+    per_ceiling_pct: number
+    irr_ceiling_pct: number
+    max_monthly_appropriation_pct: number
+    hiba_concession_allowed: boolean
+  }
+  benchmarks?: {
+    benchmark_index: string
+    spread_bps: number
+    target_yield_pct: number
+  }
+  weightage_bands?: Array<{
+    code: string
+    name: string
+    weight: number
+    min_tenor_days: number
+  }>
+  shariah_resolution_code?: string
+  approving_scholar?: string
+  effective_value_date?: string
+  change_rationale?: string
 }
 
 export interface WeightageBand {
@@ -352,6 +447,7 @@ export interface SimulateAllocationResult {
   mudarib_share: string
   per_amount?: string
   irr_amount?: string
+  rounding_residual?: string
   is_loss?: boolean
   lines: AllocationLine[]
 }
@@ -366,7 +462,7 @@ export interface JournalEntry {
 export interface JournalBatch {
   id: string
   tenant: string
-  allocation_run: string
+  allocation_run: string | null
   pool: string
   batch_date: string
   total_debit: string
@@ -378,30 +474,65 @@ export interface JournalBatch {
   updated_at: string
 }
 
+export type CostClassification =
+  | "direct_permissible"
+  | "indirect_overhead"
+  | "permissible_income"
+  | "non_permissible_income"
+
 export interface IncomeExpenseEvent {
   id: string
   tenant: string
   pool: string
+  pool_name?: string
+  pool_code?: string
   event_type: "income" | "expense"
+  cost_classification: CostClassification
   category: string
   amount: string
+  pool_chargeable_amount: string
+  bank_absorbed_amount: string
+  is_direct_expense: boolean
+  is_overhead_leakage: boolean
+  quarantined_to_charity: boolean
   event_date: string
   description: string
+  shariah_note?: string | null
   status: "pending" | "posted"
   created_by: number | null
+  created_by_name?: string
   posted_by: number | null
+  posted_by_name?: string
   posted_at: string | null
   created_at: string
   updated_at: string
 }
 
+export interface PoolIncomeExpenseSummary {
+  pool_id: string | null
+  total_income_gross: number
+  non_permissible_income: number
+  net_permissible_income: number
+  total_expenses_claimed: number
+  approved_direct_expenses: number
+  bank_absorbed_overheads: number
+  net_distributable_profit: number
+  overhead_leakage_detected: boolean
+  overhead_leakage_count: number
+  quarantined_items_count: number
+  pending_items_count: number
+  total_records_count: number
+}
+
 export interface CreateIncomeExpenseEventInput {
   pool: string
   event_type: "income" | "expense"
+  cost_classification?: CostClassification
   category: string
-  amount: string
+  amount: string | number
   event_date: string
   description: string
+  shariah_note?: string
 }
 
 export interface DepositorStatement {
@@ -429,6 +560,11 @@ export interface AllocationRun {
   total_weighted_funds: string
   depositor_pool_share: string
   mudarib_share: string
+  per_amount: string
+  irr_amount: string
+  rounding_residual: string
+  is_loss: boolean
+  config_snapshot: Record<string, unknown>
   status: string
   calculation_hash: string | null
   created_by: number | null
@@ -603,13 +739,29 @@ export interface RecordContributionInput {
 export interface Payout {
   id: string
   member: string
+  member_reference?: string
+  member_name?: string
   pool: string
+  pool_name?: string
+  pool_code?: string
   cycle_number: number
   amount: string
   payout_date: string
   status: "pending" | "disbursed"
   disbursed_by: number | null
+  disbursed_by_username?: string
   draw_seed: string | null
+  settlement_rail?: string
+  settlement_utr?: string
+  recipient_iban?: string
+  recipient_bank?: string
+  secondary_approved_by?: number | null
+  secondary_approved_by_username?: string
+  secondary_approved_at?: string | null
+  shariah_compliance_status?: string
+  shariah_certificate_number?: string
+  biometric_auth_ref?: string
+  ceremony_hash?: string
   created_at: string
   updated_at: string
 }
@@ -618,6 +770,92 @@ export interface DisbursePayoutInput {
   cycle_number: number
   amount: string
   payout_date: string
+  settlement_rail?: string
+  settlement_utr?: string
+  recipient_iban?: string
+  recipient_bank?: string
+  biometric_auth_ref?: string
+}
+
+export interface PayoutCeremonyReadiness {
+  pool: {
+    id: string
+    name: string
+    code: string
+    status: string
+    total_members: number
+  }
+  cycle_number: number
+  next_recipient: {
+    member_id: string
+    member_name: string
+    member_reference: string
+    payout_position: number
+    pot_amount: number
+    default_iban: string
+    default_bank: string
+    raast_alias: string
+  } | null
+  pot_summary: {
+    monthly_share_per_member: number
+    total_expected_pot: number
+    total_collected_pot: number
+    is_pot_fully_funded: boolean
+    total_active_members: number
+    received_count: number
+    pending_count: number
+    pending_members: Array<{ id: string; name: string; reference: string }>
+  }
+  shariah_preflight: {
+    contract_type: string
+    zero_time_value_uplift: boolean
+    zero_fee_deduction: boolean
+    bank_fee_absorption_note: string
+    rotation_parity_verified: boolean
+  }
+  settlement_rails_options: Array<{
+    key: string
+    title: string
+    latency: string
+    fee: string
+    recommended: boolean
+  }>
+  historical_payouts: Payout[]
+}
+
+export interface ExecuteCeremonyDisbursalInput {
+  member_id: string
+  cycle_number: number
+  amount: number | string
+  payout_date?: string
+  settlement_rail?: string
+  recipient_iban?: string
+  recipient_bank?: string
+  secondary_signer?: string
+  biometric_auth_ref?: string
+  auto_reconcile_contributions?: boolean
+}
+
+export interface PayoutReceiptData {
+  payout_id: string
+  circle_name: string
+  circle_code: string
+  recipient_name: string
+  recipient_reference: string
+  cycle_number: number
+  amount: number
+  payout_date: string
+  status: string
+  settlement_rail: string
+  settlement_utr: string
+  recipient_iban: string
+  recipient_bank: string
+  secondary_approved_by: string
+  secondary_approved_at: string | null
+  shariah_certificate_number: string
+  biometric_auth_ref: string
+  ceremony_hash: string
+  legal_entity: string
 }
 
 export interface ArrearsRecord {
@@ -862,6 +1100,26 @@ export type ShariahDecisionType =
   | "purification_directive"
   | "exemption"
 
+export interface ShariahQuorumVote {
+  id: string
+  decision: string
+  scholar_name: string
+  scholar_title: string
+  decision_vote: "approve" | "reject" | "abstain"
+  fiqh_concurrence_notes: string
+  digital_signature_hash: string
+  voted_at: string
+  signatory_user_name?: string | null
+}
+
+export interface ShariahQuorumSummary {
+  required_votes: number
+  approvals: number
+  rejections: number
+  is_quorum_met: boolean
+  status_label: string
+}
+
 export interface ShariahDecision {
   id: string
   tenant: string
@@ -886,6 +1144,8 @@ export interface ShariahDecision {
   is_active: boolean
   created_at: string
   updated_at: string
+  quorum_votes?: ShariahQuorumVote[]
+  quorum_summary?: ShariahQuorumSummary
 }
 
 export interface CreateShariahDecisionInput {
@@ -1015,6 +1275,8 @@ export interface ReservePolicy {
 export interface RestatementInput {
   restatement_reason: string
   notes?: string
+  gross_income?: string | number
+  direct_expenses?: string | number
 }
 
 export type ReconciliationStatus = 'pending' | 'matched' | 'variance_flagged' | 'cleared' | 'discrepancy' | 'resolved'
@@ -1067,7 +1329,7 @@ export interface ReconciliationBatch {
   updated_at?: string
 }
 
-export type PeriodCloseStatus = 'open' | 'pending_review' | 'certified' | 'locked'
+export type PeriodCloseStatus = 'open' | 'in_review' | 'pending_review' | 'certified' | 'locked'
 
 export interface PeriodCloseChecklist {
   id: string

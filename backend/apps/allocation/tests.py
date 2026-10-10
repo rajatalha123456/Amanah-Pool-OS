@@ -41,6 +41,13 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
             role=UserRole.SHARIAH_SECRETARIAT,
             tenant=self.tenant,
         )
+        self.board = User.objects.create_user(
+            email="board@example.com",
+            password="password",
+            full_name="Shariah Board",
+            role=UserRole.SHARIAH_BOARD,
+            tenant=self.tenant,
+        )
 
     def tearDown(self):
         set_current_tenant(None)
@@ -125,12 +132,15 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
         premature_approve = self.client.post(f"{detail_url}approve/")
         self.assertEqual(premature_approve.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # Wrong role cannot sign off.
+        # Wrong roles cannot sign off - the Secretariat only prepares the pack.
         self.authenticate(self.checker)
         forbidden_signoff = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
         self.assertEqual(forbidden_signoff.status_code, status.HTTP_403_FORBIDDEN)
-
         self.authenticate(self.secretariat)
+        secretariat_signoff = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
+        self.assertEqual(secretariat_signoff.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.authenticate(self.board)
         signoff_response = self.client.post(
             f"{detail_url}shariah-sign-off/", {"note": "Reviewed against approved PSR."}, format="json"
         )
@@ -153,7 +163,7 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
         submit_response = self.client.post(f"{detail_url}submit-for-checking/")
         self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
 
-        self.authenticate(self.secretariat)
+        self.authenticate(self.board)
         signoff_response = self.client.post(
             f"{detail_url}shariah-sign-off/", {"note": "Reviewed."}, format="json"
         )
@@ -210,7 +220,7 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
         self.client.post(f"{detail_url}submit-for-checking/")
 
         # Sign-off is not applicable for this pool.
-        self.authenticate(self.secretariat)
+        self.authenticate(self.board)
         signoff_response = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
         self.assertEqual(signoff_response.status_code, status.HTTP_400_BAD_REQUEST)
 

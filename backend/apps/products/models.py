@@ -150,3 +150,38 @@ class JurisdictionRulePack(TenantScopedModel):
     def __str__(self):
         return f"{self.name} v{self.version} ({self.code})"
 
+
+class QuorumVoteDecision(models.TextChoices):
+    APPROVE = "approve", "Approve"
+    REJECT = "reject", "Reject"
+    ABSTAIN = "abstain", "Abstain"
+
+
+class ShariahQuorumVote(TenantScopedModel):
+    """
+    Records an individual Shariah scholar's vote and cryptographic sign-off
+    toward the collective board quorum required to enact a fatwa or product approval.
+    """
+
+    decision = models.ForeignKey(
+        ShariahDecision, on_delete=models.CASCADE, related_name="quorum_votes"
+    )
+    scholar_name = models.CharField(max_length=255)
+    scholar_title = models.CharField(max_length=150)
+    decision_vote = models.CharField(
+        max_length=20, choices=QuorumVoteDecision.choices, default=QuorumVoteDecision.APPROVE
+    )
+    fiqh_concurrence_notes = models.TextField(blank=True, default="")
+    digital_signature_hash = models.CharField(max_length=64)
+    voted_at = models.DateTimeField(auto_now_add=True)
+    signatory_user = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["voted_at"]
+
+    def __str__(self):
+        return f"{self.scholar_name} ({self.decision_vote}) - {self.decision.decision_code}"
+
+

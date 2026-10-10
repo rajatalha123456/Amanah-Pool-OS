@@ -273,7 +273,7 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
                             Batch Date: {batch.batch_date}
                           </p>
                           <p className="text-xs text-ink-secondary">
-                            Batch ID: #{batch.id.slice(0, 8)} • Allocation Run: {batch.allocation_run.slice(0, 8)}
+                            Batch ID: #{batch.id.slice(0, 8)} • Allocation Run: {batch.allocation_run ? `#${batch.allocation_run.slice(0, 8)}` : "Settlement Batch / Direct Post"}
                           </p>
                         </div>
                         <Badge variant={statusBadgeVariant(batch.status)}>
@@ -333,14 +333,15 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
 
                       <div className="mt-4">
                         <h4 className="text-sm font-semibold text-ink-primary mb-3">
-                          Subledger Postings ({batch.entries.length})
+                          Subledger Postings ({batch.entries?.length || 0})
                         </h4>
                         <Table
                           columns={entryColumns}
-                          data={batch.entries}
+                          data={batch.entries || []}
                           keyField={(entry) => entry.id}
                         />
                       </div>
+
                     </div>
                   )}
                 </div>

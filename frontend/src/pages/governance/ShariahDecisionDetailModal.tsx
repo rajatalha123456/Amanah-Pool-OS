@@ -4,7 +4,7 @@ import { Button } from "../../components/Button"
 import { Badge } from "../../components/Badge"
 import { Spinner } from "../../components/Spinner"
 import { useAuth } from "../../api/auth"
-import { approveShariahDecision } from "../../api/shariahGovernance"
+import { approveShariahDecision, castShariahQuorumVote } from "../../api/shariahGovernance"
 import { extractErrorMessage } from "../../api/errors"
 import type { BadgeVariant, ShariahDecision } from "../../types"
 
@@ -46,16 +46,30 @@ function formatCategoryLabel(type: string): string {
   }
 }
 
+const SCHOLAR_PRESETS = [
+  { name: "Mufti Muhammad Taqi Usmani", title: "Chairman Shariah Board" },
+  { name: "Mufti Muhammad Zubair Usmani", title: "Resident Shariah Board Member (RSBM)" },
+  { name: "Dr. Muhammad Imran Ashraf Usmani", title: "Member Shariah Board" },
+]
+
 export function ShariahDecisionDetailModal({
-  decision,
+  decision: initialDecision,
   onClose,
   onApproved,
   onEdit,
   onDelete,
 }: ShariahDecisionDetailModalProps) {
   const { user } = useAuth()
+  const [decision, setDecision] = useState<ShariahDecision>(initialDecision)
   const [isApproving, setIsApproving] = useState(false)
+  const [isCastingVote, setIsCastingVote] = useState(false)
+  const [showSignForm, setShowSignForm] = useState(false)
   const [error, setError] = useState("")
+
+  // Sign Form State
+  const [selectedScholar, setSelectedScholar] = useState(SCHOLAR_PRESETS[1])
+  const [fiqhNotes, setFiqhNotes] = useState("Concurred under AAOIFI FAS 13 & SBP Shariah Governance Framework.")
+  const [voteDecision, setVoteDecision] = useState<"approve" | "reject">("approve")
 
   const isBoardMember = user?.role === "shariah_board"
   const canManage =
@@ -63,23 +77,50 @@ export function ShariahDecisionDetailModal({
     user?.role === "shariah_secretariat" ||
     user?.role === "platform_super_admin"
   const isDraft = decision.status === "draft"
-  const isMaker = Boolean(decision.created_by && user?.id && decision.created_by === user.id)
-  const canApprove = isBoardMember && isDraft && !isMaker
   const canDelete =
     isDraft
       ? canManage
       : user?.role === "shariah_board" || user?.role === "platform_super_admin"
 
-  async function handleApprove() {
+  const quorumSummary = decision.quorum_summary ?? {
+    required_votes: 2,
+    approvals: decision.quorum_votes?.filter((v) => v.decision_vote === "approve").length ?? 0,
+    rejections: decision.quorum_votes?.filter((v) => v.decision_vote === "reject").length ?? 0,
+    is_quorum_met: decision.status === "approved",
+    status_label: `${decision.quorum_votes?.filter((v) => v.decision_vote === "approve").length ?? 0}/2 Signatures Collected`,
+  }
+
+  async function handleLegacyApprove() {
     setError("")
     setIsApproving(true)
     try {
       const updated = await approveShariahDecision(decision.id)
+      setDecision(updated)
       onApproved(updated)
     } catch (err) {
       setError(extractErrorMessage(err, "Unable to approve this decision."))
     } finally {
       setIsApproving(false)
+    }
+  }
+
+  async function handleCastSignature() {
+    setError("")
+    setIsCastingVote(true)
+    try {
+      const updated = await castShariahQuorumVote(decision.id, {
+        scholar_name: selectedScholar.name,
+        scholar_title: selectedScholar.title,
+        vote: voteDecision,
+        fiqh_opinion_notes: fiqhNotes,
+      })
+      setDecision(updated)
+      setShowSignForm(false)
+      onApproved(updated)
+    } catch (err) {
+      setError(extractErrorMessage(err, "Unable to record Shariah quorum signature."))
+    } finally {
+      setIsCastingVote(false)
     }
   }
 
@@ -125,102 +166,203 @@ export function ShariahDecisionDetailModal({
           </div>
         )}
 
-        {/* Fiqh / Regulatory Standards */}
-        {decision.fiqh_reference && (
-          <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-xs">
-            <span className="block font-semibold text-emerald-400 uppercase tracking-wider mb-1">
-              Fiqh & Regulatory Standard Basis
-            </span>
-            <p className="text-ink-secondary">{decision.fiqh_reference}</p>
-          </div>
-        )}
-
-        {/* Arabic Nass al-Fatwa */}
+        {/* Arabic Fatwa Text */}
         {decision.fatwa_arabic_text && (
-          <div className="rounded-lg border border-white/10 bg-navy-950/60 p-4 text-right" dir="rtl">
-            <span className="block font-serif text-xs text-ink-muted mb-1 text-left" dir="ltr">
-              نص القرار الشرعي (Arabic Text)
+          <div className="rounded-lg border border-white/10 bg-navy-900/80 p-3 text-right">
+            <span className="block text-left text-[11px] font-medium text-ink-muted uppercase tracking-wider mb-1">
+              Arabic Fatwa Pronouncement
             </span>
-            <p className="font-serif text-sm leading-relaxed text-emerald-200">
+            <p className="text-sm font-serif leading-loose text-emerald-300" dir="rtl">
               {decision.fatwa_arabic_text}
             </p>
           </div>
         )}
 
-        {/* Description / Ruling Text */}
+        {/* Description */}
         <div>
-          <span className="block text-xs font-semibold text-ink-muted uppercase tracking-wider mb-1">
-            Operative Shariah Ruling
-          </span>
-          <div className="rounded-lg border border-white/8 bg-navy-800/40 p-3 text-sm text-ink-primary whitespace-pre-wrap leading-relaxed">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-1">Ruling Description</h4>
+          <p className="text-xs text-ink-secondary leading-relaxed bg-navy-800/30 p-3 rounded border border-white/5 whitespace-pre-wrap">
             {decision.description}
-          </div>
+          </p>
         </div>
 
-        {/* Caveats & Conditions Precedent */}
-        {decision.mandatory_caveats && (
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs">
-            <span className="block font-semibold text-amber-400 uppercase tracking-wider mb-1">
-              Mandatory Caveats & Special Conditions
+        {/* Fiqh / Regulatory Standards */}
+        {decision.fiqh_reference && (
+          <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-xs">
+            <span className="block font-medium text-emerald-400 uppercase tracking-wider mb-0.5">
+              Governing Fiqh & AAOIFI Standards
             </span>
-            <p className="text-ink-secondary whitespace-pre-wrap leading-relaxed">{decision.mandatory_caveats}</p>
+            <p className="text-ink-primary">{decision.fiqh_reference}</p>
           </div>
         )}
 
-        {/* Document URL */}
-        {decision.document_url && (
-          <div className="text-xs">
-            <span className="text-ink-muted">Signed Document Repository: </span>
-            <a
-              href={decision.document_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-400 underline hover:text-emerald-300 break-all"
-            >
-              {decision.document_url}
-            </a>
-          </div>
-        )}
-
-        {/* Maker-Checker Audit Trail */}
-        <div className="rounded-lg border border-white/8 bg-navy-950/40 p-3 text-xs space-y-1.5">
-          <span className="block font-semibold text-ink-muted uppercase tracking-wider">
-            Governance & Audit Sign-Off
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-ink-secondary pt-1">
+        {/* ========================================================================= */}
+        {/* SBP SHARIAH BOARD MULTI-MUFTI QUORUM VOTING TRACKER (BRD MODULE 10)       */}
+        {/* ========================================================================= */}
+        <div className="rounded-xl border border-emerald-500/30 bg-navy-950 p-4 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-white/8">
             <div>
-              <span className="text-ink-muted">Drafted By (Maker): </span>
-              <span className="font-medium text-ink-primary">{decision.created_by_name || "System"}</span>
-              <span className="block text-[11px] text-ink-muted">
-                {new Date(decision.created_at).toLocaleString()}
+              <span className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase">
+                SBP SHARIAH GOVERNANCE FRAMEWORK
               </span>
+              <h4 className="text-xs font-bold text-white">Board Quorum Sign-Off Tracker</h4>
             </div>
-            <div>
-              <span className="text-ink-muted">Approved By (Checker): </span>
-              {decision.approved_by_name ? (
-                <>
-                  <span className="font-medium text-emerald-400">{decision.approved_by_name}</span>
-                  {decision.approved_at && (
-                    <span className="block text-[11px] text-ink-muted">
-                      {new Date(decision.approved_at).toLocaleString()}
-                    </span>
+            <Badge variant={decision.status === "approved" ? "emerald" : "gold"}>
+              {decision.status === "approved" ? "QUORUM RATIFIED & SEALED" : quorumSummary.status_label}
+            </Badge>
+          </div>
+
+          {/* Quorum Progress Bar */}
+          <div>
+            <div className="flex justify-between text-[11px] text-ink-muted mb-1">
+              <span>Required Quorum: 2 of 3 Resident/External Scholars</span>
+              <span className="font-mono text-emerald-400">{quorumSummary.approvals}/2 Signatures</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-navy-800 overflow-hidden border border-white/5">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-500"
+                style={{ width: `${Math.min(100, (quorumSummary.approvals / 2) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Recorded Scholar Signatures */}
+          <div className="space-y-2 pt-1">
+            {decision.quorum_votes && decision.quorum_votes.length > 0 ? (
+              decision.quorum_votes.map((vote) => (
+                <div
+                  key={vote.id}
+                  className="rounded-lg border border-white/8 bg-navy-900/90 p-3 text-xs space-y-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-white">{vote.scholar_name}</span>
+                      <span className="block text-[10px] text-ink-muted">{vote.scholar_title}</span>
+                    </div>
+                    <Badge variant={vote.decision_vote === "approve" ? "emerald" : "navy"}>
+                      {vote.decision_vote.toUpperCase()}
+                    </Badge>
+                  </div>
+                  {vote.fiqh_concurrence_notes && (
+                    <p className="text-[11px] text-ink-secondary italic bg-navy-950 p-2 rounded border border-white/5">
+                      "{vote.fiqh_concurrence_notes}"
+                    </p>
                   )}
-                </>
+                  <div className="flex items-center justify-between text-[10px] text-ink-muted pt-1 border-t border-white/5 font-mono">
+                    <span className="truncate max-w-[280px]" title={vote.digital_signature_hash}>
+                      SHA256: {vote.digital_signature_hash.slice(0, 16)}...{vote.digital_signature_hash.slice(-8)}
+                    </span>
+                    <span>{new Date(vote.voted_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-ink-muted py-2 text-center">
+                No scholar quorum signatures recorded yet. Minimum 2 signatures required to seal this ruling.
+              </p>
+            )}
+          </div>
+
+          {/* Cast Scholar Signature Form / CTA */}
+          {decision.status !== "approved" && isBoardMember && (
+            <div className="pt-2 border-t border-white/8">
+              {!showSignForm ? (
+                <Button
+                  variant="gold"
+                  className="w-full text-xs font-semibold py-2"
+                  onClick={() => setShowSignForm(true)}
+                >
+                  ✍️ Cast Scholar Digital Signature for Quorum
+                </Button>
               ) : (
-                <span className="font-medium text-amber-400">Pending Board Approval</span>
+                <div className="rounded-lg border border-amber-500/30 bg-navy-900 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-300">
+                      Sign As Shariah Board Scholar
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSignForm(false)}
+                      className="text-ink-muted hover:text-white text-xs"
+                    >
+                      ✕ Cancel
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-semibold text-ink-muted mb-1">
+                      Select Signatory Scholar Identity:
+                    </label>
+                    <select
+                      className="w-full rounded border border-white/10 bg-navy-800 p-2 text-xs text-white"
+                      value={selectedScholar.name}
+                      onChange={(e) => {
+                        const chosen = SCHOLAR_PRESETS.find((s) => s.name === e.target.value)
+                        if (chosen) setSelectedScholar(chosen)
+                      }}
+                    >
+                      {SCHOLAR_PRESETS.map((s) => (
+                        <option key={s.name} value={s.name}>
+                          {s.name} — {s.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-semibold text-ink-muted mb-1">
+                      Fiqh Concurrence Notes / Dissenting Opinion:
+                    </label>
+                    <textarea
+                      rows={2}
+                      className="w-full rounded border border-white/10 bg-navy-800 p-2 text-xs text-ink-primary"
+                      value={fiqhNotes}
+                      onChange={(e) => setFiqhNotes(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setVoteDecision("approve")}
+                        className={`px-2.5 py-1 text-xs rounded font-semibold ${
+                          voteDecision === "approve"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-navy-800 text-ink-muted"
+                        }`}
+                      >
+                        ✓ Concur (Approve)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVoteDecision("reject")}
+                        className={`px-2.5 py-1 text-xs rounded font-semibold ${
+                          voteDecision === "reject"
+                            ? "bg-rose-500 text-white"
+                            : "bg-navy-800 text-ink-muted"
+                        }`}
+                      >
+                        ✕ Dissent (Reject)
+                      </button>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      className="text-xs"
+                      disabled={isCastingVote}
+                      onClick={handleCastSignature}
+                    >
+                      {isCastingVote ? <Spinner className="h-4 w-4" /> : "⚡ Cryptographically Sign & Seal"}
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
-
-        {/* Maker Notice if logged in user is the maker */}
-        {isMaker && isDraft && (
-          <p className="text-xs text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded p-2">
-            Maker-Checker Segregation: You drafted this decision. As required by banking governance, another Shariah Board member must review and approve it.
-          </p>
-        )}
 
         {/* Footer Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10">
@@ -244,9 +386,9 @@ export function ShariahDecisionDetailModal({
             <Button variant="secondary" onClick={onClose} disabled={isApproving}>
               Close
             </Button>
-            {canApprove && (
-              <Button variant="primary" disabled={isApproving} onClick={handleApprove}>
-                {isApproving ? <Spinner className="h-4 w-4" /> : "Approve Fatwa Ruling"}
+            {decision.status === "draft" && isBoardMember && (
+              <Button variant="primary" className="text-xs font-semibold px-3 py-1.5" disabled={isApproving} onClick={handleLegacyApprove}>
+                {isApproving ? <Spinner className="h-4 w-4" /> : "✓ Approve Ruling"}
               </Button>
             )}
           </div>

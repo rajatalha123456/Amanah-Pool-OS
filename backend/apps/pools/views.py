@@ -1,7 +1,9 @@
 from datetime import date
 from decimal import Decimal
+import uuid
 
-from django.db import transaction
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -22,6 +24,8 @@ from apps.core.exceptions_helper import create_exception_case
 from apps.products.models import ProductStatus
 
 from .liquidity import calculate_liquidity_forecast
+from .period_lock import assert_period_open
+from .version_diff import compute_snapshot_hash, generate_version_diff
 
 from .models import (
     Asset,
@@ -54,7 +58,7 @@ CONTROL_TOTAL_TOLERANCE = Decimal("0.01")
 def _build_pool_snapshot(pool):
     product = pool.product
     contract_template = product.contract_template
-    return {
+    snapshot = {
         "product": {
             "id": str(product.id),
             "name": product.name,
@@ -70,7 +74,38 @@ def _build_pool_snapshot(pool):
             "clauses": contract_template.clauses,
             "status": contract_template.status,
         },
+        "psr": {
+            "mudarib_share_pct": 50.0,
+            "rabbul_maal_share_pct": 50.0,
+            "wakalah_fee_pct": 0.0,
+            "performance_incentive_pct": 10.0,
+        },
+        "reserve_policy": {
+            "per_ceiling_pct": 2.0,
+            "irr_ceiling_pct": 1.0,
+            "max_monthly_appropriation_pct": 15.0,
+            "hiba_concession_allowed": True,
+        },
+        "benchmarks": {
+            "benchmark_index": "1-Month KIBOR",
+            "spread_bps": 50,
+            "target_yield_pct": 18.50,
+        },
+        "weightage_bands": [
+            {"code": "TIER-SAV-01", "name": "Savings Account - Retail", "weight": 1.00, "min_tenor_days": 0},
+            {"code": "TIER-SAV-02", "name": "Savings Account - High Net Worth", "weight": 1.20, "min_tenor_days": 0},
+            {"code": "TIER-TERM-03", "name": "Term Deposit - 1 Year", "weight": 1.45, "min_tenor_days": 365},
+            {"code": "TIER-TERM-04", "name": "Term Deposit - 3 Year", "weight": 1.65, "min_tenor_days": 1095},
+        ],
+        "governance": {
+            "shariah_resolution_code": "SB-RES-2026-01",
+            "approving_scholar": "Mufti Dr. Taqi Usmani (Shariah Board Chair)",
+            "effective_value_date": str(pool.effective_date),
+            "change_rationale": "Initial pool structure approval by Shariah Board",
+        },
     }
+    snapshot["snapshot_hash"] = compute_snapshot_hash(snapshot)
+    return snapshot
 
 
 class PoolViewSet(viewsets.ModelViewSet):
@@ -105,8 +140,102 @@ class PoolViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def versions(self, request, pk=None):
         pool = self.get_object()
-        versions = pool.versions.all()
+        versions = pool.versions.all().order_by("-version_number")
         return Response(PoolVersionSerializer(versions, many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="compare-versions")
+    def compare_versions(self, request, pk=None):
+        """
+        BRD Product & Pool Screen 5:
+        Pool Version Comparison & Governance Diff Matrix.
+        """
+        pool = self.get_object()
+        v1_id = request.query_params.get("v1")
+        v2_id = request.query_params.get("v2")
+
+        versions = list(pool.versions.all().order_by("version_number"))
+        if not versions:
+            return Response({"error": "No pool versions exist for comparison."}, status=400)
+
+        def _find_v(ident):
+            if not ident:
+                return None
+            try:
+                n = int(ident)
+                m = pool.versions.filter(version_number=n).first()
+                if m:
+                    return m
+            except (ValueError, TypeError):
+                pass
+            try:
+                u = uuid.UUID(str(ident))
+                return pool.versions.filter(id=u).first()
+            except (ValueError, TypeError):
+                pass
+            return None
+
+        v1 = _find_v(v1_id) or versions[0]
+        v2 = _find_v(v2_id) or (versions[-1] if len(versions) > 1 else versions[0])
+
+        diff_data = generate_version_diff(pool, v1, v2)
+        return Response(diff_data)
+
+    @action(detail=True, methods=["post"], url_path="create-version")
+    def create_version(self, request, pk=None):
+        """
+        Create a new pool version with updated parameters and Shariah attestation.
+        """
+        pool = self.get_object()
+        data = request.data or {}
+
+        latest_version = pool.versions.order_by("-version_number").first()
+        new_version_num = (latest_version.version_number + 1) if latest_version else 1
+
+        # Base snapshot
+        snapshot = dict(latest_version.snapshot) if (latest_version and latest_version.snapshot) else _build_pool_snapshot(pool)
+
+        if "psr" in data:
+            snapshot["psr"] = data["psr"]
+        if "reserve_policy" in data:
+            snapshot["reserve_policy"] = data["reserve_policy"]
+        if "benchmarks" in data:
+            snapshot["benchmarks"] = data["benchmarks"]
+        if "weightage_bands" in data:
+            snapshot["weightage_bands"] = data["weightage_bands"]
+
+        gov = snapshot.get("governance", {})
+        gov.update({
+            "shariah_resolution_code": data.get("shariah_resolution_code", f"SB-RES-2026-V{new_version_num}"),
+            "approving_scholar": data.get("approving_scholar", "Mufti Dr. Taqi Usmani (Shariah Board Chair)"),
+            "effective_value_date": data.get("effective_value_date", str(timezone.localdate())),
+            "change_rationale": data.get("change_rationale", f"Periodic parameter calibration v{new_version_num}"),
+        })
+        snapshot["governance"] = gov
+        snapshot["snapshot_hash"] = compute_snapshot_hash(snapshot)
+
+        # Deactivate prior versions
+        pool.versions.all().update(is_current=False)
+
+        new_version = PoolVersion.objects.create(
+            tenant=pool.tenant,
+            pool=pool,
+            version_number=new_version_num,
+            snapshot=snapshot,
+            created_by=request.user,
+            is_current=True,
+        )
+
+        log_action(
+            tenant=pool.tenant,
+            actor=request.user,
+            action="create_pool_version",
+            model_name="PoolVersion",
+            object_id=str(new_version.id),
+            reason=gov["change_rationale"],
+            request=request,
+        )
+
+        return Response(PoolVersionSerializer(new_version).data, status=201)
 
     @action(detail=True, methods=["get"], url_path="liquidity-forecast")
     def liquidity_forecast(self, request, pk=None):
@@ -264,6 +393,52 @@ class AssetViewSet(viewsets.ModelViewSet):
             request=self.request,
         )
 
+    @action(detail=False, methods=["get"], url_path="concentration-risk")
+    def concentration_risk(self, request):
+        pool_id = request.query_params.get("pool_id")
+        pool = None
+        if pool_id:
+            pool = Pool.objects.filter(id=pool_id).first()
+        from .concentration_engine import run_concentration_risk_analysis
+        data = run_concentration_risk_analysis(pool=pool)
+        return Response(data)
+
+    @action(detail=False, methods=["post"], url_path="remediation-plan")
+    def remediation_plan(self, request):
+        target_name = request.data.get("target_name")
+        target_type = request.data.get("target_type", "obligor")
+        current_exposure = Decimal(str(request.data.get("current_exposure", 0)))
+        excess_amount = Decimal(str(request.data.get("excess_amount", 0)))
+        action_note = request.data.get("action_note", "Mitigation covenant registered.")
+        pool_id = request.data.get("pool_id")
+        pool = Pool.objects.filter(id=pool_id).first() if pool_id else None
+
+        if not target_name:
+            raise ValidationError("target_name is required.")
+
+        from .concentration_engine import commit_breach_remediation_case
+        result = commit_breach_remediation_case(
+            tenant=request.user.tenant,
+            user=request.user,
+            target_name=target_name,
+            target_type=target_type,
+            current_exposure=current_exposure,
+            excess_amount=excess_amount,
+            action_note=action_note,
+            pool=pool,
+        )
+        return Response(result)
+
+    @action(detail=False, methods=["post"], url_path="stress-test")
+    def stress_test(self, request):
+        pool_id = request.data.get("pool_id")
+        deposit_runoff_pct = float(request.data.get("deposit_runoff_pct", 15.0))
+        pool = Pool.objects.filter(id=pool_id).first() if pool_id else None
+
+        from .concentration_engine import run_concentration_stress_test
+        result = run_concentration_stress_test(pool=pool, deposit_runoff_pct=deposit_runoff_pct)
+        return Response(result)
+
 
 class AssetAssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = AssetAssignmentSerializer
@@ -356,7 +531,7 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return BalanceImportBatchSerializer
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action in ("create", "cbs_sftp_daemon"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         return [IsAuthenticated()]
 
@@ -369,6 +544,8 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         value_date = data["value_date"]
         control_total_expected = data.get("control_total_expected")
         records = data["records"]
+
+        assert_period_open(pool, value_date, what="a balance import")
 
         errors = []
         created_balances = []
@@ -477,6 +654,47 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             status=201,
         )
 
+    @action(detail=False, methods=["post"], url_path="cbs-sftp-daemon")
+    def cbs_sftp_daemon(self, request):
+        """
+        Screen 09 / Module 06: Automated Core Banking System SFTP EOD Batch Ingestion.
+        """
+        from datetime import datetime
+        from .cbs_daemon import simulate_cbs_sftp_ingestion
+
+        pool_id = request.data.get("pool_id")
+        if not pool_id:
+            raise ValidationError({"pool_id": ["This field is required."]})
+
+        try:
+            pool = Pool.objects.get(id=pool_id, tenant=request.user.tenant)
+        except Pool.DoesNotExist:
+            raise ValidationError({"pool_id": ["Pool not found."]})
+
+        value_date_str = request.data.get("value_date")
+        if value_date_str:
+            value_date = datetime.strptime(value_date_str, "%Y-%m-%d").date()
+        else:
+            value_date = timezone.now().date()
+
+        assert_period_open(pool, value_date, what="a balance import")
+
+        cbs_vendor = request.data.get("cbs_vendor", "Temenos T24")
+        scenario = request.data.get("scenario", "clean")
+
+        result = simulate_cbs_sftp_ingestion(
+            tenant=request.user.tenant,
+            pool=pool,
+            value_date=value_date,
+            cbs_vendor=cbs_vendor,
+            scenario=scenario,
+            user=request.user,
+        )
+
+        status_code = 200 if result.get("success") else 422
+        return Response(result, status=status_code)
+
+
 
 class PeriodCloseChecklistViewSet(viewsets.ModelViewSet):
     """
@@ -551,4 +769,48 @@ class PeriodCloseChecklistViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(instance).data)
+
+    @action(detail=True, methods=["post"], url_path="auto-verify-gates")
+    def auto_verify_gates(self, request, pk=None):
+        instance = self.get_object()
+        from .period_close_engine import auto_verify_period_gates
+        res = auto_verify_period_gates(instance)
+        return Response(res)
+
+    @action(detail=True, methods=["post"], url_path="sign-off-role")
+    def sign_off_role(self, request, pk=None):
+        instance = self.get_object()
+        role = request.data.get("role", "pool_manager")
+        notes = request.data.get("notes", "")
+        fatwa_ref = request.data.get("fatwa_ref", "")
+
+        from .period_close_engine import sign_off_period_role
+        res = sign_off_period_role(
+            period_close=instance,
+            user=request.user,
+            role=role,
+            notes=notes,
+            fatwa_ref=fatwa_ref,
+        )
+        return Response(res)
+
+    @action(detail=True, methods=["post"], url_path="lock-ceremony")
+    def lock_ceremony(self, request, pk=None):
+        instance = self.get_object()
+        lock_note = request.data.get("lock_note", "")
+
+        from .period_close_engine import execute_cryptographic_lock_ceremony
+        res = execute_cryptographic_lock_ceremony(
+            period_close=instance,
+            user=request.user,
+            lock_note=lock_note,
+        )
+        return Response(res)
+
+    @action(detail=True, methods=["get"], url_path="filing-package")
+    def filing_package(self, request, pk=None):
+        instance = self.get_object()
+        from .period_close_engine import get_sbp_filing_certificate
+        pkg = get_sbp_filing_certificate(instance)
+        return Response(pkg)
 

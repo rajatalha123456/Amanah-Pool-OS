@@ -11,11 +11,14 @@ from rest_framework.response import Response
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker
 from apps.core.audit import log_action
 from apps.pools.models import Pool
+from apps.pools.period_lock import assert_period_open
 
 from .exports import generate_gl_csv
 from .models import (
+    CostClassification,
     IncomeExpenseEvent,
     IncomeExpenseEventStatus,
+    IncomeExpenseEventType,
     JournalBatch,
     ReconciliationBatch,
     ReconciliationStatus,
@@ -63,6 +66,11 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
+        assert_period_open(
+            serializer.validated_data["pool"],
+            serializer.validated_data["event_date"],
+            what="an income/expense event",
+        )
         instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
         log_action(
             tenant=instance.tenant,
@@ -89,6 +97,8 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
                 f"post (current status: '{event.status}')."
             )
 
+        assert_period_open(event.pool, event.event_date, what="an income/expense event")
+
         previous_status = event.status
         event.status = IncomeExpenseEventStatus.POSTED
         event.posted_by = request.user
@@ -105,6 +115,138 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(event).data)
+
+    @action(detail=False, methods=["get"], url_path="pool-summary")
+    def pool_summary(self, request):
+        """
+        BRD Screen 03: Income & Expense Workbench Summary Deck.
+        Aggregates Gross Income, Quarantined Non-Permissible Income,
+        Approved Direct Expenses, and Bank Absorbed Overheads.
+        """
+        pool_id = request.query_params.get("pool")
+        queryset = self.get_queryset()
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+
+        income_events = queryset.filter(event_type=IncomeExpenseEventType.INCOME)
+        expense_events = queryset.filter(event_type=IncomeExpenseEventType.EXPENSE)
+
+        total_income_gross = sum((e.amount for e in income_events), Decimal("0.00"))
+        non_permissible_income = sum(
+            (e.amount for e in income_events if e.quarantined_to_charity or e.cost_classification == CostClassification.NON_PERMISSIBLE_INCOME),
+            Decimal("0.00")
+        )
+        net_permissible_income = total_income_gross - non_permissible_income
+
+        total_expenses_claimed = sum((e.amount for e in expense_events), Decimal("0.00"))
+        approved_direct_expenses = sum((e.pool_chargeable_amount for e in expense_events if e.is_direct_expense), Decimal("0.00"))
+        bank_absorbed_overheads = sum((e.bank_absorbed_amount for e in expense_events if e.is_overhead_leakage), Decimal("0.00"))
+
+        net_distributable_profit = net_permissible_income - approved_direct_expenses
+
+        overhead_leakage_items = expense_events.filter(is_overhead_leakage=True).count()
+        quarantined_items_count = income_events.filter(quarantined_to_charity=True).count()
+        pending_items_count = queryset.filter(status=IncomeExpenseEventStatus.PENDING).count()
+
+        return Response({
+            "pool_id": pool_id,
+            "total_income_gross": float(total_income_gross),
+            "non_permissible_income": float(non_permissible_income),
+            "net_permissible_income": float(net_permissible_income),
+            "total_expenses_claimed": float(total_expenses_claimed),
+            "approved_direct_expenses": float(approved_direct_expenses),
+            "bank_absorbed_overheads": float(bank_absorbed_overheads),
+            "net_distributable_profit": float(net_distributable_profit),
+            "overhead_leakage_detected": overhead_leakage_items > 0,
+            "overhead_leakage_count": overhead_leakage_items,
+            "quarantined_items_count": quarantined_items_count,
+            "pending_items_count": pending_items_count,
+            "total_records_count": queryset.count(),
+        })
+
+    @action(detail=True, methods=["post"], url_path="quarantine-to-charity")
+    def quarantine_to_charity(self, request, pk=None):
+        """
+        Quarantines a non-permissible income line to the Charity account.
+        """
+        event = self.get_object()
+        if event.event_type != IncomeExpenseEventType.INCOME:
+            raise ValidationError("Only income items can be quarantined to charity.")
+
+        reason = request.data.get("reason", "Non-permissible income flagged by Shariah compliance.")
+        event.cost_classification = CostClassification.NON_PERMISSIBLE_INCOME
+        event.quarantined_to_charity = True
+        event.pool_chargeable_amount = Decimal("0.00")
+        event.shariah_note = f"Quarantined to Charity: {reason}"
+        event.save(update_fields=[
+            "cost_classification", "quarantined_to_charity",
+            "pool_chargeable_amount", "shariah_note", "updated_at"
+        ])
+
+        log_action(
+            tenant=event.tenant,
+            actor=request.user,
+            action="quarantine_to_charity",
+            model_name="IncomeExpenseEvent",
+            object_id=str(event.id),
+            reason=reason,
+            request=request,
+        )
+        return Response(self.get_serializer(event).data)
+
+    @action(detail=True, methods=["post"], url_path="reclassify")
+    def reclassify(self, request, pk=None):
+        """
+        Reclassifies an expense between direct_permissible and indirect_overhead.
+        """
+        event = self.get_object()
+        new_classification = request.data.get("cost_classification")
+        shariah_note = request.data.get("shariah_note", "")
+
+        if new_classification not in CostClassification.values:
+            raise ValidationError(f"Invalid cost classification: {new_classification}")
+
+        event.cost_classification = new_classification
+        if shariah_note:
+            event.shariah_note = shariah_note
+        event.save()
+
+        log_action(
+            tenant=event.tenant,
+            actor=request.user,
+            action="reclassify_cost",
+            model_name="IncomeExpenseEvent",
+            object_id=str(event.id),
+            reason=shariah_note or f"Reclassified to {new_classification}",
+            request=request,
+        )
+        return Response(self.get_serializer(event).data)
+
+    @action(detail=False, methods=["post"], url_path="scan-overhead-leakage")
+    def scan_overhead_leakage(self, request):
+        """
+        Automated scan detecting overhead leakage attempts in pool expenses.
+        """
+        pool_id = request.data.get("pool") or request.query_params.get("pool")
+        queryset = self.get_queryset().filter(event_type=IncomeExpenseEventType.EXPENSE)
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+
+        scanned = 0
+        flagged = 0
+        for event in queryset:
+            scanned += 1
+            # Trigger model save which runs overhead keyword verification
+            event.save()
+            if event.is_overhead_leakage:
+                flagged += 1
+
+        return Response({
+            "scanned_count": scanned,
+            "flagged_leakage_count": flagged,
+            "status": "PASS" if flagged == 0 else "BREACHES_DETECTED",
+            "message": f"Scanned {scanned} expense items. {flagged} indirect overhead leakage attempts flagged and redirected to Bank P&L absorption."
+        })
 
 
 @api_view(["GET"])

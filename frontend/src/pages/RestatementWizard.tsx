@@ -20,7 +20,8 @@ const RESTATEMENT_REASONS = [
 ]
 
 export function RestatementWizard() {
-  const { runId } = useParams<{ runId: string }>()
+  const params = useParams<{ runId?: string; id?: string }>()
+  const runId = params.runId || params.id
   const navigate = useNavigate()
 
   const [run, setRun] = useState<AllocationRun | null>(null)
@@ -29,6 +30,8 @@ export function RestatementWizard() {
 
   const [reasonCategory, setReasonCategory] = useState(RESTATEMENT_REASONS[0])
   const [detailedNotes, setDetailedNotes] = useState("")
+  const [revisedGrossIncome, setRevisedGrossIncome] = useState<string>("")
+  const [revisedExpenses, setRevisedExpenses] = useState<string>("0.00")
   const [confirmedShariah, setConfirmedShariah] = useState(false)
   const [confirmedContra, setConfirmedContra] = useState(false)
 
@@ -46,6 +49,8 @@ export function RestatementWizard() {
     fetchAllocationRunDetail(runId)
       .then((data) => {
         setRun(data)
+        setRevisedGrossIncome(data.gross_income || data.distributable_amount || "5000000.00")
+        setRevisedExpenses(data.direct_expenses || "0.00")
         setLoading(false)
       })
       .catch((err) => {
@@ -67,8 +72,14 @@ export function RestatementWizard() {
       const res = await restateRun(runId, {
         restatement_reason: fullReason,
         notes: detailedNotes,
+        gross_income: revisedGrossIncome || undefined,
+        direct_expenses: revisedExpenses || undefined,
       })
-      setResult(res)
+      setResult({
+        original_run: run!,
+        draft_rerun: res,
+        message: "Restatement rerun created and sent for maker-checker approval.",
+      })
     } catch (err) {
       setSubmitError(extractErrorMessage(err))
     } finally {
@@ -100,9 +111,9 @@ export function RestatementWizard() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Restatement Completed"
-          subtitle={`Run #${run.id.slice(0, 8)} successfully reversed`}
-          actions={<Badge variant="emerald">Contra Posted & Spawned</Badge>}
+          title="Restatement Submitted"
+          subtitle={`Run #${run.id.slice(0, 8)} will be reversed once the rerun is approved`}
+          actions={<Badge variant="emerald">Rerun Created</Badge>}
         />
 
         <Card title="Restatement Execution Summary">
@@ -110,9 +121,8 @@ export function RestatementWizard() {
             <div className="rounded-md border border-emerald-500/30 bg-emerald-950/20 p-4 text-sm text-emerald-300">
               <p className="font-semibold">{result.message}</p>
               <p className="mt-1 text-xs text-ink-secondary">
-                A contra Journal Batch has been generated and posted to reverse the GL impact of the
-                original certified run. A linked restatement rerun has been instantiated in Draft
-                status.
+                A linked restatement rerun has been created. The original run stays signed; its GL impact
+                is reversed by a contra Journal Batch automatically when the rerun is approved.
               </p>
             </div>
 
@@ -183,9 +193,9 @@ export function RestatementWizard() {
             </h4>
             <p className="mt-1 text-sm text-ink-secondary">
               Certified and signed profit allocation runs cannot be deleted or directly edited.
-              Executing this wizard will mark the current run as <strong className="text-ink-primary">REVERSED</strong>,
-              immediately post a full reversing contra-journal batch to the General Ledger, and spawn a linked
-              Restatement Rerun in <strong className="text-ink-primary">DRAFT</strong> mode for re-simulation.
+              Executing this wizard creates a linked Restatement Rerun in <strong className="text-ink-primary">SIMULATED</strong> status.
+              The current run stays <strong className="text-ink-primary">SIGNED</strong> until the rerun is approved by an independent
+              checker; approval then reverses the original (full contra-journal and reserve movements) and signs the rerun.
             </p>
           </div>
         </div>
@@ -221,6 +231,41 @@ export function RestatementWizard() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 rounded-lg border border-white/5 bg-navy-900/40 p-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                Adjusted Gross Income (PKR) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={revisedGrossIncome}
+                onChange={(e) => setRevisedGrossIncome(e.target.value)}
+                required
+                className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary font-mono focus:border-emerald-500 focus:outline-none"
+              />
+              <span className="text-[10px] text-ink-muted mt-1 block">
+                Original run value: PKR {run.gross_income || run.distributable_amount}
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                Adjusted Direct Expenses (PKR)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={revisedExpenses}
+                onChange={(e) => setRevisedExpenses(e.target.value)}
+                className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary font-mono focus:border-emerald-500 focus:outline-none"
+              />
+              <span className="text-[10px] text-ink-muted mt-1 block">
+                Original expenses: PKR {run.direct_expenses || "0.00"}
+              </span>
+            </div>
           </div>
 
           <div>

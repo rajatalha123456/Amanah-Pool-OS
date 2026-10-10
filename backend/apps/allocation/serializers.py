@@ -141,6 +141,11 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "total_weighted_funds",
             "depositor_pool_share",
             "mudarib_share",
+            "per_amount",
+            "irr_amount",
+            "rounding_residual",
+            "is_loss",
+            "config_snapshot",
             "status",
             "calculation_hash",
             "replaces_run",
@@ -190,10 +195,13 @@ class ReservePolicySerializer(serializers.ModelSerializer):
 
 class RestatementInputSerializer(serializers.Serializer):
     restatement_reason = serializers.CharField(required=True)
-    gross_income = serializers.DecimalField(max_digits=18, decimal_places=2, required=True)
-    direct_expenses = serializers.DecimalField(
-        max_digits=18, decimal_places=2, required=False, default=Decimal("0")
+    gross_income = serializers.DecimalField(
+        max_digits=18, decimal_places=2, required=False, default=None
     )
+    direct_expenses = serializers.DecimalField(
+        max_digits=18, decimal_places=2, required=False, default=None
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class AllocationRunInputSerializer(serializers.Serializer):

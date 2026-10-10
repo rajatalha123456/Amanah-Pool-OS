@@ -1,5 +1,12 @@
 import { apiClient } from "./axios"
-import type { CreatePoolInput, Pool, PoolVersion, Product } from "../types"
+import type {
+  CreatePoolInput,
+  CreatePoolVersionInput,
+  Pool,
+  PoolVersion,
+  PoolVersionDiffResponse,
+  Product,
+} from "../types"
 import { fetchProducts } from "./products"
 
 export async function fetchPools(): Promise<Pool[]> {
@@ -14,6 +21,32 @@ export async function fetchPoolDetail(id: string): Promise<Pool> {
 
 export async function fetchPoolVersions(id: string): Promise<PoolVersion[]> {
   const response = await apiClient.get<PoolVersion[]>(`pools/pools/${id}/versions/`)
+  return response.data
+}
+
+export async function fetchPoolVersionDiff(
+  poolId: string,
+  v1?: string | number,
+  v2?: string | number,
+): Promise<PoolVersionDiffResponse> {
+  const params: Record<string, string> = {}
+  if (v1 !== undefined) params.v1 = String(v1)
+  if (v2 !== undefined) params.v2 = String(v2)
+  const response = await apiClient.get<PoolVersionDiffResponse>(
+    `pools/pools/${poolId}/compare-versions/`,
+    { params },
+  )
+  return response.data
+}
+
+export async function createPoolVersion(
+  poolId: string,
+  data: CreatePoolVersionInput,
+): Promise<PoolVersion> {
+  const response = await apiClient.post<PoolVersion>(
+    `pools/pools/${poolId}/create-version/`,
+    data,
+  )
   return response.data
 }
 

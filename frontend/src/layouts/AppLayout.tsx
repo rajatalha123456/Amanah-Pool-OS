@@ -8,6 +8,8 @@ import { UIControlsProvider } from "../context/UIControlsContext"
 import { AiCopilotDrawer } from "../components/AiCopilotDrawer"
 import { LiveControlsModal } from "../components/LiveControlsModal"
 
+import { ErrorBoundary } from "../components/ErrorBoundary"
+
 export function AppLayout() {
   const { user, loadCurrentUser } = useAuth()
   const [isLoadingUser, setIsLoadingUser] = useState(!user)
@@ -36,7 +38,9 @@ export function AppLayout() {
                 <span className="text-sm">Loading workspace...</span>
               </div>
             ) : (
-              <Outlet />
+              <ErrorBoundary fallbackTitle="Module Render Exception">
+                <Outlet />
+              </ErrorBoundary>
             )}
           </main>
         </div>
@@ -46,3 +50,4 @@ export function AppLayout() {
     </UIControlsProvider>
   )
 }
+

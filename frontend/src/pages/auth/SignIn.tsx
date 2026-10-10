@@ -38,6 +38,20 @@ export function SignIn() {
 
     try {
       const response = await login(email, password)
+
+      if (response.pending_token) {
+        navigate("/verify-mfa", {
+          state: {
+            pendingToken: response.pending_token,
+            isFirstTimeSetup: Boolean(response.mfa_setup_required),
+          },
+        })
+        return
+      }
+
+      if (!response.access || !response.refresh) {
+        throw new Error("Unexpected login response.")
+      }
       setTokens(response.access, response.refresh)
       await loadCurrentUser()
       navigate("/", { replace: true })

@@ -1,11 +1,38 @@
 from rest_framework import serializers
 
-from .models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision
+from .models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision, ShariahQuorumVote
+
+
+class ShariahQuorumVoteSerializer(serializers.ModelSerializer):
+    signatory_user_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShariahQuorumVote
+        fields = (
+            "id",
+            "decision",
+            "scholar_name",
+            "scholar_title",
+            "decision_vote",
+            "fiqh_concurrence_notes",
+            "digital_signature_hash",
+            "voted_at",
+            "signatory_user",
+            "signatory_user_name",
+        )
+        read_only_fields = ("id", "voted_at", "digital_signature_hash", "signatory_user_name")
+
+    def get_signatory_user_name(self, obj):
+        if obj.signatory_user:
+            return obj.signatory_user.full_name or obj.signatory_user.email
+        return None
 
 
 class ShariahDecisionSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     approved_by_name = serializers.SerializerMethodField()
+    quorum_votes = ShariahQuorumVoteSerializer(many=True, read_only=True)
+    quorum_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = ShariahDecision
@@ -33,6 +60,8 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
             "updated_at",
+            "quorum_votes",
+            "quorum_summary",
         )
         read_only_fields = (
             "id",
@@ -45,6 +74,8 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
             "approved_at",
             "created_at",
             "updated_at",
+            "quorum_votes",
+            "quorum_summary",
         )
 
     def get_created_by_name(self, obj):
@@ -56,6 +87,19 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
         if obj.approved_by:
             return obj.approved_by.full_name or obj.approved_by.email
         return None
+
+    def get_quorum_summary(self, obj):
+        votes = obj.quorum_votes.all()
+        approvals = sum(1 for v in votes if v.decision_vote == "approve")
+        rejections = sum(1 for v in votes if v.decision_vote == "reject")
+        required = 2
+        return {
+            "required_votes": required,
+            "approvals": approvals,
+            "rejections": rejections,
+            "is_quorum_met": approvals >= required,
+            "status_label": f"{approvals}/{required} Signatures Collected",
+        }
 
 
 class ContractTemplateSerializer(serializers.ModelSerializer):

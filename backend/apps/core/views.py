@@ -2,14 +2,16 @@ import csv
 
 from django.http import HttpResponse
 from rest_framework import mixins, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
+
 from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsAuditor
 
 from .models import AuditLog
 from .serializers import AuditLogSerializer
+from .audit import log_action
 
 
 @api_view(["GET"])
@@ -61,6 +63,38 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     def get_queryset(self):
         return _filtered_audit_log_queryset(self.request)
 
+    @action(detail=False, methods=["get", "post"], url_path="verify-merkle")
+    def verify_merkle(self, request):
+        """
+        Screen 38: Cryptographic Merkle Tree Hash Chain Verification.
+        Recalculates rolling SHA-256 chain from Genesis to tip.
+        """
+        from .merkle_engine import MerkleAuditEngine
+
+        qs = self.get_queryset()
+        result = MerkleAuditEngine.verify_merkle_chain(qs)
+        return Response(result)
+
+    @action(detail=False, methods=["post"], url_path="simulate-tamper")
+    def simulate_tamper(self, request):
+        """
+        Screen 38: SBP Regulatory Tamper-Evident Simulation.
+        Proves mathematical breakdown upon unauthorized database manipulation.
+        """
+        from .merkle_engine import MerkleAuditEngine
+
+        qs = self.get_queryset()
+        target_height = request.data.get("target_height")
+        if target_height is not None:
+            try:
+                target_height = int(target_height)
+            except (ValueError, TypeError):
+                target_height = None
+
+        result = MerkleAuditEngine.simulate_tamper_detection(qs, target_height=target_height)
+        return Response(result)
+
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin"])])
@@ -91,3 +125,123 @@ def audit_log_export(request):
         )
 
     return response
+
+
+from .banking_switch import execute_banking_settlement
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, HasAnyRole(["finance_checker"])])
+def process_banking_settlement(request):
+    """
+    Executes a simulated real-time settlement across SBP Raast / 1LINK rails.
+    """
+    data = request.data
+    amount = data.get("amount")
+    if not amount:
+        return Response({"error": "amount is required."}, status=400)
+
+    source_title = data.get("source_title", "Account Holder")
+    source_iban = data.get("source_iban", "PK12MEZN0001928172601")
+    destination_title = data.get("destination_title")
+    destination_iban = data.get("destination_iban")
+    channel = data.get("channel", "RAAST_P2M")
+    purpose = data.get("purpose", "Pool Settlement")
+    simulate_failure = data.get("simulate_failure_code")
+
+    try:
+        settlement_result = execute_banking_settlement(
+            amount=amount,
+            source_title=source_title,
+            source_iban=source_iban,
+            destination_title=destination_title,
+            destination_iban=destination_iban,
+            channel=channel,
+            purpose=purpose,
+            simulate_failure_code=simulate_failure,
+        )
+    except ValueError as e:
+        return Response({"error": str(e)}, status=400)
+
+    log_action(
+        tenant=request.user.tenant,
+        actor=request.user,
+        action="banking_settlement",
+        model_name="BankingSettlement",
+        object_id=settlement_result.get("rrn", ""),
+        changes={
+            "rrn": settlement_result.get("rrn"),
+            "stan": settlement_result.get("stan"),
+            "e2e_id": settlement_result.get("e2e_id"),
+            "channel": channel,
+            "amount": str(amount),
+            "response_code": settlement_result.get("response_code"),
+        },
+        request=request,
+    )
+
+    return Response(settlement_result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin", "pool_manager", "finance_checker", "shariah_board"])])
+def compile_evidence_bundle(request):
+    """
+    BRD AI & Assurance Screen 7 / Screen 39: Evidence Bundle Builder.
+    Assembles cryptographic, Shariah, GL, and clearing attestations into a unified SBP dossier.
+    """
+    from .evidence_bundle_engine import EvidenceBundleEngine
+    from apps.pools.models import Pool
+
+    pool_id = request.data.get("pool_id")
+    period_date = request.data.get("period_date", "2026-09-30")
+    audit_type = request.data.get("audit_type", "SBP Comprehensive Inspection")
+
+    if not pool_id:
+        pool = Pool._base_manager.first()
+        pool_id = str(pool.id) if pool else None
+
+    if not pool_id:
+        return Response({"error": "No pool found for evidence compilation."}, status=400)
+
+    bundle = EvidenceBundleEngine.compile_bundle(
+        pool_id=pool_id,
+        period_date=period_date,
+        audit_type=audit_type,
+        user=request.user,
+        tenant=request.user.tenant,
+    )
+    return Response(bundle)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin", "pool_manager", "finance_checker", "shariah_board"])])
+def download_evidence_bundle_zip(request):
+    """
+    Downloads the unified SBP Regulatory Evidence Bundle ZIP archive.
+    """
+    from .evidence_bundle_engine import EvidenceBundleEngine
+    from apps.pools.models import Pool
+
+    pool_id = request.query_params.get("pool_id") or request.data.get("pool_id")
+    period_date = request.query_params.get("period_date") or request.data.get("period_date", "2026-09-30")
+    audit_type = request.query_params.get("audit_type") or request.data.get("audit_type", "SBP Inspection")
+
+    if not pool_id:
+        pool = Pool._base_manager.first()
+        pool_id = str(pool.id) if pool else None
+
+    bundle = EvidenceBundleEngine.compile_bundle(
+        pool_id=pool_id,
+        period_date=period_date,
+        audit_type=audit_type,
+        user=request.user,
+        tenant=request.user.tenant,
+    )
+    zip_bytes = EvidenceBundleEngine.generate_zip_archive(bundle)
+
+    response = HttpResponse(zip_bytes, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{bundle["bundle_id"]}.zip"'
+    return response
+
+

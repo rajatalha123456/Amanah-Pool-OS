@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "./layouts/AppLayout"
 import { CommandCenter } from "./pages/CommandCenter"
 import { ProductCatalogue } from "./pages/ProductCatalogue"
@@ -24,10 +24,14 @@ import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
 import { UserAdministration } from "./pages/UserAdministration"
 import { AuditorPortal } from "./pages/AuditorPortal"
 import { RestatementWizard } from "./pages/RestatementWizard"
+import { MudaribHibaSimulator } from "./pages/MudaribHibaSimulator"
 import { ReconciliationCenter } from "./pages/ReconciliationCenter"
 import { PeriodCloseManager } from "./pages/PeriodCloseManager"
 import { ShariahAuditPlan } from "./pages/governance/ShariahAuditPlan"
 import { JurisdictionRulePacks } from "./pages/administration/JurisdictionRulePacks"
+import { RiskLimitDashboard } from "./pages/RiskLimitDashboard"
+import { PayoutExecutionEngine } from "./pages/PayoutExecutionEngine"
+import { IncomeExpenseWorkbench } from "./pages/IncomeExpenseWorkbench"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
@@ -64,8 +68,11 @@ function App() {
         <Route path="pools" element={<PoolCatalogue />} />
         <Route path="pools/new" element={<NewPoolWizard />} />
         <Route path="pools/:id" element={<PoolDetail />} />
+        <Route path="pools/:id/versions" element={<PoolDetail initialTab="versions" />} />
+        <Route path="pool-versions/:id" element={<PoolDetail initialTab="versions" />} />
         <Route path="allocation-simulator" element={<AllocationSimulator />} />
         <Route path="allocation-runs/:id" element={<AllocationRunDetail />} />
+        <Route path="allocation-runs/:id/restate" element={<RestatementWizard />} />
         <Route path="statements/:id" element={<StatementView />} />
         <Route path="restatement-wizard/:runId" element={<RestatementWizard />} />
         <Route path="reconciliation" element={<ReconciliationCenter />} />
@@ -78,6 +85,49 @@ function App() {
         <Route path="circles/contributions/:id/receipt" element={<ContributionReceipt />} />
         <Route path="exceptions/:id" element={<ExceptionCaseDetail />} />
         <Route path="contract-templates" element={<ContractTemplateStudio />} />
+
+        {/* Shorthand URL Aliases */}
+        <Route path="operations" element={<DailyOperationsCockpit />} />
+        <Route path="balance-import" element={<DailyOperationsCockpit />} />
+        <Route path="circles" element={<CommunityCircles />} />
+        <Route path="governance" element={<ShariahGovernance />} />
+        <Route path="copilot" element={<ShariahCopilot />} />
+        <Route path="allocation" element={<AllocationSimulator />} />
+        <Route path="audit" element={<AuditorPortal />} />
+        <Route path="users" element={<UserAdministration />} />
+        <Route path="mudarib-fee-optimization" element={<MudaribHibaSimulator />} />
+        <Route path="hiba-simulator" element={<MudaribHibaSimulator />} />
+        <Route path="allocation-runs/:id/hiba" element={<MudaribHibaSimulator />} />
+        <Route path="risk-dashboard" element={<RiskLimitDashboard />} />
+        <Route path="risk-limits" element={<RiskLimitDashboard />} />
+        <Route path="concentration-risk" element={<RiskLimitDashboard />} />
+        <Route path="shariah-quorum" element={<ShariahGovernance initialTab="quorum-ceremony" />} />
+        <Route path="quorum-ceremony" element={<ShariahGovernance initialTab="quorum-ceremony" />} />
+        <Route path="fatwa-seal" element={<ShariahGovernance initialTab="quorum-ceremony" />} />
+        <Route path="payouts" element={<PayoutExecutionEngine />} />
+        <Route path="payout-clearing" element={<PayoutExecutionEngine />} />
+        <Route path="clearing-rails" element={<PayoutExecutionEngine />} />
+        <Route path="clearing-engine" element={<PayoutExecutionEngine />} />
+        <Route path="audit-trail" element={<AuditorPortal initialTab="merkle-trail" />} />
+        <Route path="forensic-audit" element={<AuditorPortal initialTab="merkle-trail" />} />
+        <Route path="merkle-audit" element={<AuditorPortal initialTab="merkle-trail" />} />
+        <Route path="evidence-bundle" element={<AuditorPortal initialTab="evidence-bundle" />} />
+        <Route path="evidence-builder" element={<AuditorPortal initialTab="evidence-bundle" />} />
+        <Route path="audit-dossier" element={<AuditorPortal initialTab="evidence-bundle" />} />
+        <Route path="income-expense" element={<IncomeExpenseWorkbench />} />
+        <Route path="income-expense-workbench" element={<IncomeExpenseWorkbench />} />
+        <Route path="cost-segregation" element={<IncomeExpenseWorkbench />} />
+        <Route path="expense-workbench" element={<IncomeExpenseWorkbench />} />
+        <Route path="draw-room" element={<CommunityCircles initialTab="draw" />} />
+        <Route path="circle-draw" element={<CommunityCircles initialTab="draw" />} />
+        <Route path="rotation-room" element={<CommunityCircles initialTab="draw" />} />
+        <Route path="payout-ceremony" element={<CommunityCircles initialTab="payout" />} />
+        <Route path="payout-release" element={<CommunityCircles initialTab="payout" />} />
+        <Route path="ceremony" element={<CommunityCircles initialTab="payout" />} />
+        <Route path="circle-payout" element={<CommunityCircles initialTab="payout" />} />
+
+
+
         {navItems
           .filter((item) => item.path !== "/")
           .map((item) => (
@@ -87,6 +137,9 @@ function App() {
               element={CUSTOM_ROUTES[item.path]}
             />
           ))}
+
+        {/* Graceful Fallback for unmatched routes */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )

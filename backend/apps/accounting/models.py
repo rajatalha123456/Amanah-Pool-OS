@@ -1,3 +1,5 @@
+import re
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -21,8 +23,14 @@ class JournalBatch(TenantScopedModel):
     (see clean()/save()).
     """
 
+    # PROTECT: a posted journal is never physically deleted (BRD Section 11);
+    # corrections are made by posting a reversing batch.
     allocation_run = models.OneToOneField(
-        "allocation.AllocationRun", on_delete=models.CASCADE, related_name="journal_batch"
+        "allocation.AllocationRun", on_delete=models.PROTECT, related_name="journal_batch", null=True, blank=True
+    )
+    # Set on a reversal batch: the posted batch it contra-posts.
+    reverses_batch = models.OneToOneField(
+        "self", on_delete=models.PROTECT, related_name="reversed_by", null=True, blank=True
     )
     pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="journal_batches")
     batch_date = models.DateField()
@@ -42,17 +50,30 @@ class JournalBatch(TenantScopedModel):
 
     def save(self, *args, **kwargs):
         self.clean()
+        if not self._state.adding:
+            raise ValidationError("Posted journal batches are immutable; post a reversal instead.")
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Posted journal batches cannot be deleted; post a reversal instead.")
 
     def __str__(self):
         return f"JournalBatch for {self.pool.name} @ {self.batch_date}"
 
 
 class JournalEntry(TenantScopedModel):
-    batch = models.ForeignKey(JournalBatch, on_delete=models.CASCADE, related_name="entries")
+    batch = models.ForeignKey(JournalBatch, on_delete=models.PROTECT, related_name="entries")
     account_name = models.CharField(max_length=255)
     entry_type = models.CharField(max_length=10, choices=JournalEntryType.choices)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Posted journal entries are immutable.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Posted journal entries cannot be deleted.")
 
     def __str__(self):
         return f"{self.entry_type} {self.account_name} = {self.amount}"
@@ -68,24 +89,43 @@ class IncomeExpenseEventStatus(models.TextChoices):
     POSTED = "posted", "Posted"
 
 
+class CostClassification(models.TextChoices):
+    DIRECT_PERMISSIBLE = "direct_permissible", "Direct Operating Expense (Permissible)"
+    INDIRECT_OVERHEAD = "indirect_overhead", "Indirect Overhead (Bank Absorbed)"
+    PERMISSIBLE_INCOME = "permissible_income", "Permissible Pool Income"
+    NON_PERMISSIBLE_INCOME = "non_permissible_income", "Non-Permissible Income (Charity Quarantine)"
+
+
 class IncomeExpenseEvent(TenantScopedModel):
     """
-    A manually-recorded income or expense item for a pool (e.g. a
-    provision reversal, an ad-hoc operational expense) that isn't produced
-    by the AllocationRun -> JournalBatch pipeline. Tracked here as its own
-    maker-checker record; posting it does not itself create JournalEntry
-    rows - that integration is future scope, this model only tracks the
-    event's own lifecycle for now.
+    BRD Screen 03: Income & Expense Workbench with Direct Cost Segregation.
+    Enforces SBP IBD Circular 03/2012: Direct expenses can be charged to the pool;
+    indirect/overhead expenses must be absorbed 100% by the Mudarib bank.
     """
 
     pool = models.ForeignKey(
         "pools.Pool", on_delete=models.CASCADE, related_name="income_expense_events"
     )
     event_type = models.CharField(max_length=10, choices=IncomeExpenseEventType.choices)
+    cost_classification = models.CharField(
+        max_length=50,
+        choices=CostClassification.choices,
+        default=CostClassification.DIRECT_PERMISSIBLE,
+    )
     category = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
+    pool_chargeable_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0
+    )
+    bank_absorbed_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=0
+    )
+    is_direct_expense = models.BooleanField(default=True)
+    is_overhead_leakage = models.BooleanField(default=False)
+    quarantined_to_charity = models.BooleanField(default=False)
     event_date = models.DateField()
     description = models.TextField()
+    shariah_note = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=10, choices=IncomeExpenseEventStatus.choices, default=IncomeExpenseEventStatus.PENDING
     )
@@ -96,6 +136,61 @@ class IncomeExpenseEvent(TenantScopedModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     posted_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        from decimal import Decimal
+
+        if self.amount is None:
+            self.amount = Decimal("0.00")
+
+        overhead_keywords = [
+            "salary", "wage", "rent", "premise", "utility", "electric",
+            "software", "license", "it overhead", "marketing", "bonus",
+            "depreciation", "branch", "head office"
+        ]
+        desc_lower = (self.description or "").lower()
+        cat_lower = (self.category or "").lower()
+
+        # Whole-word matching: "rent" must not match "current"/"parent".
+        overhead_pattern = re.compile(r"\b(?:" + "|".join(re.escape(kw) for kw in overhead_keywords) + r")s?\b")
+        is_suspicious_overhead = bool(
+            overhead_pattern.search(desc_lower) or overhead_pattern.search(cat_lower)
+        )
+
+        if self.event_type == IncomeExpenseEventType.EXPENSE:
+            if self.cost_classification == CostClassification.INDIRECT_OVERHEAD or is_suspicious_overhead:
+                self.cost_classification = CostClassification.INDIRECT_OVERHEAD
+                self.is_direct_expense = False
+                self.is_overhead_leakage = True
+                self.pool_chargeable_amount = Decimal("0.00")
+                self.bank_absorbed_amount = self.amount
+                if not self.shariah_note:
+                    self.shariah_note = "SBP IBD 03/2012 Violation: Indirect overhead cannot be charged to depositor pool. Absorbed 100% by Bank P&L."
+            else:
+                self.cost_classification = CostClassification.DIRECT_PERMISSIBLE
+                self.is_direct_expense = True
+                self.is_overhead_leakage = False
+                self.pool_chargeable_amount = self.amount
+                self.bank_absorbed_amount = Decimal("0.00")
+        elif self.event_type == IncomeExpenseEventType.INCOME:
+            if (
+                self.cost_classification == CostClassification.NON_PERMISSIBLE_INCOME
+                or re.search(r"\bpenalt(?:y|ies)\b", cat_lower)
+                or re.search(r"\binterest\b", desc_lower)
+            ):
+                self.cost_classification = CostClassification.NON_PERMISSIBLE_INCOME
+                self.quarantined_to_charity = True
+                self.pool_chargeable_amount = Decimal("0.00")
+                self.bank_absorbed_amount = Decimal("0.00")
+                if not self.shariah_note:
+                    self.shariah_note = "Non-Permissible Income quarantined for Charity purification."
+            else:
+                self.cost_classification = CostClassification.PERMISSIBLE_INCOME
+                self.quarantined_to_charity = False
+                self.pool_chargeable_amount = self.amount
+                self.bank_absorbed_amount = Decimal("0.00")
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.event_type} {self.category} {self.amount} - {self.pool.name} ({self.status})"

@@ -8,6 +8,7 @@ import { Table, type TableColumn } from "../components/Table"
 import { fetchPools } from "../api/pools"
 import { fetchImportHistory, importBalances } from "../api/balances"
 import { extractErrorMessage } from "../api/errors"
+import { CbsSftpDaemonPanel } from "../components/banking/CbsSftpDaemonPanel"
 import type { BadgeVariant, BalanceImportBatch, BalanceImportResult, Pool } from "../types"
 
 interface RecordRow {
@@ -32,6 +33,7 @@ export function BalanceImport() {
 
   const [valueDate, setValueDate] = useState(new Date().toISOString().split("T")[0])
   const [controlTotalExpected, setControlTotalExpected] = useState("")
+  const [ingestionMode, setIngestionMode] = useState<"cbs_sftp" | "manual">("cbs_sftp")
   const [rows, setRows] = useState<RecordRow[]>([{ participant_class: "", balance_amount: "" }])
 
   const [formError, setFormError] = useState("")
@@ -141,40 +143,77 @@ export function BalanceImport() {
 
   return (
     <div className="space-y-6">
-      <Card
-        title="Balance Ingestion & Control Total Validation"
-        actions={
-          <Button variant="secondary" className="text-xs" onClick={fillSampleTiers}>
-            + Fill Standard Deposit Tiers
-          </Button>
-        }
-      >
-        {isLoadingPools ? (
-          <div className="flex items-center gap-2 py-4 text-sm text-ink-secondary">
-            <Spinner className="h-4 w-4" />
-            Loading pools...
-          </div>
-        ) : pools.length === 0 ? (
-          <p className="text-sm text-gold-400">No pools available. Create a pool first.</p>
-        ) : (
-          <form onSubmit={handleImport} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                  Target Pool *
-                </label>
-                <select
-                  value={selectedPoolId}
-                  onChange={(e) => setSelectedPoolId(e.target.value)}
-                  className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
-                >
-                  {pools.map((pool) => (
-                    <option key={pool.id} value={pool.id}>
-                      {pool.code} — {pool.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      {/* Mode Selector */}
+      <div className="flex border-b border-ink/10 gap-2">
+        <button
+          type="button"
+          onClick={() => setIngestionMode("cbs_sftp")}
+          className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 ${
+            ingestionMode === "cbs_sftp"
+              ? "bg-surface-subtle text-emerald-400 border-b-2 border-emerald-500"
+              : "text-ink-secondary hover:text-ink"
+          }`}
+        >
+          <span>⚡ Automated CBS EOD SFTP Daemon</span>
+          <Badge variant="emerald">Enterprise</Badge>
+        </button>
+        <button
+          type="button"
+          onClick={() => setIngestionMode("manual")}
+          className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-colors flex items-center gap-2 ${
+            ingestionMode === "manual"
+              ? "bg-surface-subtle text-emerald-400 border-b-2 border-emerald-500"
+              : "text-ink-secondary hover:text-ink"
+          }`}
+        >
+          <span>✍️ Manual Deposit Tier Entry</span>
+        </button>
+      </div>
+
+      {ingestionMode === "cbs_sftp" ? (
+        <CbsSftpDaemonPanel
+          pools={pools}
+          selectedPoolId={selectedPoolId}
+          onPoolChange={setSelectedPoolId}
+          valueDate={valueDate}
+          onValueDateChange={setValueDate}
+          onBatchCreated={() => selectedPoolId && loadHistory(selectedPoolId)}
+        />
+      ) : (
+        <Card
+          title="Balance Ingestion & Control Total Validation"
+          actions={
+            <Button variant="secondary" className="text-xs" onClick={fillSampleTiers}>
+              + Fill Standard Deposit Tiers
+            </Button>
+          }
+        >
+          {isLoadingPools ? (
+            <div className="flex items-center gap-2 py-4 text-sm text-ink-secondary">
+              <Spinner className="h-4 w-4" />
+              Loading pools...
+            </div>
+          ) : pools.length === 0 ? (
+            <p className="text-sm text-gold-400">No pools available. Create a pool first.</p>
+          ) : (
+            <form onSubmit={handleImport} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                    Target Pool *
+                  </label>
+                  <select
+                    value={selectedPoolId}
+                    onChange={(e) => setSelectedPoolId(e.target.value)}
+                    className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                  >
+                    {pools.map((pool) => (
+                      <option key={pool.id} value={pool.id}>
+                        {pool.code} — {pool.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
@@ -273,6 +312,7 @@ export function BalanceImport() {
           </form>
         )}
       </Card>
+      )}
 
       {result && (
         <Card title="Ingestion & Control Total Result">

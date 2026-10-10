@@ -13,9 +13,11 @@ import { extractErrorMessage } from "../api/errors"
 import { BalanceImport } from "./BalanceImport"
 import { IncomeExpenseWorkbench } from "./IncomeExpenseWorkbench"
 import { ReconciliationCenter } from "./ReconciliationCenter"
+import { PeriodCloseManager } from "./PeriodCloseManager"
+import { PayoutExecutionEngine } from "./PayoutExecutionEngine"
 import type { BadgeVariant, BalanceImportBatch, Pool } from "../types"
 
-type Tab = "cockpit" | "balance-import" | "income-expense" | "reconciliation"
+type Tab = "cockpit" | "balance-import" | "income-expense" | "reconciliation" | "period-close" | "payout-clearing"
 type PageState = "loading" | "loaded" | "error"
 
 const TABS: { key: Tab; label: string; num: string }[] = [
@@ -23,6 +25,8 @@ const TABS: { key: Tab; label: string; num: string }[] = [
   { key: "balance-import", label: "Balance Import", num: "" },
   { key: "income-expense", label: "Income & Expense", num: "" },
   { key: "reconciliation", label: "Reconciliation", num: "" },
+  { key: "period-close", label: "Period Close & Locking", num: "16" },
+  { key: "payout-clearing", label: "Payout Clearing Rails (Raast / 1LINK)", num: "35" },
 ]
 
 const POOL_STATUS_BADGE: Record<string, BadgeVariant> = {
@@ -68,11 +72,13 @@ export function DailyOperationsCockpit() {
 
   return (
     <div>
-      <PageHeader
-        screenNumber={activeMetadata.num}
-        title={activeMetadata.title}
-        subtitle={activeMetadata.sub}
-      />
+      {activeTab !== "period-close" && activeTab !== "payout-clearing" && (
+        <PageHeader
+          screenNumber={activeMetadata.num}
+          title={activeMetadata.title}
+          subtitle={activeMetadata.sub}
+        />
+      )}
 
       <div className="mb-6 flex gap-6 border-b border-white/8 text-sm">
         {TABS.map((tab) => (
@@ -95,9 +101,12 @@ export function DailyOperationsCockpit() {
       {activeTab === "balance-import" && <BalanceImport />}
       {activeTab === "income-expense" && <IncomeExpenseWorkbench />}
       {activeTab === "reconciliation" && <ReconciliationCenter hideHeader />}
+      {activeTab === "period-close" && <PeriodCloseManager />}
+      {activeTab === "payout-clearing" && <PayoutExecutionEngine />}
     </div>
   )
 }
+
 
 function CockpitTab() {
   const navigate = useNavigate()
@@ -229,6 +238,33 @@ function CockpitTab() {
           delta={operationalHealthDelta}
           deltaTone={operationalHealthTone}
         />
+      </div>
+
+      {/* CBS SFTP Live Link Banner */}
+      <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-lg border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-300 gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="text-base">⚡</span>
+          <div>
+            <div className="font-semibold text-emerald-200">
+              Automated Core Banking SFTP Daemon (Temenos T24 / Oracle Flexcube)
+            </div>
+            <div className="text-[11px] text-emerald-400/80">
+              Cryptographic SHA-256 sidecar validation & uncleared float discrepancy detection active.
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const tabs = document.querySelectorAll("button")
+            tabs.forEach((b) => {
+              if (b.textContent?.includes("Balance Import")) b.click()
+            })
+          }}
+          className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors shrink-0 shadow-sm"
+        >
+          Launch SFTP Daemon →
+        </button>
       </div>
 
       <Card title="Active Operational Pools">

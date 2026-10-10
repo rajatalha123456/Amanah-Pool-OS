@@ -5,6 +5,7 @@ import string
 
 import pyotp
 import qrcode
+from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,9 +16,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.audit import log_action
 
-from .authentication import resolve_pending_mfa_user
+from .authentication import issue_pending_mfa_token, resolve_pending_mfa_user
 from .models import User
-from .permissions import HasAnyRole, IsPlatformSuperAdmin, IsPoolManager
+from .permissions import IsPlatformSuperAdmin
 from .serializers import (
     LoginSerializer,
     MfaSetupSerializer,
@@ -53,9 +54,12 @@ class LoginView(APIView):
         if user is None:
             return Response({"detail": "Invalid email or password."}, status=401)
 
-        # MFA is temporarily disabled (dev/testing convenience) - issue tokens
-        # directly instead of routing through /verify-mfa. The MFA views/flow
-        # below are left in place so it can be re-enabled by reverting this.
+        if settings.MFA_ENFORCED:
+            pending_token = issue_pending_mfa_token(user)
+            if not user.mfa_enabled:
+                return Response({"mfa_setup_required": True, "pending_token": pending_token})
+            return Response({"mfa_required": True, "pending_token": pending_token})
+
         refresh = RefreshToken.for_user(user)
         return Response(
             {
@@ -89,8 +93,6 @@ class MfaSetupView(APIView):
         buffer = io.BytesIO()
         qr_image.save(buffer, format="PNG")
         qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-        print(f"[MFA SETUP] {user.email} TOTP secret: {user.totp_secret}")
 
         return Response(
             {
@@ -147,24 +149,6 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(UserSerializer(request.user).data)
-
-
-class PoolManagerOnlyTestView(APIView):
-    """Temporary endpoint to demonstrate IsPoolManager. Remove once real endpoints exist."""
-
-    permission_classes = [IsAuthenticated, IsPoolManager]
-
-    def get(self, request):
-        return Response({"detail": "Hello, pool manager."})
-
-
-class FinanceOnlyTestView(APIView):
-    """Temporary endpoint to demonstrate HasAnyRole. Remove once real endpoints exist."""
-
-    permission_classes = [IsAuthenticated, HasAnyRole(["finance_maker", "finance_checker"])]
-
-    def get(self, request):
-        return Response({"detail": "Hello, finance."})
 
 
 class UserManagementViewSet(

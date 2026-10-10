@@ -20,10 +20,11 @@ import { WeightageBandsSection } from "./pool-detail/WeightageBandsSection"
 import { PSRSection } from "./pool-detail/PSRSection"
 import { AssignedAssetsSection } from "./pool-detail/AssignedAssetsSection"
 import { LiquidityForecastSection } from "./pool-detail/LiquidityForecastSection"
+import { PoolVersionComparison } from "../components/pools/PoolVersionComparison"
 import type { BadgeVariant, Pool, PoolVersion } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
-type DetailTab = "overview" | "economics" | "assets"
+type DetailTab = "overview" | "economics" | "assets" | "versions"
 
 const POOL_STATUS_BADGE: Record<string, BadgeVariant> = {
   draft: "neutral",
@@ -43,9 +44,10 @@ const TABS: { key: DetailTab; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "economics", label: "Weightage & PSR" },
   { key: "assets", label: "Assets" },
+  { key: "versions", label: "Version Diff Matrix (Screen 05)" },
 ]
 
-export function PoolDetail() {
+export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
   const { user } = useAuth()
   const canApprove = user?.role === "shariah_board"
   const { id } = useParams<{ id: string }>()
@@ -56,7 +58,7 @@ export function PoolDetail() {
   const [pageError, setPageError] = useState("")
   const [pool, setPool] = useState<Pool | null>(null)
   const [versions, setVersions] = useState<PoolVersion[]>([])
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview")
+  const [activeTab, setActiveTab] = useState<DetailTab>(initialTab ?? "overview")
 
   const [actionError, setActionError] = useState("")
   const [isActionPending, setIsActionPending] = useState(false)
@@ -243,7 +245,20 @@ export function PoolDetail() {
             )}
           </Card>
 
-          <Card title="Version History">
+          <Card
+            title="Version History"
+            actions={
+              versions.length > 0 ? (
+                <Button
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() => setActiveTab("versions")}
+                >
+                  Open Governance Diff Matrix (Screen 05) →
+                </Button>
+              ) : undefined
+            }
+          >
             {versions.length === 0 ? (
               <p className="text-sm text-ink-secondary">No versions yet</p>
             ) : (
@@ -261,6 +276,10 @@ export function PoolDetail() {
       )}
 
       {activeTab === "assets" && <AssignedAssetsSection poolId={id} />}
+
+      {activeTab === "versions" && (
+        <PoolVersionComparison poolId={id} onVersionCreated={loadData} />
+      )}
     </div>
   )
 }

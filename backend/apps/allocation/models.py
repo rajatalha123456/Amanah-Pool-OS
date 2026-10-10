@@ -121,6 +121,13 @@ class AllocationRun(TenantScopedModel):
     total_weighted_funds = models.DecimalField(max_digits=18, decimal_places=2)
     depositor_pool_share = models.DecimalField(max_digits=18, decimal_places=2)
     mudarib_share = models.DecimalField(max_digits=18, decimal_places=2)
+    # Reserve appropriations, rounding residual and the exact rule versions
+    # used - all sealed into calculation_hash (see engine.run_hash_payload).
+    per_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    irr_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    rounding_residual = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    is_loss = models.BooleanField(default=False)
+    config_snapshot = models.JSONField(default=dict, blank=True)
     status = models.CharField(
         max_length=20, choices=AllocationRunStatus.choices, default=AllocationRunStatus.SIMULATED
     )
@@ -156,6 +163,44 @@ class AllocationRun(TenantScopedModel):
     shariah_signed_off_at = models.DateTimeField(null=True, blank=True)
     shariah_review_note = models.TextField(null=True, blank=True)
 
+    # Fields that may still change on a SIGNED run: the status transition to
+    # REVERSED (restatement) and the reason recorded with it.
+    _SIGNED_MUTABLE_FIELDS = frozenset({"status", "restatement_reason", "updated_at"})
+
+    def save(self, *args, **kwargs):
+        """
+        BR-004: a signed allocation run is immutable. Once persisted as
+        SIGNED the only permitted change is the move to REVERSED (done by an
+        approved restatement); everything else must go through reversal and
+        a linked rerun.
+        """
+
+        if not self._state.adding:
+            prior_status = (
+                AllocationRun._base_manager.filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+            if prior_status == AllocationRunStatus.REVERSED:
+                raise ValidationError("A reversed allocation run is immutable.")
+            if prior_status == AllocationRunStatus.SIGNED:
+                update_fields = kwargs.get("update_fields")
+                allowed = (
+                    update_fields is not None
+                    and set(update_fields) <= self._SIGNED_MUTABLE_FIELDS
+                    and self.status in (AllocationRunStatus.SIGNED, AllocationRunStatus.REVERSED)
+                )
+                if not allowed:
+                    raise ValidationError(
+                        "A signed allocation run is immutable (BR-004); use a reversal and linked rerun."
+                    )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in (AllocationRunStatus.SIGNED, AllocationRunStatus.REVERSED):
+            raise ValidationError("Signed or reversed allocation runs cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"{self.pool.name} allocation @ {self.value_date} ({self.status})"
 
@@ -187,6 +232,22 @@ class AllocationLine(TenantScopedModel):
     weightage = models.DecimalField(max_digits=5, decimal_places=2)
     weighted_funds = models.DecimalField(max_digits=18, decimal_places=2)
     allocated_amount = models.DecimalField(max_digits=18, decimal_places=2)
+
+    def _run_is_locked(self):
+        return AllocationRun._base_manager.filter(
+            pk=self.allocation_run_id,
+            status__in=[AllocationRunStatus.SIGNED, AllocationRunStatus.REVERSED],
+        ).exists()
+
+    def save(self, *args, **kwargs):
+        if self._run_is_locked():
+            raise ValidationError("Lines of a signed or reversed allocation run are immutable.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self._run_is_locked():
+            raise ValidationError("Lines of a signed or reversed allocation run are immutable.")
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.allocation_run} - {self.participant_class}"
