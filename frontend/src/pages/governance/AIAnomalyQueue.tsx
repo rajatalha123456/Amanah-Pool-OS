@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Badge } from "../../components/Badge"
+import { useHasRole } from "../../components/RoleGate"
 import { Spinner } from "../../components/Spinner"
 import { Table, type TableColumn } from "../../components/Table"
 import { fetchExceptions } from "../../api/governance"
@@ -60,6 +61,8 @@ function sourceModuleBadgeVariant(sourceModule: string): BadgeVariant {
 }
 
 export function AIAnomalyQueue() {
+  // The collusion graph is for the KYC / AML and audit roles (BRD section 9: "KYC/AML team decides action").
+  const mayGraph = useHasRole("risk_compliance", "auditor")
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<"queue" | "graph">("queue")
   const [cases, setCases] = useState<ExceptionCase[]>([])
@@ -116,6 +119,7 @@ export function AIAnomalyQueue() {
           <span>📋 System Anomaly Cases</span>
           <Badge variant="neutral">{cases.length}</Badge>
         </button>
+        {mayGraph && (
         <button
           type="button"
           onClick={() => setActiveView("graph")}
@@ -128,9 +132,10 @@ export function AIAnomalyQueue() {
           <span>🕸️ AI Fraud & Collusion Syndicate Graph</span>
           <Badge variant="gold">SBP AML</Badge>
         </button>
+        )}
       </div>
 
-      {activeView === "graph" ? (
+      {activeView === "graph" && mayGraph ? (
         <FraudCollusionGraphView />
       ) : (
         <div>

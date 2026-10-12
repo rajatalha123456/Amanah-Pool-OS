@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Badge } from "../components/Badge"
+import { useAuth } from "../api/auth"
 import { Card } from "../components/Card"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
@@ -45,7 +46,13 @@ function poolStatusBadgeVariant(status: string): BadgeVariant {
 }
 
 export function DailyOperationsCockpit() {
-  const [activeTab, setActiveTab] = useState<Tab>("cockpit")
+  const { user } = useAuth()
+  // The Authorized Signatory comes here only to certify and lock a closed period (BRD section 3); the daily
+  // working tabs belong to the operations roles.
+  const signatoryOnly = user?.role === "authorized_signatory"
+  const visibleTabs = signatoryOnly ? TABS.filter((t) => t.key === "period-close") : TABS
+  const [chosenTab, setActiveTab] = useState<Tab>("cockpit")
+  const activeTab: Tab = signatoryOnly ? "period-close" : chosenTab
 
   const activeMetadata =
     activeTab === "balance-import"
@@ -83,7 +90,7 @@ export function DailyOperationsCockpit() {
       )}
 
       <div className="mb-6 flex gap-6 border-b border-white/8 text-sm">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.key}
             type="button"

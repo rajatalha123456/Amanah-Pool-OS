@@ -8,6 +8,7 @@ import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
+import { useHasRole } from "../components/RoleGate"
 import {
   createCircleMember,
   fetchArrearsRecordsForPool,
@@ -52,6 +53,12 @@ type Tab =
   | "arrears"
   | "proposals"
   | "collusion_graph"
+
+// Roles that may use the tabs that read more than the circle itself (BRD section 3; the API enforces the same).
+const TAB_ROLES: Partial<Record<Tab, string[]>> = {
+  payout: ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board"],
+  collusion_graph: ["risk_compliance", "auditor"],
+}
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "setup", label: "Circle Setup" },
@@ -447,7 +454,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         <>
           {/* Sub-Tabs matching Visual UI Catalogue Screens 23 - 28 */}
           <div className="mb-6 flex flex-wrap gap-4 border-b border-white/8 text-sm">
-            {TABS.map((tab) => (
+            {TABS.filter((tab) => !TAB_ROLES[tab.key] || TAB_ROLES[tab.key]!.includes(user?.role ?? "")).map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -664,7 +671,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* ========================================================================= */}
           {/* SCREEN 09 / SCREEN 27: Payout Release Ceremony (BRD Screen 09 / PDF Page 28) */}
           {/* ========================================================================= */}
-          {activeTab === "payout" && (
+          {activeTab === "payout" && TAB_ROLES.payout!.includes(user?.role ?? "") && (
             <PayoutReleaseCeremony
               poolId={selectedPoolId}
               onPayoutDisbursed={() => void loadCircleData(selectedPoolId)}
@@ -717,7 +724,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* ========================================================================= */}
           {/* AI Syndicate & Fraud Collusion Graph Tab                                  */}
           {/* ========================================================================= */}
-          {activeTab === "collusion_graph" && (
+          {activeTab === "collusion_graph" && TAB_ROLES.collusion_graph!.includes(user?.role ?? "") && (
             <FraudCollusionGraphView poolId={selectedPoolId} />
           )}
         </>
@@ -822,6 +829,9 @@ function ArrearsTab({
   const [flagModalMember, setFlagModalMember] = useState<CircleMember | null>(null)
   const [hardshipModalRecord, setHardshipModalRecord] = useState<ArrearsRecord | null>(null)
 
+  // The hardship forecaster is available to the roles the API allows (risk, pool manager, Shariah oversight).
+  const mayPredict = useHasRole("risk_compliance", "pool_manager", "shariah_board", "shariah_secretariat")
+
   // AI Hardship Predictor State
   const [prediction, setPrediction] = useState<CircleHardshipPredictionResult | null>(null)
   const [isPredicting, setIsPredicting] = useState(false)
@@ -832,7 +842,7 @@ function ArrearsTab({
   )
 
   async function loadHardshipPrediction() {
-    if (!poolId) return
+    if (!poolId || !mayPredict) return
     setIsPredicting(true)
     try {
       const res = await predictCircleHardship(poolId)
@@ -949,6 +959,7 @@ function ArrearsTab({
   return (
     <div className="space-y-6">
       {/* AI Member Hardship & Default Predictor Card */}
+      {mayPredict && (
       <Card
         title="AI Predictive Hardship & Default Forecaster"
         actions={
@@ -1086,6 +1097,7 @@ function ArrearsTab({
           )}
         </div>
       </Card>
+      )}
 
       <Card title="Hardship & Arrears Center">
         <div className="mb-4 flex justify-between items-center">

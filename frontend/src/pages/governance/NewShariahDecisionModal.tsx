@@ -9,6 +9,8 @@ import type { ShariahDecision, ShariahDecisionType } from "../../types"
 interface NewShariahDecisionModalProps {
   onClose: () => void
   onCreated: (decision: ShariahDecision) => void
+  /** Approved rulings this one may supersede. */
+  approved?: ShariahDecision[]
 }
 
 const inputClasses =
@@ -23,7 +25,7 @@ const DECISION_TYPES: { value: ShariahDecisionType; label: string }[] = [
   { value: "exemption", label: "Exemption" },
 ]
 
-export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisionModalProps) {
+export function NewShariahDecisionModal({ onClose, onCreated, approved = [] }: NewShariahDecisionModalProps) {
   const [decisionCode, setDecisionCode] = useState("")
   const [decisionType, setDecisionType] = useState<ShariahDecisionType>("product_approval")
   const [title, setTitle] = useState("")
@@ -36,6 +38,8 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
   const [effectiveDate, setEffectiveDate] = useState("")
   const [expiryDate, setExpiryDate] = useState("")
   const [documentUrl, setDocumentUrl] = useState("")
+  const [scope, setScope] = useState("")
+  const [supersedes, setSupersedes] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -57,6 +61,8 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
         effective_date: effectiveDate,
         expiry_date: expiryDate.trim() || undefined,
         document_url: documentUrl.trim() || undefined,
+        scope: scope.trim(),
+        supersedes: supersedes || null,
       })
       onCreated(decision)
     } catch (err) {
@@ -111,6 +117,30 @@ export function NewShariahDecisionModal({ onClose, onCreated }: NewShariahDecisi
             </select>
           </div>
         </div>
+
+        <div>
+          <label htmlFor="scope" className={labelClasses}>
+            Scope (what this ruling covers)
+          </label>
+          <input id="scope" value={scope} onChange={(e) => setScope(e.target.value)} className={inputClasses} placeholder="e.g. Retail Mudarabah and Wakalah pools" />
+        </div>
+
+        {approved.length > 0 && (
+          <div>
+            <label htmlFor="supersedes" className={labelClasses}>
+              Supersedes (optional)
+            </label>
+            <select id="supersedes" value={supersedes} onChange={(e) => setSupersedes(e.target.value)} className={inputClasses}>
+              <option value="">Does not replace an earlier ruling</option>
+              {approved.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.decision_code} - {d.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-ink-muted">When this ruling is approved the earlier one is marked superseded and contracts follow the new ruling.</p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="title" className={labelClasses}>

@@ -15,6 +15,8 @@ import {
   approveShariahAuditPlan,
   createShariahAuditFinding,
   updateShariahAuditFinding,
+  fetchShariahAuditAnnualReport,
+  type ShariahAuditAnnualReport,
 } from "../../api/shariahAudit"
 import { extractErrorMessage } from "../../api/errors"
 import type {
@@ -252,6 +254,16 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
     },
   ]
 
+  const [annualReport, setAnnualReport] = useState<ShariahAuditAnnualReport | null>(null)
+
+  async function openAnnualReport() {
+    try {
+      setAnnualReport(await fetchShariahAuditAnnualReport(selectedPlan?.year ?? new Date().getFullYear()))
+    } catch (err) {
+      setError(extractErrorMessage(err, "Unable to build the annual report."))
+    }
+  }
+
   const coveragePct =
     selectedPlan && selectedPlan.target_samples > 0
       ? Math.round((selectedPlan.tested_samples / selectedPlan.target_samples) * 100)
@@ -266,6 +278,9 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
           subtitle="Risk-based universe, samples and findings"
           actions={
             <div className="flex items-center gap-3">
+              <Button variant="secondary" onClick={() => void openAnnualReport()}>
+                Annual report
+              </Button>
               <Button variant="secondary" onClick={() => setShowNewPlanModal(true)}>
                 + New Audit Plan
               </Button>
@@ -643,6 +658,39 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+      {annualReport && (
+        <Modal title={`Annual Shariah audit report ${annualReport.year}`} onClose={() => setAnnualReport(null)}>
+          <div className="space-y-3 text-sm" data-testid="annual-report">
+            <p>
+              Findings: <b>{annualReport.findings.total}</b> · open <b>{annualReport.findings.open}</b> · management response rate{" "}
+              <b>{annualReport.findings.response_rate_pct ?? "-"}{annualReport.findings.response_rate_pct !== null ? "%" : ""}</b>
+              {annualReport.findings.oldest_open_age_days !== null ? ` · oldest open ${annualReport.findings.oldest_open_age_days} days` : ""}
+            </p>
+            <ul className="space-y-1 text-xs text-ink-secondary">
+              {annualReport.plans.map((p) => (
+                <li key={p.title}>
+                  {p.title}: {p.tested_samples}/{p.target_samples} samples tested {p.coverage_pct !== null ? `(${p.coverage_pct}%)` : ""} · {p.status}
+                </li>
+              ))}
+            </ul>
+            <p className="break-all font-mono text-[11px] text-ink-muted">Seal {annualReport.content_hash}</p>
+            <p className="text-xs text-ink-muted">{annualReport.basis}</p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const url = URL.createObjectURL(new Blob([JSON.stringify(annualReport, null, 2)], { type: "application/json" }))
+                const a = document.createElement("a")
+                a.href = url
+                a.download = `shariah-audit-report-${annualReport.year}.json`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              Download
+            </Button>
+          </div>
         </Modal>
       )}
     </div>

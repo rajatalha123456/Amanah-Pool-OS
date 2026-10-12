@@ -17,8 +17,8 @@ export type RoleNavItem = NavItem & { labelKey: string; roles: string[]; also?: 
 export const navItems: RoleNavItem[] = [
   { label: "Command Center", labelKey: "nav.commandCenter", path: "/", roles: ALL_TENANT_STAFF },
   { label: "Products & Pools", labelKey: "nav.productsPools", path: "/products-pools", roles: ALL_TENANT_STAFF, also: ["/pools"] },
-  { label: "Participants", labelKey: "nav.participants", path: "/participants", roles: [...OPERATIONS, "shariah_board"] },
-  { label: "Daily Operations", labelKey: "nav.dailyOperations", path: "/daily-operations", roles: OPERATIONS },
+  { label: "Participants", labelKey: "nav.participants", path: "/participants", roles: OPERATIONS },
+  { label: "Daily Operations", labelKey: "nav.dailyOperations", path: "/daily-operations", roles: [...OPERATIONS, "authorized_signatory"] },
   {
     label: "Allocation Engine", labelKey: "nav.allocationEngine", path: "/allocation-engine",
     also: ["/allocation-runs", "/allocation", "/allocation-simulator", "/hiba-simulator", "/mudarib-fee-optimization"],
@@ -45,11 +45,11 @@ export const navItems: RoleNavItem[] = [
   },
   {
     label: "Reports", labelKey: "nav.reports", path: "/reports",
-    roles: ["auditor", "risk_compliance", "pool_manager", "finance_checker", "shariah_board", "authorized_signatory"],
+    roles: ["auditor", "risk_compliance", "pool_manager", "finance_checker", "shariah_board"],
   },
   {
     label: "Governance Config", labelKey: "nav.governanceConfig", path: "/governance-config",
-    roles: ["platform_super_admin", "risk_compliance", "finance_maker", "finance_checker", "authorized_signatory", "pool_manager", "auditor"],
+    roles: ["risk_compliance", "finance_maker", "finance_checker", "pool_manager", "auditor"],
   },
   { label: "Administration", labelKey: "nav.administration", path: "/administration", roles: ["platform_super_admin"] },
 ]

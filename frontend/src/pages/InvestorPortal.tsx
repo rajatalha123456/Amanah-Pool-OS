@@ -12,10 +12,28 @@ import { apiClient } from "../api/axios"
 import { fetchMyStatements } from "../api/participants"
 import { redeem } from "../api/investments"
 import { fetchMyConsents, fetchMyData, withdrawConsent, type ConsentRow } from "../api/consents"
+import { CircleVoting } from "../components/portal/CircleVoting"
+import { MyRequests } from "../components/portal/MyRequests"
+import { MyTransactions, TaxSupportCard } from "../components/portal/MyTransactionsAndTax"
 import { acceptCircleRules, fetchMyCircles, type MyCircle } from "../api/memberCircles"
 import type { CapitalAccount, DepositorStatement, PoolDisclosureRecord } from "../types"
 
 const money = (v: string) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })
+
+/** A plain printable receipt for a recorded contribution (the member's own record only). */
+function printReceipt(circle: MyCircle, c: MyCircle["contributions"][number]) {
+  const w = window.open("", "_blank", "width=480,height=600")
+  if (!w) return
+  const esc = (v: string) => v.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch] ?? ch)
+  w.document.write(
+    `<title>Receipt</title><body style="font-family:sans-serif;padding:24px"><h2>Contribution receipt</h2>` +
+      `<p>${esc(circle.pool_name)} (${esc(circle.pool_code)})</p><p>Member: ${esc(circle.member_reference)}</p>` +
+      `<p>Cycle ${c.cycle_number}</p><p>Amount: PKR ${esc(money(c.amount))}</p><p>Received on: ${esc(c.date)}</p>` +
+      `<p>Payment reference: ${esc(c.payment_reference || "-")}</p><p style="color:#666;font-size:12px">Recorded by the circle organizer.</p></body>`,
+  )
+  w.document.close()
+  w.print()
+}
 
 /**
  * Self-service home for investors / members: only their own accounts, statements and disclosures.
@@ -139,9 +157,56 @@ export function InvestorPortal() {
                     )}
                   </p>
                 )}
-                <p className="mt-1 text-xs text-ink-secondary">
-                  Contributions: {circle.contributions.length === 0 ? "none recorded" : circle.contributions.map((c) => `cycle ${c.cycle_number} PKR ${money(c.amount)} (${c.status})`).join("; ")}
-                </p>
+                <div className="mt-2 space-y-1 text-xs text-ink-secondary">
+                  <p className="font-semibold text-ink-primary">My contributions</p>
+                  {circle.contributions.length === 0 ? (
+                    <p>none recorded</p>
+                  ) : (
+                    circle.contributions.map((c) => (
+                      <p key={c.cycle_number} className="flex flex-wrap items-center gap-2">
+                        <span>
+                          Cycle {c.cycle_number}: PKR {money(c.amount)} ({c.status}) {c.payment_reference ? `· ref ${c.payment_reference}` : ""}
+                        </span>
+                        {c.status === "received" && (
+                          <button
+                            type="button"
+                            className="text-emerald-400 hover:text-emerald-300"
+                            onClick={() => printReceipt(circle, c)}
+                          >
+                            Receipt
+                          </button>
+                        )}
+                      </p>
+                    ))
+                  )}
+                </div>
+                {circle.ledger.length > 0 && (
+                  <details className="mt-2 text-xs text-ink-secondary">
+                    <summary className="cursor-pointer text-ink-primary">Circle ledger (every cycle)</summary>
+                    <table className="mt-2 w-full text-left">
+                      <thead>
+                        <tr className="text-[11px] uppercase tracking-wider text-ink-muted">
+                          <th className="py-1 pr-2">Cycle</th>
+                          <th className="py-1 pr-2">Received</th>
+                          <th className="py-1 pr-2">Collected</th>
+                          <th className="py-1">Payout</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {circle.ledger.map((l) => (
+                          <tr key={l.cycle_number}>
+                            <td className="py-1 pr-2">{l.cycle_number}</td>
+                            <td className="py-1 pr-2">{l.contributions_received}</td>
+                            <td className="py-1 pr-2">PKR {money(l.collected)}</td>
+                            <td className="py-1">
+                              {l.payout ? `${l.payout.recipient} · PKR ${money(l.payout.amount)} (${l.payout.status})` : "not yet"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </details>
+                )}
                 {circle.payouts.length > 0 && (
                   <p className="mt-1 text-xs text-ink-secondary">
                     Payouts: {circle.payouts.map((p) => `cycle ${p.cycle_number} PKR ${money(p.amount)} (${p.status})`).join("; ")}
@@ -152,6 +217,18 @@ export function InvestorPortal() {
           </div>
         </Card>
       )}
+
+      <CircleVoting />
+
+      <MyTransactions accounts={accounts} />
+      <TaxSupportCard />
+
+      <MyRequests
+        pools={[
+          ...accounts.map((a) => ({ id: a.pool, label: `${a.investor_reference} (investment)` })),
+          ...circles.map((c) => ({ id: c.pool, label: `${c.pool_name} (circle)` })),
+        ].filter((p, i, all) => all.findIndex((x) => x.id === p.id) === i)}
+      />
 
       <Card title="My privacy">
         <div className="space-y-2 text-sm" data-testid="my-privacy">

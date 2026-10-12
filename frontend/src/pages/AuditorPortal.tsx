@@ -39,9 +39,12 @@ interface AuditorPortalProps {
 
 export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalProps) {
   const { user } = useAuth()
-  const isAuditor = user?.role === "auditor"
-  const isSuperAdmin = user?.role === "platform_super_admin"
-  const canView = isAuditor || isSuperAdmin || true // allow demo exploration
+  const role = user?.role ?? ""
+  const isAuditor = role === "auditor"
+  // What each role may use on this screen (BRD section 3); the API enforces the same rules.
+  const mayLog = isAuditor || role === "risk_compliance"
+  const maySample = mayLog || role === "shariah_board"
+  const mayVerifyChain = isAuditor
 
   const [activeTab, setActiveTab] = useState<"evidence-bundle" | "merkle-trail" | "sampling" | "logs" | "period-report">(initialTab)
 
@@ -61,11 +64,10 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
   const [copiedMemo, setCopiedMemo] = useState(false)
 
   useEffect(() => {
-    if (!canView) return
-    loadEntries()
-    handleRunSampling()
+    if (mayLog) loadEntries()
+    if (maySample) void handleRunSampling()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canView])
+  }, [mayLog, maySample])
 
   function loadEntries() {
     setIsLoading(true)
@@ -115,19 +117,6 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
       setCopiedMemo(true)
       setTimeout(() => setCopiedMemo(false), 2500)
     }
-  }
-
-  if (!canView) {
-    return (
-      <div>
-        <PageHeader title="Reports" subtitle="Auditor Evidence Portal" />
-        <Card>
-          <p className="text-sm text-ink-secondary">
-            Access restricted — this page is only available to Auditors and Platform Super Admins.
-          </p>
-        </Card>
-      </div>
-    )
   }
 
   const columns: TableColumn<AuditLogEntry>[] = [
@@ -233,30 +222,36 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
             >
               📦 Evidence Bundle
             </Button>
-            <Button
-              variant={activeTab === "merkle-trail" ? "primary" : "secondary"}
-              onClick={() => setActiveTab("merkle-trail")}
-            >
-              🛡️ Merkle Trail & Diff
-            </Button>
-            <Button
-              variant={activeTab === "sampling" ? "primary" : "secondary"}
-              onClick={() => setActiveTab("sampling")}
-            >
-              🔎 Risk-Ranked Sampling
-            </Button>
+            {mayVerifyChain && (
+              <Button
+                variant={activeTab === "merkle-trail" ? "primary" : "secondary"}
+                onClick={() => setActiveTab("merkle-trail")}
+              >
+                🛡️ Merkle Trail & Diff
+              </Button>
+            )}
+            {maySample && (
+              <Button
+                variant={activeTab === "sampling" ? "primary" : "secondary"}
+                onClick={() => setActiveTab("sampling")}
+              >
+                🔎 Risk-Ranked Sampling
+              </Button>
+            )}
             <Button
               variant={activeTab === "period-report" ? "primary" : "secondary"}
               onClick={() => setActiveTab("period-report")}
             >
               📊 Period Report
             </Button>
-            <Button
-              variant={activeTab === "logs" ? "primary" : "secondary"}
-              onClick={() => setActiveTab("logs")}
-            >
-              📋 Raw Ledger Log
-            </Button>
+            {mayLog && (
+              <Button
+                variant={activeTab === "logs" ? "primary" : "secondary"}
+                onClick={() => setActiveTab("logs")}
+              >
+                📋 Raw Ledger Log
+              </Button>
+            )}
           </div>
         }
       />

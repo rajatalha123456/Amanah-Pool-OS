@@ -32,3 +32,10 @@ export async function reviewRelatedPartyTransaction(
   )
   return response.data
 }
+export async function elevatedApproveRelatedParty(id: string, justification: string): Promise<RelatedPartyTransaction> {
+  const response = await apiClient.post<RelatedPartyTransaction>(
+    `governance/related-party-transactions/${id}/elevated-approve/`,
+    { justification },
+  )
+  return response.data
+}

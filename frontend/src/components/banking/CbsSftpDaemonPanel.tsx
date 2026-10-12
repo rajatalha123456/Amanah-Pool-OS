@@ -117,8 +117,7 @@ export function CbsSftpDaemonPanel({
               onChange={(e) => onValueDateChange(e.target.value)}
               disabled={isRunning}
               className="w-full text-xs rounded-md bg-surface border border-ink/20 px-3 py-2 text-ink"
-            >
-            </input>
+            />
           </div>
 
           <div>

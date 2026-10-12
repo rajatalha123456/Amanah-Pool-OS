@@ -49,3 +49,21 @@ export async function updateShariahAuditFinding(
   )
   return response.data
 }
+
+export interface ShariahAuditAnnualReport {
+  year: number
+  plans: { title: string; status: string; target_samples: number; tested_samples: number; coverage_pct: number | null }[]
+  findings: {
+    total: number
+    open: number
+    by_severity: Record<string, number>
+    response_rate_pct: number | null
+    oldest_open_age_days: number | null
+  }
+  content_hash: string
+  basis: string
+}
+
+export async function fetchShariahAuditAnnualReport(year: number): Promise<ShariahAuditAnnualReport> {
+  return (await apiClient.get<ShariahAuditAnnualReport>("governance/shariah-audit-plans/annual-report/", { params: { year } })).data
+}

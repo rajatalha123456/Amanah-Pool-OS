@@ -713,6 +713,7 @@ function FatwaRegisterTab() {
 
       {isNewOpen && (
         <NewShariahDecisionModal
+          approved={decisions.filter((d) => d.status === "approved")}
           onClose={() => setIsNewOpen(false)}
           onCreated={handleCreated}
         />

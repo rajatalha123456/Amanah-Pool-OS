@@ -8,6 +8,8 @@ import { defineConfig } from "@playwright/test"
  */
 export default defineConfig({
   testDir: "./e2e",
+  // The role sweep opens every screen and tab for every role (about 12 minutes): run it with `npm run e2e:roles`.
+  testIgnore: ["**/role-sweep.spec.ts"],
   timeout: 45_000,
   workers: 1,
   retries: 0,

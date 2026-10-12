@@ -81,8 +81,8 @@ test("period close gates are display-only", async ({ page }) => {
 test("investor with a capital account sees it and its acknowledged disclosure", async ({ page }) => {
   await login(page, "mudarabah.investor@novulabsdemo.test")
   await expect(page.getByText("My investment accounts")).toBeVisible()
-  await expect(page.getByText("INV-INDUS-003")).toBeVisible()
-  await expect(page.getByText("acknowledged")).toBeVisible()
+  await expect(page.getByText(/INV-INDUS-003 · /).first()).toBeVisible()
+  await expect(page.getByText("acknowledged", { exact: true })).toBeVisible()
   await expect(page.getByText("No investment accounts are linked")).toHaveCount(0)
 })
 
@@ -268,4 +268,87 @@ test("the website's interactive demos behave honestly", async ({ page }) => {
   // The model explorer switches content.
   await page.getByRole("tab", { name: "Community savings" }).click()
   await expect(page.getByTestId("model-panel")).toContainText("Verifiable draw")
+})
+
+test("a circle member votes, reads the circle ledger and raises a request with their own login", async ({ page }) => {
+  await login(page, "member")
+  const circle = page.getByTestId("my-circle").first()
+  await expect(circle).toContainText("Circle ledger")
+  await expect(circle).toContainText("Receipt")
+
+  const voting = page.getByTestId("circle-voting")
+  await expect(voting).toContainText("Move the monthly due date to the 10th")
+  page.once("dialog", (d) => void d.accept())
+  const approve = voting.getByRole("button", { name: "Approve" })
+  if (await approve.count()) {
+    await approve.first().click()
+  }
+  await expect(voting).toContainText("You voted")
+
+  const stamp = Date.now()
+  const requests = page.getByTestId("my-requests")
+  await requests.getByLabel("Type of request").selectOption("hardship_request")
+  await requests.getByPlaceholder("Subject").fill(`Hardship ${stamp}`)
+  await requests.getByPlaceholder("Tell us what happened").fill("Automated browser test.")
+  await requests.getByRole("button", { name: "Send request" }).click()
+  await expect(requests).toContainText(`Hardship ${stamp}`)
+})
+
+test("an investor sees their transactions and tax support, and cannot reach staff data", async ({ page }) => {
+  await login(page, "mudarabah.investor@novulabsdemo.test")
+  await expect(page.getByTestId("my-transactions")).toBeVisible()
+  await expect(page.getByTestId("my-requests")).toBeVisible()
+  await expect(page.getByRole("link", { name: "Participants" })).toHaveCount(0)
+})
+
+test("the new pool wizard has six steps and creates a pool with its identity", async ({ page }) => {
+  await login(page, "poolmanager")
+  await page.goto("/pools/new")
+  const wizard = page.getByTestId("pool-wizard")
+  for (const label of ["Model", "Contract", "Economics", "Assets", "Identity", "Review"]) {
+    await expect(wizard.getByRole("listitem").filter({ hasText: label }).first()).toBeVisible()
+  }
+  await wizard.getByRole("button", { name: /Next: Contract/ }).click()
+  await wizard.getByRole("button", { name: /Next: Economics/ }).click()
+  await expect(wizard).toContainText("Minimum subscription")
+  await wizard.getByRole("button", { name: /Next: Assets/ }).click()
+  await wizard.getByRole("button", { name: /Next: Identity/ }).click()
+  await wizard.getByRole("button", { name: /Next: Review/ }).click()
+  await expect(wizard).toContainText("Pool name is required") // identity is checked before the review
+  const stamp = Date.now()
+  await wizard.locator("label", { hasText: "Pool name" }).locator("xpath=following-sibling::input").fill(`Wizard Pool ${stamp}`)
+  await wizard.locator("label", { hasText: "Pool code" }).locator("xpath=following-sibling::input").fill(`WZ-${stamp}`)
+  await wizard.locator("label", { hasText: "Branch" }).locator("xpath=following-sibling::input").fill("Test Branch")
+  await wizard.getByRole("button", { name: /Next: Review/ }).click()
+  await expect(wizard).toContainText("Test Branch")
+  await wizard.getByRole("button", { name: "Create pool" }).click()
+  await expect(page.getByText(`WZ-${stamp}`).first()).toBeVisible()
+})
+
+test("a product states its eligible asset types and participation terms", async ({ page }) => {
+  await login(page, "pm")
+  await page.goto("/products-pools")
+  await page.getByRole("button", { name: "+ New Product" }).click()
+  const assets = page.getByTestId("eligible-assets")
+  await expect(assets).toContainText("Murabahah")
+  await expect(assets).toContainText("Ijarah")
+  await expect(page.getByText("Minimum subscription (PKR)")).toBeVisible()
+  await expect(page.getByText("KYC tier required")).toBeVisible()
+})
+
+test("each audience gets its own dashboard on the home screen", async ({ page }) => {
+  for (const [role, audience, text] of [
+    ["poolmanager", "Pool manager", "Latest recorded daily funds"],
+    ["maker", "Finance", "Batches with a flagged variance"],
+    ["board", "Shariah", "Rulings in draft awaiting the Board"],
+    ["risk", "Risk and compliance", "High / critical exceptions open"],
+    ["auditor", "Auditor", "Signed allocation runs"],
+    ["signatory", "Release and lock", "Runs ready for final release"],
+  ] as const) {
+    await login(page, role)
+    const dash = page.getByTestId("role-dashboard")
+    await expect(dash).toContainText(`${audience} dashboard`)
+    await expect(dash).toContainText(text)
+    await page.evaluate(() => localStorage.clear())
+  }
 })

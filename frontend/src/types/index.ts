@@ -66,6 +66,14 @@ export interface Product {
   contract_template_detail: ContractTemplateBasic
   status: string
   base_currency: string
+  eligible_asset_types?: string[]
+  redemption_notice_days?: number
+  redemption_gate_pct?: string
+  minimum_subscription?: string | null
+  subscription_cap?: string | null
+  minimum_tenure_days?: number
+  required_kyc_tier?: string
+  max_participants?: number | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -114,6 +122,13 @@ export interface CreateProductInput {
   code: string
   operating_model: string
   contract_template: string
+  eligible_asset_types?: string[]
+  minimum_subscription?: string | null
+  subscription_cap?: string | null
+  minimum_tenure_days?: number
+  required_kyc_tier?: string
+  max_participants?: number | null
+  redemption_notice_days?: number
 }
 
 export interface ActivationCheck {
@@ -139,6 +154,11 @@ export interface Pool {
   status: string
   effective_date: string
   closed_date: string | null
+  legal_entity?: string | null
+  legal_entity_name?: string | null
+  branch?: string
+  timezone?: string
+  calendar?: string
   freeze_reason?: string
   frozen_at?: string | null
   is_active: boolean
@@ -151,6 +171,10 @@ export interface CreatePoolInput {
   code: string
   product: string
   effective_date: string
+  legal_entity?: string | null
+  branch?: string
+  timezone?: string
+  calendar?: string
 }
 
 export interface PoolVersionSnapshot {
@@ -435,6 +459,12 @@ export interface RelatedPartyTransaction {
   disclosure_status: string
   reviewed_by: number | null
   review_notes: string | null
+  conflict_declaration: string
+  benchmark_amount: string | null
+  benchmark_source: string
+  price_tolerance_pct: string
+  price_test: "passed" | "failed" | "not_tested"
+  approved_by: number | null
   created_at: string
   updated_at: string
 }
@@ -446,10 +476,13 @@ export interface CreateRelatedPartyTransactionInput {
   transaction_type: string
   amount: string
   transaction_date: string
+  conflict_declaration?: string
+  benchmark_amount?: string | null
+  benchmark_source?: string
 }
 
 export interface RelatedPartyReviewInput {
-  decision: "approved" | "flagged"
+  decision: "recommended" | "flagged"
   notes?: string
 }
 
@@ -1394,6 +1427,8 @@ export interface ShariahQuorumSummary {
 }
 
 export interface ShariahDecision {
+  scope?: string
+  supersedes?: string | null
   id: string
   tenant: string
   decision_code: string
@@ -1422,6 +1457,8 @@ export interface ShariahDecision {
 }
 
 export interface CreateShariahDecisionInput {
+  scope?: string
+  supersedes?: string | null
   decision_code: string
   title: string
   decision_type?: ShariahDecisionType

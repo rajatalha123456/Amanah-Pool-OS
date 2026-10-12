@@ -1,46 +1,46 @@
-import type { ReactNode } from "react"
+import { lazy, Suspense, type ReactNode } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "./layouts/AppLayout"
-import { CommandCenter } from "./pages/CommandCenter"
-import { ProductCatalogue } from "./pages/ProductCatalogue"
-import { ContractTemplateStudio } from "./pages/ContractTemplateStudio"
-import { PoolCatalogue } from "./pages/PoolCatalogue"
-import { PoolDetail } from "./pages/PoolDetail"
-import { NewPoolWizard } from "./pages/NewPoolWizard"
-import { AssetRegistry } from "./pages/AssetRegistry"
-import { DailyOperationsCockpit } from "./pages/DailyOperationsCockpit"
-import { AllocationSimulator } from "./pages/AllocationSimulator"
-import { AllocationRunDetail } from "./pages/AllocationRunDetail"
-import { FinanceLedger } from "./pages/FinanceLedger"
-import { StatementView } from "./pages/StatementView"
-import { ShariahCopilot } from "./pages/ShariahCopilot"
-import { ShariahGovernance } from "./pages/ShariahGovernance"
-import { InvestmentPools } from "./pages/InvestmentPools"
-import { CommunityCircles } from "./pages/CommunityCircles"
-import { MemberMobileHome } from "./pages/circles/MemberMobileHome"
-import { ContributionReceipt } from "./pages/circles/ContributionReceipt"
-import { CapitalAccountDetail } from "./pages/investments/CapitalAccountDetail"
-import { ExceptionCaseDetail } from "./pages/governance/ExceptionCaseDetail"
-import { UserAdministration } from "./pages/UserAdministration"
-import { AuditorPortal } from "./pages/AuditorPortal"
-import { RestatementWizard } from "./pages/RestatementWizard"
-import { MudaribHibaSimulator } from "./pages/MudaribHibaSimulator"
-import { ReconciliationCenter } from "./pages/ReconciliationCenter"
-import { PeriodCloseManager } from "./pages/PeriodCloseManager"
-import { ShariahAuditPlan } from "./pages/governance/ShariahAuditPlan"
-import { JurisdictionRulePacks } from "./pages/administration/JurisdictionRulePacks"
-import { RiskLimitDashboard } from "./pages/RiskLimitDashboard"
-import { PayoutExecutionEngine } from "./pages/PayoutExecutionEngine"
-import { IncomeExpenseWorkbench } from "./pages/IncomeExpenseWorkbench"
-import { GovernanceConfig } from "./pages/GovernanceConfig"
-import { Notifications } from "./pages/Notifications"
-import { ParticipantRegistry } from "./pages/ParticipantRegistry"
+const CommandCenter = lazy(() => import("./pages/CommandCenter").then((m) => ({ default: m.CommandCenter })))
+const ProductCatalogue = lazy(() => import("./pages/ProductCatalogue").then((m) => ({ default: m.ProductCatalogue })))
+const ContractTemplateStudio = lazy(() => import("./pages/ContractTemplateStudio").then((m) => ({ default: m.ContractTemplateStudio })))
+const PoolCatalogue = lazy(() => import("./pages/PoolCatalogue").then((m) => ({ default: m.PoolCatalogue })))
+const PoolDetail = lazy(() => import("./pages/PoolDetail").then((m) => ({ default: m.PoolDetail })))
+const NewPoolWizard = lazy(() => import("./pages/NewPoolWizard").then((m) => ({ default: m.NewPoolWizard })))
+const AssetRegistry = lazy(() => import("./pages/AssetRegistry").then((m) => ({ default: m.AssetRegistry })))
+const DailyOperationsCockpit = lazy(() => import("./pages/DailyOperationsCockpit").then((m) => ({ default: m.DailyOperationsCockpit })))
+const AllocationSimulator = lazy(() => import("./pages/AllocationSimulator").then((m) => ({ default: m.AllocationSimulator })))
+const AllocationRunDetail = lazy(() => import("./pages/AllocationRunDetail").then((m) => ({ default: m.AllocationRunDetail })))
+const FinanceLedger = lazy(() => import("./pages/FinanceLedger").then((m) => ({ default: m.FinanceLedger })))
+const StatementView = lazy(() => import("./pages/StatementView").then((m) => ({ default: m.StatementView })))
+const ShariahCopilot = lazy(() => import("./pages/ShariahCopilot").then((m) => ({ default: m.ShariahCopilot })))
+const ShariahGovernance = lazy(() => import("./pages/ShariahGovernance").then((m) => ({ default: m.ShariahGovernance })))
+const InvestmentPools = lazy(() => import("./pages/InvestmentPools").then((m) => ({ default: m.InvestmentPools })))
+const CommunityCircles = lazy(() => import("./pages/CommunityCircles").then((m) => ({ default: m.CommunityCircles })))
+const MemberMobileHome = lazy(() => import("./pages/circles/MemberMobileHome").then((m) => ({ default: m.MemberMobileHome })))
+const ContributionReceipt = lazy(() => import("./pages/circles/ContributionReceipt").then((m) => ({ default: m.ContributionReceipt })))
+const CapitalAccountDetail = lazy(() => import("./pages/investments/CapitalAccountDetail").then((m) => ({ default: m.CapitalAccountDetail })))
+const ExceptionCaseDetail = lazy(() => import("./pages/governance/ExceptionCaseDetail").then((m) => ({ default: m.ExceptionCaseDetail })))
+const UserAdministration = lazy(() => import("./pages/UserAdministration").then((m) => ({ default: m.UserAdministration })))
+const AuditorPortal = lazy(() => import("./pages/AuditorPortal").then((m) => ({ default: m.AuditorPortal })))
+const RestatementWizard = lazy(() => import("./pages/RestatementWizard").then((m) => ({ default: m.RestatementWizard })))
+const MudaribHibaSimulator = lazy(() => import("./pages/MudaribHibaSimulator").then((m) => ({ default: m.MudaribHibaSimulator })))
+const ReconciliationCenter = lazy(() => import("./pages/ReconciliationCenter").then((m) => ({ default: m.ReconciliationCenter })))
+const PeriodCloseManager = lazy(() => import("./pages/PeriodCloseManager").then((m) => ({ default: m.PeriodCloseManager })))
+const ShariahAuditPlan = lazy(() => import("./pages/governance/ShariahAuditPlan").then((m) => ({ default: m.ShariahAuditPlan })))
+const JurisdictionRulePacks = lazy(() => import("./pages/administration/JurisdictionRulePacks").then((m) => ({ default: m.JurisdictionRulePacks })))
+const RiskLimitDashboard = lazy(() => import("./pages/RiskLimitDashboard").then((m) => ({ default: m.RiskLimitDashboard })))
+const PayoutExecutionEngine = lazy(() => import("./pages/PayoutExecutionEngine").then((m) => ({ default: m.PayoutExecutionEngine })))
+const IncomeExpenseWorkbench = lazy(() => import("./pages/IncomeExpenseWorkbench").then((m) => ({ default: m.IncomeExpenseWorkbench })))
+const GovernanceConfig = lazy(() => import("./pages/GovernanceConfig").then((m) => ({ default: m.GovernanceConfig })))
+const Notifications = lazy(() => import("./pages/Notifications").then((m) => ({ default: m.Notifications })))
+const ParticipantRegistry = lazy(() => import("./pages/ParticipantRegistry").then((m) => ({ default: m.ParticipantRegistry })))
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { useAuth } from "./api/auth"
-import { InvestorPortal } from "./pages/InvestorPortal"
-import { SitePage } from "./pages/site/SitePage"
+const InvestorPortal = lazy(() => import("./pages/InvestorPortal").then((m) => ({ default: m.InvestorPortal })))
+const SitePage = lazy(() => import("./pages/site/SitePage").then((m) => ({ default: m.SitePage })))
 import { navItems } from "./layouts/navItems"
 
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
@@ -66,6 +66,7 @@ function HomeRoute() {
 
 function App() {
   return (
+    <Suspense fallback={<div className="p-8 text-sm text-ink-secondary">Loading...</div>}>
     <Routes>
       <Route path="/welcome" element={<SitePage />} />
       <Route path="/login" element={<SignIn />} />
@@ -157,6 +158,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </Suspense>
   )
 }
 

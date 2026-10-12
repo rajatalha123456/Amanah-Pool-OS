@@ -1,3 +1,4 @@
+import { RoleDashboard } from "../components/dashboard/RoleDashboard"
 import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card } from "../components/Card"
@@ -155,6 +156,8 @@ export function CommandCenter() {
         title="Executive Command Center"
         subtitle="Enterprise visibility across active Islamic bank pools, profit curves, and Shariah structures"
       />
+
+      <RoleDashboard />
 
       {/* Real Dynamic Backend Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
