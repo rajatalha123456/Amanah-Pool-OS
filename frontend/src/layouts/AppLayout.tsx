@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Outlet } from "react-router-dom"
+import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
 import { TopBar } from "./TopBar"
 import { Spinner } from "../components/Spinner"
@@ -12,7 +12,16 @@ import { ErrorBoundary } from "../components/ErrorBoundary"
 
 export function AppLayout() {
   const { user, loadCurrentUser } = useAuth()
+  const location = useLocation()
   const [isLoadingUser, setIsLoadingUser] = useState(!user)
+  // Investors / members only have the self-service portal (the API refuses everything else for them).
+  const investorBlocked =
+    user?.role === "investor_member" &&
+    !(
+      location.pathname === "/" ||
+      location.pathname === "/notifications" ||
+      location.pathname.startsWith("/investments/capital-accounts/")
+    )
 
   useEffect(() => {
     if (!user) {
@@ -39,7 +48,7 @@ export function AppLayout() {
               </div>
             ) : (
               <ErrorBoundary fallbackTitle="Module Render Exception">
-                <Outlet />
+                {investorBlocked ? <Navigate to="/" replace /> : <Outlet />}
               </ErrorBoundary>
             )}
           </main>

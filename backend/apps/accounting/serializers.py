@@ -1,12 +1,13 @@
 from rest_framework import serializers
 
-from .models import IncomeExpenseEvent, JournalBatch, JournalEntry
+from .chart import ACCOUNTS
+from .models import AccountMapping, IncomeExpenseEvent, JournalBatch, JournalEntry
 
 
 class JournalEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = JournalEntry
-        fields = ("id", "account_name", "entry_type", "amount")
+        fields = ("id", "account_name", "account_key", "gl_code", "entry_type", "amount")
         read_only_fields = fields
 
 
@@ -42,12 +43,14 @@ class IncomeExpenseEventSerializer(serializers.ModelSerializer):
             "posted_by",
             "posted_by_name",
             "posted_at",
+            "allocation_run",
             "created_at",
             "updated_at",
         )
         read_only_fields = (
             "id",
             "tenant",
+            "allocation_run",
             "status",
             "created_by",
             "posted_by",
@@ -127,3 +130,35 @@ class ReconciliationBatchSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "tenant", "created_at", "updated_at")
 
+
+
+class AccountMappingSerializer(serializers.ModelSerializer):
+    pool_code = serializers.CharField(source="pool.code", read_only=True, default=None)
+
+    class Meta:
+        model = AccountMapping
+        fields = ("id", "pool", "pool_code", "account_key", "gl_code", "gl_name", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.pools.models import Pool
+
+        self.fields["pool"] = serializers.PrimaryKeyRelatedField(
+            queryset=Pool.objects.all(), required=False, allow_null=True
+        )
+
+    def validate_account_key(self, value):
+        if value not in ACCOUNTS:
+            raise serializers.ValidationError(f"Unknown logical account. Choose one of: {', '.join(ACCOUNTS)}.")
+        return value
+
+    def validate(self, attrs):
+        key = attrs.get("account_key", getattr(self.instance, "account_key", None))
+        pool = attrs.get("pool", getattr(self.instance, "pool", None))
+        qs = AccountMapping.objects.filter(account_key=key, pool=pool)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A mapping for this account (and pool) already exists - edit it instead.")
+        return attrs

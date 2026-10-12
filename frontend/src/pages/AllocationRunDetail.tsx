@@ -11,6 +11,7 @@ import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import {
   approveRun,
+  checkRun,
   fetchAllocationRunDetail,
   rejectRun,
   shariahSignOffRun,
@@ -127,18 +128,13 @@ function buildTimelineStages(run: AllocationRun): TimelineStage[] {
 export function AllocationRunDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const canReject =
-    !user?.role ||
-    ["finance_checker", "shariah_board", "platform_super_admin", "superadmin"].includes(user.role)
-  const canSignOff =
-    !user?.role ||
-    ["shariah_board"].includes(user.role)
-  const canApprove =
-    !user?.role ||
-    ["finance_checker", "platform_super_admin", "superadmin"].includes(user.role)
-  const canSubmit =
-    !user?.role ||
-    ["finance_maker", "pool_manager", "platform_super_admin", "superadmin"].includes(user.role)
+  const role = user?.role ?? ""
+  // Approval ceremony (UI Catalogue screen 14): maker -> Finance Checker -> Shariah review -> Authorized Signatory.
+  const canSubmit = role === "finance_maker"
+  const canCheck = role === "finance_checker"
+  const canSignOff = role === "shariah_secretariat" || role === "shariah_board"
+  const canRelease = role === "authorized_signatory"
+  const canReject = ["finance_checker", "shariah_secretariat", "shariah_board", "authorized_signatory"].includes(role)
 
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
@@ -378,6 +374,48 @@ export function AllocationRunDetail() {
         />
       </Card>
 
+      {run.stages && (
+        <Card title="Approval ceremony" className="mb-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {run.stages.map((stage) => (
+              <div key={stage.key} className="rounded-lg border border-white/10 bg-navy-900/50 p-3 text-xs">
+                <p className="font-semibold text-ink-primary">{stage.label}</p>
+                <p className="text-ink-secondary">{stage.owner}</p>
+                <p
+                  className={`mt-2 font-semibold uppercase ${
+                    stage.state === "completed"
+                      ? "text-emerald-400"
+                      : stage.state === "rejected"
+                        ? "text-red-400"
+                        : stage.state === "in_review"
+                          ? "text-gold-400"
+                          : "text-ink-muted"
+                  }`}
+                >
+                  {stage.state.replace("_", " ")}
+                </p>
+                {stage.by && (
+                  <p className="text-ink-secondary">
+                    {stage.by}
+                    {stage.at && <span className="block text-[10px]">{new Date(stage.at).toLocaleString()}</span>}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          {run.control_gates && (
+            <div className="mt-4 flex flex-wrap gap-4 text-xs">
+              <span className="font-semibold uppercase text-ink-secondary">Control gates</span>
+              {run.control_gates.map((gate) => (
+                <span key={gate.key} className={gate.passed ? "text-emerald-400" : "text-amber-300"}>
+                  {gate.passed ? "✓" : "■"} {gate.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
       <Card title="Actions" className="mb-6">
         {run.status === "simulated" && canSubmit && (
           <Button
@@ -389,77 +427,65 @@ export function AllocationRunDetail() {
           </Button>
         )}
 
-        {run.status === "pending_approval" && run.shariah_review_required && (
-            <div className="space-y-3">
-            <p className="text-sm text-gold-400">
-              Waiting for Shariah Secretariat sign-off before this run can be approved.
-            </p>
-              <div className="flex gap-3">
-                {canSignOff && (
-                  <Button
-                    variant="primary"
-                    disabled={isActionPending}
-                    onClick={() => setShowSignOffModal(true)}
-                  >
-                    Shariah Sign-Off
-                  </Button>
-                )}
-                {canReject && (
-                  <Button
-                    variant="secondary"
-                    disabled={isActionPending}
-                    onClick={() => setShowRejectModal(true)}
-                  >
-                    Reject
-                  </Button>
-                )}
-              </div>
+        {run.status === "pending_approval" && (
+          <div className="space-y-3">
+            <p className="text-sm text-gold-400">Waiting for the independent check by a Finance Checker.</p>
+            <div className="flex gap-3">
+              {canCheck && (
+                <Button
+                  variant="primary"
+                  disabled={isActionPending}
+                  onClick={() => runAction(checkRun, "Unable to complete the independent check.")}
+                >
+                  {isActionPending ? <Spinner className="h-4 w-4" /> : "Complete Independent Check"}
+                </Button>
+              )}
+              {canReject && (
+                <Button variant="secondary" disabled={isActionPending} onClick={() => setShowRejectModal(true)}>
+                  Reject
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
-        {run.status === "pending_approval" && !run.shariah_review_required && (canApprove || canReject) && (
-          <div className="flex gap-3">
-            {canApprove && (
-              <Button
-                variant="primary"
-                disabled={isActionPending}
-                onClick={() => runAction(approveRun, "Unable to approve.")}
-              >
-                {isActionPending ? <Spinner className="h-4 w-4" /> : "Authorize & Post GL Journals"}
-              </Button>
-            )}
-            {canReject && (
-              <Button
-                variant="secondary"
-                disabled={isActionPending}
-                onClick={() => setShowRejectModal(true)}
-              >
-                Reject
-              </Button>
-            )}
+        {run.status === "checked" && run.shariah_review_required && (
+          <div className="space-y-3">
+            <p className="text-sm text-gold-400">Independent check done. Waiting for the Shariah review.</p>
+            <div className="flex gap-3">
+              {canSignOff && (
+                <Button variant="primary" disabled={isActionPending} onClick={() => setShowSignOffModal(true)}>
+                  Shariah Review Sign-Off
+                </Button>
+              )}
+              {canReject && (
+                <Button variant="secondary" disabled={isActionPending} onClick={() => setShowRejectModal(true)}>
+                  Reject
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
-        {run.status === "shariah_review" && (canApprove || canReject) && (
-          <div className="flex gap-3">
-            {canApprove && (
-              <Button
-                variant="primary"
-                disabled={isActionPending}
-                onClick={() => runAction(approveRun, "Unable to approve.")}
-              >
-                {isActionPending ? <Spinner className="h-4 w-4" /> : "Authorize & Post GL Journals"}
-              </Button>
-            )}
-            {canReject && (
-              <Button
-                variant="secondary"
-                disabled={isActionPending}
-                onClick={() => setShowRejectModal(true)}
-              >
-                Reject
-              </Button>
-            )}
+        {((run.status === "checked" && !run.shariah_review_required) || run.status === "shariah_review") && (
+          <div className="space-y-3">
+            <p className="text-sm text-gold-400">Waiting for final release by the Authorized Signatory.</p>
+            <div className="flex gap-3">
+              {canRelease && (
+                <Button
+                  variant="primary"
+                  disabled={isActionPending}
+                  onClick={() => runAction(approveRun, "Unable to release.")}
+                >
+                  {isActionPending ? <Spinner className="h-4 w-4" /> : "Final Release & Post GL Journals"}
+                </Button>
+              )}
+              {canReject && (
+                <Button variant="secondary" disabled={isActionPending} onClick={() => setShowRejectModal(true)}>
+                  Reject
+                </Button>
+              )}
+            </div>
           </div>
         )}
 

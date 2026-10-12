@@ -1,5 +1,5 @@
 from django.utils import timezone
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,10 +17,12 @@ from apps.accounts.permissions import (
 )
 from apps.allocation.models import ProfitSharingRatio, WeightageBand
 from apps.core.audit import log_action
+from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
 from apps.pools.models import Pool, PoolStatus
 from apps.products.models import ContractTemplate, ContractTemplateStatus, ShariahDecision, ShariahDecisionStatus
 
 from .models import (
+    ConfigChangeRequest,
     AuditPlanStatus,
     ExceptionCase,
     ExceptionSeverity,
@@ -461,8 +463,11 @@ class PurificationEntryViewSet(
         return Response(self.get_serializer(entry).data)
 
 
-class RelatedPartyTransactionViewSet(viewsets.ModelViewSet):
+class RelatedPartyTransactionViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     serializer_class = RelatedPartyTransactionSerializer
+    http_method_names = NO_DELETE
+    status_field = "disclosure_status"
+    editable_statuses = ("disclosed", "pending_review")
 
     def get_queryset(self):
         queryset = RelatedPartyTransaction.objects.all()
@@ -472,11 +477,11 @@ class RelatedPartyTransactionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action in ("create", "update", "partial_update"):
             return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager"])()]
         if self.action == "review":
             return [IsAuthenticated(), HasAnyRole(["risk_compliance", "shariah_board"])()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -602,7 +607,7 @@ def shariah_dashboard(request):
     for row in pending_purification_entries:
         row["pool_code"] = row.pop("pool__code")
 
-    pool_approvals_qs = Pool.objects.filter(status=PoolStatus.APPROVED)
+    pool_approvals_qs = Pool.objects.filter(status=PoolStatus.PENDING_APPROVAL)
     if pool_id:
         pool_approvals_qs = pool_approvals_qs.filter(id=pool_id)
     pending_pool_approvals = list(
@@ -636,32 +641,64 @@ def shariah_dashboard(request):
     )
 
 
-class ShariahAuditPlanViewSet(viewsets.ModelViewSet):
+class ShariahAuditPlanViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     """
     Screen 33: Shariah Audit Plan - Risk-based universe, samples and findings.
+    The Secretariat drafts the plan, the Shariah Board approves it; an approved plan is not edited or deleted.
     """
 
     serializer_class = ShariahAuditPlanSerializer
-    permission_classes = [IsAuthenticated]
+    http_method_names = NO_DELETE
 
     def get_queryset(self):
         return ShariahAuditPlan.objects.all()
 
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat"])()]
+        if self.action == "approve":
+            return [IsAuthenticated(), HasAnyRole(["shariah_board"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant)
+        plan = serializer.save(tenant=self.request.user.tenant)
+        log_action(
+            tenant=plan.tenant, actor=self.request.user, action="create", model_name="ShariahAuditPlan",
+            object_id=str(plan.id), request=self.request,
+        )
 
     @action(detail=True, methods=["post"], url_path="approve")
     def approve(self, request, pk=None):
         plan = self.get_object()
+        if plan.status != AuditPlanStatus.DRAFT:
+            raise ValidationError(f"Only a draft audit plan can be approved (this one is {plan.status}).")
         plan.status = AuditPlanStatus.APPROVED
         plan.approved_by = request.user
         plan.save(update_fields=["status", "approved_by", "updated_at"])
+        log_action(
+            tenant=plan.tenant, actor=request.user, action="approve", model_name="ShariahAuditPlan",
+            object_id=str(plan.id), request=request,
+        )
         return Response(self.get_serializer(plan).data)
 
 
 class ShariahAuditFindingViewSet(viewsets.ModelViewSet):
     serializer_class = ShariahAuditFindingSerializer
-    permission_classes = [IsAuthenticated]
+    # Findings are audit evidence: raised and updated by the Shariah audit function, never deleted.
+    http_method_names = NO_DELETE
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat", "auditor"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+
+    def perform_update(self, serializer):
+        finding = serializer.save()
+        log_action(
+            tenant=finding.tenant, actor=self.request.user, action="update", model_name="ShariahAuditFinding",
+            object_id=str(finding.id), changes={k: str(v) for k, v in serializer.validated_data.items()},
+            request=self.request,
+        )
 
     def get_queryset(self):
         queryset = ShariahAuditFinding.objects.all()
@@ -675,4 +712,57 @@ class ShariahAuditFindingViewSet(viewsets.ModelViewSet):
         plan = instance.audit_plan
         plan.findings_count = plan.findings.count()
         plan.save(update_fields=["findings_count"])
+        log_action(
+            tenant=instance.tenant, actor=self.request.user, action="create", model_name="ShariahAuditFinding",
+            object_id=str(instance.id), request=self.request,
+        )
 
+
+
+class ConfigChangeRequestSerializer(serializers.ModelSerializer):
+    requested_by_name = serializers.CharField(source="requested_by.full_name", read_only=True, default=None)
+    decided_by_name = serializers.CharField(source="decided_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = ConfigChangeRequest
+        fields = (
+            "id", "kind", "operation", "target_id", "payload", "before", "reason", "status", "requested_by",
+            "requested_by_name", "decided_by", "decided_by_name", "decided_at", "decision_note", "applied_id",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class ConfigChangeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Pending and decided changes to the approval matrix and account mapping."""
+
+    serializer_class = ConfigChangeRequestSerializer
+
+    def get_queryset(self):
+        queryset = ConfigChangeRequest.objects.select_related("requested_by", "decided_by")
+        for param in ("kind", "status"):
+            value = self.request.query_params.get(param)
+            if value:
+                queryset = queryset.filter(**{param: value})
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), HasAnyRole(["finance_checker", "platform_super_admin"])()]
+        return [IsAuthenticated(), HasAnyRole(
+            ["risk_compliance", "platform_super_admin", "finance_checker", "finance_maker", "pool_manager",
+             "auditor", "shariah_board"]
+        )()]
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from .config_changes import approve_change
+
+        return Response(self.get_serializer(approve_change(self.get_object(), request.user, request)).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .config_changes import reject_change
+
+        change = reject_change(self.get_object(), request.user, str(request.data.get("reason") or ""), request)
+        return Response(self.get_serializer(change).data)

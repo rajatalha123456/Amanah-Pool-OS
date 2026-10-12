@@ -39,6 +39,10 @@ class ProfitSharingRatio(TenantScopedModel):
     )
     depositor_share = models.DecimalField(max_digits=5, decimal_places=2)
     mudarib_share = models.DecimalField(max_digits=5, decimal_places=2)
+    # Wakalah contracts only: the agent's fee as a % per annum of average invested funds, earned
+    # whether or not the pool profits. `mudarib_share` is then the agent's incentive share of profit
+    # after the fee (0 = fee only). Zero for every other contract type.
+    wakalah_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=PSRStatus.choices, default=PSRStatus.DRAFT)
@@ -66,7 +70,9 @@ class ProfitSharingRatio(TenantScopedModel):
 class AllocationRunStatus(models.TextChoices):
     SIMULATED = "simulated", "Simulated"
     PENDING_APPROVAL = "pending_approval", "Pending Approval"
-    SHARIAH_REVIEW = "shariah_review", "Shariah Review"
+    # Approval ceremony (UI Catalogue screen 14): prepared -> independent check -> Shariah review -> final release.
+    CHECKED = "checked", "Independent Check Complete"
+    SHARIAH_REVIEW = "shariah_review", "Shariah Review Complete"
     SIGNED = "signed", "Signed"
     REJECTED = "rejected", "Rejected"
     REVERSED = "reversed", "Reversed"
@@ -155,6 +161,15 @@ class AllocationRun(TenantScopedModel):
         related_name="checked_allocation_runs",
     )
     checked_at = models.DateTimeField(null=True, blank=True)
+    # Final release by the Authorized Signatory - the run is only SIGNED at this point.
+    released_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="released_allocation_runs",
+    )
+    released_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(null=True, blank=True)
     shariah_signed_off_by = models.ForeignKey(
         "accounts.User",

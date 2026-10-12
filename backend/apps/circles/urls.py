@@ -7,6 +7,7 @@ from .views import (
     ContributionViewSet,
     PayoutViewSet,
 )
+from .governance_views import CircleClosureViewSet, CircleDrawViewSet, CircleRulesViewSet
 
 router = DefaultRouter()
 router.register("circle-members", CircleMemberViewSet, basename="circle-member")
@@ -14,5 +15,8 @@ router.register("contributions", ContributionViewSet, basename="circle-contribut
 router.register("payouts", PayoutViewSet, basename="circle-payout")
 router.register("arrears-records", ArrearsRecordViewSet, basename="circle-arrears-record")
 router.register("circle-proposals", CircleProposalViewSet, basename="circle-proposal")
+router.register("rules", CircleRulesViewSet, basename="circle-rules")
+router.register("draws", CircleDrawViewSet, basename="circle-draw")
+router.register("closures", CircleClosureViewSet, basename="circle-closure")
 
 urlpatterns = router.urls

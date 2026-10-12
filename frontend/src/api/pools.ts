@@ -1,5 +1,6 @@
 import { apiClient } from "./axios"
 import type {
+  ActivationReadiness,
   CreatePoolInput,
   CreatePoolVersionInput,
   Pool,
@@ -70,6 +71,11 @@ export async function openPool(id: string): Promise<Pool> {
   return response.data
 }
 
+export async function fetchActivationReadiness(id: string): Promise<ActivationReadiness> {
+  const response = await apiClient.get<ActivationReadiness>(`pools/pools/${id}/activation-readiness/`)
+  return response.data
+}
+
 export async function closePool(id: string): Promise<Pool> {
   const response = await apiClient.post<Pool>(`pools/pools/${id}/close/`)
   return response.data
@@ -80,4 +86,29 @@ export async function fetchApprovedProducts(): Promise<Product[]> {
   // ?status= filter, so we fetch everything and filter client-side.
   const products = await fetchProducts()
   return products.filter((product) => product.status === "approved")
+}
+
+export interface PortfolioRow {
+  pool: string
+  code: string
+  name: string
+  model: string
+  status: string
+  contract_type: string
+  funds: string | null
+  last_signed_profit: string | null
+  annualised_yield_pct: string | null
+  profit_period: string | null
+}
+
+export interface PortfolioSummary {
+  pools: PortfolioRow[]
+  total_funds: string
+  total_signed_profit: string
+  basis: string
+}
+
+/** Real funds / signed profit / yield per pool; a figure that cannot be computed is null. */
+export async function fetchPortfolioSummary(): Promise<PortfolioSummary> {
+  return (await apiClient.get<PortfolioSummary>("pools/pools/portfolio-summary/")).data
 }

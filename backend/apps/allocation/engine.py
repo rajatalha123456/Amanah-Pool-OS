@@ -295,16 +295,25 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
         pool=pool, reserve_type=ReserveType.IRR, is_active=True
     ).first()
 
-    is_loss = distributable < 0
+    # Wakalah: the agent earns a fee on average funds whether or not the pool makes a profit; only
+    # what is left after the fee is shared (profit) or borne by the capital providers (loss).
+    is_wakalah = pool.product.contract_template.contract_type == "wakalah"
+    wakalah_fee_raw = Decimal("0")
+    if is_wakalah and Decimal(psr.wakalah_fee_pct) > 0:
+        wakalah_fee_raw = total_daily_funds * Decimal(psr.wakalah_fee_pct) / HUNDRED * Decimal(len(days)) / Decimal(365)
+    result_after_fee = distributable - wakalah_fee_raw
+
+    is_loss = result_after_fee < 0
     per_raw = Decimal("0")
     irr_raw = Decimal("0")
 
     if is_loss:
         # Shariah loss waterfall (BRD 7.1 / BR-006): the Mudarib does not bear
         # capital loss and no reserve is appropriated; the loss is absorbed
-        # by the capital providers pro-rata to their unweighted funds.
-        mudarib_raw = Decimal("0")
-        depositor_raw = distributable  # negative amount
+        # by the capital providers pro-rata to their unweighted funds. A Wakalah
+        # fee is still owed to the agent.
+        mudarib_raw = wakalah_fee_raw
+        depositor_raw = result_after_fee  # negative amount
 
         raw_line_amounts = [
             depositor_raw * (line["daily_funds"] / total_daily_funds if total_daily_funds > 0 else Decimal("0"))
@@ -312,12 +321,12 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
         ]
     else:
         # 1. PER is appropriated from distributable profit before the PSR split.
-        per_raw = _reserve_amount(per_policy, distributable, total_daily_funds)
-        net_after_per = distributable - per_raw
+        per_raw = _reserve_amount(per_policy, result_after_fee, total_daily_funds)
+        net_after_per = result_after_fee - per_raw
 
-        # 2. PSR split.
+        # 2. PSR split (for Wakalah the Mudarib share is the agent's incentive on top of the fee).
         depositor_pre_irr = net_after_per * Decimal(psr.depositor_share) / HUNDRED
-        mudarib_raw = net_after_per * Decimal(psr.mudarib_share) / HUNDRED
+        mudarib_raw = wakalah_fee_raw + net_after_per * Decimal(psr.mudarib_share) / HUNDRED
 
         # 3. IRR is appropriated from the depositors' share, after the Mudarib share.
         irr_raw = _reserve_amount(irr_policy, depositor_pre_irr, total_daily_funds)
@@ -368,6 +377,7 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
             "id": str(psr.id),
             "depositor_share": str(psr.depositor_share),
             "mudarib_share": str(psr.mudarib_share),
+            "wakalah_fee_pct": str(psr.wakalah_fee_pct),
             "effective_from": psr.effective_from.isoformat(),
         },
         "weightage_bands": sorted(band_snapshot, key=lambda b: b["participant_class"]),
@@ -385,6 +395,12 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
             for kind, policy in (("per", per_policy), ("irr", irr_policy))
         },
         "total_daily_funds": str(_round(total_daily_funds)),
+        "contract_type": pool.product.contract_template.contract_type,
+        "wakalah": (
+            {"fee_pct": str(psr.wakalah_fee_pct), "fee_amount": str(_round(wakalah_fee_raw)), "days": len(days)}
+            if is_wakalah
+            else None
+        ),
         "period": {
             "start": period_start.isoformat(),
             "end": value_date.isoformat(),

@@ -46,11 +46,6 @@ function formatCategoryLabel(type: string): string {
   }
 }
 
-const SCHOLAR_PRESETS = [
-  { name: "Mufti Muhammad Taqi Usmani", title: "Chairman Shariah Board" },
-  { name: "Mufti Muhammad Zubair Usmani", title: "Resident Shariah Board Member (RSBM)" },
-  { name: "Dr. Muhammad Imran Ashraf Usmani", title: "Member Shariah Board" },
-]
 
 export function ShariahDecisionDetailModal({
   decision: initialDecision,
@@ -67,8 +62,7 @@ export function ShariahDecisionDetailModal({
   const [error, setError] = useState("")
 
   // Sign Form State
-  const [selectedScholar, setSelectedScholar] = useState(SCHOLAR_PRESETS[1])
-  const [fiqhNotes, setFiqhNotes] = useState("Concurred under AAOIFI FAS 13 & SBP Shariah Governance Framework.")
+  const [fiqhNotes, setFiqhNotes] = useState("")
   const [voteDecision, setVoteDecision] = useState<"approve" | "reject">("approve")
 
   const isBoardMember = user?.role === "shariah_board"
@@ -109,8 +103,6 @@ export function ShariahDecisionDetailModal({
     setIsCastingVote(true)
     try {
       const updated = await castShariahQuorumVote(decision.id, {
-        scholar_name: selectedScholar.name,
-        scholar_title: selectedScholar.title,
         vote: voteDecision,
         fiqh_opinion_notes: fiqhNotes,
       })
@@ -289,25 +281,7 @@ export function ShariahDecisionDetailModal({
                     </button>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] uppercase font-semibold text-ink-muted mb-1">
-                      Select Signatory Scholar Identity:
-                    </label>
-                    <select
-                      className="w-full rounded border border-white/10 bg-navy-800 p-2 text-xs text-white"
-                      value={selectedScholar.name}
-                      onChange={(e) => {
-                        const chosen = SCHOLAR_PRESETS.find((s) => s.name === e.target.value)
-                        if (chosen) setSelectedScholar(chosen)
-                      }}
-                    >
-                      {SCHOLAR_PRESETS.map((s) => (
-                        <option key={s.name} value={s.name}>
-                          {s.name} — {s.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <p className="text-[11px] text-ink-muted">Your vote is recorded under your own Board login.</p>
 
                   <div>
                     <label className="block text-[10px] uppercase font-semibold text-ink-muted mb-1">

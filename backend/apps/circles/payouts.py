@@ -24,6 +24,7 @@ from rest_framework.exceptions import ValidationError
 from apps.participants.models import KYCStatus
 from apps.products.shariah import shariah_decision_for
 
+from .rules import assert_rules_accepted
 from .models import (
     ArrearsRecord,
     ArrearsStatus,
@@ -82,6 +83,11 @@ def build_preflight(pool, member, cycle_number, rail):
         pool=pool, status__in=[PayoutStatus.PENDING, PayoutStatus.APPROVED]
     ).first()
     decision = shariah_decision_for(pool)
+    try:
+        assert_rules_accepted(pool)
+        rules_gap = ""
+    except ValidationError as exc:
+        rules_gap = str(exc.detail[0]) if isinstance(exc.detail, list) else str(exc.detail)
 
     iban = (member.iban or "").replace(" ", "").upper()
     if rail == SettlementRailType.INTERNAL_BOOK:
@@ -102,6 +108,12 @@ def build_preflight(pool, member, cycle_number, rail):
             "Payout order assigned to every active member",
             unassigned == 0 and bool(active_ids),
             f"{unassigned} active member(s) without a draw position" if unassigned else "",
+        ),
+        _check(
+            "rules_accepted",
+            "Every active member has accepted the current circle rules",
+            not rules_gap,
+            rules_gap,
         ),
         _check(
             "member_has_turn",

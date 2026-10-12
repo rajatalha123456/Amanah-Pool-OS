@@ -454,7 +454,7 @@ export function MudaribHibaSimulator() {
           {/* Shariah Standards Checklist & ALCO Memo */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* AAOIFI & SBP Compliance Gate */}
-            <Card title="AAOIFI FAS-30 & SBP IBD Circular 03/2012 Governance Gate">
+            <Card title="Simulation checks (the Shariah Board decides)">
               <div className="space-y-3">
                 {simData.shariah_validation.checklist.map((item) => (
                   <div
@@ -476,7 +476,7 @@ export function MudaribHibaSimulator() {
 
             {/* ALCO Resolution Memorandum */}
             <Card
-              title="Official ALCO & Shariah Board Resolution Memorandum"
+              title="Draft memorandum (simulation - not a resolution)"
               actions={
                 <Button variant="secondary" className="text-xs" onClick={copyMemoToClipboard}>
                   {copiedMemo ? "✓ Copied" : "📋 Copy Memorandum"}

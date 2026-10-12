@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Card } from "../Card"
 import { Button } from "../Button"
 import { Spinner } from "../Spinner"
+import { extractErrorMessage } from "../../api/errors"
 import {
   fetchDrawRoomStatus,
   executeProvablyFairDraw,
@@ -97,7 +98,7 @@ export function DrawRoomConsole({
       }, 2000)
     } catch (err: unknown) {
       setIsSpinning(false)
-      setError(err instanceof Error ? err.message : "Draw execution failed")
+      setError(extractErrorMessage(err, "Draw execution failed"))
     }
   }
 
@@ -106,7 +107,12 @@ export function DrawRoomConsole({
     if (!swapMemberA || !swapMemberB) return
     try {
       setIsSwapping(true)
-      const res = await swapCircleTurns(poolId, swapMemberA, swapMemberB, swapReason)
+      const consent = window.prompt("Reference to BOTH members' recorded consent (e.g. signed form / OTP refs)")
+      if (!consent) {
+        setIsSwapping(false)
+        return
+      }
+      const res = await swapCircleTurns(poolId, swapMemberA, swapMemberB, swapReason, consent)
       setSwapSuccessMsg(res.message)
       await loadStatus()
       setTimeout(() => {
@@ -114,14 +120,14 @@ export function DrawRoomConsole({
         setSwapSuccessMsg(null)
       }, 1800)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Turn swap failed")
+      setError(extractErrorMessage(err, "Turn swap failed"))
     } finally {
       setIsSwapping(false)
     }
   }
 
-  function formatPKR(amount: number | undefined) {
-    if (amount === undefined) return "₨ 0"
+  function formatPKR(amount: number | null | undefined) {
+    if (amount === undefined || amount === null) return "— (publish circle rules)"
     return `₨ ${amount.toLocaleString("en-PK")}`
   }
 
@@ -250,14 +256,14 @@ export function DrawRoomConsole({
               <div>
                 <span className="text-ink-muted">Server Seed SHA-256 Digest:</span>
                 <p className="font-mono text-[10px] text-ink-secondary truncate">
-                  {data.provably_fair.server_seed_hash}
+                  {data.provably_fair.server_seed_hash ?? "No draw committed yet"}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="mt-4 rounded border border-emerald-500/20 bg-emerald-500/5 p-2 text-center text-[10px] font-semibold text-emerald-400">
-            ✓ Shariah Secretariat Provably Fair Seal Active
+            Draw status: {data.provably_fair.draw_status ?? "none yet"} - verify it in Rules, Draw & Closure
           </div>
         </div>
       </div>

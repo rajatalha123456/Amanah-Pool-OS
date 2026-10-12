@@ -242,3 +242,37 @@ def download_evidence_bundle_zip(request):
     response = HttpResponse(zip_bytes, content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{bundle["bundle_id"]}.zip"'
     return response
+
+
+REPORT_ROLES = ["auditor", "risk_compliance", "pool_manager", "finance_checker", "shariah_board", "shariah_secretariat"]
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, HasAnyRole(REPORT_ROLES)])
+def period_report(request):
+    """Periodic summary per pool for ?start=YYYY-MM-DD&end=YYYY-MM-DD (JSON, or CSV with ?format=csv)."""
+    from datetime import date
+
+    from rest_framework.exceptions import ValidationError
+
+    from .period_report import build_period_report, report_to_csv
+
+    try:
+        start = date.fromisoformat(str(request.query_params.get("start")))
+        end = date.fromisoformat(str(request.query_params.get("end")))
+    except ValueError:
+        raise ValidationError("start and end (YYYY-MM-DD) are required.")
+    if start > end:
+        raise ValidationError("start cannot be after end.")
+
+    report = build_period_report(request.user.tenant, start, end)
+    log_action(
+        tenant=request.user.tenant, actor=request.user, action="period_report", model_name="Report",
+        object_id=report["content_hash"][:16], changes={"start": str(start), "end": str(end), "pools": len(report["pools"])},
+        request=request,
+    )
+    if request.query_params.get("export") == "csv":
+        response = HttpResponse(report_to_csv(report), content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="period_report_{start}_{end}.csv"'
+        return response
+    return Response(report)

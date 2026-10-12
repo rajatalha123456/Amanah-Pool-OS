@@ -11,43 +11,36 @@ from apps.pools.models import DailyBalance, Pool
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
-from .models import AllocationRunStatus, PSRStatus, ProfitSharingRatio, WeightageBand, WeightageBandStatus
+from .models import AllocationRun, AllocationRunStatus, PSRStatus, ProfitSharingRatio, WeightageBand, WeightageBandStatus
 
 
-class AllocationRunShariahReviewStageApiTests(APITestCase):
+class ApprovalCeremonyApiTests(APITestCase):
+    """UI Catalogue screen 14: prepared -> independent check -> Shariah review -> final release."""
+
     def setUp(self):
-        self.tenant = Tenant.objects.create(
-            name="Shariah Review Test Tenant", code="SR-TEST", data_residency="PK"
-        )
+        self.tenant = Tenant.objects.create(name="Ceremony Tenant", code="CEREMONY", data_residency="PK")
         set_current_tenant(self.tenant)
-        self.maker = User.objects.create_user(
-            email="maker@example.com",
-            password="password",
-            full_name="Finance Maker",
-            role=UserRole.FINANCE_MAKER,
-            tenant=self.tenant,
-        )
-        self.checker = User.objects.create_user(
-            email="checker@example.com",
-            password="password",
-            full_name="Finance Checker",
-            role=UserRole.FINANCE_CHECKER,
-            tenant=self.tenant,
-        )
-        self.secretariat = User.objects.create_user(
-            email="secretariat@example.com",
-            password="password",
-            full_name="Shariah Secretariat",
-            role=UserRole.SHARIAH_SECRETARIAT,
-            tenant=self.tenant,
-        )
-        self.board = User.objects.create_user(
-            email="board@example.com",
-            password="password",
-            full_name="Shariah Board",
-            role=UserRole.SHARIAH_BOARD,
-            tenant=self.tenant,
-        )
+        original_request = self.client.request
+
+        def request_keeping_tenant(**kwargs):
+            try:
+                return original_request(**kwargs)
+            finally:
+                set_current_tenant(self.tenant)
+
+        self.client.request = request_keeping_tenant
+
+        def user(name, role):
+            return User.objects.create_user(
+                email=f"{name}@ceremony.example.com", password="password", full_name=name.title(),
+                role=role, tenant=self.tenant,
+            )
+
+        self.maker = user("maker", UserRole.FINANCE_MAKER)
+        self.checker = user("checker", UserRole.FINANCE_CHECKER)
+        self.secretariat = user("secretariat", UserRole.SHARIAH_SECRETARIAT)
+        self.board = user("board", UserRole.SHARIAH_BOARD)
+        self.signatory = user("signatory", UserRole.AUTHORIZED_SIGNATORY)
 
     def tearDown(self):
         set_current_tenant(None)
@@ -58,173 +51,161 @@ class AllocationRunShariahReviewStageApiTests(APITestCase):
 
     def _make_pool(self, operating_model, code_suffix):
         contract = ContractTemplate.objects.create(
-            tenant=self.tenant,
-            name=f"Contract {code_suffix}",
-            contract_type="mudarabah_unrestricted",
-            version="1",
-            clauses={},
+            tenant=self.tenant, name=f"Contract {code_suffix}", contract_type="mudarabah_unrestricted",
+            version="1", clauses={},
         )
         product = Product.objects.create(
-            tenant=self.tenant,
-            name=f"Product {code_suffix}",
-            code=f"PRODUCT-{code_suffix}",
-            operating_model=operating_model,
-            contract_template=contract,
+            tenant=self.tenant, name=f"Product {code_suffix}", code=f"PRODUCT-{code_suffix}",
+            operating_model=operating_model, contract_template=contract,
         )
         pool = Pool.objects.create(
-            tenant=self.tenant,
-            name=f"Pool {code_suffix}",
-            code=f"POOL-{code_suffix}",
-            product=product,
+            tenant=self.tenant, name=f"Pool {code_suffix}", code=f"POOL-{code_suffix}", product=product,
             effective_date=date(2026, 1, 1),
         )
         value_date = date(2026, 9, 15)
         DailyBalance.objects.create(
-            tenant=self.tenant,
-            pool=pool,
-            participant_class="retail",
-            value_date=value_date,
+            tenant=self.tenant, pool=pool, participant_class="retail", value_date=value_date,
             balance_amount=Decimal("1000.00"),
         )
         WeightageBand.objects.create(
-            tenant=self.tenant,
-            pool=pool,
-            participant_class="retail",
-            weightage=Decimal("1.00"),
-            effective_from=date(2026, 1, 1),
-            status=WeightageBandStatus.APPROVED,
+            tenant=self.tenant, pool=pool, participant_class="retail", weightage=Decimal("1.00"),
+            effective_from=date(2026, 1, 1), status=WeightageBandStatus.APPROVED,
         )
         ProfitSharingRatio.objects.create(
-            tenant=self.tenant,
-            pool=pool,
-            depositor_share=Decimal("70.00"),
-            mudarib_share=Decimal("30.00"),
-            effective_from=date(2026, 1, 1),
-            status=PSRStatus.APPROVED,
+            tenant=self.tenant, pool=pool, depositor_share=Decimal("70.00"), mudarib_share=Decimal("30.00"),
+            effective_from=date(2026, 1, 1), status=PSRStatus.APPROVED,
         )
         return pool, value_date
 
-    def _create_run(self, pool, value_date):
+    def _prepared_run(self, operating_model, code):
+        """A run created and submitted by the maker; returns its detail URL."""
+        pool, value_date = self._make_pool(operating_model, code)
         self.authenticate(self.maker)
         response = self.client.post(
             reverse("allocation-run-list"),
-            {"pool": str(pool.id), "value_date": str(value_date), "gross_income": "100.00"},
+            {"pool": str(pool.id), "value_date": str(value_date), "gross_income": "100.00",
+             "override_reason": "test fixture"},
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        return response.data["id"]
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        url = reverse("allocation-run-detail", args=[response.data["id"]])
+        self.assertEqual(self.client.post(url + "submit-for-checking/").status_code, status.HTTP_200_OK)
+        return url
 
-    def test_bank_pool_run_requires_shariah_sign_off_before_approve(self):
-        pool, value_date = self._make_pool("bank_pool", "BANK")
-        run_id = self._create_run(pool, value_date)
-        detail_url = reverse("allocation-run-detail", args=[run_id])
+    def post(self, user, url, payload=None):
+        self.authenticate(user)
+        return self.client.post(url, payload or {}, format="json")
 
-        get_response = self.client.get(detail_url)
-        self.assertTrue(get_response.data["shariah_review_required"])
-
+    def states(self, url):
         self.authenticate(self.maker)
-        submit_response = self.client.post(f"{detail_url}submit-for-checking/")
-        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(submit_response.data["status"], "pending_approval")
+        return {s["key"]: s["state"] for s in self.client.get(url).data["stages"]}
 
-        # Approve should be rejected before Shariah sign-off happens.
-        self.authenticate(self.checker)
-        premature_approve = self.client.post(f"{detail_url}approve/")
-        self.assertEqual(premature_approve.status_code, status.HTTP_400_BAD_REQUEST)
-
-        # Wrong roles cannot sign off - the Secretariat only prepares the pack.
-        self.authenticate(self.checker)
-        forbidden_signoff = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
-        self.assertEqual(forbidden_signoff.status_code, status.HTTP_403_FORBIDDEN)
-        self.authenticate(self.secretariat)
-        secretariat_signoff = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
-        self.assertEqual(secretariat_signoff.status_code, status.HTTP_403_FORBIDDEN)
-
-        self.authenticate(self.board)
-        signoff_response = self.client.post(
-            f"{detail_url}shariah-sign-off/", {"note": "Reviewed against approved PSR."}, format="json"
+    def test_bank_pool_runs_through_all_four_stages_in_order(self):
+        url = self._prepared_run("bank_pool", "BANK")
+        self.assertEqual(
+            self.states(url),
+            {"prepared": "completed", "independent_check": "in_review", "shariah_review": "waiting", "final_release": "waiting"},
         )
-        self.assertEqual(signoff_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(signoff_response.data["status"], "shariah_review")
-        self.assertEqual(signoff_response.data["shariah_review_note"], "Reviewed against approved PSR.")
-        self.assertIsNotNone(signoff_response.data["shariah_signed_off_by"])
 
-        self.authenticate(self.checker)
-        approve_response = self.client.post(f"{detail_url}approve/")
-        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(approve_response.data["status"], "signed")
+        # Nothing can be skipped.
+        self.assertEqual(self.post(self.secretariat, url + "shariah-sign-off/").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.post(self.signatory, url + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_finance_checker_can_reject_from_shariah_review_stage(self):
-        pool, value_date = self._make_pool("bank_pool", "BANK-REJ")
-        run_id = self._create_run(pool, value_date)
-        detail_url = reverse("allocation-run-detail", args=[run_id])
-
-        self.authenticate(self.maker)
-        submit_response = self.client.post(f"{detail_url}submit-for-checking/")
-        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
-
-        self.authenticate(self.board)
-        signoff_response = self.client.post(
-            f"{detail_url}shariah-sign-off/", {"note": "Reviewed."}, format="json"
+        # Only the Finance Checker does the independent check.
+        for wrong in (self.maker, self.secretariat, self.signatory):
+            self.assertEqual(self.post(wrong, url + "check/").status_code, status.HTTP_403_FORBIDDEN)
+        checked = self.post(self.checker, url + "check/")
+        self.assertEqual(checked.status_code, status.HTTP_200_OK, checked.data)
+        self.assertEqual(checked.data["status"], "checked")
+        self.assertEqual(
+            self.states(url),
+            {"prepared": "completed", "independent_check": "completed", "shariah_review": "in_review", "final_release": "waiting"},
         )
-        self.assertEqual(signoff_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(signoff_response.data["status"], "shariah_review")
 
-        # Wrong role cannot reject.
-        self.authenticate(self.maker)
-        forbidden_reject = self.client.post(
-            f"{detail_url}reject/", {"rejection_reason": "Not allowed"}, format="json"
+        # Release is still blocked until the Shariah review is done.
+        self.assertEqual(self.post(self.signatory, url + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Shariah review: Secretariat or Board; nobody else.
+        for wrong in (self.maker, self.checker, self.signatory):
+            self.assertEqual(self.post(wrong, url + "shariah-sign-off/").status_code, status.HTTP_403_FORBIDDEN)
+        reviewed = self.post(self.secretariat, url + "shariah-sign-off/", {"note": "Reviewed against approved PSR."})
+        self.assertEqual(reviewed.status_code, status.HTTP_200_OK, reviewed.data)
+        self.assertEqual(reviewed.data["status"], "shariah_review")
+        self.assertEqual(reviewed.data["shariah_review_note"], "Reviewed against approved PSR.")
+
+        # Final release: only the Authorized Signatory - not the checker, not the Shariah reviewer.
+        for wrong in (self.maker, self.checker, self.secretariat, self.board):
+            self.assertEqual(self.post(wrong, url + "approve/").status_code, status.HTTP_403_FORBIDDEN)
+        released = self.post(self.signatory, url + "approve/")
+        self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
+        self.assertEqual(released.data["status"], "signed")
+        self.assertEqual(
+            self.states(url),
+            {"prepared": "completed", "independent_check": "completed", "shariah_review": "completed", "final_release": "completed"},
         )
-        self.assertEqual(forbidden_reject.status_code, status.HTTP_403_FORBIDDEN)
 
-        self.authenticate(self.checker)
-        reject_response = self.client.post(
-            f"{detail_url}reject/", {"rejection_reason": "Ratio looks off."}, format="json"
+        run = AllocationRun.objects.get(pk=released.data["id"])
+        self.assertEqual(run.checked_by_id, self.checker.id)
+        self.assertEqual(run.shariah_signed_off_by_id, self.secretariat.id)
+        self.assertEqual(run.released_by_id, self.signatory.id)
+        gates = {g["key"]: g["passed"] for g in released.data["control_gates"]}
+        self.assertTrue(gates["final_authority"] and gates["shariah_review"] and gates["shariah_parameters_sealed"])
+
+    def test_the_shariah_board_can_also_perform_the_shariah_review(self):
+        url = self._prepared_run("bank_pool", "BANK-B")
+        self.post(self.checker, url + "check/")
+        self.assertEqual(self.post(self.board, url + "shariah-sign-off/", {"note": "ok"}).status_code, status.HTTP_200_OK)
+        self.assertEqual(self.post(self.signatory, url + "approve/").status_code, status.HTTP_200_OK)
+
+    def test_non_bank_pool_skips_the_shariah_stage(self):
+        url = self._prepared_run("investment_pool", "INV")
+        self.post(self.checker, url + "check/")
+        self.assertEqual(
+            [s["key"] for s in self.client.get(url).data["stages"]],
+            ["prepared", "independent_check", "final_release"],
         )
-        self.assertEqual(reject_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(reject_response.data["status"], "rejected")
+        self.assertEqual(self.post(self.secretariat, url + "shariah-sign-off/").status_code, status.HTTP_400_BAD_REQUEST)
+        released = self.post(self.signatory, url + "approve/")
+        self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
+        self.assertEqual(released.data["status"], "signed")
 
-    def test_finance_checker_can_reject_from_pending_approval_stage(self):
-        pool, value_date = self._make_pool("investment_pool", "INV-REJ")
-        run_id = self._create_run(pool, value_date)
-        detail_url = reverse("allocation-run-detail", args=[run_id])
+    def test_release_cannot_be_given_by_the_independent_checker_even_if_the_role_changed(self):
+        url = self._prepared_run("investment_pool", "INV-2")
+        self.post(self.checker, url + "check/")
+        AllocationRun.objects.filter(pk=url.rstrip("/").split("/")[-1]).update(checked_by=self.signatory)
+        response = self.post(self.signatory, url + "approve/")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        self.authenticate(self.maker)
-        submit_response = self.client.post(f"{detail_url}submit-for-checking/")
-        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(submit_response.data["status"], "pending_approval")
+    def test_each_stage_owner_can_reject_with_a_reason(self):
+        for stage, rejecter in (("pending", self.checker), ("checked", self.secretariat), ("reviewed", self.signatory)):
+            url = self._prepared_run("bank_pool", f"REJ-{stage}")
+            if stage in ("checked", "reviewed"):
+                self.post(self.checker, url + "check/")
+            if stage == "reviewed":
+                self.post(self.secretariat, url + "shariah-sign-off/", {"note": "ok"})
+            # A reason is mandatory.
+            self.assertEqual(self.post(rejecter, url + "reject/").status_code, status.HTTP_400_BAD_REQUEST)
+            rejected = self.post(rejecter, url + "reject/", {"rejection_reason": f"Rejected at {stage}"})
+            self.assertEqual(rejected.status_code, status.HTTP_200_OK, rejected.data)
+            self.assertEqual(rejected.data["status"], "rejected")
+            self.assertEqual(rejected.data["rejection_reason"], f"Rejected at {stage}")
 
-        # Wrong role cannot reject.
-        self.authenticate(self.secretariat)
-        forbidden_reject = self.client.post(
-            f"{detail_url}reject/", {"rejection_reason": "Not allowed"}, format="json"
+    def test_makers_cannot_reject_and_signed_runs_cannot_be_rejected(self):
+        url = self._prepared_run("investment_pool", "INV-3")
+        self.assertEqual(
+            self.post(self.maker, url + "reject/", {"rejection_reason": "x"}).status_code, status.HTTP_403_FORBIDDEN
         )
-        self.assertEqual(forbidden_reject.status_code, status.HTTP_403_FORBIDDEN)
-
-        self.authenticate(self.checker)
-        reject_response = self.client.post(
-            f"{detail_url}reject/", {"rejection_reason": "Numbers don't match."}, format="json"
+        self.post(self.checker, url + "check/")
+        self.post(self.signatory, url + "approve/")
+        self.assertEqual(
+            self.post(self.checker, url + "reject/", {"rejection_reason": "x"}).status_code, status.HTTP_400_BAD_REQUEST
         )
-        self.assertEqual(reject_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(reject_response.data["status"], "rejected")
 
-    def test_non_bank_pool_run_skips_shariah_review(self):
-        pool, value_date = self._make_pool("investment_pool", "INV")
-        run_id = self._create_run(pool, value_date)
-        detail_url = reverse("allocation-run-detail", args=[run_id])
-
-        get_response = self.client.get(detail_url)
-        self.assertFalse(get_response.data["shariah_review_required"])
-
-        self.authenticate(self.maker)
-        self.client.post(f"{detail_url}submit-for-checking/")
-
-        # Sign-off is not applicable for this pool.
-        self.authenticate(self.board)
-        signoff_response = self.client.post(f"{detail_url}shariah-sign-off/", {"note": "x"}, format="json")
-        self.assertEqual(signoff_response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        self.authenticate(self.checker)
-        approve_response = self.client.post(f"{detail_url}approve/")
-        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(approve_response.data["status"], "signed")
+    def test_a_rejected_run_shows_where_it_stopped(self):
+        url = self._prepared_run("bank_pool", "STOP")
+        self.post(self.checker, url + "check/")
+        self.post(self.secretariat, url + "reject/", {"rejection_reason": "PSR not as approved"})
+        self.assertEqual(
+            self.states(url),
+            {"prepared": "completed", "independent_check": "completed", "shariah_review": "rejected", "final_release": "waiting"},
+        )

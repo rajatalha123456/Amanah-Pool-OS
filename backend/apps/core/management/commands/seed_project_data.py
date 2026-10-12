@@ -8,9 +8,16 @@ from django.utils import timezone
 from apps.core.context import set_current_tenant
 from apps.participants.models import Participant, ParticipantAccount
 from apps.participants.models import KYCStatus
-from apps.participants.seed_ledger import make_pk_iban, seed_circle_first_cycle, seed_participant_ledger
+from apps.participants.seed_governance import seal_pool_versions, seed_governance_config
+from apps.participants.seed_ledger import (
+    make_pk_iban,
+    seed_circle_first_cycle,
+    seed_mudarabah_distribution,
+    seed_participant_ledger,
+)
 from apps.tenants.models import LegalEntity, Tenant
-from apps.accounts.models import User, UserRole
+from apps.accounting.models import AccountMapping
+from apps.accounts.models import ApprovalMatrixRule, User, UserRole
 from apps.products.models import (
     ContractTemplate,
     ContractTemplateStatus,
@@ -83,8 +90,12 @@ from apps.governance.models import (
 from apps.investments.models import (
     CapitalAccount,
     CapitalAccountStatus,
+    DisclosureAcknowledgement,
     ImpairmentEvent,
+    PoolDisclosure,
     ImpairmentEventStatus,
+    InvestmentDistributionLine,
+    InvestmentDistributionRun,
     InvestorProfile,
     KYCStatus,
     NAVSnapshot,
@@ -92,12 +103,17 @@ from apps.investments.models import (
     RiskTolerance,
     Subscription,
     SubscriptionStatus,
+    UnitMovement,
 )
 from apps.circles.models import (
     ArrearsRecord,
     ArrearsStatus,
+    CircleClosure,
+    CircleDraw,
     CircleMember,
     CircleMemberStatus,
+    CircleRules,
+    RulesAcceptance,
     CircleProposal,
     CircleVote,
     Contribution,
@@ -120,10 +136,14 @@ class Command(BaseCommand):
             help="Tenant code to seed data into (default: NOVU-DEMO).",
         )
         parser.add_argument(
-            "--reset",
+            "--no-reset",
             action="store_true",
-            default=True,
-            help="Wipe existing tenant operational data before seeding (default: True).",
+            help="Keep the tenant's existing operational data (by default it is wiped before seeding).",
+        )
+        parser.add_argument(
+            "--allow-non-debug",
+            action="store_true",
+            help="Required to run outside DEBUG: this command wipes and rewrites a tenant's data.",
         )
         parser.add_argument(
             "--password",
@@ -134,7 +154,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         tenant_code = options["tenant_code"]
         password = options["password"]
-        should_reset = options.get("reset", True)
+        should_reset = not options.get("no_reset", False)
+        from django.conf import settings
+        from django.core.management.base import CommandError
+
+        if not settings.DEBUG and not options.get("allow_non_debug"):
+            raise CommandError("Demo seeding wipes tenant data; run it only in development (or pass --allow-non-debug).")
 
         self.stdout.write(self.style.NOTICE(f"=== Starting Amanah Pool OS Seed Process for Tenant: {tenant_code} ==="))
 
@@ -149,15 +174,30 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Resetting existing operational data for tenant '{tenant_code}'..."))
             from apps.core.models import AuditLog
 
+            # Posted journals reference runs and are PROTECTed: remove them first, then
+            # the distribution runs/lines and unit movements that reference capital accounts.
+            JournalEntry.objects.filter(tenant=tenant).delete()
+            JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
+            JournalBatch.objects.filter(tenant=tenant).delete()
+            InvestmentDistributionLine.objects.filter(tenant=tenant).delete()
+            InvestmentDistributionRun.objects.filter(tenant=tenant).delete()
+            UnitMovement.objects.filter(tenant=tenant).delete()
+
             # 1. Circles
             ArrearsRecord.objects.filter(tenant=tenant).delete()
             CircleVote.objects.filter(tenant=tenant).delete()
             CircleProposal.objects.filter(tenant=tenant).delete()
             Payout.objects.filter(tenant=tenant).delete()
             Contribution.objects.filter(tenant=tenant).delete()
+            CircleClosure.objects.filter(tenant=tenant).delete()
+            CircleDraw.objects.filter(tenant=tenant).delete()
+            RulesAcceptance.objects.filter(tenant=tenant).delete()
+            CircleRules.objects.filter(tenant=tenant).delete()
             CircleMember.objects.filter(tenant=tenant).delete()
 
             # 2. Investments
+            DisclosureAcknowledgement.objects.filter(tenant=tenant).delete()
+            PoolDisclosure.objects.filter(tenant=tenant).delete()
             ImpairmentEvent.objects.filter(tenant=tenant).delete()
             NAVSnapshot.objects.filter(tenant=tenant).delete()
             Subscription.objects.filter(tenant=tenant).delete()
@@ -206,6 +246,9 @@ class Command(BaseCommand):
             ShariahDecision.objects.filter(tenant=tenant).delete()
             JurisdictionRulePack.objects.filter(tenant=tenant).delete()
 
+            AccountMapping.objects.filter(tenant=tenant).delete()
+            ApprovalMatrixRule.objects.filter(tenant=tenant).delete()
+
             # 8. Audit log
             AuditLog.objects.filter(tenant=tenant).delete()
             self.stdout.write(self.style.SUCCESS("[OK] Previous operational data reset."))
@@ -223,18 +266,25 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"[OK] Tenant & Legal Entity: {tenant.name} ({legal_entity.name})"))
 
         # 2. Users (Ensure all 9 core roles exist with known password)
+        # Demo users have invented names (never real public figures). Each tenant gets its own e-mail domain
+        # so seeding a second tenant never moves another tenant's users.
+        domain = "novulabsdemo.test" if tenant_code == "NOVU-DEMO" else f"{tenant_code.lower()}.demo.test"
         role_users = [
-            ("superadmin@novulabsdemo.test", "Tariq Al-Mansoor", UserRole.PLATFORM_SUPER_ADMIN),
-            ("poolmanager@novulabsdemo.test", "Hamza Farooq", UserRole.POOL_MANAGER),
-            ("maker@novulabsdemo.test", "Zubair Siddiqui (Maker)", UserRole.FINANCE_MAKER),
-            ("checker@novulabsdemo.test", "Amina Malik (Checker)", UserRole.FINANCE_CHECKER),
-            ("risk@novulabsdemo.test", "Dr. Khalid Rehman", UserRole.RISK_COMPLIANCE),
-            ("secretariat@novulabsdemo.test", "Mufti Bilal Qasim", UserRole.SHARIAH_SECRETARIAT),
-            ("board@novulabsdemo.test", "Sheikh Dr. Yusuf Al-Qaradawi", UserRole.SHARIAH_BOARD),
-            ("auditor@novulabsdemo.test", "Rashid & Co Statutory Auditor", UserRole.AUDITOR),
-            ("pm@novulabsdemo.test", "Maryam Nawaz", UserRole.PRODUCT_MANAGER),
-            ("investor@novulabsdemo.test", "Noor Fatima", UserRole.INVESTOR_MEMBER),
+            ("superadmin", "Tariq Mansoor (Demo Admin)", UserRole.PLATFORM_SUPER_ADMIN),
+            ("poolmanager", "Hamza Farooq (Demo)", UserRole.POOL_MANAGER),
+            ("maker", "Zubair Siddiqui (Demo Maker)", UserRole.FINANCE_MAKER),
+            ("checker", "Amina Malik (Demo Checker)", UserRole.FINANCE_CHECKER),
+            ("risk", "Khalid Rehman (Demo Risk)", UserRole.RISK_COMPLIANCE),
+            ("secretariat", "Bilal Qasim (Demo Secretariat)", UserRole.SHARIAH_SECRETARIAT),
+            ("board", "Board Member A (Demo)", UserRole.SHARIAH_BOARD),
+            ("auditor", "Demo Statutory Auditor", UserRole.AUDITOR),
+            ("pm", "Sana Iqbal (Demo Product Manager)", UserRole.PRODUCT_MANAGER),
+            ("investor", "Noor Fatima (Demo Investor)", UserRole.INVESTOR_MEMBER),
+            ("signatory", "Imran Siddiqui (Demo Signatory)", UserRole.AUTHORIZED_SIGNATORY),
         ]
+        role_users = [(f"{local}@{domain}", name, role) for local, name, role in role_users]
+        # A Shariah quorum needs at least two Board members (two thirds of the board).
+        extra_board = [(f"board2@{domain}", "Board Member B (Demo)"), (f"board3@{domain}", "Board Member C (Demo)")]
 
         users_by_role = {}
         for email, full_name, role in role_users:
@@ -249,6 +299,13 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
             users_by_role[role] = user
+        for email, full_name in extra_board:
+            extra, _ = User.objects.get_or_create(
+                email=email, defaults={"tenant": tenant, "full_name": full_name, "role": UserRole.SHARIAH_BOARD}
+            )
+            extra.full_name, extra.role, extra.tenant, extra.is_active = full_name, UserRole.SHARIAH_BOARD, tenant, True
+            extra.set_password(password)
+            extra.save()
 
         maker = users_by_role[UserRole.FINANCE_MAKER]
         checker = users_by_role[UserRole.FINANCE_CHECKER]
@@ -273,7 +330,7 @@ class Command(BaseCommand):
                     "per_ceiling_pct": 2.0,
                     "irr_ceiling_pct": 5.0,
                     "notice_period_days": 30,
-                    "mudarib_share_cap_pct": 20.0,
+                    "mudarib_share_cap_pct": 30.0,
                     "purification_interval": "monthly",
                 },
             },
@@ -677,6 +734,10 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("[OK] PER/IRR Statutory Reserve Policies Seeded"))
 
+        # Governance configuration (BR-001): approval matrix + accounting mapping, so journals carry GL codes.
+        seed_governance_config(tenant)
+        self.stdout.write(self.style.SUCCESS("[OK] Approval Matrix & Accounting Mapping Seeded"))
+
         # 10. Assets & Assignments (Screens 07, 08)
         assets_data = [
             ("AST-SUK-01", "GOP Domestic Ijarah Sukuk Series 14", AssetType.OTHER, Decimal("50000000.00"), pool_gen),
@@ -716,33 +777,11 @@ class Command(BaseCommand):
             pm_user=pm_user,
             risk_user=risk_user,
             investor_user=users_by_role[UserRole.INVESTOR_MEMBER],
+            signatory=users_by_role[UserRole.AUTHORIZED_SIGNATORY],
             stdout=self.stdout,
         )
 
-        # 12. Income & Expense Events (Screen 10)
-        events_data = [
-            (IncomeExpenseEventType.INCOME, "Financing Profit", Decimal("1850000.00"), date(2026, 9, 25), "Sukuk Coupon Periodic Rental Accrual"),
-            (IncomeExpenseEventType.INCOME, "Financing Profit", Decimal("920000.00"), date(2026, 9, 26), "Engro Murabaha Sales Profit Settlement"),
-            (IncomeExpenseEventType.EXPENSE, "Direct Takaful", Decimal("145000.00"), date(2026, 9, 27), "Pak-Qatar Islamic Takaful Asset Protection Premium"),
-            (IncomeExpenseEventType.EXPENSE, "Custody Fees", Decimal("65000.00"), date(2026, 9, 27), "CDC Central Depository Sukuk Custody Fee"),
-        ]
-        for et, ec, amt, ed, desc in events_data:
-            IncomeExpenseEvent.objects.get_or_create(
-                tenant=tenant,
-                pool=pool_gen,
-                amount=amt,
-                event_date=ed,
-                defaults={
-                    "event_type": et,
-                    "category": ec,
-                    "description": desc,
-                    "status": IncomeExpenseEventStatus.POSTED,
-                    "created_by": maker,
-                    "posted_by": checker,
-                    "posted_at": timezone.now(),
-                },
-            )
-        self.stdout.write(self.style.SUCCESS("[OK] Income & Expense Events Seeded"))
+        # 12. Income & Expense Events (Screen 10) are seeded with the allocation runs they feed (seed_ledger).
 
         self.stdout.write(self.style.SUCCESS("[OK] Allocation Runs, Statements & Journal Batches Seeded"))
 
@@ -826,44 +865,35 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("[OK] Reconciliation Batches & Items Seeded (Screen 11)"))
 
-        # 15. Period Close Manager (Screen 16)
-        PeriodCloseChecklist.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            period_start=date(2026, 8, 1),
-            period_end=date(2026, 8, 31),
-            defaults={
-                "status": PeriodCloseStatus.LOCKED,
-                "checklist_data": {
-                    "reconciled": True,
-                    "shariah_parameters_sealed": True,
-                    "exceptions_cleared": True,
-                    "allocation_signed": True,
-                    "journals_posted": True,
-                },
-                "decision_note": "August 2026 period fully reconciled and locked with cryptographic seal.",
-                "certified_by": checker,
-                "certified_at": timezone.now() - timedelta(days=27),
-            },
+        # 15. Period Close Manager (Screen 16) - through the real workflow, never by writing a status.
+        from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+
+        from apps.pools.period_close_engine import (
+            auto_verify_period_gates,
+            execute_cryptographic_lock_ceremony,
+            sign_off_period_role,
         )
 
-        PeriodCloseChecklist.objects.get_or_create(
-            tenant=tenant,
-            pool=pool_gen,
-            period_start=date(2026, 9, 1),
-            period_end=date(2026, 9, 30),
-            defaults={
-                "status": PeriodCloseStatus.OPEN,
-                "checklist_data": {
-                    "reconciled": True,
-                    "shariah_parameters_sealed": True,
-                    "exceptions_cleared": True,
-                    "allocation_signed": False,
-                    "journals_posted": False,
-                },
-                "decision_note": "Awaiting final profit allocation sign-off and GL posting.",
-            },
+        august_close, _ = PeriodCloseChecklist.objects.get_or_create(
+            tenant=tenant, pool=pool_gen, period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
         )
+        PeriodCloseChecklist.objects.get_or_create(
+            tenant=tenant, pool=pool_gen, period_start=date(2026, 9, 1), period_end=date(2026, 9, 30),
+        )
+        try:
+            auto_verify_period_gates(august_close)
+            sign_off_period_role(august_close, users_by_role[UserRole.POOL_MANAGER], "pool_manager", "Period reviewed.")
+            sign_off_period_role(
+                august_close, users_by_role[UserRole.SHARIAH_SECRETARIAT], "shariah_reviewer",
+                "Reviewed against the pool's Shariah decision.", fatwa_ref="SEED-SHARIAH-REVIEW",
+            )
+            sign_off_period_role(august_close, checker, "cfo_checker", "Journals and reserves checked.")
+            august_close.refresh_from_db()
+            execute_cryptographic_lock_ceremony(august_close, users_by_role[UserRole.AUTHORIZED_SIGNATORY], "August closed.")
+        except (DRFValidationError, PermissionDenied) as exc:
+            self.stdout.write(self.style.WARNING(f"August period left open (a gate did not pass): {exc.detail}"))
+        for close in PeriodCloseChecklist.objects.filter(tenant=tenant, status=PeriodCloseStatus.OPEN):
+            auto_verify_period_gates(close)
         self.stdout.write(self.style.SUCCESS("[OK] Period Close Checklists Seeded (Screen 16)"))
 
         # 16. Shariah Audit Plan & Findings (Screen 33)
@@ -1128,6 +1158,17 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("[OK] Investor Accounts, Subscriptions & NAV Curves Seeded"))
 
+
+        # Mudarabah profit distribution (investment pool) through the real maker-checker workflow.
+        seed_mudarabah_distribution(tenant, pool_corp, cap_acc_corp, maker=maker, checker=checker, password=password)
+        self.stdout.write(self.style.SUCCESS("[OK] Mudarabah Profit Distributions Seeded"))
+
+        # Disclosures state the pool's terms, so they are published once the PSRs exist.
+        from apps.investments.disclosures import ensure_acknowledged
+
+        for account in (cap_acc_1, cap_acc_2, cap_acc_corp):
+            ensure_acknowledged(account, users_by_role[UserRole.POOL_MANAGER])
+
         # 19. Community Circles (Screens 38, 39)
         circle_members_data = [
             ("Tariq Mahmood", "MEM-001", 1),
@@ -1153,6 +1194,12 @@ class Command(BaseCommand):
                 },
             )
             created_members.append(mem)
+
+        from apps.circles.rules import publish_and_accept_all
+
+        publish_and_accept_all(
+            pool_circle, users_by_role[UserRole.POOL_MANAGER], schedule_note="Monthly contribution due by the 5th."
+        )
 
         # Monthly Contributions
         for mem in created_members:
@@ -1210,10 +1257,14 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("[OK] Community Circles, Contributions & Payouts Seeded"))
 
+        # Seal each pool's version 1 from the configuration that actually governs it (no placeholders).
+        seal_pool_versions(tenant)
+        self.stdout.write(self.style.SUCCESS("[OK] Pool Versions Sealed From Live Configuration"))
+
         self.stdout.write(self.style.SUCCESS("\n========================================================"))
-        self.stdout.write(self.style.SUCCESS("*** ALL 42 SCREENS & ENGINES SEEDED WITH 100% PRODUCTION DATA! ***"))
+        self.stdout.write(self.style.SUCCESS("*** DEMO TENANT SEEDED ***"))
         self.stdout.write(self.style.SUCCESS("========================================================"))
         self.stdout.write(f"Tenant:      {tenant.name} (Code: {tenant.code})")
         self.stdout.write(f"Login URL:   /login")
-        self.stdout.write(f"Credentials: Email: superadmin@novulabsdemo.test (or maker, checker, board, etc.)")
+        self.stdout.write(f"Credentials: Email: superadmin@{domain} (or maker, checker, board, etc.)")
         self.stdout.write(f"Password:    {password}\n")

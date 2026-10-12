@@ -7,6 +7,7 @@ import { Button } from "../components/Button"
 import { Card } from "../components/Card"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
+import { AIRecommendationLog } from "../components/AIRecommendationLog"
 import type { AIModelRegistry, BadgeVariant } from "../types"
 
 const STATUS_BADGE: Record<AIModelRegistry["status"], BadgeVariant> = {
@@ -82,6 +83,7 @@ export function ModelGovernance() {
           <Table columns={columns} data={models} keyField={(model) => model.id} />
         )}
       </Card>
+      <AIRecommendationLog />
     </div>
   )
 }

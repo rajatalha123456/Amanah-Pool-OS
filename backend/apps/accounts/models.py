@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -12,6 +14,8 @@ class UserRole(models.TextChoices):
     SHARIAH_SECRETARIAT = "shariah_secretariat", "Shariah Secretariat"
     SHARIAH_BOARD = "shariah_board", "Shariah Board"
     RISK_COMPLIANCE = "risk_compliance", "Risk & Compliance"
+    # Final release stage of the approval ceremony (UI Catalogue screen 14).
+    AUTHORIZED_SIGNATORY = "authorized_signatory", "Authorized Signatory"
     AUDITOR = "auditor", "Auditor"
     INVESTOR_MEMBER = "investor_member", "Investor / Member"
 
@@ -80,3 +84,39 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class ApprovalAction(models.TextChoices):
+    """Release-type approvals that the approval matrix governs (BRD Section 4: ApprovalMatrix)."""
+
+    ALLOCATION_RELEASE = "allocation_release", "Allocation run - final release"
+    DISTRIBUTION_APPROVE = "distribution_approve", "Investment profit distribution - approval"
+    PAYOUT_APPROVE = "payout_approve", "Community circle payout - approval"
+
+
+class ApprovalMatrixRule(models.Model):
+    """
+    Who may give a release-type approval, and up to what amount. If a tenant has active
+    rules for an action, only those roles may approve it and only up to `max_amount`
+    (null = unlimited). Role permissions still apply on top. Activating a pool requires
+    the matrix to cover that pool model's release action (BR-001).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="approval_rules")
+    action = models.CharField(max_length=40, choices=ApprovalAction.choices)
+    role = models.CharField(max_length=30, choices=UserRole.choices)
+    max_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "action", "role"], name="unique_approval_rule"),
+        ]
+        ordering = ["action", "role"]
+
+    def __str__(self):
+        limit = "unlimited" if self.max_amount is None else f"up to {self.max_amount}"
+        return f"{self.action}: {self.role} ({limit})"

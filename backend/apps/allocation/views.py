@@ -13,17 +13,24 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import (
     HasAnyRole,
+    IsAuthorizedSignatory,
     IsFinanceChecker,
     IsFinanceMaker,
     IsPoolManager,
     IsShariahBoard,
     IsShariahSecretariat,
 )
+from apps.accounts.approval_matrix import assert_may_approve
 from apps.accounts.workflow import validate_maker_checker
+from apps.accounting.models import IncomeExpenseEvent
 from apps.core.audit import log_action
+from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.notifications import events
 from apps.pools.period_lock import assert_period_open
 
+from .economics_change import announce, band_impact, check_notice_period, psr_impact
 from .engine import calculate_allocation, compute_run_hash
+from .income import derive_income, resolve_income
 from .reserves import apply_reserve_movements, reverse_reserve_movements
 from .models import (
     AllocationLine,
@@ -120,6 +127,42 @@ def _run_or_400(run_id):
         raise ValidationError({"allocation_run": ["Allocation run not found."]})
 
 
+def _verify_income_source(run):
+    """
+    A run derived from ledger events may only be signed while those events are still exactly
+    what it was calculated from: same events, none consumed elsewhere, none newly posted.
+    """
+
+    source = (run.config_snapshot or {}).get("income_source") or {}
+    if source.get("mode") != "derived_from_events":
+        return
+    totals = derive_income(run.pool, run.effective_period_start, run.value_date, replaces_run=run.replaces_run)
+    if (
+        sorted(totals["event_ids"]) != sorted(source.get("event_ids", []))
+        or totals["gross_income"] != run.gross_income
+        or totals["direct_expenses"] != run.direct_expenses
+    ):
+        raise ValidationError(
+            "The income/expense events for this period changed after the run was calculated "
+            "(posted, consumed by another run, or altered). Reject it and re-run the allocation."
+        )
+    if totals["pending_count"]:
+        raise ValidationError(
+            f"{totals['pending_count']} income/expense event(s) in this period are still pending; post them first."
+        )
+
+
+def _consume_income_events(run):
+    """Marks the run's source events as consumed (BR-005): they can feed no other run."""
+
+    source = (run.config_snapshot or {}).get("income_source") or {}
+    event_ids = source.get("event_ids") or []
+    if event_ids:
+        IncomeExpenseEvent._base_manager.filter(tenant_id=run.tenant_id, id__in=event_ids).update(
+            allocation_run=run, updated_at=timezone.now()
+        )
+
+
 def _reverse_replaced_run(new_run, user):
     """
     Called when a restatement rerun is approved: reverses the run it
@@ -150,8 +193,9 @@ def _reverse_replaced_run(new_run, user):
     return reversal_batch
 
 
-class WeightageBandViewSet(viewsets.ModelViewSet):
+class WeightageBandViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     serializer_class = WeightageBandSerializer
+    http_method_names = NO_DELETE
 
     def get_queryset(self):
         # See apps/products/views.py and apps/pools/views.py for why this
@@ -169,7 +213,7 @@ class WeightageBandViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -192,6 +236,9 @@ class WeightageBandViewSet(viewsets.ModelViewSet):
                 f"(current status: '{band.status}')."
             )
 
+        notice_days = check_notice_period(band.pool, band.effective_from)
+        impact = band_impact(band.pool, band) if notice_days is not None else None
+
         band.status = WeightageBandStatus.APPROVED
         band.save(update_fields=["status", "updated_at"])
         log_action(
@@ -203,11 +250,17 @@ class WeightageBandViewSet(viewsets.ModelViewSet):
             changes={"status": {"before": WeightageBandStatus.DRAFT, "after": WeightageBandStatus.APPROVED}},
             request=request,
         )
+        if notice_days is not None:
+            announce(
+                band.pool, request.user, summary=f"Weightage change for class '{band.participant_class}'.",
+                impact=impact, effective_from=band.effective_from, notice_days=notice_days,
+            )
         return Response(self.get_serializer(band).data)
 
 
-class PSRViewSet(viewsets.ModelViewSet):
+class PSRViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     serializer_class = PSRSerializer
+    http_method_names = NO_DELETE
 
     def get_queryset(self):
         queryset = ProfitSharingRatio.objects.all()
@@ -221,7 +274,7 @@ class PSRViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -244,6 +297,9 @@ class PSRViewSet(viewsets.ModelViewSet):
                 f"(current status: '{psr.status}')."
             )
 
+        notice_days = check_notice_period(psr.pool, psr.effective_from)
+        impact = psr_impact(psr.pool, psr) if notice_days is not None else None
+
         psr.status = PSRStatus.APPROVED
         psr.save(update_fields=["status", "updated_at"])
         log_action(
@@ -252,9 +308,18 @@ class PSRViewSet(viewsets.ModelViewSet):
             action="approve",
             model_name="ProfitSharingRatio",
             object_id=str(psr.id),
-            changes={"status": {"before": PSRStatus.DRAFT, "after": PSRStatus.APPROVED}},
+            changes={
+                "status": {"before": PSRStatus.DRAFT, "after": PSRStatus.APPROVED},
+                **({"economics_change_impact": impact, "notice_days": notice_days} if notice_days is not None else {}),
+            },
             request=request,
         )
+        if notice_days is not None:
+            announce(
+                psr.pool, request.user,
+                summary=f"New profit-sharing ratio {psr.depositor_share}/{psr.mudarib_share} (depositors/Mudarib).",
+                impact=impact, effective_from=psr.effective_from, notice_days=notice_days,
+            )
         return Response(self.get_serializer(psr).data)
 
 
@@ -283,12 +348,20 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         if self.action == "submit_for_checking":
             return [IsAuthenticated(), IsFinanceMaker()]
-        if self.action == "shariah_sign_off":
-            # BRD 6.3: the Shariah authority (Board) approves; the Secretariat
-            # only prepares the review pack and holds no final authority.
-            return [IsAuthenticated(), IsShariahBoard()]
-        if self.action in ("approve", "reject"):
+        if self.action == "check":
             return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "shariah_sign_off":
+            # Shariah review stage (UI Catalogue screen 14): done by the Secretariat or the Board.
+            # It is a review, not a ruling - final authority sits with the Authorized Signatory.
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat", "shariah_board"])()]
+        if self.action == "approve":
+            # Final release.
+            return [IsAuthenticated(), IsAuthorizedSignatory()]
+        if self.action == "reject":
+            return [
+                IsAuthenticated(),
+                HasAnyRole(["finance_checker", "shariah_secretariat", "shariah_board", "authorized_signatory"])(),
+            ]
         if self.action == "restate":
             # Initiated by a maker; the checker approves the linked rerun.
             return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager"])()]
@@ -296,22 +369,35 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker", "pool_manager"])()]
         return [IsAuthenticated()]
 
-    def _run_calculation(self, request):
+    def _run_calculation(self, request, block_on_pending=True):
         input_serializer = AllocationRunInputSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
-        data = input_serializer.validated_data
+        data = dict(input_serializer.validated_data)
 
+        period_start = data.get("period_start") or data["value_date"]
         try:
+            gross, expenses, source, totals = resolve_income(
+                data["pool"],
+                period_start,
+                data["value_date"],
+                gross_override=data["gross_income"],
+                expenses_override=data["direct_expenses"],
+                override_reason=data["override_reason"],
+                block_on_pending=block_on_pending,
+            )
             result = calculate_allocation(
                 pool=data["pool"],
                 value_date=data["value_date"],
-                gross_income=data["gross_income"],
-                direct_expenses=data["direct_expenses"],
+                gross_income=gross,
+                direct_expenses=expenses,
                 period_start=data.get("period_start"),
             )
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
 
+        result["config_snapshot"]["income_source"] = source
+        data["gross_income"], data["direct_expenses"] = gross, expenses
+        data["income_totals"] = totals
         return data, result
 
     @action(detail=False, methods=["post"])
@@ -320,9 +406,18 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         Runs the allocation calculation and returns the result directly.
         Nothing is written to the database.
         """
-        _, result = self._run_calculation(request)
+        data, result = self._run_calculation(request, block_on_pending=False)
+        totals = data["income_totals"]
         return Response(
             {
+                "gross_income": data["gross_income"],
+                "direct_expenses": data["direct_expenses"],
+                "income_source": result["config_snapshot"]["income_source"],
+                "warnings": (
+                    [f"{totals['pending_count']} pending income/expense event(s) in this period are not included."]
+                    if totals["pending_count"]
+                    else []
+                ),
                 "distributable": result["distributable"],
                 "total_weighted_funds": result["total_weighted_funds"],
                 "depositor_pool_share": result["depositor_pool_share"],
@@ -405,6 +500,47 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             },
             request=request,
         )
+        events.allocation_submitted(run, request.user)
+        return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"])
+    def check(self, request, pk=None):
+        """Independent check by a Finance Checker who did not prepare the run."""
+        run = self.get_object()
+        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+            raise ValidationError(
+                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status for the "
+                f"independent check (current status: '{run.status}')."
+            )
+        try:
+            validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message) from exc
+
+        # The checker verifies exactly what the maker sealed.
+        if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
+            raise ValidationError(
+                "Calculation hash mismatch: the run no longer matches the figures it was sealed with. "
+                "Reject it and re-run the allocation."
+            )
+
+        run.status = AllocationRunStatus.CHECKED
+        run.checked_by = request.user
+        run.checked_at = timezone.now()
+        run.save(update_fields=["status", "checked_by", "checked_at", "updated_at"])
+        log_action(
+            tenant=run.tenant,
+            actor=request.user,
+            action="independent_check",
+            model_name="AllocationRun",
+            object_id=str(run.id),
+            changes={
+                "status": {"before": AllocationRunStatus.PENDING_APPROVAL, "after": AllocationRunStatus.CHECKED}
+            },
+            reason=request.data.get("note"),
+            request=request,
+        )
+        events.allocation_checked(run, request.user)
         return Response(self.get_serializer(run).data)
 
     @action(detail=True, methods=["post"], url_path="shariah-sign-off")
@@ -416,9 +552,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 "This AllocationRun's pool does not require Shariah review."
             )
 
-        if run.status != AllocationRunStatus.PENDING_APPROVAL:
+        if run.status != AllocationRunStatus.CHECKED:
             raise ValidationError(
-                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' status for "
+                f"AllocationRun must be in '{AllocationRunStatus.CHECKED}' status (independent check done) for "
                 f"Shariah sign-off (current status: '{run.status}')."
             )
 
@@ -443,13 +579,14 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             object_id=str(run.id),
             changes={
                 "status": {
-                    "before": AllocationRunStatus.PENDING_APPROVAL,
+                    "before": AllocationRunStatus.CHECKED,
                     "after": AllocationRunStatus.SHARIAH_REVIEW,
                 }
             },
             reason=run.shariah_review_note,
             request=request,
         )
+        events.allocation_shariah_reviewed(run, request.user)
         return Response(self.get_serializer(run).data)
 
     @action(detail=True, methods=["post"])
@@ -466,18 +603,23 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         required_status = (
             AllocationRunStatus.SHARIAH_REVIEW
             if run.shariah_review_required
-            else AllocationRunStatus.PENDING_APPROVAL
+            else AllocationRunStatus.CHECKED
         )
         if run.status != required_status:
             raise ValidationError(
-                f"AllocationRun must be in '{required_status}' status to "
-                f"approve (current status: '{run.status}')."
+                f"AllocationRun must be in '{required_status}' status for final release "
+                f"(current status: '{run.status}')."
             )
 
+        assert_may_approve(request.user, run.tenant_id, "allocation_release", run.distributable_amount)
+
+        # Four eyes on the release: the signatory is neither the maker nor the independent checker.
         try:
             validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
+        if run.checked_by_id == request.user.id:
+            raise ValidationError("The final release cannot be given by the user who did the independent check.")
 
         previous_status = run.status
 
@@ -520,13 +662,15 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                             "use a restatement to correct it."
                         )
 
+                _verify_income_source(run)
                 apply_reserve_movements(run)
 
                 run.status = AllocationRunStatus.SIGNED
-                run.checked_by = request.user
-                run.checked_at = timezone.now()
-                run.save(update_fields=["status", "checked_by", "checked_at", "updated_at"])
+                run.released_by = request.user
+                run.released_at = timezone.now()
+                run.save(update_fields=["status", "released_by", "released_at", "updated_at"])
 
+                _consume_income_events(run)
                 journal_batch = create_journal_from_allocation(run, posted_by=request.user)
         except (ValueError, DjangoValidationError) as exc:
             # JournalIntegrityError / reserve-cap errors block the approval and
@@ -581,6 +725,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             request=request,
         )
 
+        events.allocation_released(run, request.user)
+
         # Best-effort: a failure here must never block a successful approve
         # (the run is already signed and the journal is already posted).
         try:
@@ -596,13 +742,13 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         rejectable_statuses = (
             AllocationRunStatus.PENDING_APPROVAL,
+            AllocationRunStatus.CHECKED,
             AllocationRunStatus.SHARIAH_REVIEW,
         )
         if run.status not in rejectable_statuses:
             raise ValidationError(
-                f"AllocationRun must be in '{AllocationRunStatus.PENDING_APPROVAL}' or "
-                f"'{AllocationRunStatus.SHARIAH_REVIEW}' status to reject "
-                f"(current status: '{run.status}')."
+                f"AllocationRun cannot be rejected in status '{run.status}' "
+                f"(only pending, checked or Shariah-reviewed runs)."
             )
 
         rejection_reason = request.data.get("rejection_reason")
@@ -611,10 +757,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         previous_status = run.status
         run.status = AllocationRunStatus.REJECTED
-        run.checked_by = request.user
-        run.checked_at = timezone.now()
         run.rejection_reason = rejection_reason
-        run.save(update_fields=["status", "checked_by", "checked_at", "rejection_reason", "updated_at"])
+        # The audit entry below records who rejected and at which stage; checked_by keeps the independent checker.
+        run.save(update_fields=["status", "rejection_reason", "updated_at"])
 
         log_action(
             tenant=run.tenant,
@@ -631,6 +776,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             reason=rejection_reason,
             request=request,
         )
+        events.allocation_rejected(run, request.user, rejection_reason)
         return Response(self.get_serializer(run).data)
 
     @action(detail=True, methods=["post"], url_path="generate-statements")
@@ -736,6 +882,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             status__in=[
                 AllocationRunStatus.SIMULATED,
                 AllocationRunStatus.PENDING_APPROVAL,
+                AllocationRunStatus.CHECKED,
                 AllocationRunStatus.SHARIAH_REVIEW,
             ],
         )
@@ -749,13 +896,22 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             raise ValidationError({"restatement_reason": ["A reason is required."]})
 
         new_gross_income = serializer.validated_data.get("gross_income")
-        if new_gross_income is None:
-            new_gross_income = old_run.gross_income
         new_direct_expenses = serializer.validated_data.get("direct_expenses")
-        if new_direct_expenses is None:
-            new_direct_expenses = old_run.direct_expenses
+        old_mode = ((old_run.config_snapshot or {}).get("income_source") or {}).get("mode")
+        if new_gross_income is None and old_mode == "manual_override":
+            # The original was a sealed manual override: keep its figures unless new ones are given.
+            new_gross_income, new_direct_expenses = old_run.gross_income, old_run.direct_expenses
 
         try:
+            new_gross_income, new_direct_expenses, income_source, _totals = resolve_income(
+                old_run.pool,
+                old_run.effective_period_start,
+                old_run.value_date,
+                gross_override=new_gross_income,
+                expenses_override=new_direct_expenses,
+                override_reason=restatement_reason,  # the mandatory restatement reason doubles as the override reason
+                replaces_run=old_run,
+            )
             calc_result = calculate_allocation(
                 old_run.pool,
                 old_run.value_date,
@@ -763,6 +919,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                 new_direct_expenses,
                 period_start=old_run.effective_period_start,
             )
+            calc_result["config_snapshot"]["income_source"] = income_source
         except ValueError as exc:
             # No silent fallback: a restatement must be recalculated from the
             # real balances and the approved rules.
@@ -857,7 +1014,7 @@ class ReservePolicyViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update"):
             return [IsAuthenticated(), IsPoolManager()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def get_queryset(self):
         queryset = ReservePolicy.objects.all()

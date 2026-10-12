@@ -9,6 +9,7 @@ import { useAuth } from "../api/auth"
 import { downloadAuditLogCsv, fetchAuditLog } from "../api/auditLog"
 import { runAuditSamplingAnalysis, type AuditSamplingResult, type AuditSampleItem } from "../api/auditSampling"
 import { extractErrorMessage } from "../api/errors"
+import { PeriodReportPanel } from "../components/audit/PeriodReportPanel"
 import { MerkleChainVerifier } from "../components/audit/MerkleChainVerifier"
 import { EvidenceBundleBuilder } from "../components/audit/EvidenceBundleBuilder"
 import type { AuditLogEntry, BadgeVariant } from "../types"
@@ -33,7 +34,7 @@ const MODEL_NAME_OPTIONS = [
 ]
 
 interface AuditorPortalProps {
-  initialTab?: "evidence-bundle" | "merkle-trail" | "sampling" | "logs"
+  initialTab?: "evidence-bundle" | "merkle-trail" | "sampling" | "logs" | "period-report"
 }
 
 export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalProps) {
@@ -42,7 +43,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
   const isSuperAdmin = user?.role === "platform_super_admin"
   const canView = isAuditor || isSuperAdmin || true // allow demo exploration
 
-  const [activeTab, setActiveTab] = useState<"evidence-bundle" | "merkle-trail" | "sampling" | "logs">(initialTab)
+  const [activeTab, setActiveTab] = useState<"evidence-bundle" | "merkle-trail" | "sampling" | "logs" | "period-report">(initialTab)
 
 
   const [entries, setEntries] = useState<AuditLogEntry[]>([])
@@ -209,7 +210,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
       ),
     },
     {
-      header: "Suggested SBP Audit Procedure",
+      header: "Suggested audit procedure",
       accessor: (item) => (
         <div className="max-w-md rounded bg-navy-950/60 p-2 border border-white/5 text-[11px] text-amber-200/90 font-mono">
           {item.suggested_audit_procedure}
@@ -222,15 +223,15 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
     <div className="space-y-6">
       <PageHeader
         screenNumber="40"
-        title="Auditor Evidence & AI Sampling Portal"
-        subtitle="Stratified risk-ranked sampling, SBP audit workpapers, and immutable ledger audit trail"
+        title="Auditor Evidence & Sampling Portal"
+        subtitle="Risk-ranked items to inspect, a working note, and the append-only audit trail"
         actions={
           <div className="flex items-center gap-3">
             <Button
               variant={activeTab === "evidence-bundle" ? "primary" : "secondary"}
               onClick={() => setActiveTab("evidence-bundle")}
             >
-              📦 SBP Evidence Bundle (Screen 39)
+              📦 Evidence Bundle (Screen 39)
             </Button>
             <Button
               variant={activeTab === "merkle-trail" ? "primary" : "secondary"}
@@ -242,7 +243,13 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
               variant={activeTab === "sampling" ? "primary" : "secondary"}
               onClick={() => setActiveTab("sampling")}
             >
-              🤖 AI Risk-Ranked Sampling (Screen 40)
+              🔎 Risk-Ranked Sampling (Screen 40)
+            </Button>
+            <Button
+              variant={activeTab === "period-report" ? "primary" : "secondary"}
+              onClick={() => setActiveTab("period-report")}
+            >
+              📊 Period Report
             </Button>
             <Button
               variant={activeTab === "logs" ? "primary" : "secondary"}
@@ -258,6 +265,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
 
       {activeTab === "evidence-bundle" && <EvidenceBundleBuilder />}
       {activeTab === "merkle-trail" && <MerkleChainVerifier />}
+      {activeTab === "period-report" && <PeriodReportPanel />}
 
       {activeTab === "sampling" && (
 
@@ -268,7 +276,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="emerald">BRD Section 9 & 12 Compliant</Badge>
+                  <Badge variant="gold">Rule-based ranking - not an opinion</Badge>
                   <span className="text-xs text-ink-muted font-mono">AAOIFI & SBP IBD Framework</span>
                 </div>
                 <h3 className="text-lg font-bold text-white">AI-Driven Stratified Audit Sampling & Risk Ranker</h3>
@@ -327,7 +335,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
                 </div>
 
                 <div className="rounded-lg bg-navy-950/80 p-3 border border-white/5">
-                  <span className="text-[10px] uppercase font-bold text-ink-muted block">SBP Compliance Opinion</span>
+                  <span className="text-[10px] uppercase font-bold text-ink-muted block">Opinion</span>
                   <p className="text-xs font-bold text-emerald-400 mt-2 truncate" title={samplingResult.compliance_opinion}>
                     {samplingResult.compliance_opinion}
                   </p>
@@ -340,7 +348,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
           </div>
 
           {/* Stratified Samples Table */}
-          <Card title="Stratified Risk-Ranked Audit Sample Set">
+          <Card title="Risk-ranked items to inspect">
             {isSamplingLoading ? (
               <div className="py-12 text-center text-ink-secondary space-y-3">
                 <Spinner className="h-8 w-8 mx-auto text-emerald-400" />
@@ -361,7 +369,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
           {/* SBP Regulatory Audit Memorandum */}
           {samplingResult && (
             <Card
-              title="SBP Regulatory Audit Memorandum & Working Papers"
+              title="Sampling working note"
               actions={
                 <Button variant="secondary" onClick={handleCopyMemo} className="text-xs py-1 px-3">
                   {copiedMemo ? "✓ Copied to Clipboard" : "📋 Copy Memorandum"}

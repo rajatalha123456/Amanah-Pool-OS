@@ -92,9 +92,12 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
         votes = obj.quorum_votes.all()
         approvals = sum(1 for v in votes if v.decision_vote == "approve")
         rejections = sum(1 for v in votes if v.decision_vote == "reject")
-        required = 2
+        from .shariah import board_size, quorum_required
+
+        required = quorum_required(obj.tenant_id)
         return {
             "required_votes": required,
+            "board_size": board_size(obj.tenant_id),
             "approvals": approvals,
             "rejections": rejections,
             "is_quorum_met": approvals >= required,
@@ -149,11 +152,27 @@ class ProductSerializer(serializers.ModelSerializer):
             "contract_template_detail",
             "status",
             "base_currency",
+            "eligible_asset_types",
+            "redemption_notice_days",
+            "redemption_gate_pct",
             "is_active",
             "created_at",
             "updated_at",
         )
         read_only_fields = ("id", "tenant", "status", "created_at", "updated_at")
+
+    def validate_redemption_gate_pct(self, value):
+        if not 0 < value <= 100:
+            raise serializers.ValidationError("The gate must be above 0 and at most 100 percent.")
+        return value
+
+    def validate_eligible_asset_types(self, value):
+        from apps.pools.models import AssetType
+
+        valid = {choice for choice, _ in AssetType.choices}
+        if not isinstance(value, list) or any(item not in valid for item in value):
+            raise serializers.ValidationError(f"Must be a list of asset types from: {', '.join(sorted(valid))}.")
+        return sorted(set(value))
 
     def validate_code(self, value):
         # Product.code is only enforced unique via a composite

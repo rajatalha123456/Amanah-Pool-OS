@@ -17,6 +17,8 @@ import {
   fetchNAVSnapshots,
   publishNAVSnapshot,
   redeem,
+  approveRedemption,
+  rejectRedemption,
   subscribe,
   fetchAllSubscriptions,
   fetchAllRedemptions,
@@ -24,7 +26,8 @@ import {
   approveImpairmentEvent,
 } from "../api/investments"
 import { fetchPools } from "../api/pools"
-import { fetchAllocationRuns } from "../api/allocationRuns"
+import { fetchPortfolioSummary, type PortfolioSummary } from "../api/pools"
+import { fetchDisclosures, fetchPoolTerms, type PoolTerms } from "../api/disclosures"
 import { fetchExceptions } from "../api/governance"
 import {
   createInvestorProfile,
@@ -32,10 +35,12 @@ import {
   verifyInvestorKYC,
 } from "../api/investorProfile"
 import { extractErrorMessage } from "../api/errors"
+import { InvestorDisclosures } from "../components/investments/InvestorDisclosures"
+import { NegligenceCases } from "../components/investments/NegligenceCases"
+import { ProfitDistribution } from "../components/investments/ProfitDistribution"
 import { DonutChart, type DonutSlice } from "../components/charts/DonutChart"
 import { TrendAreaChart, type TrendDataPoint } from "../components/charts/TrendAreaChart"
 import type {
-  AllocationRun,
   BadgeVariant,
   CapitalAccount,
   CreateCapitalAccountInput,
@@ -49,7 +54,7 @@ import type {
   Subscription,
 } from "../types"
 
-type Tab = "dashboard" | "onboarding" | "accounts" | "venture-view" | "orders" | "nav"
+type Tab = "dashboard" | "onboarding" | "accounts" | "venture-view" | "orders" | "nav" | "distribution"
 type ModalMode = "account" | "onboard" | "subscribe" | "redeem" | "nav" | "impairment" | null
 
 const TABS: { key: Tab; label: string; num: string }[] = [
@@ -59,6 +64,7 @@ const TABS: { key: Tab; label: string; num: string }[] = [
   { key: "venture-view", label: "Venture View", num: "" },
   { key: "orders", label: "Subscription & Redemption", num: "" },
   { key: "nav", label: "NAV Management", num: "" },
+  { key: "distribution", label: "Profit Distribution", num: "" },
 ]
 
 const ONBOARDING_STEPS = [
@@ -140,7 +146,9 @@ export function InvestmentPools() {
   const [latestNAV, setLatestNAV] = useState<NAVSnapshot | null>(null)
   const [impairmentEvents, setImpairmentEvents] = useState<ImpairmentEvent[]>([])
   const [exceptions, setExceptions] = useState<ExceptionCase[]>([])
-  const [allocationRuns, setAllocationRuns] = useState<AllocationRun[]>([])
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
+  const [terms, setTerms] = useState<PoolTerms | null>(null)
+  const [disclosureVersion, setDisclosureVersion] = useState<number | null>(null)
   const [allSubscriptions, setAllSubscriptions] = useState<Subscription[]>([])
   const [allRedemptions, setAllRedemptions] = useState<Redemption[]>([])
   const [profiles, setProfiles] = useState<Record<string, InvestorProfile | null>>({})
@@ -163,17 +171,11 @@ export function InvestmentPools() {
     Promise.all([
       fetchPools(),
       fetchExceptions().catch(() => []),
-      fetchAllocationRuns().catch(() => []),
     ])
-      .then(([poolData, exceptionData, runsData]) => {
+      .then(([poolData, exceptionData]) => {
         setPools(poolData)
         setExceptions(exceptionData)
-        setAllocationRuns(runsData)
-        // Find best default pool: prioritize POOL-CORP-03 or POOL-GEN-01 or first
-        const defaultPool =
-          poolData.find((p) => p.code === "POOL-CORP-03") ??
-          poolData.find((p) => p.code === "POOL-GEN-01") ??
-          poolData[0]
+        const defaultPool = poolData.find((p) => p.product_detail?.operating_model === "investment_pool") ?? poolData[0]
         if (defaultPool) {
           setSelectedPoolId(defaultPool.id)
         }
@@ -181,6 +183,24 @@ export function InvestmentPools() {
       .catch((error) => setPageError(extractErrorMessage(error, "Unable to load investment pools.")))
       .finally(() => setIsLoading(false))
   }, [])
+
+  useEffect(() => {
+    fetchPortfolioSummary()
+      .then(setPortfolio)
+      .catch(() => setPortfolio(null))
+  }, [])
+
+  useEffect(() => {
+    if (!selectedPoolId) return
+    setTerms(null)
+    setDisclosureVersion(null)
+    fetchPoolTerms(selectedPoolId)
+      .then(setTerms)
+      .catch(() => setTerms(null))
+    fetchDisclosures(selectedPoolId)
+      .then((rows) => setDisclosureVersion(rows[0]?.version ?? null))
+      .catch(() => setDisclosureVersion(null))
+  }, [selectedPoolId])
 
   // Load data for selected pool
   useEffect(() => {
@@ -235,36 +255,87 @@ export function InvestmentPools() {
     return exceptions.filter((e) => e.status === "open").length
   }, [exceptions])
 
-  const totalManagedFundsAcrossPools = useMemo(() => {
-    const subTotal = allSubscriptions.reduce((acc, s) => acc + (parseFloat(s.amount) || 0), 0)
-    if (subTotal > 0) return subTotal
-    const accTotal = accounts.reduce(
-      (acc, a) => acc + (parseFloat(a.units_held) || 0) * (latestNAV ? parseFloat(latestNAV.nav_per_unit) : 100),
-      0
-    )
-    return accTotal > 0 ? accTotal : 18420000000
-  }, [allSubscriptions, accounts, latestNAV])
-
-  const totalPeriodProfit = useMemo(() => {
-    const runsProfit = allocationRuns.reduce((sum, r) => sum + (parseFloat(r.distributable_amount) || 0), 0)
-    if (runsProfit > 0) return runsProfit
-    return totalManagedFundsAcrossPools > 0 ? Math.round(totalManagedFundsAcrossPools * 0.01165) : 0
-  }, [allocationRuns, totalManagedFundsAcrossPools])
-
-  const closeReadinessPct = useMemo(() => {
-    if (pools.length === 0) return 0
-    const readyPools = pools.filter((p) => p.status === "open" || p.status === "allocation").length
-    return Math.round((readyPools / pools.length) * 100)
-  }, [pools])
-
-  const reconHealthRate = useMemo(() => {
-    const reconExceptions = exceptions.filter((e) => e.source_module === "reconciliation" && e.status === "open")
-    return reconExceptions.length === 0 ? "100.0%" : (100 - reconExceptions.length * 0.06).toFixed(2) + "%"
-  }, [exceptions])
+  // Real figures from the portfolio summary; null when they cannot be computed (shown as "-").
+  const totalManagedFundsAcrossPools = portfolio ? Number(portfolio.total_funds) : null
+  const totalPeriodProfit = portfolio ? Number(portfolio.total_signed_profit) : null
+  const activePoolCount = pools.filter((p) => p.status === "open" || p.status === "allocation").length
 
   const highAlertCount = useMemo(() => {
-    return exceptions.filter((e) => e.severity === "critical" || e.severity === "high").length
+    return exceptions.filter((e) => e.status === "open" && (e.severity === "critical" || e.severity === "high")).length
   }, [exceptions])
+
+  const money = (value: number | null) =>
+    value === null
+      ? "-"
+      : value >= 1e9
+        ? `PKR ${(value / 1e9).toFixed(2)}B`
+        : value >= 1e6
+          ? `PKR ${(value / 1e6).toFixed(2)}M`
+          : `PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+
+  function specRows(step: number): Array<[string, string]> {
+    const none = "not recorded"
+    const psr = terms?.profit_sharing
+    const reserves = terms ? Object.entries(terms.reserve_policy) : []
+    const money2 = (v: string | number | null | undefined) =>
+      v === null || v === undefined ? none : `PKR ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+    if (step === 0)
+      return [
+        ["Pool", selectedPool?.name ?? none],
+        ["Code", selectedPool?.code ?? none],
+        ["Operating model", selectedPool?.product_detail?.operating_model?.replace("_", " ") ?? none],
+        ["Product", terms?.product ?? selectedPool?.product_detail?.name ?? none],
+        ["Currency", terms?.base_currency ?? none],
+        ["Status", selectedPool?.status.replace("_", " ") ?? none],
+        ["Effective date", selectedPool?.effective_date ?? none],
+        ["Capital accounts", String(accounts.length)],
+      ]
+    if (step === 1)
+      return [
+        ["Contract", terms ? `${terms.contract.name} (v${terms.contract.version})` : none],
+        ["Contract type", terms?.contract.type.replace(/_/g, " ") ?? none],
+        ["Shariah decision", terms?.shariah_decision ? `${terms.shariah_decision.code} - ${terms.shariah_decision.title}` : none],
+        ...reserves.map(([kind, r]): [string, string] => [
+          `${kind.toUpperCase()} reserve`,
+          `${r.rate_pct}% of profit, cap ${r.cap_pct}%${r.active ? "" : " (inactive)"}`,
+        ]),
+        ...(reserves.length === 0 ? ([["Reserves", none]] as Array<[string, string]>) : []),
+      ]
+    if (step === 2)
+      return [
+        ["Investors / manager share", psr ? `${psr.investor_share_pct}% / ${psr.manager_share_pct}%` : none],
+        ["Agent fee (Wakalah)", psr && psr.wakalah_fee_pct > 0 ? `${psr.wakalah_fee_pct}% p.a.` : "none"],
+        ["PSR effective from", psr?.effective_from ?? none],
+        ["Redemption notice", terms ? `${terms.redemption.notice_days} days` : none],
+        ["Redemption gate", terms ? `${terms.redemption.gate_pct_per_30_days}% of pool value per 30 days` : none],
+      ]
+    if (step === 3)
+      return [
+        ["Latest published NAV", latestNAV ? `${latestNAV.nav_per_unit} per unit on ${latestNAV.valuation_date}` : "no published NAV"],
+        ["Pool value at that NAV", money2(latestNAV?.total_pool_value)],
+        ["Units outstanding", latestNAV ? Number(latestNAV.total_units_outstanding).toLocaleString() : none],
+        ["Eligible asset types", "set on the product (see Products)"],
+      ]
+    if (step === 4)
+      return [
+        ["Jurisdiction rule pack", terms?.jurisdiction_rule_pack ? `${terms.jurisdiction_rule_pack.code} v${terms.jurisdiction_rule_pack.version}` : none],
+        ["Shariah decision", terms?.shariah_decision?.code ?? none],
+        ["Open exceptions", String(openExceptionsCount)],
+      ]
+    const gaps = [
+      !terms?.profit_sharing && "approved profit-sharing ratio",
+      !terms?.shariah_decision && "Shariah decision in force",
+      !terms?.jurisdiction_rule_pack && "jurisdiction rule pack",
+      !latestNAV && "published NAV",
+      disclosureVersion === null && "published investor disclosure",
+    ].filter(Boolean) as string[]
+    return [
+      ["Configuration gaps", gaps.length ? gaps.join(", ") : "none"],
+      ["Capital accounts", String(accounts.length)],
+      ["Investor disclosure", disclosureVersion ? `version ${disclosureVersion} published` : "none published"],
+      ["Ready to accept subscriptions", gaps.length === 0 ? "yes" : "no - see gaps"],
+    ]
+  }
 
   function closeModal() {
     setModalMode(null)
@@ -327,6 +398,7 @@ export function InvestmentPools() {
         pool: selectedPoolId,
         investor_name: String(form.get("investor_name")),
         investor_reference: String(form.get("investor_reference")),
+        ...(form.get("is_managing_partner") ? { is_managing_partner: true } : {}),
       }
       await createCapitalAccount(data)
       await refreshInvestmentData()
@@ -410,7 +482,7 @@ export function InvestmentPools() {
         transaction_date: String(form.get("transaction_date")),
       })
       await refreshInvestmentData()
-      setActionSuccess(`Redemption processed for ${selectedAccount.investor_name}. Capital settled.`)
+      setActionSuccess(`Redemption request for ${selectedAccount.investor_name} submitted. An independent checker must approve it before units move.`)
       closeModal()
     } catch (error) {
       setActionError(extractErrorMessage(error, "Unable to process redemption."))
@@ -650,6 +722,8 @@ export function InvestmentPools() {
       ? { num: "21", title: "Musharakah Venture View", subtitle: "Capital ratios, results and partner governance" }
       : activeTab === "orders"
       ? { num: "22", title: "Subscription & Redemption", subtitle: "Orders, valuation point and settlement" }
+      : activeTab === "distribution"
+      ? { num: "20", title: "Mudarabah Profit Distribution", subtitle: "Manager PSR share, time-weighted investor shares and statements" }
       : activeTab === "nav"
       ? { num: "18", title: "Net Asset Value (NAV) Engine", subtitle: "Point-in-time valuation, audit snapshot and checker publishing" }
       : { num: "18", title: "Investment Pool Dashboard", subtitle: "Capital, NAV, cash flow and concentration" }
@@ -731,83 +805,38 @@ export function InvestmentPools() {
           {/* TAB 1: SCREEN 18 - INVESTMENT POOL DASHBOARD */}
           {activeTab === "dashboard" && (
             <div className="space-y-6">
-              {/* StatCards matching Catalogue Screen 18 */}
+              {/* StatCards: every figure is computed from recorded data */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                   label="TOTAL MANAGED FUNDS"
-                  value={
-                    pools.length > 0
-                      ? totalManagedFundsAcrossPools >= 1e9
-                        ? `PKR ${(totalManagedFundsAcrossPools / 1e9).toFixed(2)}B`
-                        : `PKR ${(totalManagedFundsAcrossPools / 1e6).toFixed(2)}M`
-                      : "PKR 0.00"
-                  }
-                  delta={pools.length > 0 ? `${pools.length} active pools` : "No active pools"}
-                  deltaTone={pools.length > 0 ? "positive" : "neutral"}
+                  value={money(totalManagedFundsAcrossPools)}
+                  delta={`${pools.length} pool${pools.length === 1 ? "" : "s"}`}
+                  deltaTone="neutral"
                 />
                 <StatCard
-                  label="PERIOD PROFIT"
-                  value={
-                    totalPeriodProfit > 0
-                      ? totalPeriodProfit >= 1e6
-                        ? `PKR ${(totalPeriodProfit / 1e6).toFixed(1)}M`
-                        : `PKR ${totalPeriodProfit.toLocaleString()}`
-                      : "PKR 0.00"
-                  }
-                  delta={totalPeriodProfit > 0 ? "+4.1%" : "0.0%"}
-                  deltaTone={totalPeriodProfit > 0 ? "positive" : "neutral"}
+                  label="LAST SIGNED PROFIT (ALL POOLS)"
+                  value={totalPeriodProfit !== null && totalPeriodProfit !== 0 ? money(totalPeriodProfit) : "-"}
+                  delta="latest signed run per pool"
+                  deltaTone="neutral"
                 />
                 <StatCard
                   label="OPEN EXCEPTIONS"
                   value={String(openExceptionsCount)}
-                  delta={openExceptionsCount > 0 ? `${openExceptionsCount} open` : "All clear"}
+                  delta={openExceptionsCount > 0 ? `${highAlertCount} high / critical` : "All clear"}
                   deltaTone={openExceptionsCount > 0 ? "negative" : "positive"}
                 />
                 <StatCard
-                  label="CLOSE READINESS"
-                  value={`${closeReadinessPct}%`}
-                  delta={
-                    pools.length > 0
-                      ? `${pools.filter((p) => p.status === "open" || p.status === "allocation").length} of ${pools.length} active`
-                      : "Not started"
-                  }
-                  deltaTone={closeReadinessPct >= 80 ? "positive" : "neutral"}
+                  label="POOLS IN OPERATION"
+                  value={`${activePoolCount} of ${pools.length}`}
+                  delta="open or in allocation"
+                  deltaTone="neutral"
                 />
               </div>
 
-              {/* CONTROL HEALTH Banner matching Catalogue Screen 18 */}
               <Card>
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-white/8 pb-4">
-                  <div>
-                    <h3 className="text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                      CONTROL HEALTH
-                    </h3>
-                    <p className="text-xs text-ink-muted">Amanah deterministic risk & governance verification</p>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-ink-secondary">Shariah approvals:</span>
-                      <Badge variant={openExceptionsCount > 0 ? "gold" : "emerald"}>
-                        {openExceptionsCount} pending
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-ink-secondary">Reconciliation:</span>
-                      <Badge variant="emerald">{reconHealthRate}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-ink-secondary">Liquidity buffer:</span>
-                      <Badge variant="emerald">
-                        {selectedPool?.product_detail?.operating_model === "community_circle" ? "100.0%" : "18.2%"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-ink-secondary">AI alerts:</span>
-                      <Badge variant={highAlertCount > 0 ? "gold" : "emerald"}>
-                        {highAlertCount > 0 ? `${highAlertCount} high` : "0 high"}
-                      </Badge>
-                    </div>
-                  </div>
+                <div className="border-b border-white/8 pb-4">
+                  <h3 className="text-xs font-semibold tracking-wide text-ink-secondary uppercase">POOL OVERVIEW</h3>
+                  <p className="text-xs text-ink-muted">{portfolio?.basis}</p>
                 </div>
 
                 {/* Pool overview table from Screen 18 */}
@@ -818,7 +847,7 @@ export function InvestmentPools() {
                         <th className="py-2.5 px-3">POOL</th>
                         <th className="py-2.5 px-3">MODEL</th>
                         <th className="py-2.5 px-3">FUNDS</th>
-                        <th className="py-2.5 px-3">YIELD / NAV</th>
+                        <th className="py-2.5 px-3">LATEST SIGNED YIELD</th>
                         <th className="py-2.5 px-3">STATUS</th>
                         <th className="py-2.5 px-3 text-right">ACTION</th>
                       </tr>
@@ -832,38 +861,11 @@ export function InvestmentPools() {
                             : p.product_detail?.operating_model === "community_circle"
                             ? "Community"
                             : "Bank"
-
-                        const poolAccounts = accounts.filter((a) => a.pool === p.id)
-                        const poolUnits = poolAccounts.reduce((sum, a) => sum + (parseFloat(a.units_held) || 0), 0)
-                        const estimatedFunds = poolUnits > 0
-                          ? poolUnits * (latestNAV ? parseFloat(latestNAV.nav_per_unit) : 100)
-                          : p.code === "POOL-GEN-01"
-                          ? 8700000000
-                          : p.code === "POOL-CORP-03"
-                          ? 3200000000
-                          : p.code === "POOL-TREAS-02"
-                          ? 5580000000
-                          : p.product_detail?.operating_model === "community_circle"
-                          ? 50000
-                          : 24800000
-
-                        const fundsDisplay =
-                          estimatedFunds >= 1e9
-                            ? `${(estimatedFunds / 1e9).toFixed(2)}B`
-                            : estimatedFunds >= 1e6
-                            ? `${(estimatedFunds / 1e6).toFixed(2)}M`
-                            : estimatedFunds.toLocaleString()
-
-                        const yieldDisplay =
-                          p.product_detail?.operating_model === "community_circle"
-                            ? "0.00% (Qard)"
-                            : p.code === "POOL-GEN-01"
-                            ? "11.82%"
-                            : p.code === "POOL-CORP-03"
-                            ? "14.10%"
-                            : p.code === "POOL-TREAS-02"
-                            ? "12.45%"
-                            : "10.50%"
+                        const row = portfolio?.pools.find((r) => r.pool === p.id)
+                        const fundsDisplay = row?.funds ? money(Number(row.funds)).replace("PKR ", "") : "-"
+                        const yieldDisplay = row?.annualised_yield_pct
+                          ? `${row.annualised_yield_pct}% p.a. (${row.profit_period})`
+                          : "no signed run"
 
                         return (
                           <tr
@@ -877,7 +879,7 @@ export function InvestmentPools() {
                               <span className="text-[11px] text-ink-muted">({p.code})</span>
                             </td>
                             <td className="py-3 px-3 text-ink-secondary">{modelLabel}</td>
-                            <td className="py-3 px-3 text-ink-primary font-medium">PKR {fundsDisplay}</td>
+                            <td className="py-3 px-3 text-ink-primary font-medium">{fundsDisplay === "-" ? "-" : `PKR ${fundsDisplay}`}</td>
                             <td className="py-3 px-3 text-emerald-400 font-semibold">{yieldDisplay}</td>
                             <td className="py-3 px-3">
                               <Badge
@@ -889,11 +891,7 @@ export function InvestmentPools() {
                                     : "neutral"
                                 }
                               >
-                                {p.status === "allocation"
-                                  ? "Ready"
-                                  : p.status === "approved"
-                                  ? "Review"
-                                  : "On track"}
+                                {p.status.replace("_", " ")}
                               </Badge>
                             </td>
                             <td className="py-3 px-3 text-right">
@@ -996,6 +994,7 @@ export function InvestmentPools() {
           {/* TAB 2: SCREEN 19 - INVESTOR ONBOARDING */}
           {activeTab === "onboarding" && (
             <div className="space-y-6">
+              {selectedPoolId && <InvestorDisclosures poolId={selectedPoolId} accounts={accounts} />}
               {/* Stepper matching Catalogue Screen 19 */}
               <div className="rounded-lg border border-white/10 bg-navy-900/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wider">
@@ -1033,277 +1032,17 @@ export function InvestmentPools() {
                 {/* Left Card: Pool Contract Governance Blueprint matching Screen 19 */}
                 <Card title={`Specification • ${ONBOARDING_STEPS[onboardingStep].title}`}>
                   <div className="space-y-4 text-xs">
-                    {/* Phase 1: Model */}
-                    {onboardingStep === 0 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">POOL NAME</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            {selectedPool?.name ?? "Retail Mudarabah Pool 2026"}
-                          </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {specRows(onboardingStep).map(([label, value]) => (
+                        <div key={label}>
+                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">{label}</p>
+                          <p className="text-sm font-semibold text-ink-primary">{value}</p>
                         </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">OPERATING MODEL</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            {selectedPool?.product_detail?.operating_model === "investment_pool"
-                              ? "Diminishing Musharakah"
-                              : "Unrestricted Mudarabah"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">BASE CURRENCY</p>
-                          <p className="text-sm font-semibold text-ink-primary">PKR - Pakistani Rupee</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">POOL IDENTIFIER</p>
-                          <p className="text-sm font-semibold font-mono text-emerald-400">
-                            {selectedPool?.code || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">PRODUCT LINE</p>
-                          <p className="text-ink-primary font-medium">
-                            {selectedPool?.product_detail?.name || "Islamic Investment Pool"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">STATUS</p>
-                          <div className="mt-1">
-                            <Badge variant="emerald">{selectedPool?.status?.toUpperCase() || "OPEN"}</Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">EFFECTIVE DATE</p>
-                          <p className="text-ink-primary font-medium">
-                            {selectedPool?.effective_date || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">ACTIVE ACCOUNTS</p>
-                          <p className="text-emerald-400 font-bold">{accounts.length} Registered Accounts</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Phase 2: Contract */}
-                    {onboardingStep === 1 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRACT TEMPLATE</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            {selectedPool?.product_detail?.contract_template?.name ?? "Mudarabah Deposit Investment Contract"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRACT ARCHETYPE</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            Unrestricted Mudarabah (Mudarib & Rabb-ul-Mal)
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">PROFIT EQUALIZATION (PER)</p>
-                          <p className="text-sm font-semibold text-emerald-400">
-                            Enabled (Up to 2.00% Net Profit Holdback)
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">INVESTMENT RISK (IRR)</p>
-                          <p className="text-sm font-semibold text-emerald-400">
-                            Active (Covering capital impairment risks)
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">SHARIAH DECISION REF</p>
-                          <p className="text-sm font-semibold text-gold-400">SBD-2026-044 • Approved by Board</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">GOVERNING STANDARD</p>
-                          <p className="text-ink-primary font-medium">AAOIFI Standard No. 13 & SBP Framework</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CAPITAL REPAYMENT</p>
-                          <p className="text-ink-primary">Upon periodic redemption or maturity settlement</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">DISPUTE RESOLUTION</p>
-                          <p className="text-ink-primary">Shariah Board Conciliation Committee</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Phase 3: Economics */}
-                    {onboardingStep === 2 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">PROFIT SHARING RATIO (PSR)</p>
-                          <p className="text-sm font-semibold text-emerald-400">Depositors 70% / Mudarib 30%</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CALCULATION FREQUENCY</p>
-                          <p className="text-sm font-semibold text-ink-primary">Daily funds • Monthly profit distribution</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">HISTORICAL YIELD BENCHMARK</p>
-                          <p className="text-sm font-semibold text-ink-primary">11.82% - 14.10% Annualized</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">WEIGHTAGE METHODOLOGY</p>
-                          <p className="text-sm font-semibold text-ink-primary">Tiered Tenor & Balance Weightage Curve</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">REDEMPTION NOTICE</p>
-                          <p className="text-ink-primary">Daily T+1 Settlement Window</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">MINIMUM SUBSCRIPTION</p>
-                          <p className="text-ink-primary font-mono">PKR 10,000.00 Minimum Placement</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">NAV CUTOFF TIME</p>
-                          <p className="text-ink-primary">16:00 PKT Daily Valuation Point</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">MUDARIB INCENTIVE FEE</p>
-                          <p className="text-emerald-400 font-medium">10% on profit exceeding 12.0% hurdle</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Phase 4: Assets */}
-                    {onboardingStep === 3 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">UNDERLYING ASSET CLASSES</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            Corporate Sukuk, Islamic Financing (Ijarah/Murabaha)
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">TOTAL MANAGED ASSETS</p>
-                          <p className="text-sm font-semibold font-mono text-emerald-400">
-                            PKR {(totalManagedFundsAcrossPools / 1e9).toFixed(2)}B Aggregated
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CBS INTEGRATION RAIL</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            Real-Time CBS Core Banking Settlement Gateway
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">TREASURY PLACEMENT</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            Interbank Mudarabah & SBP Islamic Liquidity Facility
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">LIQUIDITY BUFFER RATIO</p>
-                          <p className="text-emerald-400 font-bold">18.2% Statutory Liquidity Reserve</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CUSTODY & HOLDINGS</p>
-                          <p className="text-ink-primary">Direct CBS Central Bank Depository Ringfence</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">IMPAIRMENT PROVISIONING</p>
-                          <p className="text-ink-primary">Automated SBP Prudential Provisioning Policy</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">AUDIT ANCHOR</p>
-                          <p className="text-xs font-mono text-ink-muted">Point-in-Time Cryptographic Ledger Snapshot</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Phase 5: Governance */}
-                    {onboardingStep === 4 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">JURISDICTION RULE PACK</p>
-                          <p className="text-sm font-semibold text-ink-primary">Pakistan / SBP • Version 2025.01</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">SHARIAH AUDIT STATUS</p>
-                          <p className="text-sm font-semibold text-emerald-400">AAOIFI Verified • Semi-Annual On-Site Audit</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">REGULATORY SUPERVISION</p>
-                          <p className="text-sm font-semibold text-ink-primary">
-                            State Bank of Pakistan (SBP) Islamic Banking Dept
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">RELATED PARTY MONITORING</p>
-                          <p className="text-sm font-semibold text-ink-primary">Strict Arms-Length Transfer Pricing Control</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">OPEN EXCEPTIONS</p>
-                          <p className="text-emerald-400 font-bold">{openExceptionsCount} Open Compliance Items</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">SANCTIONS & AML SCREENING</p>
-                          <p className="text-ink-primary">Automated 100% Real-Time Screening via CBS</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">AUDITOR ACCESS</p>
-                          <p className="text-ink-primary">Read-Only SBP / External Auditor Portal Enabled</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">BOARD RESOLUTION</p>
-                          <p className="text-gold-400 font-medium">Approved under Minute SBD-2026-044</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Phase 6: Review */}
-                    {onboardingStep === 5 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">ONBOARDING READINESS</p>
-                          <p className="text-sm font-semibold text-emerald-400">100% Parameter Complete & Verified</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">CAPITAL ACCOUNTS ENROLLED</p>
-                          <p className="text-sm font-semibold text-ink-primary">{accounts.length} Active Verified Accounts</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">LATEST NAV VALUE</p>
-                          <p className="text-sm font-semibold font-mono text-emerald-400">
-                            {latestNAV ? `PKR ${latestNAV.nav_per_unit} / Unit` : "PKR 100.00 / Unit (Par)"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">SHARIAH GOVERNANCE CERT</p>
-                          <p className="text-sm font-semibold text-gold-400">Fatwa Sealed & Active</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">INVESTOR SUITABILITY</p>
-                          <p className="text-ink-primary">Retail & High Net Worth Islamic Compliant</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">ACTIVATION STATUS</p>
-                          <p className="text-emerald-400 font-bold">Fully Operational & Accepting Capital Orders</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">DISCLOSURE STATUS</p>
-                          <p className="text-ink-primary">Complete & Delivered to All Account Holders</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-ink-secondary uppercase">NEXT ACTION</p>
-                          <p className="text-ink-primary">Proceed to Capital Accounts or Subscriptions</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI Configuration Check banner matching Screen 19 */}
-                    <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-3">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-1">
-                        AI CONFIGURATION CHECK • PHASE {ONBOARDING_STEPS[onboardingStep].number}: {ONBOARDING_STEPS[onboardingStep].label.toUpperCase()}
-                      </p>
-                      <p className="text-xs text-ink-secondary">
-                        {ONBOARDING_STEPS[onboardingStep].check}
-                      </p>
+                      ))}
                     </div>
+                    <p className="text-[11px] text-ink-muted">
+                      Shown from the pool&apos;s recorded configuration. Anything not recorded is shown as &quot;not recorded&quot;.
+                    </p>
 
                     <div className="flex items-center justify-between pt-1">
                       <button
@@ -1449,13 +1188,13 @@ export function InvestmentPools() {
                                   isVerified ? "emerald" : isPending ? "gold" : "neutral"
                                 }
                               >
-                                KYC: {prof?.kyc_status ?? "not_started"}
+                                KYC: {prof?.kyc_status ?? "no profile"}
                               </Badge>
                             </div>
                             <p className="text-xs text-ink-secondary">
                               Units Held: {Number(acc.units_held).toLocaleString()} &bull; Doc:{" "}
-                              {prof?.id_document_type || "CNIC"} #{prof?.id_document_number || "—"} &bull; Risk:{" "}
-                              <span className="capitalize">{prof?.risk_tolerance || "moderate"}</span>
+                              {prof?.id_document_type ?? "no document"} #{prof?.id_document_number ?? "-"} &bull; Risk:{" "}
+                              <span className="capitalize">{prof?.risk_tolerance ?? "not assessed"}</span>
                             </p>
                             {prof?.suitability_assessment_notes && (
                               <p className="text-xs text-ink-muted italic">
@@ -1479,7 +1218,7 @@ export function InvestmentPools() {
                                 disabled={isSaving}
                                 onClick={() => void handleVerifyKYC(prof.id, "verified")}
                               >
-                                ✓ Verify & E-Sign KYC
+                                ✓ Verify KYC
                               </Button>
                             )}
 
@@ -1617,7 +1356,7 @@ export function InvestmentPools() {
                                 <Button
                                   variant="gold"
                                   className="text-xs py-1 px-2"
-                                  disabled={!isFinanceChecker || !hasPublishedNAV || Number(acc.units_held) <= 0}
+                                  disabled={!isFinanceMaker || !hasPublishedNAV || Number(acc.units_held) <= 0}
                                   title={
                                     !hasPublishedNAV
                                       ? "Requires published NAV"
@@ -1644,7 +1383,7 @@ export function InvestmentPools() {
                                       </span>
                                     </div>
                                     <p className="text-xs text-ink-secondary">
-                                      Document: {prof?.id_document_type || "CNIC"} #{prof?.id_document_number || "—"} &bull; Risk: {prof?.risk_tolerance || "moderate"}
+                                      Document: {prof?.id_document_type ?? "no document"} #{prof?.id_document_number ?? "-"} &bull; Risk: {prof?.risk_tolerance ?? "not assessed"}
                                     </p>
                                     {prof?.suitability_assessment_notes && (
                                       <p className="text-xs text-ink-muted italic">
@@ -1663,51 +1402,10 @@ export function InvestmentPools() {
                   </div>
                 )}
 
-                {/* Bottom Control Total Bar matching Catalogue Screen 20 */}
-                <div className="mt-6 border-t border-white/8 pt-4">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-xs">
-                    <div>
-                      <p className="text-[11px] font-semibold text-ink-secondary uppercase">
-                        RECORDS PROCESSED
-                      </p>
-                      <p className="text-base font-bold text-ink-primary">
-                        {accounts.length.toLocaleString()}{" "}
-                        <span className="text-emerald-400 text-xs">100%</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-ink-secondary uppercase">MATCHED</p>
-                      <p className="text-base font-bold text-emerald-400">
-                        {openExceptionsCount === 0
-                          ? "100.0%"
-                          : `${(100 - (openExceptionsCount / Math.max(accounts.length, 1)) * 5).toFixed(2)}%`}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-ink-secondary uppercase">EXCEPTIONS</p>
-                      <p className="text-base font-bold text-ink-primary">
-                        {openExceptionsCount}{" "}
-                        <span className="text-emerald-400 text-xs">
-                          {openExceptionsCount > 0 ? "action required" : "clear"}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTROL TOTAL</p>
-                      <p className="text-base font-bold text-emerald-400">
-                        {openExceptionsCount === 0 ? "Balanced " : "Variance "}
-                        <span
-                          className={`rounded px-1 text-xs ${
-                            openExceptionsCount === 0
-                              ? "bg-emerald-500/20 text-emerald-300"
-                              : "bg-gold-500/20 text-gold-300"
-                          }`}
-                        >
-                          {openExceptionsCount === 0 ? "PASS" : "REVIEW"}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
+                <div className="mt-6 border-t border-white/8 pt-4 text-xs text-ink-secondary">
+                  {accounts.length} account{accounts.length === 1 ? "" : "s"} ·{" "}
+                  {accounts.filter((a) => profiles[a.id]?.kyc_status === "verified").length} with verified KYC ·{" "}
+                  {accounts.reduce((sum, a) => sum + Number(a.units_held), 0).toLocaleString()} units in total
                 </div>
               </Card>
             </div>
@@ -1889,6 +1587,13 @@ export function InvestmentPools() {
           )}
 
           {/* TAB 5: SCREEN 22 - SUBSCRIPTION & REDEMPTION */}
+          {activeTab === "distribution" && (
+            <div className="space-y-6">
+              <ProfitDistribution poolId={selectedPoolId} />
+              <NegligenceCases poolId={selectedPoolId} />
+            </div>
+          )}
+
           {activeTab === "orders" && (
             <div className="space-y-6">
               {/* Valuation Point Banner matching Catalogue Screen 22 */}
@@ -1906,7 +1611,7 @@ export function InvestmentPools() {
                   <p className="text-xs text-ink-secondary">
                     Orders are settled against the latest published NAV snapshot:{" "}
                     <span className="font-semibold text-emerald-400">
-                      PKR {latestNAV?.nav_per_unit ?? "100.00"}
+                      PKR {latestNAV?.nav_per_unit ?? "-"}
                     </span>{" "}
                     (Valuation Date: {latestNAV?.valuation_date ?? "Pending"}).
                   </p>
@@ -1926,7 +1631,7 @@ export function InvestmentPools() {
                   <Button
                     variant="gold"
                     className="text-xs py-1.5 px-3"
-                    disabled={!isFinanceChecker || !hasPublishedNAV || accounts.length === 0}
+                    disabled={!isFinanceMaker || !hasPublishedNAV || accounts.length === 0}
                     onClick={() => {
                       if (accounts[0]) openAccountAction("redeem", accounts[0])
                     }}
@@ -1980,7 +1685,43 @@ export function InvestmentPools() {
                             </td>
                             <td className="py-3 px-3 text-ink-secondary">{ord.date}</td>
                             <td className="py-3 px-3 text-right">
-                              <Badge variant="emerald">{ord.status}</Badge>
+                              <Badge variant={ord.status === "pending" ? "gold" : ord.status === "rejected" ? "navy" : "emerald"}>
+                                {ord.status}
+                              </Badge>
+                              {ord.type === "redemption" && ord.status === "pending" && isFinanceChecker && (
+                                <div className="mt-1 flex justify-end gap-3">
+                                  <button
+                                    type="button"
+                                    className="text-emerald-400 hover:text-emerald-300"
+                                    onClick={async () => {
+                                      try {
+                                        await approveRedemption(ord.id)
+                                        await refreshInvestmentData()
+                                      } catch (error) {
+                                        setActionError(extractErrorMessage(error, "Unable to approve the redemption."))
+                                      }
+                                    }}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-red-400 hover:text-red-300"
+                                    onClick={async () => {
+                                      const reason = window.prompt("Reason for rejecting this redemption")
+                                      if (!reason) return
+                                      try {
+                                        await rejectRedemption(ord.id, reason)
+                                        await refreshInvestmentData()
+                                      } catch (error) {
+                                        setActionError(extractErrorMessage(error, "Unable to reject the redemption."))
+                                      }
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -2086,6 +1827,13 @@ export function InvestmentPools() {
                 placeholder="e.g. Crescent Islamic Endowment"
                 className={inputClasses}
               />
+            </label>
+            <label className="flex items-start gap-2 text-xs text-ink-secondary">
+              <input type="checkbox" name="is_managing_partner" className="mt-0.5" />
+              <span>
+                Managing partner&apos;s own capital (Musharakah pools only). It shares losses by capital ratio with
+                the investors but is not an investor line.
+              </span>
             </label>
             {actionError && <p className="text-xs text-red-400">{actionError}</p>}
             <div className="flex justify-end gap-2 pt-2">

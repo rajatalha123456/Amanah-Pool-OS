@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 from .views import (
     LoginView,
@@ -18,5 +18,6 @@ urlpatterns = [
     path("mfa/setup/", MfaSetupView.as_view(), name="auth-mfa-setup"),
     path("mfa/verify/", MfaVerifyView.as_view(), name="auth-mfa-verify"),
     path("refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
+    path("logout/", TokenBlacklistView.as_view(), name="auth-logout"),
     path("me/", MeView.as_view(), name="auth-me"),
 ] + router.urls

@@ -6,6 +6,7 @@ import { Table, type TableColumn } from "../../components/Table"
 import { fetchAssetAssignments, fetchAssets, unassignAsset } from "../../api/assets"
 import { extractErrorMessage } from "../../api/errors"
 import { AssignAssetModal } from "./AssignAssetModal"
+import { TransferAssetModal } from "./TransferAssetModal"
 import type { Asset, AssetAssignment } from "../../types"
 
 export function AssignedAssetsSection({ poolId }: { poolId: string }) {
@@ -16,6 +17,7 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [unassigningId, setUnassigningId] = useState<string | null>(null)
   const [actionError, setActionError] = useState("")
+  const [transferId, setTransferId] = useState<string | null>(null)
 
   function loadData() {
     setIsLoading(true)
@@ -61,6 +63,14 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
     {
       header: "",
       accessor: (assignment) => (
+        <div className="flex gap-4">
+        <button
+          type="button"
+          onClick={() => setTransferId(assignment.id)}
+          className="text-sm font-medium text-emerald-400 hover:text-emerald-300"
+        >
+          Transfer
+        </button>
         <button
           type="button"
           onClick={() => handleUnassign(assignment.id)}
@@ -69,6 +79,7 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
         >
           {unassigningId === assignment.id ? "Unassigning..." : "Unassign"}
         </button>
+        </div>
       ),
     },
   ]
@@ -101,6 +112,18 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
         ) : (
           <Table columns={columns} data={activeAssignments} keyField={(assignment) => assignment.id} />
         )
+      )}
+
+      {transferId && (
+        <TransferAssetModal
+          assignmentId={transferId}
+          fromPoolId={poolId}
+          onClose={() => setTransferId(null)}
+          onTransferred={() => {
+            setTransferId(null)
+            loadData()
+          }}
+        />
       )}
 
       {isModalOpen && (

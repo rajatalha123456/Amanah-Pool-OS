@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    ConfigChangeRequestViewSet,
     ExceptionCaseViewSet,
     PurificationEntryViewSet,
     RelatedPartyTransactionViewSet,
@@ -12,6 +13,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register("config-changes", ConfigChangeRequestViewSet, basename="config-change")
 router.register("exceptions", ExceptionCaseViewSet, basename="exception-case")
 router.register("purification-entries", PurificationEntryViewSet, basename="purification-entry")
 router.register("related-party-transactions", RelatedPartyTransactionViewSet, basename="related-party-transaction")

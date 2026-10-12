@@ -1,3 +1,4 @@
+import { extractErrorMessage } from "../../api/errors"
 import { useEffect, useState } from "react"
 import { Card } from "../Card"
 import { Badge } from "../Badge"
@@ -41,26 +42,8 @@ export function PoolVersionComparison({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
   const [newVersionForm, setNewVersionForm] = useState<CreatePoolVersionInput>({
-    psr: {
-      mudarib_share_pct: 45.0,
-      rabbul_maal_share_pct: 55.0,
-      wakalah_fee_pct: 0.0,
-      performance_incentive_pct: 15.0,
-    },
-    reserve_policy: {
-      per_ceiling_pct: 3.0,
-      irr_ceiling_pct: 1.5,
-      max_monthly_appropriation_pct: 15.0,
-      hiba_concession_allowed: true,
-    },
-    benchmarks: {
-      benchmark_index: "1-Month KIBOR",
-      spread_bps: 85,
-      target_yield_pct: 17.85,
-    },
-    shariah_resolution_code: "SB-RES-2026-11-CALIB",
-    approving_scholar: "Mufti Dr. Taqi Usmani (Shariah Board Chair)",
-    change_rationale: "Liquidity yield calibration in response to central bank rate trajectory",
+    change_rationale: "",
+    effective_value_date: "",
   })
 
   // Load versions list
@@ -130,7 +113,11 @@ export function PoolVersionComparison({
     setIsSubmitting(true)
     setModalError(null)
     try {
-      await createPoolVersion(poolId, newVersionForm)
+      await createPoolVersion(poolId, {
+        change_rationale: newVersionForm.change_rationale,
+        ...(newVersionForm.effective_value_date ? { effective_value_date: newVersionForm.effective_value_date } : {}),
+      })
+      setNewVersionForm({ change_rationale: "", effective_value_date: "" })
       setIsModalOpen(false)
       // Refresh version list
       const vList = await fetchPoolVersions(poolId)
@@ -140,7 +127,7 @@ export function PoolVersionComparison({
       setV2Id(sorted[sorted.length - 1].id)
       if (onVersionCreated) onVersionCreated()
     } catch (err: unknown) {
-      setModalError(err instanceof Error ? err.message : "Failed to create new version")
+      setModalError(extractErrorMessage(err, "Failed to seal a new version"))
     } finally {
       setIsSubmitting(false)
     }
@@ -595,17 +582,17 @@ export function PoolVersionComparison({
         </>
       )}
 
-      {/* Modal for Creating New Calibration Version */}
+      {/* Seal the pool's current governing configuration as a new version */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/8 pb-3">
               <div>
-                <h3 className="text-base font-semibold text-ink-primary">
-                  Draft New Pool Calibration Version
-                </h3>
+                <h3 className="text-base font-semibold text-ink-primary">Seal New Configuration Version</h3>
                 <p className="text-xs text-ink-secondary">
-                  Calibrate PSR, reserve caps, and weightages with Shariah quorum notes.
+                  Captures the pool&apos;s current approved PSR, weightages, reserves, rule pack, Shariah decision,
+                  approval matrix and accounting mapping. To change economics, approve the new PSR / weightages /
+                  reserves first, then seal.
                 </p>
               </div>
               <button
@@ -617,182 +604,36 @@ export function PoolVersionComparison({
               </button>
             </div>
 
-            {modalError && (
-              <div className="mt-3 rounded bg-red-500/10 p-2 text-xs text-red-400">
-                {modalError}
-              </div>
-            )}
+            {modalError && <div className="mt-3 rounded bg-red-500/10 p-2 text-xs text-red-400">{modalError}</div>}
 
             <form onSubmit={handleCreateVersionSubmit} className="mt-4 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-ink-secondary">Mudarib Share (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newVersionForm.psr?.mudarib_share_pct ?? 48.0}
-                    onChange={(e) =>
-                      setNewVersionForm({
-                        ...newVersionForm,
-                        psr: {
-                          ...newVersionForm.psr!,
-                          mudarib_share_pct: parseFloat(e.target.value),
-                          rabbul_maal_share_pct: 100.0 - parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-ink-secondary">Rab-ul-Maal Share (%)</label>
-                  <input
-                    type="number"
-                    value={newVersionForm.psr?.rabbul_maal_share_pct ?? 52.0}
-                    disabled
-                    className="mt-1 w-full rounded border border-white/5 bg-navy-950/50 px-2.5 py-1.5 text-ink-muted"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-ink-secondary">PER Ceiling (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newVersionForm.reserve_policy?.per_ceiling_pct ?? 2.5}
-                    onChange={(e) =>
-                      setNewVersionForm({
-                        ...newVersionForm,
-                        reserve_policy: {
-                          ...newVersionForm.reserve_policy!,
-                          per_ceiling_pct: parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-ink-secondary">IRR Ceiling (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newVersionForm.reserve_policy?.irr_ceiling_pct ?? 1.0}
-                    onChange={(e) =>
-                      setNewVersionForm({
-                        ...newVersionForm,
-                        reserve_policy: {
-                          ...newVersionForm.reserve_policy!,
-                          irr_ceiling_pct: parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-ink-secondary">Benchmark Spread (bps)</label>
-                  <input
-                    type="number"
-                    value={newVersionForm.benchmarks?.spread_bps ?? 75}
-                    onChange={(e) =>
-                      setNewVersionForm({
-                        ...newVersionForm,
-                        benchmarks: {
-                          ...newVersionForm.benchmarks!,
-                          spread_bps: parseInt(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-ink-secondary">Target Indicative Yield (%)</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={newVersionForm.benchmarks?.target_yield_pct ?? 18.25}
-                    onChange={(e) =>
-                      setNewVersionForm({
-                        ...newVersionForm,
-                        benchmarks: {
-                          ...newVersionForm.benchmarks!,
-                          target_yield_pct: parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-ink-secondary">
-                  Shariah Resolution / Fatwa Ref
-                </label>
+                <label className="block text-ink-secondary">Effective value date (optional)</label>
                 <input
-                  type="text"
-                  value={newVersionForm.shariah_resolution_code ?? ""}
-                  onChange={(e) =>
-                    setNewVersionForm({
-                      ...newVersionForm,
-                      shariah_resolution_code: e.target.value,
-                    })
-                  }
+                  type="date"
+                  value={newVersionForm.effective_value_date ?? ""}
+                  onChange={(e) => setNewVersionForm({ ...newVersionForm, effective_value_date: e.target.value })}
                   className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                  placeholder="e.g. SB-RES-2026-Q4-01"
-                  required
                 />
               </div>
-
               <div>
-                <label className="block text-ink-secondary">Change Rationale</label>
+                <label className="block text-ink-secondary">Change rationale *</label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={newVersionForm.change_rationale ?? ""}
-                  onChange={(e) =>
-                    setNewVersionForm({
-                      ...newVersionForm,
-                      change_rationale: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setNewVersionForm({ ...newVersionForm, change_rationale: e.target.value })}
                   className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-2.5 py-1.5 text-ink-primary"
-                  placeholder="Explain reason for calibration (e.g. SBP rate cut, depositor yield competition)..."
+                  placeholder="Why is the configuration changing?"
                   required
                 />
               </div>
 
               <div className="flex justify-end gap-2 border-t border-white/8 pt-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsModalOpen(false)}
-                >
+                <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="bg-emerald-600 hover:bg-emerald-500"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Spinner className="h-4 w-4" />
-                  ) : (
-                    "Attest & Commit Version"
-                  )}
+                <Button type="submit" variant="primary" disabled={isSubmitting}>
+                  {isSubmitting ? <Spinner className="h-4 w-4" /> : "Seal Version"}
                 </Button>
               </div>
             </form>

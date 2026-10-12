@@ -124,6 +124,18 @@ class InvestorProfileAndSubscriptionApiTests(APITestCase):
 			status=NAVSnapshotStatus.PUBLISHED,
 		)
 		self.authenticate(self.maker)
+		# Even a KYC-verified investor cannot subscribe until they have acknowledged the disclosure.
+		no_disclosure = self.client.post(
+			f"{self.account_url}subscribe/",
+			{"amount": "100.00", "transaction_date": "2026-09-18"},
+			format="json",
+		)
+		self.assertEqual(no_disclosure.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("disclosure", str(no_disclosure.data))
+		from .disclosures import ensure_acknowledged
+
+		set_current_tenant(self.tenant)
+		ensure_acknowledged(self.account)
 		subscribed = self.client.post(
 			f"{self.account_url}subscribe/",
 			{"amount": "100.00", "transaction_date": "2026-09-18"},
@@ -282,6 +294,10 @@ class CapitalAccountDetailApiTests(APITestCase):
 	def test_account_detail_subscription_and_redemption_history(self):
 		self.authenticate(self.maker)
 		account_url = reverse("capital-account-detail", args=[self.account.id])
+		from .disclosures import ensure_acknowledged
+
+		set_current_tenant(self.tenant)
+		ensure_acknowledged(self.account)
 
 		subscribe_response = self.client.post(
 			f"{account_url}subscribe/",
@@ -290,13 +306,18 @@ class CapitalAccountDetailApiTests(APITestCase):
 		)
 		self.assertEqual(subscribe_response.status_code, status.HTTP_201_CREATED)
 
-		self.authenticate(self.checker)
 		redeem_response = self.client.post(
 			f"{account_url}redeem/",
 			{"units_redeemed": "2.000000", "transaction_date": "2026-09-15"},
 			format="json",
 		)
 		self.assertEqual(redeem_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(redeem_response.data["status"], "pending")
+		self.authenticate(self.checker)
+		approve_response = self.client.post(
+			f"{reverse('redemption-detail', args=[redeem_response.data['id']])}approve/"
+		)
+		self.assertEqual(approve_response.status_code, status.HTTP_200_OK, approve_response.data)
 
 		self.authenticate(self.maker)
 		detail_response = self.client.get(account_url)

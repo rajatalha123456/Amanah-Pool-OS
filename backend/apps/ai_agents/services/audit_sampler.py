@@ -31,7 +31,7 @@ def perform_audit_sampling_analysis(tenant) -> dict:
     unpurified_entries = [p for p in purifications if p.status == "identified"]
     critical_exceptions = [e for e in exceptions if e.status != "resolved" and e.severity == "critical"]
     high_exceptions = [e for e in exceptions if e.status != "resolved" and e.severity == "high"]
-    restated_runs = [r for r in allocation_runs if getattr(r, "is_restatement", False) or getattr(r, "restated_from", None) is not None]
+    restated_runs = [r for r in allocation_runs if r.is_restatement or r.replaces_run_id is not None]
     flagged_rp = [rp for rp in related_parties if rp.disclosure_status in ["flagged", "pending_review"]]
 
     # Calculate sub-scores (0-100 scale)
@@ -40,20 +40,17 @@ def perform_audit_sampling_analysis(tenant) -> dict:
     operational_governance_risk = min(100, (len(exceptions) * 8) + 12)
 
     composite_score = int(round((shariah_risk * 0.40) + (financial_variance_risk * 0.35) + (operational_governance_risk * 0.25)))
-    composite_score = max(8, min(composite_score, 98))  # Normalized realistic range
-
+    composite_score = max(0, min(composite_score, 100))
+    # A ranking aid for choosing what to look at first - NOT an audit opinion or a compliance conclusion.
     if composite_score <= 25:
-        risk_tier = "LOW RISK"
-        opinion = "CLEAN / SATISFACTORY"
+        risk_tier = "LOW"
     elif composite_score <= 50:
-        risk_tier = "GUARDED RISK"
-        opinion = "SATISFACTORY WITH SHARIAH OBSERVATIONS"
+        risk_tier = "MODERATE"
     elif composite_score <= 75:
-        risk_tier = "ELEVATED RISK"
-        opinion = "CONDITIONAL APPROVAL (REMEDIATION REQUIRED)"
+        risk_tier = "ELEVATED"
     else:
-        risk_tier = "CRITICAL REGULATORY RISK"
-        opinion = "ADVERSE / MATERIAL NON-COMPLIANCE"
+        risk_tier = "HIGH"
+    opinion = "No opinion is expressed: this is a rule-based ranking of items to inspect."
 
     # 3. Build Stratified Risk Samples
     sample_items = []
@@ -86,7 +83,7 @@ def perform_audit_sampling_analysis(tenant) -> dict:
 
     # Check restated allocation runs or latest allocation run
     for run in allocation_runs[:2]:
-        is_restated = getattr(run, "is_restatement", False) or getattr(run, "replaces_run", None) is not None
+        is_restated = run.is_restatement or run.replaces_run_id is not None
         val_date_str = run.value_date.strftime('%Y%m') if getattr(run, "value_date", None) else "202609"
         sample_items.append({
             "entity_type": "AllocationRun",
@@ -121,13 +118,12 @@ def perform_audit_sampling_analysis(tenant) -> dict:
     total_samples = len(sample_items)
     memo_date = timezone.now().strftime("%d %B %Y")
     audit_memo = (
-        f"CONFIDENTIAL INTERNAL & SBP REGULATORY AUDIT MEMORANDUM\n"
+        f"AUDIT SAMPLING WORKING NOTE (rule-based, for the auditor's use)\n"
         f"========================================================================\n"
-        f"Audit Evaluation Period : Active Operating Year 2026\n"
-        f"Generated At            : {memo_date} | AI Sampling Agent v2.4\n"
-        f"Institution             : {tenant.name} (Amanah Pool OS)\n"
-        f"Composite Risk Rating   : {composite_score} / 100 ({risk_tier})\n"
-        f"SBP Compliance Opinion  : {opinion}\n"
+        f"Generated At          : {memo_date}\n"
+        f"Institution           : {tenant.name}\n"
+        f"Risk ranking score    : {composite_score} / 100 ({risk_tier})\n"
+        f"Opinion               : {opinion}\n"
         f"========================================================================\n\n"
         f"1. EXECUTIVE OVERVIEW:\n"
         f"The AI Audit Sampling Engine performed an automated comprehensive scan across {len(allocation_runs)} "
@@ -138,9 +134,10 @@ def perform_audit_sampling_analysis(tenant) -> dict:
         f" - Financial & Allocation Variance    : {financial_variance_risk}/100\n"
         f" - Operational & Control Integrity   : {operational_governance_risk}/100\n\n"
         f"3. STRATIFIED AUDIT SAMPLE RECOMMENDATION:\n"
-        f"A total of {total_samples} high-priority samples have been extracted using stratified risk-weighted "
-        f"algorithms. Internal and external Shariah auditors are instructed to inspect these items as primary "
-        f"evidence to achieve 95% statistical confidence under SBP IBD Circulars.\n"
+        f"{total_samples} items were selected by fixed rules (unpurified income, open high/critical exceptions, "
+        f"restated or latest runs, flagged related-party transactions). The selection is a risk-ranked starting "
+        f"point, not a statistically derived sample, and carries no confidence level. The auditor decides the "
+        f"actual sample and procedures.\n"
     )
 
     return {

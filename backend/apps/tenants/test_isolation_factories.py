@@ -19,6 +19,7 @@ from datetime import date
 from decimal import Decimal
 
 from apps.accounting.models import (
+    AccountMapping,
     IncomeExpenseEvent,
     JournalBatch,
     JournalEntry,
@@ -37,7 +38,11 @@ from apps.allocation.models import (
 from apps.circles.models import (
     ArrearsRecord,
     CircleMember,
+    CircleClosure,
+    CircleDraw,
     CircleProposal,
+    CircleRules,
+    RulesAcceptance,
     CircleVote,
     Contribution,
     Payout,
@@ -54,20 +59,26 @@ from apps.governance.models import (
 from apps.investments.models import (
     CapitalAccount,
     ImpairmentEvent,
+    InvestmentDistributionLine,
+    InvestmentDistributionRun,
     InvestorProfile,
+    NegligenceCase,
     NAVSnapshot,
     Redemption,
     Subscription,
+    UnitMovement,
 )
 from apps.pools.models import (
     Asset,
     AssetAssignment,
+    AssetProvisionEntry,
     BalanceImportBatch,
     DailyBalance,
     PeriodCloseChecklist,
     Pool,
     PoolVersion,
 )
+from apps.notifications.models import Notification
 from apps.participants.models import Participant, ParticipantAccount
 from apps.products.models import (
     ContractTemplate,
@@ -168,6 +179,22 @@ class _Cache:
             ),
         )
 
+    def distribution_run(self):
+        return self.get(
+            "distribution_run",
+            lambda: InvestmentDistributionRun.objects.create(
+                tenant=self.tenant,
+                pool=self.pool(),
+                period_start=_D,
+                period_end=_D,
+                gross_income=Decimal("10.00"),
+                distributable_amount=Decimal("10.00"),
+                investor_share=Decimal("8.00"),
+                manager_share=Decimal("2.00"),
+                total_average_units=Decimal("1.000000"),
+            ),
+        )
+
     def capital_account(self):
         return self.get(
             "capital_account",
@@ -249,6 +276,40 @@ def _build_shariah_decision(tenant, cache):
     )
 
 
+def _build_negligence_case(tenant, cache):
+    return NegligenceCase.objects.create(
+        tenant=tenant, pool=cache.pool(), title="Case", allegation="x", period_start=_D, period_end=_D
+    )
+
+
+def _build_notification(tenant, cache):
+    return Notification.objects.create(tenant=tenant, category="system", title=f"Notice {tenant.code}")
+
+
+def _build_account_mapping(tenant, cache):
+    return AccountMapping.objects.create(
+        tenant=tenant, account_key="pool_income", gl_code=f"GL-{tenant.code}", gl_name="Pool Income"
+    )
+
+
+def _build_unit_movement(tenant, cache):
+    return UnitMovement.objects.create(
+        tenant=tenant, capital_account=cache.capital_account(), effective_date=_D,
+        units_delta=Decimal("1.000000"), movement_type="subscription",
+    )
+
+
+def _build_distribution_run(tenant, cache):
+    return cache.distribution_run()
+
+
+def _build_distribution_line(tenant, cache):
+    return InvestmentDistributionLine.objects.create(
+        tenant=tenant, run=cache.distribution_run(), capital_account=cache.capital_account(),
+        average_units=Decimal("1.000000"), share_ratio=Decimal("1.000000000000"), allocated_amount=Decimal("1.00"),
+    )
+
+
 def _build_payout_batch_record(tenant, cache):
     return PayoutBatchRecord.objects.create(
         tenant=tenant, allocation_run=cache.allocation_run(), batch_code=f"BATCH-{tenant.code}", payload={}
@@ -305,6 +366,13 @@ def _build_asset(tenant, cache):
 def _build_asset_assignment(tenant, cache):
     return AssetAssignment.objects.create(
         tenant=tenant, asset=cache.asset(), pool=cache.pool(), assigned_date=_D
+    )
+
+
+def _build_asset_provision(tenant, cache):
+    return AssetProvisionEntry.objects.create(
+        tenant=tenant, asset=cache.asset(), pool=cache.pool(), entry_type="provision",
+        amount=Decimal("10.00"), effective_date=_D, reason="Reason",
     )
 
 
@@ -502,6 +570,95 @@ def _build_redemption(tenant, cache):
     )
 
 
+def _build_circle_rules(tenant, cache):
+    return CircleRules.objects.create(
+        tenant=tenant, pool=cache.pool(), version=1, contribution_amount=Decimal("100.00"), cycle_days=30,
+        order_policy="Draw", hardship_policy="Hardship", content_hash="0" * 64,
+    )
+
+
+def _build_rules_acceptance(tenant, cache):
+    from django.utils import timezone
+
+    rules = CircleRules.objects.filter(tenant=tenant).first() or _build_circle_rules(tenant, cache)
+    return RulesAcceptance.objects.create(
+        tenant=tenant, member=cache.circle_member(), rules=rules, accepted_at=timezone.now(), method="in_person"
+    )
+
+
+def _build_circle_draw(tenant, cache):
+    return CircleDraw.objects.create(
+        tenant=tenant, pool=cache.pool(), sequence=1, commitment="a" * 64, server_seed="s", participants=[]
+    )
+
+
+def _build_circle_closure(tenant, cache):
+    return CircleClosure.objects.create(
+        tenant=tenant, pool=cache.pool(), total_collected=Decimal("0.00"), total_disbursed=Decimal("0.00"),
+        difference=Decimal("0.00"),
+    )
+
+
+def _build_config_change(tenant, cache):
+    from apps.governance.models import ConfigChangeRequest
+
+    return ConfigChangeRequest.objects.create(
+        tenant=tenant, kind="account_mapping", operation="create", payload={}, reason="Reason"
+    )
+
+
+def _build_pool_disclosure(tenant, cache):
+    from apps.investments.models import PoolDisclosure
+
+    return PoolDisclosure.objects.create(
+        tenant=tenant, pool=cache.pool(), version=1, terms={}, terms_hash="0" * 64, risk_warnings="r", fee_statement="f"
+    )
+
+
+def _pool_disclosure_model():
+    from apps.investments.models import PoolDisclosure
+
+    return PoolDisclosure
+
+
+def _build_disclosure_ack(tenant, cache):
+    from django.utils import timezone
+
+    from apps.investments.models import DisclosureAcknowledgement, PoolDisclosure
+
+    disclosure = PoolDisclosure.objects.filter(tenant=tenant).first() or _build_pool_disclosure(tenant, cache)
+    return DisclosureAcknowledgement.objects.create(
+        tenant=tenant, capital_account=cache.capital_account(), disclosure=disclosure,
+        acknowledged_at=timezone.now(), method="in_person",
+    )
+
+
+def _ack_model():
+    from apps.investments.models import DisclosureAcknowledgement
+
+    return DisclosureAcknowledgement
+
+
+def _config_change_model():
+    from apps.governance.models import ConfigChangeRequest
+
+    return ConfigChangeRequest
+
+
+def _ai_model():
+    from apps.ai_agents.models import AIRecommendation
+
+    return AIRecommendation
+
+
+def _build_ai_recommendation(tenant, cache):
+    from apps.ai_agents.models import AIRecommendation
+
+    return AIRecommendation.objects.create(
+        tenant=tenant, feature="contract_analyzer", model_name="contract_analyzer", output={"x": 1}
+    )
+
+
 def _build_circle_member(tenant, cache):
     return cache.circle_member()
 
@@ -629,6 +786,7 @@ BUILDERS = {
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),
     "pools.AssetAssignment": (AssetAssignment, _build_asset_assignment),
+    "pools.AssetProvisionEntry": (AssetProvisionEntry, _build_asset_provision),
     "pools.DailyBalance": (DailyBalance, _build_daily_balance),
     "pools.BalanceImportBatch": (BalanceImportBatch, _build_balance_import_batch),
     "pools.PeriodCloseChecklist": (PeriodCloseChecklist, _build_period_close_checklist),
@@ -650,6 +808,12 @@ BUILDERS = {
     "governance.ShariahAuditPlan": (ShariahAuditPlan, _build_shariah_audit_plan),
     "governance.ShariahAuditFinding": (ShariahAuditFinding, _build_shariah_audit_finding),
     "investments.CapitalAccount": (CapitalAccount, _build_capital_account),
+    "investments.NegligenceCase": (NegligenceCase, _build_negligence_case),
+    "notifications.Notification": (Notification, _build_notification),
+    "accounting.AccountMapping": (AccountMapping, _build_account_mapping),
+    "investments.UnitMovement": (UnitMovement, _build_unit_movement),
+    "investments.InvestmentDistributionRun": (InvestmentDistributionRun, _build_distribution_run),
+    "investments.InvestmentDistributionLine": (InvestmentDistributionLine, _build_distribution_line),
     "investments.InvestorProfile": (InvestorProfile, _build_investor_profile),
     "investments.ImpairmentEvent": (ImpairmentEvent, _build_impairment_event),
     "investments.Subscription": (Subscription, _build_subscription),
@@ -659,6 +823,14 @@ BUILDERS = {
     "circles.Contribution": (Contribution, _build_contribution),
     "circles.Payout": (Payout, _build_payout),
     "circles.CircleProposal": (CircleProposal, _build_circle_proposal),
+    "ai_agents.AIRecommendation": (_ai_model(), _build_ai_recommendation),
+    "governance.ConfigChangeRequest": (_config_change_model(), _build_config_change),
+    "investments.PoolDisclosure": (_pool_disclosure_model(), _build_pool_disclosure),
+    "investments.DisclosureAcknowledgement": (_ack_model(), _build_disclosure_ack),
+    "circles.CircleRules": (CircleRules, _build_circle_rules),
+    "circles.RulesAcceptance": (RulesAcceptance, _build_rules_acceptance),
+    "circles.CircleDraw": (CircleDraw, _build_circle_draw),
+    "circles.CircleClosure": (CircleClosure, _build_circle_closure),
     "circles.CircleVote": (CircleVote, _build_circle_vote),
     "circles.ArrearsRecord": (ArrearsRecord, _build_arrears_record),
 }

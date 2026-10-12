@@ -74,22 +74,17 @@ export function CommandCenter() {
 
     for (const pool of pools) {
       const model = pool.product_detail?.operating_model ?? "bank_pool"
-      const name = pool.name.toLowerCase()
-      if (model === "community_circle" || name.includes("circle") || name.includes("committee")) {
-        circles += 1
-      } else if (model === "investment_pool" || name.includes("venture") || name.includes("musharakah")) {
-        musharakah += 1
-      } else if (name.includes("wakalah") || name.includes("treasury")) {
-        wakalah += 1
-      } else {
-        mudharabah += 1
-      }
+      const contract = pool.product_detail?.contract_template?.contract_type ?? ""
+      if (model === "community_circle") circles += 1
+      else if (contract === "musharakah") musharakah += 1
+      else if (contract === "wakalah") wakalah += 1
+      else mudharabah += 1
     }
 
     const slices: DonutSlice[] = []
-    if (mudharabah > 0) slices.push({ label: "Mudharabah General", value: mudharabah, color: "#10b981" })
-    if (musharakah > 0) slices.push({ label: "Musharakah Venture", value: musharakah, color: "#38bdf8" })
-    if (wakalah > 0) slices.push({ label: "Wakalah Agency", value: wakalah, color: "#a855f7" })
+    if (mudharabah > 0) slices.push({ label: "Mudarabah", value: mudharabah, color: "#10b981" })
+    if (musharakah > 0) slices.push({ label: "Musharakah", value: musharakah, color: "#38bdf8" })
+    if (wakalah > 0) slices.push({ label: "Wakalah", value: wakalah, color: "#a855f7" })
     if (circles > 0) slices.push({ label: "Community Circles", value: circles, color: "#f59e0b" })
 
     if (slices.length === 0) {
@@ -103,7 +98,7 @@ export function CommandCenter() {
   // Distributable Profit & Gross Income Progression from real Allocation Runs
   const monthlyProfitTrend: TrendDataPoint[] = useMemo(() => {
     const validRuns = allocationRuns
-      .filter((r) => r.status === "signed" || r.status === "pending_approval" || r.status === "simulated")
+      .filter((r) => r.status === "signed" || r.status === "pending_approval" || r.status === "checked" || r.status === "shariah_review" || r.status === "simulated")
       .sort((a, b) => new Date(a.value_date).getTime() - new Date(b.value_date).getTime())
 
     if (validRuns.length > 0) {
@@ -232,7 +227,7 @@ export function CommandCenter() {
           {/* Institutional Visual Charts Row: Screen 01 Visual Catalogue */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Donut Chart: Asset Allocation by Pool Operating Model */}
-            <Card title="Asset Allocation by Shariah Model" className="lg:col-span-1">
+            <Card title="Pools by contract type" className="lg:col-span-1">
               <DonutChart
                 data={modelSlices}
                 centerLabel="Total Pools"

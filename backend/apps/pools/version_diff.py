@@ -9,6 +9,24 @@ def compute_snapshot_hash(snapshot_dict):
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _pack_label(pack):
+    return f"{pack.get('code')} v{pack.get('version')}" if pack else None
+
+
+def _matrix_label(rules):
+    if not rules:
+        return None
+    return "; ".join(
+        f"{rule['role']} <= {rule['max_amount'] or 'unlimited'}" for rule in sorted(rules, key=lambda r: r["role"])
+    )
+
+
+def _mapping_label(mapping):
+    if not mapping:
+        return None
+    return "; ".join(f"{key}={value['code'] or value['name']}" for key, value in sorted(mapping.items()))
+
+
 def generate_version_diff(pool, v1, v2):
     """
     Computes a comprehensive governance and financial parameter diff
@@ -63,48 +81,47 @@ def generate_version_diff(pool, v1, v2):
     add_diff_item("Structure", "contract_type", "Shariah Contract Type", contract1.get("contract_type"), contract2.get("contract_type"))
     add_diff_item("Structure", "contract_version", "Contract Version", contract1.get("version"), contract2.get("version"))
 
-    # 2. Profit Sharing & Fee Structure (PSR)
-    psr1 = snap1.get("psr", {})
-    psr2 = snap2.get("psr", {})
-    add_diff_item("PSR & Economics", "mudarib_share_pct", "Mudarib Share", psr1.get("mudarib_share_pct", 50.0), psr2.get("mudarib_share_pct", 50.0), "%", "percentage")
-    add_diff_item("PSR & Economics", "rabbul_maal_share_pct", "Rab-ul-Maal Share", psr1.get("rabbul_maal_share_pct", 50.0), psr2.get("rabbul_maal_share_pct", 50.0), "%", "percentage")
-    add_diff_item("PSR & Economics", "wakalah_fee_pct", "Wakalah Agency Fee", psr1.get("wakalah_fee_pct", 0.0), psr2.get("wakalah_fee_pct", 0.0), "%", "percentage")
-    add_diff_item("PSR & Economics", "performance_incentive_pct", "Incentive Hurdle Share", psr1.get("performance_incentive_pct", 10.0), psr2.get("performance_incentive_pct", 10.0), "%", "percentage")
+    # 2. Profit sharing (PSR) - from the approved ProfitSharingRatio that was in force
+    psr1 = snap1.get("psr") or {}
+    psr2 = snap2.get("psr") or {}
+    add_diff_item("PSR & Economics", "investor_share_pct", "Investor / Depositor Share", psr1.get("investor_share_pct"), psr2.get("investor_share_pct"), "%", "percentage")
+    add_diff_item("PSR & Economics", "manager_share_pct", "Manager (Mudarib) Share", psr1.get("manager_share_pct"), psr2.get("manager_share_pct"), "%", "percentage")
+    add_diff_item("PSR & Economics", "wakalah_fee_pct", "Wakalah Agency Fee (p.a.)", psr1.get("wakalah_fee_pct"), psr2.get("wakalah_fee_pct"), "%", "percentage")
 
-    # 3. Reserve Policy & Prudential Caps
-    res1 = snap1.get("reserve_policy", {})
-    res2 = snap2.get("reserve_policy", {})
-    add_diff_item("Prudential Reserves", "per_ceiling_pct", "PER Appropriation Ceiling", res1.get("per_ceiling_pct", 2.0), res2.get("per_ceiling_pct", 2.0), "%", "percentage")
-    add_diff_item("Prudential Reserves", "irr_ceiling_pct", "IRR Capital Protection Ceiling", res1.get("irr_ceiling_pct", 1.0), res2.get("irr_ceiling_pct", 1.0), "%", "percentage")
-    add_diff_item("Prudential Reserves", "max_monthly_appropriation_pct", "Max Monthly Reserve Transfer", res1.get("max_monthly_appropriation_pct", 15.0), res2.get("max_monthly_appropriation_pct", 15.0), "%", "percentage")
-    add_diff_item("Prudential Reserves", "hiba_concession_allowed", "Mudarib Voluntary Hiba Concession", res1.get("hiba_concession_allowed", True), res2.get("hiba_concession_allowed", True), None, "boolean")
+    # 3. Reserve policies
+    res1 = snap1.get("reserve_policy") or {}
+    res2 = snap2.get("reserve_policy") or {}
+    for kind, label in (("per", "PER"), ("irr", "IRR")):
+        r1 = res1.get(kind) or {}
+        r2 = res2.get(kind) or {}
+        add_diff_item("Prudential Reserves", f"{kind}_rate_pct", f"{label} Appropriation Rate", r1.get("rate_pct"), r2.get("rate_pct"), "%", "percentage")
+        add_diff_item("Prudential Reserves", f"{kind}_cap_pct", f"{label} Cap (% of funds)", r1.get("cap_pct"), r2.get("cap_pct"), "%", "percentage")
 
-    # 4. Target Yield Benchmark
-    bm1 = snap1.get("benchmarks", {})
-    bm2 = snap2.get("benchmarks", {})
-    add_diff_item("Market Benchmarks", "benchmark_index", "Benchmark Index", bm1.get("benchmark_index", "1-Month KIBOR"), bm2.get("benchmark_index", "1-Month KIBOR"))
-    add_diff_item("Market Benchmarks", "spread_bps", "Target Spread", bm1.get("spread_bps", 50), bm2.get("spread_bps", 50), "bps", "bps")
-    add_diff_item("Market Benchmarks", "target_yield_pct", "Indicative Target Yield", bm1.get("target_yield_pct", 18.50), bm2.get("target_yield_pct", 18.50), "%", "percentage")
+    # 4. Rule pack and Shariah decision
+    pack1 = snap1.get("rule_pack") or {}
+    pack2 = snap2.get("rule_pack") or {}
+    add_diff_item("Governance & Compliance", "rule_pack", "Jurisdiction Rule Pack", _pack_label(pack1), _pack_label(pack2))
+    dec1 = snap1.get("shariah_decision") or {}
+    dec2 = snap2.get("shariah_decision") or {}
+    add_diff_item("Governance & Compliance", "shariah_decision", "Shariah Decision", dec1.get("decision_code"), dec2.get("decision_code"))
+    add_diff_item("Governance & Compliance", "shariah_status", "Shariah Decision Status", dec1.get("status"), dec2.get("status"))
 
-    # 5. Shariah Governance & Attestation
-    gov1 = snap1.get("governance", {})
-    gov2 = snap2.get("governance", {})
-    add_diff_item("Governance & Compliance", "shariah_resolution_code", "Fatwa / Resolution Ref", gov1.get("shariah_resolution_code", "SB-RES-2026-01"), gov2.get("shariah_resolution_code", "SB-RES-2026-02"))
-    add_diff_item("Governance & Compliance", "approving_scholar", "Lead Approving Scholar", gov1.get("approving_scholar", "Mufti Dr. Taqi Usmani (Shariah Board Chair)"), gov2.get("approving_scholar", "Mufti Dr. Taqi Usmani (Shariah Board Chair)"))
-    add_diff_item("Governance & Compliance", "effective_value_date", "Effective Value Date", gov1.get("effective_value_date", str(pool.effective_date)), gov2.get("effective_value_date", str(pool.effective_date)))
-    add_diff_item("Governance & Compliance", "change_rationale", "Regulatory Change Rationale", gov1.get("change_rationale", "Initial pool launch version"), gov2.get("change_rationale", "Initial pool launch version"))
+    # 5. Controls: approval matrix and accounting mapping
+    add_diff_item("Controls", "approval_matrix", "Approval Matrix", _matrix_label(snap1.get("approval_matrix")), _matrix_label(snap2.get("approval_matrix")))
+    add_diff_item("Controls", "account_mapping", "Accounting Mapping", _mapping_label(snap1.get("account_mapping")), _mapping_label(snap2.get("account_mapping")))
 
-    # 6. Weightages Tiers Diff
-    tiers1 = snap1.get("weightage_bands") or [
-        {"code": "TIER-SAV-01", "name": "Savings Account - Retail", "weight": 1.00, "min_tenor_days": 0},
-        {"code": "TIER-SAV-02", "name": "Savings Account - High Net Worth", "weight": 1.20, "min_tenor_days": 0},
-        {"code": "TIER-TERM-03", "name": "Term Deposit - 1 Year", "weight": 1.45, "min_tenor_days": 365},
-        {"code": "TIER-TERM-04", "name": "Term Deposit - 3 Year", "weight": 1.65, "min_tenor_days": 1095},
-    ]
-    tiers2 = snap2.get("weightage_bands") or tiers1
+    # 6. Version metadata
+    gov1 = snap1.get("governance") or {}
+    gov2 = snap2.get("governance") or {}
+    add_diff_item("Governance & Compliance", "approving_scholar", "Decision Approved By", gov1.get("approving_scholar"), gov2.get("approving_scholar"))
+    add_diff_item("Governance & Compliance", "effective_value_date", "Effective Value Date", gov1.get("effective_value_date"), gov2.get("effective_value_date"))
+    add_diff_item("Governance & Compliance", "change_rationale", "Change Rationale", gov1.get("change_rationale"), gov2.get("change_rationale"))
+
+    # 7. Weightage tiers diff
+    tiers1 = snap1.get("weightage_bands") or []
+    tiers2 = snap2.get("weightage_bands") or []
 
     tiers_diff = []
-    # Build dictionary map
     map1 = {t.get("code"): t for t in tiers1}
     map2 = {t.get("code"): t for t in tiers2}
     all_codes = list(dict.fromkeys(list(map1.keys()) + list(map2.keys())))
@@ -122,11 +139,11 @@ def generate_version_diff(pool, v1, v2):
             "name": (t2 or t1).get("name", code),
             "v1_weight": w1,
             "v2_weight": w2,
-            "v1_tenor_days": t1.get("min_tenor_days") if t1 else None,
-            "v2_tenor_days": t2.get("min_tenor_days") if t2 else None,
+            "v1_tenor_days": None,
+            "v2_tenor_days": None,
             "is_changed": changed,
             "delta": delta,
-            "change_type": "modified" if changed else "unchanged" if (t1 and t2) else ("added" if t2 else "removed"),
+            "change_type": "modified" if changed and t1 and t2 else "unchanged" if (t1 and t2) else ("added" if t2 else "removed"),
         })
 
     # Summary analysis
@@ -135,7 +152,7 @@ def generate_version_diff(pool, v1, v2):
     total_changes = total_field_changes + total_tier_changes
 
     risk_level = "LOW"
-    if total_changes > 4 or any(item["key"] in ("mudarib_share_pct", "per_ceiling_pct", "irr_ceiling_pct") and item["is_changed"] for item in diff_matrix):
+    if total_changes > 4 or any(item["key"] in ("manager_share_pct", "investor_share_pct", "wakalah_fee_pct", "per_rate_pct", "irr_rate_pct", "per_cap_pct", "irr_cap_pct") and item["is_changed"] for item in diff_matrix):
         risk_level = "HIGH"
     elif total_changes > 0:
         risk_level = "MEDIUM"
@@ -152,25 +169,25 @@ def generate_version_diff(pool, v1, v2):
             "version_number": v1.version_number,
             "is_current": v1.is_current,
             "created_at": v1.created_at.isoformat() if v1.created_at else None,
-            "created_by": v1.created_by.full_name if v1.created_by else "System Seed",
+            "created_by": v1.created_by.full_name if v1.created_by else None,
             "snapshot_hash": hash1,
-            "shariah_resolution": gov1.get("shariah_resolution_code", "SB-RES-2026-01"),
+            "shariah_resolution": gov1.get("shariah_resolution_code"),
         },
         "v2": {
             "id": str(v2.id),
             "version_number": v2.version_number,
             "is_current": v2.is_current,
             "created_at": v2.created_at.isoformat() if v2.created_at else None,
-            "created_by": v2.created_by.full_name if v2.created_by else "System Seed",
+            "created_by": v2.created_by.full_name if v2.created_by else None,
             "snapshot_hash": hash2,
-            "shariah_resolution": gov2.get("shariah_resolution_code", "SB-RES-2026-02"),
+            "shariah_resolution": gov2.get("shariah_resolution_code"),
         },
         "summary": {
             "total_changes": total_changes,
             "field_changes_count": total_field_changes,
             "tier_changes_count": total_tier_changes,
             "risk_impact": risk_level,
-            "shariah_quorum_attested": bool(gov2.get("shariah_resolution_code")),
+            "shariah_quorum_attested": bool(dec2.get("in_force")),
             "requires_regulatory_filing": risk_level in ("HIGH", "CRITICAL"),
         },
         "diff_matrix": diff_matrix,

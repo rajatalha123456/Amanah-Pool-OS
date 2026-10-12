@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -17,7 +18,9 @@ from apps.accounts.permissions import (
     IsShariahBoard,
 )
 from apps.accounts.workflow import validate_maker_checker
+from apps.accounting.services import post_capital_movement_journal
 from apps.core.audit import log_action
+from apps.pools.period_lock import assert_period_open
 
 from .models import (
     CapitalAccount,
@@ -30,6 +33,8 @@ from .models import (
     NAVSnapshotStatus,
     Redemption,
     Subscription,
+    UnitMovement,
+    UnitMovementType,
 )
 from .nav_engine import calculate_nav
 from .serializers import (
@@ -40,6 +45,24 @@ from .serializers import (
     RedemptionSerializer,
     SubscriptionSerializer,
 )
+
+
+STAFF_ROLES = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board"]
+
+
+def _scope_to_owner(queryset, user, owner_path):
+    """Investors/members only ever see records that belong to their own participant record."""
+
+    if user.role == "investor_member":
+        return queryset.filter(**{owner_path: user})
+    return queryset
+
+
+def _parse_date(value, field="transaction_date"):
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        raise ValidationError({field: ["Enter a valid date (YYYY-MM-DD)."]})
 
 
 def _latest_published_nav(pool):
@@ -69,7 +92,7 @@ class CapitalAccountViewSet(
         # See apps/products/views.py etc. for why this must be a method
         # rather than a class-level `queryset = Model.objects.all()`
         # attribute (TenantScopedManager + import-time evaluation bug).
-        queryset = CapitalAccount.objects.all()
+        queryset = _scope_to_owner(CapitalAccount.objects.all(), self.request.user, "participant__user")
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
@@ -81,8 +104,10 @@ class CapitalAccountViewSet(
         if self.action == "subscribe":
             return [IsAuthenticated(), IsFinanceMaker()]
         if self.action == "redeem":
-            return [IsAuthenticated(), IsFinanceChecker()]
-        return [IsAuthenticated()]
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager", "investor_member"])()]
+        if self.action in ("update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
+        return [IsAuthenticated()]  # list/retrieve/statement: investors are limited to their own accounts
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -102,6 +127,9 @@ class CapitalAccountViewSet(
 
         if not hasattr(account, "investor_profile") or account.investor_profile.kyc_status != KYCStatus.VERIFIED:
             raise ValidationError("KYC verification required before subscription")
+        from .disclosures import assert_subscription_allowed
+
+        assert_subscription_allowed(account)
 
         amount = request.data.get("amount")
         transaction_date = request.data.get("transaction_date")
@@ -122,20 +150,34 @@ class CapitalAccountViewSet(
         nav_per_unit = nav_snapshot.nav_per_unit
 
         amount = Decimal(str(amount))
+        if amount <= 0:
+            raise ValidationError({"amount": ["Amount must be positive."]})
         units_allotted = amount / nav_per_unit
+        effective_date = _parse_date(transaction_date)
+        assert_period_open(account.pool, effective_date, what="a subscription")
 
-        subscription = Subscription.objects.create(
-            tenant=account.tenant,
-            capital_account=account,
-            amount=amount,
-            nav_per_unit=nav_per_unit,
-            units_allotted=units_allotted,
-            transaction_date=transaction_date,
-            status="processed",
-        )
+        with transaction.atomic():
+            subscription = Subscription.objects.create(
+                tenant=account.tenant,
+                capital_account=account,
+                amount=amount,
+                nav_per_unit=nav_per_unit,
+                units_allotted=units_allotted,
+                transaction_date=effective_date,
+                status="processed",
+            )
 
-        account.units_held += units_allotted
-        account.save(update_fields=["units_held", "updated_at"])
+            account.units_held += units_allotted
+            account.save(update_fields=["units_held", "updated_at"])
+            UnitMovement.objects.create(
+                tenant=account.tenant, capital_account=account, effective_date=effective_date,
+                units_delta=units_allotted, movement_type=UnitMovementType.SUBSCRIPTION,
+                reference_id=str(subscription.id),
+            )
+            post_capital_movement_journal(
+                kind="subscription", tenant=account.tenant, pool=account.pool, amount=amount,
+                on_date=effective_date, posted_by=request.user,
+            )
 
         log_action(
             tenant=account.tenant,
@@ -158,64 +200,109 @@ class CapitalAccountViewSet(
 
     @action(detail=True, methods=["post"])
     def redeem(self, request, pk=None):
+        """Request a redemption; an independent finance checker approves it (see redemptions.py)."""
+        from .redemptions import request_redemption
+
         account = self.get_object()
-
-        units_redeemed = request.data.get("units_redeemed")
-        transaction_date = request.data.get("transaction_date")
-
         errors = {}
-        if not units_redeemed:
-            errors["units_redeemed"] = ["This field is required."]
-        if not transaction_date:
-            errors["transaction_date"] = ["This field is required."]
+        for field in ("units_redeemed", "transaction_date"):
+            if not request.data.get(field):
+                errors[field] = ["This field is required."]
         if errors:
             raise ValidationError(errors)
-
-        nav_snapshot = _latest_published_nav(account.pool)
-        if nav_snapshot is None:
-            raise ValidationError(
-                "No published NAV available for this pool. Cannot process subscription/redemption."
-            )
-        nav_per_unit = nav_snapshot.nav_per_unit
-
-        units_redeemed = Decimal(str(units_redeemed))
-
-        if units_redeemed > account.units_held:
-            raise ValidationError("Cannot redeem more units than held")
-
-        amount = units_redeemed * nav_per_unit
-
-        redemption = Redemption.objects.create(
-            tenant=account.tenant,
-            capital_account=account,
-            units_redeemed=units_redeemed,
-            nav_per_unit=nav_per_unit,
-            amount=amount,
-            transaction_date=transaction_date,
-            status="processed",
+        try:
+            units = Decimal(str(request.data["units_redeemed"]))
+        except ArithmeticError:
+            raise ValidationError({"units_redeemed": ["Enter a valid number of units."]})
+        redemption = request_redemption(
+            account=account, units=units, dealing_date=_parse_date(request.data["transaction_date"]),
+            user=request.user,
         )
-
-        account.units_held -= units_redeemed
-        account.save(update_fields=["units_held", "updated_at"])
-
         log_action(
-            tenant=account.tenant,
-            actor=request.user,
-            action="redeem",
-            model_name="CapitalAccount",
+            tenant=account.tenant, actor=request.user, action="redemption_requested", model_name="CapitalAccount",
             object_id=str(account.id),
-            changes={
-                "redemption_id": str(redemption.id),
-                "units_redeemed": str(units_redeemed),
-                "nav_per_unit": str(nav_per_unit),
-                "nav_snapshot_id": str(nav_snapshot.id),
-                "amount": str(amount),
-                "units_held_after": str(account.units_held),
-            },
+            changes={"redemption_id": str(redemption.id), "units_redeemed": str(units),
+                     "dealing_date": str(redemption.transaction_date)},
             request=request,
         )
-
         return Response(RedemptionSerializer(redemption).data, status=201)
+
+    @action(detail=True, methods=["get"])
+    def statement(self, request, pk=None):
+        """Capital account statement; an investor can only open their own (queryset-scoped)."""
+        account = self.get_object()
+        period_end = _parse_date(request.query_params.get("to") or timezone.localdate().isoformat(), "to")
+        period_start = _parse_date(request.query_params.get("from") or period_end.replace(day=1).isoformat(), "from")
+        if period_start > period_end:
+            raise ValidationError("'from' cannot be after 'to'.")
+        return Response(_capital_statement(account, period_start, period_end))
+
+
+def _capital_statement(account, period_start, period_end):
+    """Units, movements, NAV value and distributions of one capital account for a period."""
+
+    from .distribution import average_units
+    from .models import DistributionRunStatus, InvestmentDistributionLine
+
+    movements = list(UnitMovement.objects.filter(capital_account=account).order_by("effective_date", "created_at"))
+    base = Decimal(account.units_held) - sum((m.units_delta for m in movements), Decimal("0"))
+
+    def units_on(day):
+        return max(base + sum((m.units_delta for m in movements if m.effective_date <= day), Decimal("0")), Decimal("0"))
+
+    from datetime import timedelta
+
+    in_period = [m for m in movements if period_start <= m.effective_date <= period_end]
+    days = [period_start + timedelta(days=i) for i in range((period_end - period_start).days + 1)]
+    nav = (
+        NAVSnapshot.objects.filter(
+            pool=account.pool, status=NAVSnapshotStatus.PUBLISHED, valuation_date__lte=period_end
+        )
+        .order_by("-valuation_date")
+        .first()
+    )
+    distributions = InvestmentDistributionLine.objects.filter(
+        capital_account=account,
+        run__status=DistributionRunStatus.SIGNED,
+        run__period_end__gte=period_start,
+        run__period_end__lte=period_end,
+    ).select_related("run")
+    closing_units = units_on(period_end)
+    return {
+        "capital_account": str(account.id),
+        "investor_reference": account.investor_reference,
+        "investor_name": account.investor_name,
+        "pool": account.pool.name,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "opening_units": str(units_on(period_start - timedelta(days=1))),
+        "subscribed_units": str(sum((m.units_delta for m in in_period if m.units_delta > 0), Decimal("0"))),
+        "redeemed_units": str(-sum((m.units_delta for m in in_period if m.units_delta < 0), Decimal("0"))),
+        "closing_units": str(closing_units),
+        "average_units": str(average_units(account, movements, days).quantize(Decimal("0.000001"))),
+        "nav_per_unit": str(nav.nav_per_unit) if nav else None,
+        "nav_date": nav.valuation_date.isoformat() if nav else None,
+        "market_value": str((closing_units * nav.nav_per_unit).quantize(Decimal("0.01"))) if nav else None,
+        "profit_distributions": [
+            {
+                "run_id": str(line.run_id),
+                "period_start": line.run.period_start.isoformat(),
+                "period_end": line.run.period_end.isoformat(),
+                "average_units": str(line.average_units),
+                "amount": str(line.allocated_amount),
+            }
+            for line in distributions
+        ],
+        "total_profit_distributed": str(sum((l.allocated_amount for l in distributions), Decimal("0.00"))),
+        "movements": [
+            {
+                "date": m.effective_date.isoformat(),
+                "type": m.movement_type,
+                "units": str(m.units_delta),
+            }
+            for m in in_period
+        ],
+    }
 
 
 class SubscriptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -223,7 +310,10 @@ class SubscriptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Subscription.objects.all().order_by("-transaction_date")
+        queryset = _scope_to_owner(
+            Subscription.objects.all().order_by("-transaction_date"), self.request.user,
+            "capital_account__participant__user",
+        )
         capital_account_id = self.request.query_params.get("capital_account")
         if capital_account_id:
             queryset = queryset.filter(capital_account_id=capital_account_id)
@@ -232,10 +322,41 @@ class SubscriptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
 
 class RedemptionViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = RedemptionSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), IsFinanceChecker()]
+        return [IsAuthenticated()]
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from .redemptions import approve_redemption
+
+        redemption = approve_redemption(self.get_object(), request.user)
+        log_action(
+            tenant=redemption.tenant, actor=request.user, action="redemption_approved", model_name="Redemption",
+            object_id=str(redemption.id),
+            changes={"amount": str(redemption.amount), "nav_per_unit": str(redemption.nav_per_unit)},
+            request=request,
+        )
+        return Response(self.get_serializer(redemption).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .redemptions import reject_redemption
+
+        redemption = reject_redemption(self.get_object(), request.user, str(request.data.get("reason") or ""))
+        log_action(
+            tenant=redemption.tenant, actor=request.user, action="redemption_rejected", model_name="Redemption",
+            object_id=str(redemption.id), reason=redemption.rejection_reason, request=request,
+        )
+        return Response(self.get_serializer(redemption).data)
 
     def get_queryset(self):
-        queryset = Redemption.objects.all().order_by("-transaction_date")
+        queryset = _scope_to_owner(
+            Redemption.objects.all().order_by("-transaction_date"), self.request.user,
+            "capital_account__participant__user",
+        )
         capital_account_id = self.request.query_params.get("capital_account")
         if capital_account_id:
             queryset = queryset.filter(capital_account_id=capital_account_id)
@@ -252,7 +373,9 @@ class InvestorProfileViewSet(
     serializer_class = InvestorProfileSerializer
 
     def get_queryset(self):
-        queryset = InvestorProfile.objects.all()
+        queryset = _scope_to_owner(
+            InvestorProfile.objects.all(), self.request.user, "capital_account__participant__user"
+        )
         capital_account_id = self.request.query_params.get("capital_account")
         if capital_account_id:
             queryset = queryset.filter(capital_account_id=capital_account_id)
@@ -434,6 +557,12 @@ class ImpairmentEventViewSet(
                 units_reduced = units_before - units_after
                 account.units_held = units_after
                 account.save(update_fields=["units_held", "updated_at"])
+                if units_reduced != 0:
+                    UnitMovement.objects.create(
+                        tenant=account.tenant, capital_account=account, effective_date=event.valuation_date,
+                        units_delta=-units_reduced, movement_type=UnitMovementType.IMPAIRMENT,
+                        reference_id=str(event.id),
+                    )
                 log_action(
                     tenant=account.tenant,
                     actor=request.user,

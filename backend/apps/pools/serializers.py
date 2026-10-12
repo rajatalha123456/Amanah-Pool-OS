@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.products.serializers import ContractTemplateBasicSerializer
 
-from .models import Asset, AssetAssignment, BalanceImportBatch, DailyBalance, Pool, PoolVersion
+from .models import Asset, AssetAssignment, AssetProvisionEntry, BalanceImportBatch, DailyBalance, Pool, PoolVersion
 
 
 class ProductBasicSerializer(serializers.Serializer):
@@ -89,12 +89,18 @@ class AssetSerializer(serializers.ModelSerializer):
             "asset_type",
             "description",
             "face_value",
+            "maturity_date",
             "status",
             "is_active",
             "created_at",
             "updated_at",
         )
         read_only_fields = ("id", "tenant", "status", "created_at", "updated_at")
+
+    def validate_face_value(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Face value must be positive.")
+        return value
 
 
 class AssetAssignmentSerializer(serializers.ModelSerializer):
@@ -108,11 +114,16 @@ class AssetAssignmentSerializer(serializers.ModelSerializer):
             "assigned_date",
             "unassigned_date",
             "assigned_by",
+            "transfer_reason",
+            "transferred_from",
             "is_active",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "tenant", "unassigned_date", "assigned_by", "created_at", "updated_at")
+        read_only_fields = (
+            "id", "tenant", "unassigned_date", "assigned_by", "transfer_reason", "transferred_from",
+            "created_at", "updated_at",
+        )
 
     def validate(self, attrs):
         # Only relevant on create - unassign is a separate action, and
@@ -123,6 +134,9 @@ class AssetAssignmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Asset already assigned to another pool. Unassign first."
                 )
+            from .asset_rules import assert_asset_eligible
+
+            assert_asset_eligible(asset, attrs["pool"], attrs["assigned_date"])
         return attrs
 
 
@@ -224,5 +238,29 @@ class PeriodCloseChecklistSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "tenant", "created_at", "updated_at")
+        # Status, gates and certification are produced by the close workflow, never written by a client.
+        read_only_fields = (
+            "id", "tenant", "status", "checklist_data", "decision_note", "certified_by", "certified_at",
+            "created_at", "updated_at",
+        )
 
+
+
+class AssetProvisionEntrySerializer(serializers.ModelSerializer):
+    asset_reference = serializers.CharField(source="asset.reference_code", read_only=True)
+    pool_code = serializers.CharField(source="pool.code", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    approved_by_name = serializers.CharField(source="approved_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = AssetProvisionEntry
+        fields = (
+            "id", "asset", "asset_reference", "pool", "pool_code", "entry_type", "amount",
+            "provision_utilised", "effective_date", "reason", "status", "rejection_reason",
+            "created_by", "created_by_name", "approved_by", "approved_by_name", "approved_at",
+            "journal_batch", "income_expense_event", "created_at",
+        )
+        read_only_fields = (
+            "id", "pool", "provision_utilised", "status", "rejection_reason", "created_by", "approved_by",
+            "approved_at", "journal_batch", "income_expense_event", "created_at",
+        )

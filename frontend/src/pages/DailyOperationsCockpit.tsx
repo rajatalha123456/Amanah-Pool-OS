@@ -6,7 +6,7 @@ import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { StatCard } from "../components/StatCard"
 import { Table, type TableColumn } from "../components/Table"
-import { fetchPools } from "../api/pools"
+import { fetchPortfolioSummary, fetchPools } from "../api/pools"
 import { fetchImportHistory } from "../api/balances"
 import { fetchExceptions } from "../api/governance"
 import { extractErrorMessage } from "../api/errors"
@@ -139,14 +139,8 @@ function CockpitTab() {
         const readyCount = histories.filter((batches) => batches.length > 0).length
         setCloseReadyCount(readyCount)
 
-        const fundsTotal = histories.reduce((sum, batches) => {
-          if (batches.length === 0) return sum
-          const latestBatch = [...batches].sort(
-            (a, b) => new Date(b.value_date).getTime() - new Date(a.value_date).getTime(),
-          )[0]
-          return sum + Number(latestBatch.control_total_actual ?? latestBatch.control_total_expected ?? 0)
-        }, 0)
-        setTotalManagedFunds(fundsTotal)
+        const portfolio = await fetchPortfolioSummary().catch(() => null)
+        setTotalManagedFunds(portfolio ? Number(portfolio.total_funds) : 0)
 
         setPageState("loaded")
       })
@@ -177,8 +171,6 @@ function CockpitTab() {
     ["open", "allocation", "approved"].includes(pool.status),
   )
   const displayPools = activePools.length > 0 ? activePools : pools
-  const closeReadinessPct =
-    inCyclePoolCount > 0 ? Math.round((closeReadyCount / inCyclePoolCount) * 100) : 0
 
   const columns: TableColumn<Pool>[] = [
     {
@@ -201,15 +193,7 @@ function CockpitTab() {
     { header: "Effective Date", accessor: (pool) => pool.effective_date },
   ]
 
-  const operationalHealthPct =
-    openExceptionCount === 0 && closeReadinessPct === 100
-      ? "100.0%"
-      : openExceptionCount === 0
-      ? "99.98%"
-      : `${(100 - Math.min(openExceptionCount * 0.15, 10)).toFixed(2)}%`
-  const operationalHealthDelta =
-    openExceptionCount === 0 ? "Reconciled & Balanced" : `${openExceptionCount} exceptions pending`
-  const operationalHealthTone = openExceptionCount === 0 ? "positive" : "neutral"
+  const pendingImports = Math.max(inCyclePoolCount - closeReadyCount, 0)
 
   return (
     <div className="space-y-6">
@@ -227,16 +211,10 @@ function CockpitTab() {
           deltaTone={openExceptionCount > 0 ? "negative" : "positive"}
         />
         <StatCard
-          label="Close Readiness"
-          value={`${closeReadinessPct}%`}
-          delta={`${closeReadyCount} / ${inCyclePoolCount} pools imported`}
-          deltaTone={closeReadinessPct === 100 ? "positive" : "neutral"}
-        />
-        <StatCard
-          label="Operational Health"
-          value={operationalHealthPct}
-          delta={operationalHealthDelta}
-          deltaTone={operationalHealthTone}
+          label="Pools with balances imported"
+          value={`${closeReadyCount} of ${inCyclePoolCount}`}
+          delta={pendingImports === 0 ? "every in-cycle pool has an import" : `${pendingImports} still to import`}
+          deltaTone={pendingImports === 0 ? "positive" : "neutral"}
         />
       </div>
 
@@ -246,10 +224,10 @@ function CockpitTab() {
           <span className="text-base">⚡</span>
           <div>
             <div className="font-semibold text-emerald-200">
-              Automated Core Banking SFTP Daemon (Temenos T24 / Oracle Flexcube)
+              Core banking balance feed (simulation preview)
             </div>
             <div className="text-[11px] text-emerald-400/80">
-              Cryptographic SHA-256 sidecar validation & uncleared float discrepancy detection active.
+              Shows what a CBS end-of-day file would look like. It writes nothing; real balances come in through Balance Import.
             </div>
           </div>
         </div>
@@ -263,7 +241,7 @@ function CockpitTab() {
           }}
           className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors shrink-0 shadow-sm"
         >
-          Launch SFTP Daemon →
+          Open preview →
         </button>
       </div>
 

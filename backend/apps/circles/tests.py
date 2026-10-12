@@ -123,6 +123,10 @@ class CircleRotationApiTests(APITestCase):
 
     def test_full_rotation_flow(self):
         member_ids = [self._create_member(self.pool, f"MEM-{i}") for i in range(1, 6)]
+        set_current_tenant(self.tenant)
+        from .rules import publish_and_accept_all
+
+        publish_and_accept_all(self.pool, None)
 
         # Wrong role cannot run the draw.
         self.authenticate(self.checker)
@@ -161,7 +165,8 @@ class CircleRotationApiTests(APITestCase):
                 continue
             contrib_response = self.client.post(
                 reverse("circle-member-record-contribution", args=[str(member.id)]),
-                {"amount": "1000.00", "contribution_date": "2026-09-05", "cycle_number": 1},
+                {"amount": "10000.00", "contribution_date": "2026-09-05", "cycle_number": 1,
+                 "payment_reference": f"RAAST-{position}"},
                 format="json",
             )
             self.assertEqual(contrib_response.status_code, status.HTTP_201_CREATED)
@@ -191,10 +196,17 @@ class CircleRotationApiTests(APITestCase):
         # Record the missing contribution; KYC (Risk) and bank details are still missing.
         contrib_response = self.client.post(
             reverse("circle-member-record-contribution", args=[str(second_turn_member.id)]),
-            {"amount": "1000.00", "contribution_date": "2026-09-05", "cycle_number": 1},
+            {"amount": "10000.00", "contribution_date": "2026-09-05", "cycle_number": 1, "payment_reference": "RAAST-X"},
             format="json",
         )
         self.assertEqual(contrib_response.status_code, status.HTTP_201_CREATED)
+        # The same cycle cannot be recorded twice (that would inflate the pot).
+        duplicate = self.client.post(
+            reverse("circle-member-record-contribution", args=[str(second_turn_member.id)]),
+            {"amount": "10000.00", "contribution_date": "2026-09-06", "cycle_number": 1, "payment_reference": "RAAST-Y"},
+            format="json",
+        )
+        self.assertEqual(duplicate.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(self.client.post(request_url, body, format="json").status_code, status.HTTP_400_BAD_REQUEST)
 
         set_current_tenant(self.tenant)
@@ -208,12 +220,12 @@ class CircleRotationApiTests(APITestCase):
         self.authenticate(self.risk)
         self.assertEqual(self.client.post(kyc_url).status_code, status.HTTP_200_OK)
 
-        # Maker requests; the amount is the collected pot (5 x 1,000), not client input.
+        # Maker requests; the amount is the collected pot (5 x 10,000), not client input.
         self.authenticate(self.maker)
         requested = self.client.post(request_url, {**body, "amount": "999999.00"}, format="json")
         self.assertEqual(requested.status_code, status.HTTP_201_CREATED, requested.data)
         self.assertEqual(requested.data["status"], "pending")
-        self.assertEqual(requested.data["amount"], "5000.00")
+        self.assertEqual(requested.data["amount"], "50000.00")
         payout_id = requested.data["id"]
 
         # The requester cannot approve; settlement needs approval first.

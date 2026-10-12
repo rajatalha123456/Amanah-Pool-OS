@@ -29,6 +29,10 @@ class Pool(TenantScopedModel):
     status = models.CharField(max_length=20, choices=PoolStatus.choices, default=PoolStatus.DRAFT)
     effective_date = models.DateField()
     closed_date = models.DateField(null=True, blank=True)
+    # Jurisdiction rule pack the pool operates under (bound at activation if left empty).
+    rule_pack = models.ForeignKey(
+        "products.JurisdictionRulePack", on_delete=models.PROTECT, null=True, blank=True, related_name="pools"
+    )
 
     class Meta:
         constraints = [
@@ -79,6 +83,7 @@ class Asset(TenantScopedModel):
     asset_type = models.CharField(max_length=30, choices=AssetType.choices)
     description = models.CharField(max_length=255)
     face_value = models.DecimalField(max_digits=18, decimal_places=2)
+    maturity_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=AssetStatus.choices, default=AssetStatus.AVAILABLE)
 
     class Meta:
@@ -99,6 +104,10 @@ class AssetAssignment(TenantScopedModel):
     unassigned_date = models.DateField(null=True, blank=True)
     assigned_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    transfer_reason = models.TextField(blank=True, default="")
+    transferred_from = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="transferred_to"
     )
 
     def __str__(self):
@@ -214,3 +223,52 @@ class PeriodCloseChecklist(TenantScopedModel):
     def __str__(self):
         return f"Period Close for {self.pool.name} ({self.period_start} to {self.period_end}) - {self.status}"
 
+
+
+class AssetProvisionType(models.TextChoices):
+    PROVISION = "provision", "Provision"
+    RELEASE = "release", "Provision release"
+    WRITE_OFF = "write_off", "Write-off"
+    RECOVERY = "recovery", "Recovery"
+
+
+class AssetProvisionStatus(models.TextChoices):
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
+class AssetProvisionEntry(TenantScopedModel):
+    """Maker-checker provision / write-off / recovery on one asset. Immutable once decided."""
+
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="provision_entries")
+    pool = models.ForeignKey(Pool, on_delete=models.PROTECT, related_name="asset_provision_entries")
+    entry_type = models.CharField(max_length=12, choices=AssetProvisionType.choices)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    # For a write-off: the part of the amount covered by the asset's existing provision.
+    provision_utilised = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    effective_date = models.DateField()
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=AssetProvisionStatus.choices, default=AssetProvisionStatus.PENDING)
+    rejection_reason = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    journal_batch = models.ForeignKey(
+        "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    income_expense_event = models.ForeignKey(
+        "accounting.IncomeExpenseEvent", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    def save(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        if not self._state.adding:
+            prior = AssetProvisionEntry._base_manager.filter(pk=self.pk).values_list("status", flat=True).first()
+            if prior and prior != AssetProvisionStatus.PENDING:
+                raise DjangoValidationError("A decided provision entry is immutable.")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.entry_type} {self.amount} on {self.asset.reference_code} ({self.status})"

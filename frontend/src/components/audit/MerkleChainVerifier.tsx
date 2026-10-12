@@ -31,7 +31,14 @@ export function MerkleChainVerifier() {
     try {
       const data = await fetchMerkleVerification()
       setResult(data)
-      setSuccessMsg("Merkle hash tree recalculated from Genesis block: 100% cryptographic integrity verified.")
+      setSuccessMsg(
+        data.status === "VERIFIED"
+          ? `Chain recalculated from the genesis block: ${data.total_blocks} entries, no tampering found.`
+          : null,
+      )
+      if (data.status !== "VERIFIED") {
+        setErrorMsg(`Integrity check FAILED: ${data.tampered_count} entr${data.tampered_count === 1 ? "y" : "ies"} altered or missing.`)
+      }
     } catch (err) {
       setErrorMsg(extractErrorMessage(err))
     } finally {

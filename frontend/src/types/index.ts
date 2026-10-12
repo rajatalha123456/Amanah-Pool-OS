@@ -116,6 +116,19 @@ export interface CreateProductInput {
   contract_template: string
 }
 
+export interface ActivationCheck {
+  key: string
+  label: string
+  passed: boolean
+  detail: string
+}
+
+export interface ActivationReadiness {
+  pool: string
+  ready: boolean
+  checks: ActivationCheck[]
+}
+
 export interface Pool {
   id: string
   tenant: string
@@ -229,33 +242,9 @@ export interface PoolVersionDiffResponse {
 }
 
 export interface CreatePoolVersionInput {
-  psr?: {
-    mudarib_share_pct: number
-    rabbul_maal_share_pct: number
-    wakalah_fee_pct?: number
-    performance_incentive_pct?: number
-  }
-  reserve_policy?: {
-    per_ceiling_pct: number
-    irr_ceiling_pct: number
-    max_monthly_appropriation_pct: number
-    hiba_concession_allowed: boolean
-  }
-  benchmarks?: {
-    benchmark_index: string
-    spread_bps: number
-    target_yield_pct: number
-  }
-  weightage_bands?: Array<{
-    code: string
-    name: string
-    weight: number
-    min_tenor_days: number
-  }>
-  shariah_resolution_code?: string
-  approving_scholar?: string
-  effective_value_date?: string
+  // A version seals the pool's current approved configuration; only these are supplied.
   change_rationale?: string
+  effective_value_date?: string
 }
 
 export interface WeightageBand {
@@ -286,6 +275,7 @@ export interface PSR {
   pool: string
   depositor_share: string
   mudarib_share: string
+  wakalah_fee_pct?: string
   effective_from: string
   effective_to: string | null
   status: string
@@ -298,6 +288,7 @@ export interface CreatePSRInput {
   pool: string
   depositor_share: string
   mudarib_share: string
+  wakalah_fee_pct?: string
   effective_from: string
   effective_to?: string | null
 }
@@ -309,10 +300,123 @@ export interface Asset {
   asset_type: string
   description: string
   face_value: string
+  maturity_date?: string | null
   status: string
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface AssetProvisionEntry {
+  id: string
+  asset: string
+  asset_reference: string
+  pool: string
+  pool_code: string
+  entry_type: "provision" | "release" | "write_off" | "recovery"
+  amount: string
+  provision_utilised: string
+  effective_date: string
+  reason: string
+  status: "pending" | "approved" | "rejected"
+  rejection_reason: string
+  created_by_name: string | null
+  approved_by_name: string | null
+  created_at: string
+}
+
+export interface CircleRulesData {
+  id: string
+  version: number
+  contribution_amount: string
+  cycle_days: number
+  order_policy: string
+  hardship_policy: string
+  content_hash: string
+}
+
+export interface CircleRulesSummary {
+  rules: CircleRulesData | null
+  accepted: number
+  total: number
+  missing: string[]
+}
+
+export interface CircleDrawRecord {
+  id: string
+  sequence: number
+  commitment: string
+  server_seed: string | null
+  client_seed: string
+  status: "committed" | "executed"
+  participants: string[]
+  assignments: Array<{ member_reference: string; member_id: string; position: number }>
+}
+
+export interface CircleClosurePreview {
+  members: Array<{ member_reference: string; member_name: string; contributed: string; received: string; net: string }>
+  total_collected: string
+  total_disbursed: string
+  difference: string
+  blockers: string[]
+}
+
+export interface AIRecommendation {
+  id: string
+  feature: string
+  model_name: string
+  model_version: string
+  requested_by_name: string | null
+  prompt_hash: string
+  prompt_text: string
+  output: unknown
+  sources: unknown[]
+  confidence: string | null
+  reason: string
+  requires_human_review: boolean
+  is_fallback: boolean
+  latency_ms: number
+  disposition: "pending" | "accepted" | "rejected" | "overridden"
+  disposed_by_name: string | null
+  disposition_note: string
+  created_at: string
+}
+
+export interface AIMetricsRow {
+  model_name: string
+  total: number
+  pending: number
+  decided: number
+  acceptance_rate: number | null
+  override_rate: number | null
+  fallback_rate: number | null
+  avg_confidence: number | null
+  avg_latency_ms: number
+}
+
+export interface PoolDisclosureRecord {
+  id: string
+  pool: string
+  version: number
+  summary: string
+  terms: {
+    contract: { type: string; name: string; version: string }
+    profit_sharing: { investor_share_pct: number; manager_share_pct: number; wakalah_fee_pct: number } | null
+    redemption: { notice_days: number; gate_pct_per_30_days: string }
+  }
+  terms_hash: string
+  risk_warnings: string
+  fee_statement: string
+  created_at: string
+}
+
+export interface AssetPosition {
+  face_value: string
+  provision_balance: string
+  written_off: string
+  recovered: string
+  exposure: string
+  recoverable_balance: string
 }
 
 export interface RelatedPartyTransaction {
@@ -350,6 +454,7 @@ export interface CreateAssetInput {
   asset_type: string
   description: string
   face_value: string
+  maturity_date?: string
 }
 
 export interface AssetAssignment {
@@ -359,6 +464,7 @@ export interface AssetAssignment {
   pool: string
   assigned_date: string
   unassigned_date: string | null
+  transfer_reason?: string
   assigned_by: number | null
   is_active: boolean
   created_at: string
@@ -441,11 +547,28 @@ export interface AllocationRunInput {
   pool: string
   period_start?: string
   value_date: string
-  gross_income: string
+  // Omit gross_income/direct_expenses to derive them from the pool's posted ledger events.
+  // A hand-typed gross_income is a manual override and needs an override_reason.
+  gross_income?: string
   direct_expenses?: string
+  override_reason?: string
+}
+
+export interface IncomeSource {
+  mode: "derived_from_events" | "manual_override"
+  event_count?: number
+  event_ids?: string[]
+  reason?: string
+  excluded_non_permissible_income?: string
+  excluded_bank_absorbed_overhead?: string
+  derived_gross_income?: string
 }
 
 export interface SimulateAllocationResult {
+  gross_income?: string
+  direct_expenses?: string
+  income_source?: IncomeSource
+  warnings?: string[]
   distributable: string
   total_weighted_funds: string
   depositor_pool_share: string
@@ -586,6 +709,15 @@ export interface ParticipantAccount {
   status: string
 }
 
+export interface ApprovalStage {
+  key: "prepared" | "independent_check" | "shariah_review" | "final_release"
+  label: string
+  owner: string
+  state: "completed" | "in_review" | "draft" | "waiting" | "rejected"
+  by: string | null
+  at: string | null
+}
+
 export interface AllocationRun {
   id: string
   tenant: string
@@ -610,6 +742,10 @@ export interface AllocationRun {
   checked_at: string | null
   rejection_reason: string | null
   shariah_review_required: boolean
+  released_by?: number | null
+  released_at?: string | null
+  stages?: ApprovalStage[]
+  control_gates?: Array<{ key: string; label: string; passed: boolean }>
   shariah_signed_off_by: number | null
   shariah_signed_off_at: string | null
   shariah_review_note: string | null
@@ -622,9 +758,90 @@ export interface AllocationRun {
   updated_at: string
 }
 
+export interface DistributionInput {
+  pool: string
+  period_start: string
+  period_end: string
+  gross_income: string
+  direct_expenses: string
+}
+
+export interface DistributionSimulationLine {
+  capital_account_id: string
+  investor_reference: string
+  investor_name: string
+  average_units: string
+  share_ratio: string
+  allocated_amount: string
+}
+
+export interface DistributionSimulation {
+  distributable: string
+  investor_share: string
+  manager_share: string
+  rounding_residual: string
+  total_average_units: string
+  is_loss: boolean
+  lines: DistributionSimulationLine[]
+}
+
+export interface DistributionLine {
+  id: string
+  capital_account: string
+  investor_reference: string
+  investor_name: string
+  average_units: string
+  share_ratio: string
+  allocated_amount: string
+}
+
+export interface DistributionRun {
+  id: string
+  pool: string
+  period_start: string
+  period_end: string
+  gross_income: string
+  direct_expenses: string
+  distributable_amount: string
+  investor_share: string
+  manager_share: string
+  rounding_residual: string
+  total_average_units: string
+  is_loss: boolean
+  status: "simulated" | "pending_approval" | "signed" | "rejected" | "reversed"
+  calculation_hash: string
+  replaces_run: string | null
+  is_restatement: boolean
+  restatement_reason: string | null
+  rejection_reason: string | null
+  lines: DistributionLine[]
+  journal_batch_id: string | null
+}
+
+export interface CapitalStatement {
+  capital_account: string
+  investor_reference: string
+  investor_name: string
+  pool: string
+  period_start: string
+  period_end: string
+  opening_units: string
+  subscribed_units: string
+  redeemed_units: string
+  closing_units: string
+  average_units: string
+  nav_per_unit: string | null
+  nav_date: string | null
+  market_value: string | null
+  total_profit_distributed: string
+  profit_distributions: Array<{ run_id: string; period_start: string; period_end: string; average_units: string; amount: string }>
+  movements: Array<{ date: string; type: string; units: string }>
+}
+
 export interface CapitalAccount {
   id: string
   pool: string
+  is_managing_partner?: boolean
   investor_name: string
   investor_reference: string
   units_held: string
@@ -668,6 +885,26 @@ export interface CreateCapitalAccountInput {
   pool: string
   investor_name: string
   investor_reference: string
+  is_managing_partner?: boolean
+}
+
+export interface NegligenceCase {
+  id: string
+  pool: string
+  pool_code: string
+  title: string
+  allegation: string
+  period_start: string
+  period_end: string
+  status: "open" | "liable" | "cleared"
+  raised_by_name: string | null
+  notes: Array<{ at: string; by: string; note: string }>
+  determination_note: string
+  liability_amount: string | null
+  determined_by_name: string | null
+  determined_at: string | null
+  applied_run: string | null
+  created_at: string
 }
 
 export interface Subscription {
@@ -689,7 +926,8 @@ export interface Redemption {
   nav_per_unit: string
   amount: string
   transaction_date: string
-  status: string
+  status: "pending" | "processed" | "rejected" | string
+  rejection_reason?: string
   created_at: string
   updated_at: string
 }
@@ -775,6 +1013,7 @@ export interface RecordContributionInput {
   amount: string
   contribution_date: string
   cycle_number: number
+  payment_reference: string
 }
 
 export interface Payout {
@@ -941,6 +1180,8 @@ export interface CreateCircleProposalInput {
 export interface RecordVoteInput {
   member_id: string
   decision: "approve" | "reject" | "abstain"
+  method: "in_person" | "otp" | "e_sign"
+  evidence_reference?: string
 }
 
 export interface CloseProposalResponse extends CircleProposal {
@@ -1141,6 +1382,7 @@ export interface ShariahQuorumVote {
 
 export interface ShariahQuorumSummary {
   required_votes: number
+  board_size?: number
   approvals: number
   rejections: number
   is_quorum_met: boolean
@@ -1218,6 +1460,7 @@ export const USER_ROLES = [
   "shariah_secretariat",
   "shariah_board",
   "risk_compliance",
+  "authorized_signatory",
   "auditor",
   "investor_member",
 ] as const

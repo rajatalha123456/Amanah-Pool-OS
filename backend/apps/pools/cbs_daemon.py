@@ -7,8 +7,8 @@ Features:
 - SFTP Handshake & Remote Path File Polling
 - SHA-256 Cryptographic Checksum Verification (Sidecar validation)
 - Float Discrepancy & Clearing Variance Detection
-- Automated DailyBalance Aggregation & BalanceImportBatch Commit
-- Automated SBP/Risk Exception Case Generation on Unresolved Float Holds
+- Preview of the balance file only: this simulation never writes DailyBalance rows, import batches or
+  exception cases (real balances come in through Balance Import).
 """
 
 import hashlib
@@ -18,13 +18,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from django.utils import timezone
 from apps.core.audit import log_action
-from apps.core.exceptions_helper import create_exception_case
 from apps.pools.models import (
-    BalanceImportBatch,
     BalanceImportBatchStatus,
-    BalanceSource,
-    DailyBalance,
-    DailyBalanceStatus,
     Pool,
 )
 
@@ -176,81 +171,19 @@ def simulate_cbs_sftp_ingestion(
         f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: Ingesting {len(records_payload)} accounts. Parsing balances..."
     )
 
-    batch_status = (
-        BalanceImportBatchStatus.EXCEPTION
-        if has_discrepancy
-        else BalanceImportBatchStatus.BALANCED
+    # SIMULATION ONLY: nothing below touches DailyBalance, import batches or exception cases. The figures are
+    # fixed demo values; feeding them into real pool data would distort profit allocation (audit finding).
+    batch_status = BalanceImportBatchStatus.EXCEPTION if has_discrepancy else BalanceImportBatchStatus.BALANCED
+    sftp_logs.append(
+        f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: SIMULATION - preview only, nothing was written to the pool."
     )
-
-    # Commit / Upsert DailyBalance records
-    for r in records_payload:
-        DailyBalance.objects.update_or_create(
-            tenant=tenant,
-            pool=pool,
-            participant_class=r["participant_class"],
-            value_date=value_date,
-            defaults={
-                "balance_amount": r["available_balance"],
-                "source": BalanceSource.API,
-                "status": (
-                    DailyBalanceStatus.VALIDATED
-                    if not (r["uncleared_float"] > 0)
-                    else DailyBalanceStatus.PENDING
-                ),
-            },
-        )
-
-    # Commit BalanceImportBatch
-    batch = BalanceImportBatch.objects.create(
-        tenant=tenant,
-        pool=pool,
-        value_date=value_date,
-        total_records=len(records_payload),
-        matched_records=len(records_payload) if not has_discrepancy else len(records_payload) - 1,
-        exception_count=1 if has_discrepancy else 0,
-        control_total_expected=total_ledger,
-        control_total_actual=total_available,
-        status=batch_status,
-        imported_by=user,
-    )
-
-    if has_discrepancy:
-        sftp_logs.append(
-            f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: WARNING: Unsettled float variance of PKR {total_float:,.2f} detected on Corporate segment."
-        )
-        sftp_logs.append(
-            f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: Automated ExceptionCase generated for Risk & Operations triage."
-        )
-        # Create automated Exception Case
-        exc = create_exception_case(
-            tenant=tenant,
-            source_module="balance_import",
-            title=f"CBS EOD Float Discrepancy on {pool.code}",
-            description=(
-                f"Automated CBS EOD SFTP Daemon ({cbs_vendor}) flagged an uncleared float hold "
-                f"of PKR {total_float:,.2f} on {value_date}. "
-                f"Ledger Total: PKR {total_ledger:,.2f}, Available: PKR {total_available:,.2f}. "
-                f"NIFT 2nd clearing hold requires manual clearance or automated float reversal before monthly profit sign-off."
-            ),
-            severity="high",
-            pool=pool,
-            source_object_id=str(batch.id),
-            detected_by="system",
-        )
-    else:
-        sftp_logs.append(
-            f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: 100% Reconciliation Matched. Control total: PKR {total_available:,.2f}."
-        )
-        sftp_logs.append(
-            f"[{now.strftime('%H:%M:%S.%f')[:-3]}] SFTP_DAEMON: Batch #{str(batch.id)[:8]} marked BALANCED. Operation complete."
-        )
 
     log_action(
         tenant=tenant,
         actor=user,
         action="cbs_sftp_ingestion",
         model_name="BalanceImportBatch",
-        object_id=str(batch.id),
+        object_id=file_name,
         changes={
             "cbs_vendor": cbs_vendor,
             "scenario": scenario,
@@ -260,6 +193,7 @@ def simulate_cbs_sftp_ingestion(
             "total_available": str(total_available),
             "total_float": str(total_float),
             "status": batch_status,
+            "simulated_preview_only": True,
         },
     )
 
@@ -280,8 +214,8 @@ def simulate_cbs_sftp_ingestion(
         "sftp_logs": sftp_logs,
         "summary": {
             "total_records": len(records_payload),
-            "matched_records": batch.matched_records,
-            "exception_count": batch.exception_count,
+            "matched_records": len(records_payload) - (1 if has_discrepancy else 0),
+            "exception_count": 1 if has_discrepancy else 0,
             "total_ledger": float(total_ledger),
             "total_float": float(total_float),
             "total_available": float(total_available),
@@ -301,10 +235,6 @@ def simulate_cbs_sftp_ingestion(
             }
             for r in records_payload
         ],
-        "batch": {
-            "id": str(batch.id),
-            "status": batch.status,
-            "value_date": str(batch.value_date),
-            "created_at": batch.created_at.isoformat(),
-        },
+        "batch": None,
+        "note": "Simulation preview only - no balances were imported. Use Balance Import for real data.",
     }

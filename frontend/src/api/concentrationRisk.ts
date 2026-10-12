@@ -48,8 +48,8 @@ export interface PrudentialScorecardItem {
   description: string
   statutory_limit: string
   current_value: string
-  passed: boolean
-  status: "compliant" | "warning" | "breach"
+  passed: boolean | null
+  status: "compliant" | "warning" | "breach" | "not_assessed"
 }
 
 export interface ConcentrationRiskAnalysis {

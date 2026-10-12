@@ -23,6 +23,7 @@ export function PSRSection({ poolId }: { poolId: string }) {
 
   const [depositorShare, setDepositorShare] = useState("")
   const [mudaribShare, setMudaribShare] = useState("")
+  const [wakalahFee, setWakalahFee] = useState("")
   const [effectiveFrom, setEffectiveFrom] = useState("")
   const [formError, setFormError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -52,11 +53,13 @@ export function PSRSection({ poolId }: { poolId: string }) {
         pool: poolId,
         depositor_share: depositorShare,
         mudarib_share: mudaribShare,
+        ...(wakalahFee ? { wakalah_fee_pct: wakalahFee } : {}),
         effective_from: effectiveFrom,
       })
       setSchedules((prev) => [...prev, psr])
       setDepositorShare("")
       setMudaribShare("")
+      setWakalahFee("")
       setEffectiveFrom("")
     } catch (err) {
       setFormError(extractErrorMessage(err, "Unable to create PSR."))
@@ -81,6 +84,10 @@ export function PSRSection({ poolId }: { poolId: string }) {
   const columns: TableColumn<PSR>[] = [
     { header: "Depositor Share", accessor: (psr) => `${psr.depositor_share}%` },
     { header: "Mudarib Share", accessor: (psr) => `${psr.mudarib_share}%` },
+    {
+      header: "Wakalah Fee p.a.",
+      accessor: (psr) => (Number(psr.wakalah_fee_pct ?? 0) > 0 ? `${psr.wakalah_fee_pct}%` : "—"),
+    },
     { header: "Effective From", accessor: (psr) => psr.effective_from },
     { header: "Effective To", accessor: (psr) => psr.effective_to ?? "Open-ended" },
     {
@@ -126,7 +133,7 @@ export function PSRSection({ poolId }: { poolId: string }) {
             </div>
           )}
 
-          <form onSubmit={handleAdd} className="grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-end">
+          <form onSubmit={handleAdd} className="grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-end">
             <div>
               <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
                 Depositor Share %
@@ -150,6 +157,20 @@ export function PSRSection({ poolId }: { poolId: string }) {
                 value={mudaribShare}
                 onChange={(e) => setMudaribShare(e.target.value)}
                 required
+                className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                Wakalah Fee % p.a. (Wakalah only)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={wakalahFee}
+                onChange={(e) => setWakalahFee(e.target.value)}
+                placeholder="0.00"
                 className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
               />
             </div>

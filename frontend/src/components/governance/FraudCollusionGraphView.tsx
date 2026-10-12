@@ -49,7 +49,7 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
 
   if (loading) {
     return (
-      <Card title="AI Fraud & Collusion Syndicate Graph">
+      <Card title="Member relationship indicators">
         <div className="flex items-center gap-2 py-12 text-ink-secondary justify-center">
           <Spinner className="h-5 w-5" />
           <span className="text-sm">Analyzing participant graph centrality & circular loops...</span>
@@ -60,7 +60,7 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
 
   if (error || !data) {
     return (
-      <Card title="AI Fraud & Collusion Syndicate Graph">
+      <Card title="Member relationship indicators">
         <div className="p-4 rounded-lg border border-red-500/30 bg-red-950/20 text-xs text-red-300">
           <p className="font-semibold">Graph Network Analysis Failed</p>
           <p className="mt-1">{error || "Unable to compute network graph."}</p>
@@ -139,21 +139,21 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
 
         <div className="p-4 rounded-lg border border-ink/10 bg-surface">
           <div className="text-[11px] text-ink-secondary uppercase tracking-wider font-semibold">
-            High Risk Entities
+            Members to review
           </div>
           <div className="mt-1 text-2xl font-bold font-mono text-gold-400">
             {data.suspicious_member_count}
           </div>
-          <div className="mt-2 text-xs text-ink-muted">Above moral hazard threshold</div>
+          <div className="mt-2 text-xs text-ink-muted">Members with at least one indicator</div>
         </div>
 
         <div className="p-4 rounded-lg border border-ink/10 bg-surface flex flex-col justify-between">
           <div>
             <div className="text-[11px] text-ink-secondary uppercase tracking-wider font-semibold">
-              Regulatory Status
+              Nature of output
             </div>
-            <div className="mt-1 text-xs font-semibold text-emerald-400">
-              SBP AML-04 Active
+            <div className="mt-1 text-xs font-semibold text-amber-300">
+              Indicators for review - not findings
             </div>
           </div>
           <Button
@@ -161,7 +161,7 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
             className="text-xs w-full mt-2"
             onClick={() => setShowDossier(!showDossier)}
           >
-            {showDossier ? "Hide SBP Dossier" : "📄 View SBP Dossier"}
+            {showDossier ? "Hide summary" : "📄 View summary"}
           </Button>
         </div>
       </div>
@@ -378,17 +378,10 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
             )}
           </div>
 
-          <div className="pt-4 border-t border-ink/10">
-            <Button
-              variant="secondary"
-              className="w-full text-xs text-red-400 hover:text-red-300 border-red-500/20"
-              onClick={() => {
-                alert(`Directing risk hold for ${selectedNode?.label || "member"}. Form AML-04 flag recorded.`)
-              }}
-            >
-              🔒 Place Risk Hold on Payout
-            </Button>
-          </div>
+          <p className="pt-4 border-t border-ink/10 text-[11px] text-ink-muted">
+            To act on an indicator, investigate the member records and raise an exception case; nothing is held
+            automatically.
+          </p>
         </div>
       </div>
 
@@ -432,7 +425,7 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
       {/* SBP Regulatory AML Dossier Viewer */}
       {showDossier && (
         <Card
-          title="Official SBP & FIA Anti-Money Laundering Forensic Memorandum"
+          title="Indicator summary (for Risk & Compliance review)"
           actions={
             <Button variant="secondary" className="text-xs" onClick={copyDossier}>
               {copied ? "✓ Copied to Clipboard" : "📋 Copy Dossier"}

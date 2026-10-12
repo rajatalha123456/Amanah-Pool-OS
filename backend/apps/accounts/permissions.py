@@ -63,6 +63,10 @@ class IsStrictShariahBoard(BasePermission):
         )
 
 
+class IsAuthorizedSignatory(HasRole):
+    role = UserRole.AUTHORIZED_SIGNATORY
+
+
 class IsRiskCompliance(HasRole):
     role = UserRole.RISK_COMPLIANCE
 

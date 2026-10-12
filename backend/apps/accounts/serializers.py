@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User, UserRole
+from .models import ApprovalAction, ApprovalMatrixRule, User, UserRole
 
 
 class LoginSerializer(serializers.Serializer):
@@ -85,3 +85,34 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if value not in UserRole.values:
             raise serializers.ValidationError("Not a valid role.")
         return value
+
+
+class ApprovalMatrixRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApprovalMatrixRule
+        fields = ("id", "action", "role", "max_amount", "is_active", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_role(self, value):
+        if value in (UserRole.INVESTOR_MEMBER, UserRole.PLATFORM_SUPER_ADMIN, UserRole.AUDITOR):
+            raise serializers.ValidationError("This role cannot be given release-approval authority.")
+        return value
+
+    def validate_max_amount(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("The limit must be positive (leave empty for unlimited).")
+        return value
+
+    def validate(self, attrs):
+        # tenant is set by the view, so DRF's own unique-together check cannot see it.
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        action = attrs.get("action", getattr(self.instance, "action", None))
+        role = attrs.get("role", getattr(self.instance, "role", None))
+        if tenant is not None and action and role:
+            qs = ApprovalMatrixRule.objects.filter(tenant=tenant, action=action, role=role)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("A rule for this approval and role already exists - edit it instead.")
+        return attrs

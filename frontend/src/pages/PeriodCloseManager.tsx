@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useAuth } from "../api/auth"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -12,7 +13,6 @@ import {
   fetchPeriodCloseChecklists,
   fetchPeriodCloseChecklistDetail,
   createPeriodCloseChecklist,
-  updatePeriodCloseChecklist,
   autoVerifyPeriodGates,
   signOffPeriodRole,
   executeLockCeremony,
@@ -64,6 +64,12 @@ const CHECKLIST_GATES = [
 ]
 
 export function PeriodCloseManager() {
+  const { user } = useAuth()
+  const role = user?.role ?? ""
+  const canSignAsPoolManager = role === "pool_manager"
+  const canSignAsShariah = role === "shariah_secretariat" || role === "shariah_board"
+  const canSignAsFinance = role === "finance_checker"
+  const canLock = role === "finance_checker" || role === "authorized_signatory"
   const { poolId } = useParams<{ poolId?: string }>()
   const navigate = useNavigate()
 
@@ -80,11 +86,11 @@ export function PeriodCloseManager() {
   // Sign-off modal state
   const [signOffModalRole, setSignOffModalRole] = useState<"pool_manager" | "shariah_reviewer" | "cfo_checker" | null>(null)
   const [signOffNotes, setSignOffNotes] = useState("")
-  const [fatwaRef, setFatwaRef] = useState("FATWA-2026-M09-001")
+  const [fatwaRef, setFatwaRef] = useState("")
 
   // Lock Ceremony Modal state
   const [showLockModal, setShowLockModal] = useState(false)
-  const [lockNote, setLockNote] = useState("Statutory 5-Gate pre-close verification completed. Cycle permanently locked under SBP PR rules.")
+  const [lockNote, setLockNote] = useState("")
 
   // SBP Filing Certificate Modal state
   const [showSbpCertModal, setShowSbpCertModal] = useState(false)
@@ -94,8 +100,8 @@ export function PeriodCloseManager() {
 
   // New Period Close Modal
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [newPeriodStart, setNewPeriodStart] = useState("2026-09-01")
-  const [newPeriodEnd, setNewPeriodEnd] = useState("2026-09-30")
+  const [newPeriodStart, setNewPeriodStart] = useState("")
+  const [newPeriodEnd, setNewPeriodEnd] = useState("")
   const [newNotes, setNewNotes] = useState("")
 
   const loadData = async (targetPoolId?: string) => {
@@ -140,28 +146,6 @@ export function PeriodCloseManager() {
       setActionError(extractErrorMessage(err, "Failed to execute automated gate verification."))
     } finally {
       setVerifyingGates(false)
-    }
-  }
-
-  // Toggle individual gate manually if permitted
-  const handleToggleGate = async (gateKey: string) => {
-    if (!activeChecklist) return
-    if (activeChecklist.status === "certified" || activeChecklist.status === "locked") return
-
-    const currentItems = activeChecklist.checklist_data || activeChecklist.checklist_items || {}
-    const updatedItems = {
-      ...currentItems,
-      [gateKey]: !currentItems[gateKey],
-    }
-
-    try {
-      const updated = await updatePeriodCloseChecklist(activeChecklist.id, {
-        checklist_data: updatedItems,
-      })
-      setActiveChecklist(updated)
-      await loadData(selectedPoolId)
-    } catch (err) {
-      setActionError(extractErrorMessage(err))
     }
   }
 
@@ -275,7 +259,7 @@ export function PeriodCloseManager() {
       {/* Top Header */}
       <PageHeader
         screenNumber="16"
-        title="Period Close Manager & SBP Statutory Seal"
+        title="Period Close Manager"
         subtitle="5-Gate Pre-Close Verification, Multi-Role Shariah & CFO Sign-Off, and SHA-256 Immutable Audit Seal"
         actions={
           <div className="flex items-center gap-3">
@@ -415,8 +399,7 @@ export function PeriodCloseManager() {
           >
             <div className="space-y-4">
               <p className="text-xs text-ink-secondary">
-                In compliance with AAOIFI Shariah Governance Standards and SBP Prudential Regulations, all five
-                verification gates must be fully confirmed by operations and checker roles before certifying or locking this period.
+                The five gates are computed by the system from the recorded data (they cannot be ticked by hand). All must pass before anyone can sign, and again at the moment of locking.
               </p>
 
               <div className="divide-y divide-white/5 rounded-lg border border-white/10 bg-navy-900/50">
@@ -424,7 +407,6 @@ export function PeriodCloseManager() {
                   const isChecked = Boolean(
                     activeChecklist.checklist_data?.[gate.key] ?? activeChecklist.checklist_items?.[gate.key]
                   )
-                  const isLockedOrCertified = activeChecklist.status === "locked"
                   const tel = gateTelemetry[gate.key]
 
                   return (
@@ -434,13 +416,15 @@ export function PeriodCloseManager() {
                         isChecked ? "bg-emerald-950/10" : ""
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={isLockedOrCertified}
-                        onChange={() => handleToggleGate(gate.key)}
-                        className="mt-1 h-5 w-5 rounded border-navy-700 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
-                      />
+                      <span
+                        aria-label={isChecked ? "gate passed" : "gate not passed"}
+                        title="Computed by the server from the records - run 'Verify gates' to refresh"
+                        className={`mt-1 inline-flex h-5 w-5 items-center justify-center rounded text-xs ${
+                          isChecked ? "bg-emerald-600 text-white" : "border border-navy-700 text-ink-muted"
+                        }`}
+                      >
+                        {isChecked ? "✓" : ""}
+                      </span>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span
@@ -470,7 +454,7 @@ export function PeriodCloseManager() {
           {/* Multi-Role Dual Maker/Checker Sign-Off Board */}
           <Card title="Multi-Role Statutory Sign-Off Ceremony (Maker / Checker / Shariah)">
             <p className="text-xs text-ink-secondary mb-4">
-              SBP Prudential Regulations require tripartite attestation from Pool Operations, the Resident Shariah Board Member, and the Chief Financial Officer before committing a period close.
+              Three different people sign in their own roles: the pool manager first, then a Shariah reviewer (Secretariat or Board), then a finance checker. Once all three have signed, a finance checker or authorized signatory locks the period.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -498,10 +482,11 @@ export function PeriodCloseManager() {
                   <Button
                     variant="secondary"
                     className="w-full text-xs border-emerald-500/30 text-emerald-300"
-                    disabled={activeChecklist.status === "locked" || !allGatesChecked}
+                    disabled={activeChecklist.status === "locked" || !allGatesChecked || !canSignAsPoolManager}
+                    title={canSignAsPoolManager ? "" : "Signed by the pool manager"}
                     onClick={() => {
                       setSignOffModalRole("pool_manager")
-                      setSignOffNotes("Pool manager attestation: all daily balances and CBS files reconciled.")
+                      setSignOffNotes("")
                     }}
                   >
                     Execute Maker Sign-Off
@@ -533,13 +518,14 @@ export function PeriodCloseManager() {
                   <Button
                     variant="secondary"
                     className="w-full text-xs border-gold-500/30 text-gold-300"
-                    disabled={activeChecklist.status === "locked" || !allGatesChecked}
+                    disabled={activeChecklist.status === "locked" || !allGatesChecked || !canSignAsShariah}
+                    title={canSignAsShariah ? "" : "Signed by the Shariah Secretariat or Board"}
                     onClick={() => {
                       setSignOffModalRole("shariah_reviewer")
-                      setSignOffNotes("Fatwa certification: profit calculation executed in compliance with AAOIFI FAS-30.")
+                      setSignOffNotes("")
                     }}
                   >
-                    Stamp Shariah Board Fatwa
+                    Shariah Review Sign-Off
                   </Button>
                 )}
               </div>
@@ -550,7 +536,7 @@ export function PeriodCloseManager() {
                   <div className="flex items-center gap-2">
                     <span className="text-lg">💼</span>
                     <span className="font-bold text-xs uppercase tracking-wider text-ink-primary">
-                      Chief Financial Officer
+                      Finance checker
                     </span>
                   </div>
                   {cfoSigned ? <Badge variant="emerald">CERTIFIED</Badge> : <Badge variant="neutral">FINAL CHECK</Badge>}
@@ -568,10 +554,11 @@ export function PeriodCloseManager() {
                   <Button
                     variant="secondary"
                     className="w-full text-xs border-emerald-500/30 text-emerald-300"
-                    disabled={activeChecklist.status === "locked" || !allGatesChecked}
+                    disabled={activeChecklist.status === "locked" || !allGatesChecked || !canSignAsFinance}
+                    title={canSignAsFinance ? "" : "Signed by a finance checker"}
                     onClick={() => {
                       setSignOffModalRole("cfo_checker")
-                      setSignOffNotes("CFO dual-approval executed: GL batches reconciled, reserve transfers certified.")
+                      setSignOffNotes("")
                     }}
                   >
                     Execute CFO Certification
@@ -605,11 +592,12 @@ export function PeriodCloseManager() {
                 {activeChecklist.status !== "locked" ? (
                   <Button
                     variant="primary"
-                    disabled={!allGatesChecked || actionLoading}
+                    disabled={!allGatesChecked || actionLoading || !canLock || activeChecklist.status !== "certified"}
+                    title={activeChecklist.status !== "certified" ? "All three sign-offs are needed first" : ""}
                     onClick={() => setShowLockModal(true)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-xs text-white"
                   >
-                    🔒 Execute Cryptographic Lock Ceremony
+                    🔒 Lock Period
                   </Button>
                 ) : (
                   <Button
@@ -617,7 +605,7 @@ export function PeriodCloseManager() {
                     onClick={handleOpenSbpCertificate}
                     className="text-xs border-emerald-500/30 text-emerald-300"
                   >
-                    📄 View SBP Filing Certificate
+                    📄 View Close Certificate
                   </Button>
                 )}
               </div>

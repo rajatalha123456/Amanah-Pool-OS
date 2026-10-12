@@ -36,8 +36,12 @@ export async function createReconciliationBatch(
   return response.data
 }
 
-export async function autoMatchBatch(id: string): Promise<ReconciliationBatch> {
-  const response = await apiClient.post<ReconciliationBatch>(`accounting/reconciliations/${id}/auto-match/`)
+/** Records the result of a matching run (counts and variance come from the reconciler; nothing is auto-matched). */
+export async function recordMatchResult(
+  id: string,
+  result: { matched_records: number; exception_count: number; variance_amount: string },
+): Promise<ReconciliationBatch> {
+  const response = await apiClient.post<ReconciliationBatch>(`accounting/reconciliations/${id}/auto-match/`, result)
   return response.data
 }
 

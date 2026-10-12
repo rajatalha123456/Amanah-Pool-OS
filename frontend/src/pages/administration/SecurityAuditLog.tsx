@@ -8,6 +8,7 @@ import { Table, type TableColumn } from "../../components/Table"
 import { PageHeader } from "../../components/PageHeader"
 import { Modal } from "../../components/Modal"
 import { fetchAuditLogs, exportAuditLogsCsv } from "../../api/auditLog"
+import { fetchMerkleVerification } from "../../api/merkleAudit"
 import { extractErrorMessage } from "../../api/errors"
 import type { AuditLogEntry, BadgeVariant } from "../../types"
 
@@ -111,8 +112,18 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
     }
   }
 
-  function handleVerifyChain() {
-    setHashChainVerified(true)
+  async function handleVerifyChain() {
+    setError("")
+    try {
+      const result = await fetchMerkleVerification()
+      setHashChainVerified(result.status === "VERIFIED")
+      if (result.status !== "VERIFIED") {
+        setError(`Audit chain check FAILED: ${result.tampered_count} entr${result.tampered_count === 1 ? "y" : "ies"} altered or missing.`)
+      }
+    } catch (err) {
+      setHashChainVerified(false)
+      setError(extractErrorMessage(err, "Unable to verify the audit chain."))
+    }
   }
 
   const columns: TableColumn<AuditLogEntry>[] = [
@@ -230,8 +241,8 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
         />
         <StatCard
           label="Integrity Status"
-          value={hashChainVerified ? "VERIFIED ✓" : "IMMUTABLE"}
-          subtext="Tamper-Proof Strict Ledger"
+          value={hashChainVerified ? "VERIFIED ✓" : "NOT CHECKED"}
+          subtext="Run Verify Chain Integrity to check"
         />
       </div>
 

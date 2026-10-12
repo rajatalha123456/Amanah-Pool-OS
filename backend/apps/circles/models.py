@@ -51,6 +51,7 @@ class CircleMember(TenantScopedModel):
     # BR-008: a payout is only released to a KYC-verified member with bank details.
     kyc_status = models.CharField(max_length=10, choices=KYCStatus.choices, default=KYCStatus.PENDING)
     iban = models.CharField(max_length=34, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
     bank_name = models.CharField(max_length=100, blank=True, default="")
 
     class Meta:
@@ -77,6 +78,15 @@ class Contribution(TenantScopedModel):
     status = models.CharField(
         max_length=20, choices=ContributionStatus.choices, default=ContributionStatus.PENDING
     )
+    # How the money was received (bank / Raast reference); required for a recorded receipt.
+    payment_reference = models.CharField(max_length=100, blank=True, default="")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["member", "cycle_number"], name="unique_contribution_per_member_cycle"),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="contribution_amount_positive"),
+        ]
 
     def __str__(self):
         return f"{self.member.member_reference} cycle {self.cycle_number} ({self.status})"
@@ -186,6 +196,10 @@ class CircleVote(TenantScopedModel):
     member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="circle_votes")
     decision = models.CharField(max_length=20, choices=VoteDecision.choices)
     voted_at = models.DateTimeField(auto_now_add=True)
+    # Members have no logins yet: staff record each vote with how it was cast and the evidence.
+    method = models.CharField(max_length=20, default="in_person")  # in_person, otp, e_sign
+    evidence_reference = models.CharField(max_length=100, blank=True, default="")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
 
     class Meta:
         constraints = [
@@ -219,3 +233,92 @@ class ArrearsRecord(TenantScopedModel):
 
     def __str__(self):
         return f"{self.member.member_reference} cycle {self.cycle_number} ({self.status})"
+
+
+class CircleRules(TenantScopedModel):
+    """
+    The published rules of a circle (BRD 6.5): contribution, schedule, payout order policy and
+    hardship policy. A version is sealed with a content hash and never edited - changing the rules
+    means a new version, which every member must accept again.
+    """
+
+    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="circle_rules")
+    version = models.IntegerField()
+    contribution_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    cycle_days = models.IntegerField()  # length of one contribution cycle in days
+    schedule_note = models.TextField(blank=True, default="")
+    order_policy = models.TextField()  # how the payout order is decided (e.g. verifiable draw)
+    hardship_policy = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    published_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [models.UniqueConstraint(fields=["pool", "version"], name="unique_circle_rules_version")]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Published circle rules are immutable; publish a new version.")
+        super().save(*args, **kwargs)
+
+
+class RulesAcceptance(TenantScopedModel):
+    member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="rules_acceptances")
+    rules = models.ForeignKey(CircleRules, on_delete=models.CASCADE, related_name="acceptances")
+    accepted_at = models.DateTimeField()
+    method = models.CharField(max_length=30)  # in_person, otp, e_sign
+    evidence_reference = models.CharField(max_length=100, blank=True, default="")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["member", "rules"], name="unique_rules_acceptance")]
+
+
+class DrawStatus(models.TextChoices):
+    COMMITTED = "committed", "Committed (seed hidden)"
+    EXECUTED = "executed", "Executed (seed revealed)"
+
+
+class CircleDraw(TenantScopedModel):
+    """
+    Verifiable payout-order draw (commit-reveal). The server commits to a secret seed (its hash is
+    published first); the organizer / members then supply a client seed; the order is a pure function
+    of both seeds and the participant list, so anybody can recompute and verify it afterwards.
+    """
+
+    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="circle_draws")
+    sequence = models.IntegerField()
+    commitment = models.CharField(max_length=64)
+    server_seed = models.CharField(max_length=64, blank=True, default="")  # never exposed until executed
+    client_seed = models.CharField(max_length=200, blank=True, default="")
+    status = models.CharField(max_length=10, choices=DrawStatus.choices, default=DrawStatus.COMMITTED)
+    participants = models.JSONField(default=list)  # member references, sorted, fixed at commit time
+    assignments = models.JSONField(default=list)
+    result_hash = models.CharField(max_length=64, blank=True, default="")
+    committed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    executed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    executed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-sequence"]
+        constraints = [models.UniqueConstraint(fields=["pool", "sequence"], name="unique_circle_draw_sequence")]
+
+
+class ClosureStatus(models.TextChoices):
+    PREPARED = "prepared", "Prepared"
+    CLOSED = "closed", "Closed"
+
+
+class CircleClosure(TenantScopedModel):
+    """Final reconciliation of a circle: collected vs disbursed, surplus/shortfall, and closure."""
+
+    pool = models.OneToOneField("pools.Pool", on_delete=models.CASCADE, related_name="circle_closure")
+    status = models.CharField(max_length=10, choices=ClosureStatus.choices, default=ClosureStatus.PREPARED)
+    total_collected = models.DecimalField(max_digits=18, decimal_places=2)
+    total_disbursed = models.DecimalField(max_digits=18, decimal_places=2)
+    difference = models.DecimalField(max_digits=18, decimal_places=2)  # collected - disbursed
+    snapshot = models.JSONField(default=dict)
+    resolution_note = models.TextField(blank=True, default="")
+    prepared_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    closed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    closed_at = models.DateTimeField(null=True, blank=True)

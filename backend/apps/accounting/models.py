@@ -28,6 +28,13 @@ class JournalBatch(TenantScopedModel):
     allocation_run = models.OneToOneField(
         "allocation.AllocationRun", on_delete=models.PROTECT, related_name="journal_batch", null=True, blank=True
     )
+    investment_run = models.OneToOneField(
+        "investments.InvestmentDistributionRun",
+        on_delete=models.PROTECT,
+        related_name="journal_batch",
+        null=True,
+        blank=True,
+    )
     # Set on a reversal batch: the posted batch it contra-posts.
     reverses_batch = models.OneToOneField(
         "self", on_delete=models.PROTECT, related_name="reversed_by", null=True, blank=True
@@ -64,6 +71,9 @@ class JournalBatch(TenantScopedModel):
 class JournalEntry(TenantScopedModel):
     batch = models.ForeignKey(JournalBatch, on_delete=models.PROTECT, related_name="entries")
     account_name = models.CharField(max_length=255)
+    # Logical account (apps.accounting.chart) and the GL code it was mapped to when posted.
+    account_key = models.CharField(max_length=40, blank=True, default="")
+    gl_code = models.CharField(max_length=40, blank=True, default="")
     entry_type = models.CharField(max_length=10, choices=JournalEntryType.choices)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
 
@@ -129,6 +139,16 @@ class IncomeExpenseEvent(TenantScopedModel):
     status = models.CharField(
         max_length=10, choices=IncomeExpenseEventStatus.choices, default=IncomeExpenseEventStatus.PENDING
     )
+    # The signed allocation run that consumed this event (BR-005). A consumed event
+    # can never feed another run; it is released only when that run is reversed by a
+    # restatement, which re-links it to the replacement run.
+    allocation_run = models.ForeignKey(
+        "allocation.AllocationRun",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="income_expense_events",
+    )
     created_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
@@ -137,8 +157,18 @@ class IncomeExpenseEvent(TenantScopedModel):
     )
     posted_at = models.DateTimeField(null=True, blank=True)
 
+    # Once posted, an event is a ledger fact: only the link to the run that consumes it may change.
+    _POSTED_MUTABLE_FIELDS = frozenset({"allocation_run", "updated_at"})
+
     def save(self, *args, **kwargs):
         from decimal import Decimal
+
+        if not self._state.adding:
+            prior = IncomeExpenseEvent._base_manager.filter(pk=self.pk).values_list("status", flat=True).first()
+            if prior == IncomeExpenseEventStatus.POSTED:
+                update_fields = kwargs.get("update_fields")
+                if update_fields is None or not set(update_fields) <= self._POSTED_MUTABLE_FIELDS:
+                    raise ValidationError("A posted income/expense event is immutable.")
 
         if self.amount is None:
             self.amount = Decimal("0.00")
@@ -245,3 +275,35 @@ class ReconciliationItem(TenantScopedModel):
 
     def __str__(self):
         return f"{self.account_reference}: CBS={self.cbs_amount}, GL={self.gl_amount}"
+
+
+class AccountMapping(TenantScopedModel):
+    """
+    Maps a logical pool account (apps.accounting.chart) to the enterprise GL account (BRD Section 10:
+    "Pool subledger entries reconcile to the enterprise GL"). `pool` null = tenant default; a pool
+    row overrides it. Journals are named from this mapping at posting time.
+    """
+
+    pool = models.ForeignKey(
+        "pools.Pool", on_delete=models.CASCADE, null=True, blank=True, related_name="account_mappings"
+    )
+    account_key = models.CharField(max_length=40)
+    gl_code = models.CharField(max_length=40)
+    gl_name = models.CharField(max_length=255)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "account_key"], condition=models.Q(pool__isnull=True),
+                name="unique_account_mapping_tenant_default",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "pool", "account_key"], condition=models.Q(pool__isnull=False),
+                name="unique_account_mapping_per_pool",
+            ),
+        ]
+        ordering = ["account_key"]
+
+    def __str__(self):
+        scope = self.pool.code if self.pool_id else "tenant default"
+        return f"{self.account_key} -> {self.gl_code} {self.gl_name} ({scope})"

@@ -1,4 +1,6 @@
 from decimal import Decimal
+
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -10,20 +12,24 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker
 from apps.core.audit import log_action
+from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
 from apps.pools.models import Pool
 from apps.pools.period_lock import assert_period_open
 
+from .chart import ACCOUNTS, REQUIRED_BY_MODEL
 from .exports import generate_gl_csv
 from .models import (
     CostClassification,
     IncomeExpenseEvent,
     IncomeExpenseEventStatus,
     IncomeExpenseEventType,
+    AccountMapping,
     JournalBatch,
     ReconciliationBatch,
     ReconciliationStatus,
 )
 from .serializers import (
+    AccountMappingSerializer,
     IncomeExpenseEventSerializer,
     JournalBatchSerializer,
     ReconciliationBatchSerializer,
@@ -47,6 +53,8 @@ class JournalBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
 
 class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
     serializer_class = IncomeExpenseEventSerializer
+    # Events are ledger facts: created by a maker, posted by an independent checker, never edited or deleted.
+    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         # See apps/products/views.py etc. for why this must be a method
@@ -63,7 +71,9 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsFinanceMaker()]
         if self.action == "post_event":
             return [IsAuthenticated(), IsFinanceChecker()]
-        return [IsAuthenticated()]
+        if self.action in ("quarantine_to_charity", "reclassify", "scan_overhead_leakage"):
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "shariah_secretariat"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         assert_period_open(
@@ -99,11 +109,30 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
 
         assert_period_open(event.pool, event.event_date, what="an income/expense event")
 
+        if event.created_by_id == request.user.id:
+            raise ValidationError("Maker-checker: the user who created an event cannot post it.")
+
         previous_status = event.status
-        event.status = IncomeExpenseEventStatus.POSTED
-        event.posted_by = request.user
-        event.posted_at = timezone.now()
-        event.save(update_fields=["status", "posted_by", "posted_at", "updated_at"])
+        with transaction.atomic():
+            event.status = IncomeExpenseEventStatus.POSTED
+            event.posted_by = request.user
+            event.posted_at = timezone.now()
+            event.save(update_fields=["status", "posted_by", "posted_at", "updated_at"])
+
+            # BR-005: non-permissible income never reaches participants - it is routed to purification.
+            if event.event_type == IncomeExpenseEventType.INCOME and event.quarantined_to_charity:
+                from apps.governance.models import PurificationEntry
+
+                PurificationEntry.objects.get_or_create(
+                    tenant=event.tenant,
+                    income_event=event,
+                    defaults={
+                        "pool": event.pool,
+                        "source_description": f"{event.category}: {event.description}"[:255],
+                        "amount": event.amount,
+                        "identified_date": event.event_date,
+                    },
+                )
 
         log_action(
             tenant=event.tenant,
@@ -172,6 +201,8 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
         event = self.get_object()
         if event.event_type != IncomeExpenseEventType.INCOME:
             raise ValidationError("Only income items can be quarantined to charity.")
+        if event.status != IncomeExpenseEventStatus.PENDING:
+            raise ValidationError("A posted event is a ledger fact; correct it with a new event instead.")
 
         reason = request.data.get("reason", "Non-permissible income flagged by Shariah compliance.")
         event.cost_classification = CostClassification.NON_PERMISSIBLE_INCOME
@@ -205,6 +236,8 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
 
         if new_classification not in CostClassification.values:
             raise ValidationError(f"Invalid cost classification: {new_classification}")
+        if event.status != IncomeExpenseEventStatus.PENDING:
+            raise ValidationError("A posted event is a ledger fact; correct it with a new event instead.")
 
         event.cost_classification = new_classification
         if shariah_note:
@@ -228,7 +261,9 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
         Automated scan detecting overhead leakage attempts in pool expenses.
         """
         pool_id = request.data.get("pool") or request.query_params.get("pool")
-        queryset = self.get_queryset().filter(event_type=IncomeExpenseEventType.EXPENSE)
+        queryset = self.get_queryset().filter(
+            event_type=IncomeExpenseEventType.EXPENSE, status=IncomeExpenseEventStatus.PENDING
+        )
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
 
@@ -280,10 +315,18 @@ def gl_export(request):
 class ReconciliationBatchViewSet(viewsets.ModelViewSet):
     """
     Screen 11: Reconciliation Center - Core, Bank, Subledger and GL matching.
+    A finance maker records a reconciliation; only a finance checker may clear its variance.
     """
 
     serializer_class = ReconciliationBatchSerializer
-    permission_classes = [IsAuthenticated]
+    http_method_names = NO_DELETE
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "auto_match"):
+            return [IsAuthenticated(), HasAnyRole(["finance_maker"])()]
+        if self.action == "clear_variance":
+            return [IsAuthenticated(), HasAnyRole(["finance_checker"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def get_queryset(self):
         queryset = ReconciliationBatch.objects.all()
@@ -297,12 +340,31 @@ class ReconciliationBatchViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="auto-match")
     def auto_match(self, request, pk=None):
+        """
+        Records the result of a matching run. There is no automatic matcher against a live CBS/GL feed
+        (that integration is future scope), so the counts and variance must come from the caller;
+        a batch is MATCHED only when every record matched with zero variance.
+        """
         batch = self.get_object()
-        batch.matched_records = batch.total_records
-        batch.exception_count = 0
-        batch.variance_amount = Decimal("0.00")
-        batch.status = ReconciliationStatus.MATCHED
-        batch.control_total_status = "BalancedPASS"
+        try:
+            matched = int(request.data["matched_records"])
+            exceptions = int(request.data["exception_count"])
+            variance = Decimal(str(request.data["variance_amount"]))
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            raise ValidationError("matched_records, exception_count and variance_amount are required.")
+        if matched < 0 or exceptions < 0 or matched + exceptions > batch.total_records:
+            raise ValidationError("Matched records and exceptions must not exceed the batch's total records.")
+        batch.matched_records = matched
+        batch.exception_count = exceptions
+        batch.variance_amount = variance
+        balanced = matched == batch.total_records and exceptions == 0 and variance == 0
+        batch.status = ReconciliationStatus.MATCHED if balanced else batch.status
+        batch.control_total_status = "BalancedPASS" if balanced else "VarianceREVIEW"
+        log_action(
+            tenant=batch.tenant, actor=request.user, action="reconciliation_result", model_name="ReconciliationBatch",
+            object_id=str(batch.id), changes={"matched": matched, "exceptions": exceptions, "variance": str(variance)},
+            request=request,
+        )
         batch.save(
             update_fields=[
                 "matched_records",
@@ -318,9 +380,85 @@ class ReconciliationBatchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="clear-variance")
     def clear_variance(self, request, pk=None):
         batch = self.get_object()
-        notes = request.data.get("notes", "Variance investigated and cleared by finance checker.")
+        notes = str(request.data.get("notes") or "").strip()
+        if not notes:
+            raise ValidationError({"notes": ["Explain how the variance was investigated and resolved."]})
+        if batch.performed_by_id == request.user.id:
+            raise ValidationError("Four-eyes rule: the person who recorded the reconciliation cannot clear it.")
+        log_action(
+            tenant=batch.tenant, actor=request.user, action="clear_variance", model_name="ReconciliationBatch",
+            object_id=str(batch.id), reason=notes, request=request,
+        )
         batch.status = ReconciliationStatus.CLEARED
         batch.notes = f"{batch.notes or ''}\n{notes}".strip()
         batch.save(update_fields=["status", "notes", "updated_at"])
         return Response(self.get_serializer(batch).data)
 
+
+
+class AccountMappingViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Logical pool account -> enterprise GL account. Finance owns the mapping (BRD 6.1: "Finance
+    validates accounting mappings"). Journals already posted keep the names they were posted with.
+    """
+
+    serializer_class = AccountMappingSerializer
+
+    def get_queryset(self):
+        queryset = AccountMapping.objects.select_related("pool").all()
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker", "platform_super_admin"])()]
+        return [IsAuthenticated(), HasAnyRole(
+            ["finance_maker", "finance_checker", "platform_super_admin", "pool_manager", "risk_compliance", "auditor"]
+        )()]
+
+    # Maker-checker: these endpoints only PROPOSE a change (HTTP 202); a different finance checker
+    # approves it under /governance/config-changes/ and only then is it applied.
+    def create(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(kind=ConfigChangeKind.ACCOUNT_MAPPING, serializer=serializer, request=request)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    def update(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(
+            kind=ConfigChangeKind.ACCOUNT_MAPPING, serializer=serializer, request=request, instance=instance
+        )
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    @action(detail=False, methods=["get"])
+    def catalog(self, request):
+        """The logical accounts and which pool models must have them mapped before activation."""
+        return Response(
+            [
+                {
+                    "key": key,
+                    "default_name": name,
+                    "required_for": [model for model, keys in REQUIRED_BY_MODEL.items() if key in keys],
+                }
+                for key, name in ACCOUNTS.items()
+            ]
+        )

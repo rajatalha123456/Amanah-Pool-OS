@@ -37,11 +37,11 @@ export async function deleteShariahDecision(id: string): Promise<void> {
 
 export async function castShariahQuorumVote(
   decisionId: string,
+  // The voter is always the logged-in Board member; the server takes the name from the login.
   data: {
-    scholar_name: string
     scholar_title?: string
-    vote: "approve" | "reject"
-    fiqh_opinion_notes?: string
+    vote: "approve" | "reject" | "abstain"
+    fiqh_opinion_notes: string
   }
 ): Promise<ShariahDecision> {
   const response = await apiClient.post<ShariahDecision>(

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AIModelRegistryViewSet,
+    AIRecommendationViewSet,
     analyze_contract,
     ask,
     list_documents,
@@ -15,6 +16,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register("models", AIModelRegistryViewSet, basename="ai-model")
+router.register("recommendations", AIRecommendationViewSet, basename="ai-recommendation")
 
 urlpatterns = [
     path("shariah-copilot/documents/upload/", upload_document, name="shariah-copilot-document-upload"),

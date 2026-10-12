@@ -156,8 +156,8 @@ export interface DrawRoomStatusResponse {
     code: string
     status: string
     total_members: number
-    monthly_contribution: number
-    total_pot_payout: number
+    monthly_contribution: number | null
+    total_pot_payout: number | null
   }
   current_cycle: number
   next_recipient: {
@@ -165,15 +165,16 @@ export interface DrawRoomStatusResponse {
     member_name: string
     member_reference: string
     payout_position: number
-    pot_payout: number
+    pot_payout: number | null
   } | null
   has_undrawn_members: boolean
   rotation_ladder: DrawLadderItem[]
   provably_fair: {
-    server_seed_hash: string
+    server_seed_hash: string | null
+    draw_status?: string | null
     algorithm: string
     shariah_zero_riba_rule: string
-    verification_endpoint: string
+    verification_endpoint: string | null
   }
 }
 
@@ -207,21 +208,20 @@ export async function swapCircleTurns(
   poolId: string,
   memberAId: string,
   memberBId: string,
-  reason?: string,
+  reason: string,
+  consentReference: string,
 ): Promise<{
   status: string
   message: string
   member_a: { id: string; new_position: number }
   member_b: { id: string; new_position: number }
 }> {
-  const response = await apiClient.post(
-    `circles/circle-members/swap-turns/${poolId}/`,
-    {
-      member_a_id: memberAId,
-      member_b_id: memberBId,
-      reason,
-    },
-  )
+  const response = await apiClient.post(`circles/circle-members/swap-turns/${poolId}/`, {
+    member_a_id: memberAId,
+    member_b_id: memberBId,
+    reason,
+    consent_reference: consentReference,
+  })
   return response.data
 }
 

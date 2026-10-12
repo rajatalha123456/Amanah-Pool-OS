@@ -66,6 +66,9 @@ class PayoutWorkflowTests(APITestCase):
                 cycle_number=1, status=ContributionStatus.RECEIVED,
             )
             self.members.append(member)
+        from .rules import publish_and_accept_all
+
+        publish_and_accept_all(self.pool, None)
 
     def tearDown(self):
         set_current_tenant(None)

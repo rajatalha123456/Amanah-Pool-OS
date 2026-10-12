@@ -12,7 +12,7 @@ import {
   fetchReconciliationBatches,
   fetchReconciliationBatchDetail,
   createReconciliationBatch,
-  autoMatchBatch,
+  recordMatchResult,
   clearVariance,
 } from "../api/reconciliation"
 import { extractErrorMessage } from "../api/errors"
@@ -124,9 +124,23 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
     setError(null)
     setSuccessMessage(null)
     try {
-      const updated = await autoMatchBatch(selectedBatch.id)
+      const matched = window.prompt(`Records matched (of ${selectedBatch.total_records})`)
+      if (matched === null) return
+      const exceptions = window.prompt("Records NOT matched (exceptions)", "0")
+      if (exceptions === null) return
+      const variance = window.prompt("Unexplained variance amount (PKR)", "0.00")
+      if (variance === null) return
+      const updated = await recordMatchResult(selectedBatch.id, {
+        matched_records: Number(matched),
+        exception_count: Number(exceptions),
+        variance_amount: variance,
+      })
       setSelectedBatch(updated)
-      setSuccessMessage("Automated matching completed. All aligned records matched.")
+      setSuccessMessage(
+        updated.status === "matched"
+          ? "Result recorded: every record matched with zero variance."
+          : "Result recorded: exceptions or variance remain - investigate and clear them.",
+      )
       await loadData(selectedPoolId)
     } catch (err) {
       setError(extractErrorMessage(err))

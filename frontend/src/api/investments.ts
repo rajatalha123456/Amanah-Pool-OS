@@ -2,7 +2,12 @@ import { isAxiosError } from "axios"
 import { apiClient } from "./axios"
 import { extractErrorMessage } from "./errors"
 import type {
+  NegligenceCase,
   CapitalAccount,
+  CapitalStatement,
+  DistributionInput,
+  DistributionRun,
+  DistributionSimulation,
   CreateCapitalAccountInput,
   CreateNAVSnapshotInput,
   ImpairmentEvent,
@@ -128,3 +133,82 @@ export async function fetchLatestNAV(poolId: string): Promise<NAVSnapshot | null
   }
 }
 
+
+export async function fetchDistributionRuns(poolId: string): Promise<DistributionRun[]> {
+  const response = await apiClient.get<DistributionRun[]>("investments/distribution-runs/", { params: { pool: poolId } })
+  return response.data
+}
+
+export async function simulateDistribution(input: DistributionInput): Promise<DistributionSimulation> {
+  const response = await apiClient.post<DistributionSimulation>("investments/distribution-runs/simulate/", input)
+  return response.data
+}
+
+export async function createDistributionRun(input: DistributionInput): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>("investments/distribution-runs/", input)
+  return response.data
+}
+
+export async function submitDistributionRun(id: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/submit-for-checking/`)
+  return response.data
+}
+
+export async function approveDistributionRun(id: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/approve/`)
+  return response.data
+}
+
+export async function rejectDistributionRun(id: string, reason: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/reject/`, {
+    rejection_reason: reason,
+  })
+  return response.data
+}
+
+export async function restateDistributionRun(id: string, reason: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/restate/`, {
+    restatement_reason: reason,
+  })
+  return response.data
+}
+
+export async function fetchCapitalStatement(accountId: string, from: string, to: string): Promise<CapitalStatement> {
+  const response = await apiClient.get<CapitalStatement>(`investments/capital-accounts/${accountId}/statement/`, {
+    params: { from, to },
+  })
+  return response.data
+}
+
+export async function fetchNegligenceCases(poolId: string): Promise<NegligenceCase[]> {
+  return (await apiClient.get<NegligenceCase[]>("investments/negligence-cases/", { params: { pool: poolId } })).data
+}
+
+export async function raiseNegligenceCase(input: {
+  pool: string
+  title: string
+  allegation: string
+  period_start: string
+  period_end: string
+}): Promise<NegligenceCase> {
+  return (await apiClient.post<NegligenceCase>("investments/negligence-cases/", input)).data
+}
+
+export async function addNegligenceNote(id: string, note: string): Promise<NegligenceCase> {
+  return (await apiClient.post<NegligenceCase>(`investments/negligence-cases/${id}/add-note/`, { note })).data
+}
+
+export async function determineNegligenceCase(
+  id: string,
+  input: { outcome: "liable" | "cleared"; determination_note: string; liability_amount?: string },
+): Promise<NegligenceCase> {
+  return (await apiClient.post<NegligenceCase>(`investments/negligence-cases/${id}/determine/`, input)).data
+}
+
+export async function approveRedemption(id: string): Promise<Redemption> {
+  return (await apiClient.post<Redemption>(`investments/redemptions/${id}/approve/`)).data
+}
+
+export async function rejectRedemption(id: string, reason: string): Promise<Redemption> {
+  return (await apiClient.post<Redemption>(`investments/redemptions/${id}/reject/`, { reason })).data
+}

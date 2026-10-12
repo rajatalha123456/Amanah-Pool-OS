@@ -1,64 +1,41 @@
 """
-High-level reconciliation check for a pool's posted depositor payable balance.
+Sub-ledger to GL check for a posted allocation journal (BRD Section 10: "pool sub-ledger entries reconcile
+to the enterprise GL").
+
+The participant sub-ledger of a run is its allocation lines; the GL carries one depositor-payable control
+account per participant class. After posting, the net credit to those control accounts in the batch must
+equal the sum of the run's allocation lines. A difference means the GL and the sub-ledger have diverged and
+raises an exception case for a person to investigate (this check never posts or corrects anything).
+
+The earlier version compared cumulative depositor-payable credits (profit) with the latest daily balance
+(deposits) - two unrelated figures - and raised a false exception after almost every run.
 """
 
 from decimal import Decimal
 
-from django.db.models import Sum
-
-from apps.core.exceptions_helper import create_exception_case
 from apps.ai_agents.models import is_ai_model_enabled
-from apps.pools.models import DailyBalance
+from apps.core.exceptions_helper import create_exception_case
 
-from .models import JournalBatchStatus, JournalEntry
+from .models import JournalEntry, JournalEntryType
 
-
-MISMATCH_TOLERANCE = Decimal("5")
-HIGH_SEVERITY_THRESHOLD = Decimal("15")
+ZERO = Decimal("0.00")
 
 
 def check_reconciliation(journal_batch):
-    """
-    Compares posted depositor payables with the pool's latest DailyBalance
-    snapshot. This is a simplified v1 sanity check, not line-by-line matching.
-    """
-
+    """Returns True when a mismatch was found (and an exception case raised)."""
     if not is_ai_model_enabled("reconciliation_copilot"):
         return False
+    run = journal_batch.allocation_run
+    if run is None:
+        return False
 
-    journal_total = (
-        JournalEntry.objects.filter(
-            account_name__startswith="Depositor Payable",
-            entry_type="credit",
-            batch__status=JournalBatchStatus.POSTED,
-            batch__pool=journal_batch.pool,
-        ).aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
+    entries = JournalEntry._base_manager.filter(batch=journal_batch, account_key="depositor_payable")
+    gl_net_credit = sum(
+        (e.amount if e.entry_type == JournalEntryType.CREDIT else -e.amount for e in entries), ZERO
     )
-
-    latest_date = (
-        DailyBalance.objects.filter(pool=journal_batch.pool)
-        .order_by("-value_date")
-        .values_list("value_date", flat=True)
-        .first()
-    )
-    snapshot_total = Decimal("0")
-    if latest_date is not None:
-        snapshot_total = (
-            DailyBalance.objects.filter(
-                pool=journal_batch.pool,
-                value_date=latest_date,
-            ).aggregate(total=Sum("balance_amount"))["total"]
-            or Decimal("0")
-        )
-
-    difference = abs(journal_total - snapshot_total)
-    if snapshot_total == 0:
-        percentage_difference = Decimal("0") if journal_total == 0 else Decimal("100")
-    else:
-        percentage_difference = difference / abs(snapshot_total) * 100
-
-    if percentage_difference <= MISMATCH_TOLERANCE:
+    subledger_total = sum((line.allocated_amount for line in run.lines.all()), ZERO)
+    difference = gl_net_credit - subledger_total
+    if difference == 0:
         return False
 
     create_exception_case(
@@ -66,16 +43,11 @@ def check_reconciliation(journal_batch):
         source_module="accounting",
         source_object_id=str(journal_batch.id),
         pool=journal_batch.pool,
-        severity=(
-            "high"
-            if percentage_difference > HIGH_SEVERITY_THRESHOLD
-            else "medium"
-        ),
-        title=f"Reconciliation mismatch detected for {journal_batch.pool.code}",
+        severity="high",
+        title=f"GL / sub-ledger mismatch on {journal_batch.pool.code} for {run.value_date}",
         description=(
-            f"Posted depositor payable total is {journal_total:.2f}; latest "
-            f"DailyBalance snapshot total is {snapshot_total:.2f}; exact "
-            f"percentage difference is {percentage_difference:.2f}%."
+            f"Depositor payable posted to the GL: {gl_net_credit}; participant sub-ledger (allocation lines): "
+            f"{subledger_total}; difference {difference}."
         ),
         detected_by="system",
     )

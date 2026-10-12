@@ -170,6 +170,8 @@ class CircleProposalTests(APITestCase):
     def test_cannot_vote_on_closed_proposal(self):
         create_response = self._create_proposal()
         proposal_id = create_response.data["id"]
+        # Closing needs the voting window to be over (or everyone to have voted).
+        CircleProposal._base_manager.filter(pk=proposal_id).update(voting_deadline=date.today() - timedelta(days=1))
 
         self.client.force_authenticate(user=self.pool_manager)
         self.client.post(reverse("circle-proposal-close", args=[proposal_id]))

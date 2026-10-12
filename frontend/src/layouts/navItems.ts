@@ -13,5 +13,6 @@ export const navItems: (NavItem & { labelKey: string })[] = [
   { label: "Finance & Ledger", labelKey: "nav.financeLedger", path: "/finance-ledger" },
   { label: "AI & Analytics", labelKey: "nav.aiAnalytics", path: "/ai-analytics" },
   { label: "Reports", labelKey: "nav.reports", path: "/reports" },
+  { label: "Governance Config", labelKey: "nav.governanceConfig", path: "/governance-config" },
   { label: "Administration", labelKey: "nav.administration", path: "/administration" },
 ]

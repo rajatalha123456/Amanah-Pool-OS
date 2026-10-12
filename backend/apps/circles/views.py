@@ -11,7 +11,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker, IsPoolManager, IsRiskCompliance
+from apps.accounts.approval_matrix import assert_may_approve
 from apps.core.audit import log_action
+from apps.notifications import events
 from apps.participants.models import KYCStatus
 from apps.pools.models import Pool
 from apps.products.shariah import shariah_decision_for
@@ -20,6 +22,7 @@ from .models import (
     ArrearsRecord,
     ArrearsStatus,
     CircleMember,
+    CircleDraw,
     CircleMemberStatus,
     CircleProposal,
     CircleVote,
@@ -31,6 +34,7 @@ from .models import (
     SettlementRailType,
     VoteDecision,
 )
+from .rules import current_rules
 from .payouts import build_preflight, create_payout_request, next_cycle_number, next_recipient
 from .rotation import run_draw as run_draw_for_pool
 from .serializers import (
@@ -45,6 +49,7 @@ from .serializers import (
 
 # Roles that may see payout pre-flight data (members never do).
 PAYOUT_READ_ROLES = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board"]
+CIRCLE_READ_ROLES = PAYOUT_READ_ROLES + ["shariah_secretariat", "platform_super_admin"]
 
 
 def get_circle_pool(pool_id):
@@ -209,6 +214,7 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             },
             request=request,
         )
+        events.payout_requested(payout, request.user)
         return Response(PayoutSerializer(payout).data, status=201)
 
     @action(detail=True, methods=["post"])
@@ -218,6 +224,7 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             raise ValidationError(f"Only a pending payout can be approved (current status: '{payout.status}').")
         if payout.requested_by_id == request.user.id:
             raise ValidationError("Dual approval: the requester cannot approve their own payout.")
+        assert_may_approve(request.user, payout.tenant_id, "payout_approve", payout.amount)
 
         # Re-check the pre-conditions at approval time - things may have changed since the request.
         preflight = build_preflight(payout.pool, payout.member, payout.cycle_number, payout.settlement_rail)
@@ -247,6 +254,7 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             changes={"shariah_decision": decision.decision_code, "amount": str(payout.amount)},
             request=request,
         )
+        events.payout_decided(payout, request.user, "approved")
         return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["post"])
@@ -269,6 +277,7 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             reason=reason,
             request=request,
         )
+        events.payout_decided(payout, request.user, "rejected", reason)
         return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["post"])
@@ -323,6 +332,7 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             changes={"settlement_utr": utr, "ceremony_hash": payout.ceremony_hash},
             request=request,
         )
+        events.payout_decided(payout, request.user, "settled")
         return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["get"], url_path="receipt")
@@ -385,7 +395,24 @@ class CircleMemberViewSet(
             return [IsAuthenticated(), IsRiskCompliance()]
         if self.action == "flag_arrears":
             return [IsAuthenticated(), IsRiskCompliance()]
-        return [IsAuthenticated()]
+        if self.action in ("update", "partial_update", "swap_turns", "execute_provably_fair_draw"):
+            return [IsAuthenticated(), IsPoolManager()]
+        return [IsAuthenticated(), HasAnyRole(CIRCLE_READ_ROLES)()]
+
+    def perform_update(self, serializer):
+        member = serializer.instance
+        if member.status != CircleMemberStatus.ACTIVE:
+            raise ValidationError("Only an active member's details can be changed.")
+        if Payout.objects.filter(member=member, status__in=[PayoutStatus.PENDING, PayoutStatus.APPROVED]).exists():
+            raise ValidationError("Bank details cannot change while a payout to this member is in progress.")
+        before = {field: getattr(member, field) for field in serializer.validated_data}
+        saved = serializer.save()
+        log_action(
+            tenant=saved.tenant, actor=self.request.user, action="update", model_name="CircleMember",
+            object_id=str(saved.id),
+            changes={field: {"before": str(before[field]), "after": str(getattr(saved, field))} for field in before},
+            request=self.request,
+        )
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -406,7 +433,7 @@ class CircleMemberViewSet(
         except Pool.DoesNotExist:
             raise ValidationError("Pool not found.")
 
-        result = run_draw_for_pool(pool)
+        result = run_draw_for_pool(pool, user=request.user)
 
         log_action(
             tenant=pool.tenant,
@@ -438,9 +465,11 @@ class CircleMemberViewSet(
             status=CircleMemberStatus.ACTIVE, payout_position__isnull=False
         ).order_by("payout_position").first()
 
+        rules = current_rules(pool)
         latest_contrib = Contribution.objects.filter(member__pool=pool).first()
-        monthly_contrib = float(latest_contrib.amount) if latest_contrib else 10000.0
-        total_pot = monthly_contrib * max(total_members, 1)
+        base = rules.contribution_amount if rules else (latest_contrib.amount if latest_contrib else None)
+        monthly_contrib = float(base) if base is not None else None
+        total_pot = monthly_contrib * max(total_members, 1) if monthly_contrib is not None else None
 
         ladder = []
         for m in members:
@@ -462,9 +491,7 @@ class CircleMemberViewSet(
                 "joined_date": str(m.joined_date),
             })
 
-        import hashlib
-        server_entropy = f"CIRCLE-{pool.code}-CYCLE-{current_cycle}-SEED"
-        provably_fair_seal = hashlib.sha256(server_entropy.encode("utf-8")).hexdigest()
+        last_draw = CircleDraw.objects.filter(pool=pool).order_by("-sequence").first()
 
         return Response({
             "circle": {
@@ -487,10 +514,12 @@ class CircleMemberViewSet(
             "has_undrawn_members": members.filter(payout_position__isnull=True).exists(),
             "rotation_ladder": ladder,
             "provably_fair": {
-                "server_seed_hash": provably_fair_seal,
-                "algorithm": "HMAC-SHA256 (Qur'ah Verifiable Randomness)",
+                "server_seed_hash": last_draw.commitment if last_draw else None,
+                "draw_status": last_draw.status if last_draw else None,
+                "draw_id": str(last_draw.id) if last_draw else None,
+                "algorithm": "Commit-reveal: SHA-256 seed commitment + HMAC-SHA256 Fisher-Yates order",
                 "shariah_zero_riba_rule": "Rule BR-007 Enforced: Zero markup, zero discount, zero interest uplift on turn allocation.",
-                "verification_endpoint": f"/api/v1/circles/members/draw-room-status/{pool.id}/",
+                "verification_endpoint": f"/api/v1/circles/draws/{last_draw.id}/verify/" if last_draw else None,
             },
         })
 
@@ -507,13 +536,14 @@ class CircleMemberViewSet(
 
         with transaction.atomic():
             if force_reshuffle:
-                CircleMember.objects.filter(pool=pool, status=CircleMemberStatus.ACTIVE).update(payout_position=None)
+                raise ValidationError(
+                    "Re-draws are not allowed (they would let the outcome be chosen). "
+                    "Use a mutual-consent turn swap instead."
+                )
 
-            result = run_draw_for_pool(pool)
+            result = run_draw_for_pool(pool, client_seed=client_seed, user=request.user)
 
-        import hashlib
-        combined = f"{result['seed']}:{client_seed}"
-        audit_hash = hashlib.sha256(combined.encode("utf-8")).hexdigest()
+        audit_hash = CircleDraw.objects.get(pk=result["draw_id"]).result_hash
 
         log_action(
             tenant=pool.tenant,
@@ -544,7 +574,12 @@ class CircleMemberViewSet(
 
         member_a_id = request.data.get("member_a_id")
         member_b_id = request.data.get("member_b_id")
-        reason = request.data.get("reason", "Mutual hardship priority swap")
+        reason = str(request.data.get("reason") or "").strip()
+        consent_reference = str(request.data.get("consent_reference") or "").strip()
+        if not reason or not consent_reference:
+            raise ValidationError(
+                "A turn swap needs a reason and a reference to both members' recorded consent (BR-007 mutual consent)."
+            )
 
         if not member_a_id or not member_b_id:
             raise ValidationError("Both member_a_id and member_b_id are required.")
@@ -580,6 +615,7 @@ class CircleMemberViewSet(
                 "new_pos_a": pos_b,
                 "new_pos_b": pos_a,
                 "reason": reason,
+                "consent_reference": consent_reference,
             },
             request=request,
         )
@@ -609,6 +645,38 @@ class CircleMemberViewSet(
         if errors:
             raise ValidationError(errors)
 
+        from datetime import date as _date
+
+        from apps.pools.period_lock import assert_period_open
+
+        from .rules import current_rules
+
+        try:
+            amount = Decimal(str(amount))
+            cycle_number = int(cycle_number)
+            contribution_date = _date.fromisoformat(str(contribution_date))
+        except (ArithmeticError, TypeError, ValueError):
+            raise ValidationError("A valid amount, cycle number and date (YYYY-MM-DD) are required.")
+        payment_reference = str(request.data.get("payment_reference") or "").strip()
+        if not payment_reference:
+            raise ValidationError({"payment_reference": ["The bank / Raast reference of the receipt is required."]})
+        # A paid-out member keeps contributing until the circle ends; a withdrawn member does not.
+        if member.status == CircleMemberStatus.WITHDRAWN:
+            raise ValidationError("Contributions are recorded only for members still in the circle.")
+        total_cycles = CircleMember.objects.filter(pool=member.pool).exclude(status=CircleMemberStatus.WITHDRAWN).count()
+        if not 1 <= cycle_number <= max(total_cycles, 1):
+            raise ValidationError({"cycle_number": [f"The circle runs cycles 1 to {total_cycles}."]})
+        rules = current_rules(member.pool)
+        if rules is not None and amount != rules.contribution_amount:
+            raise ValidationError(
+                {"amount": [f"The circle rules (v{rules.version}) set the contribution at {rules.contribution_amount}."]}
+            )
+        if amount <= 0:
+            raise ValidationError({"amount": ["The amount must be positive."]})
+        if Contribution.objects.filter(member=member, cycle_number=cycle_number).exists():
+            raise ValidationError(f"{member.member_reference} already has a contribution for cycle {cycle_number}.")
+        assert_period_open(member.pool, contribution_date, what="a contribution")
+
         contribution = Contribution.objects.create(
             tenant=member.tenant,
             member=member,
@@ -616,6 +684,8 @@ class CircleMemberViewSet(
             contribution_date=contribution_date,
             cycle_number=cycle_number,
             status=ContributionStatus.RECEIVED,
+            payment_reference=payment_reference,
+            recorded_by=request.user,
         )
 
         log_action(
@@ -666,6 +736,11 @@ class CircleMemberViewSet(
         if errors:
             raise ValidationError(errors)
 
+        if ArrearsRecord.objects.filter(member=member, cycle_number=cycle_number).exists():
+            raise ValidationError(f"Arrears for cycle {cycle_number} are already recorded for this member.")
+        if Contribution.objects.filter(member=member, cycle_number=cycle_number, status=ContributionStatus.RECEIVED).exists():
+            raise ValidationError("This member has already paid that cycle.")
+
         arrears = ArrearsRecord.objects.create(
             tenant=member.tenant,
             member=member,
@@ -688,6 +763,7 @@ class CircleMemberViewSet(
             },
             request=request,
         )
+        events.arrears_flagged(arrears, request.user)
         return Response(ArrearsRecordSerializer(arrears).data, status=201)
 
 
@@ -712,7 +788,11 @@ class CircleProposalViewSet(
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "close":
             return [IsAuthenticated(), IsPoolManager()]
-        return [IsAuthenticated()]
+        if self.action == "vote":
+            # Members have no logins of their own yet: the organizer or compliance records a member's vote
+            # together with the evidence of how it was cast.
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "risk_compliance"])()]
+        return [IsAuthenticated(), HasAnyRole(CIRCLE_READ_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
@@ -750,6 +830,17 @@ class CircleProposalViewSet(
             member = CircleMember.objects.get(pk=member_id, pool=proposal.pool)
         except CircleMember.DoesNotExist:
             raise ValidationError("Member not found on this proposal's pool.")
+        if member.status != CircleMemberStatus.ACTIVE:
+            raise ValidationError("Only active members vote.")
+        if timezone.localdate() > proposal.voting_deadline:
+            raise ValidationError(f"Voting closed on {proposal.voting_deadline}.")
+
+        method = str(request.data.get("method") or "in_person")
+        evidence = str(request.data.get("evidence_reference") or "").strip()
+        if method not in ("in_person", "otp", "e_sign"):
+            raise ValidationError({"method": ["Must be in_person, otp or e_sign."]})
+        if method != "in_person" and not evidence:
+            raise ValidationError({"evidence_reference": ["An OTP / e-signature reference is required."]})
 
         if CircleVote.objects.filter(proposal=proposal, member=member).exists():
             raise ValidationError("This member has already voted on this proposal.")
@@ -759,6 +850,9 @@ class CircleProposalViewSet(
             proposal=proposal,
             member=member,
             decision=decision,
+            method=method,
+            evidence_reference=evidence,
+            recorded_by=request.user,
         )
 
         log_action(
@@ -783,8 +877,18 @@ class CircleProposalViewSet(
         approve_count = votes.filter(decision=VoteDecision.APPROVE).count()
         reject_count = votes.filter(decision=VoteDecision.REJECT).count()
         abstain_count = votes.filter(decision=VoteDecision.ABSTAIN).count()
+        active_members = CircleMember.objects.filter(pool=proposal.pool, status=CircleMemberStatus.ACTIVE).count()
+        cast = approve_count + reject_count + abstain_count
 
-        proposal.status = ProposalStatus.APPROVED if approve_count > reject_count else ProposalStatus.REJECTED
+        if timezone.localdate() <= proposal.voting_deadline and cast < active_members:
+            raise ValidationError(
+                f"Voting is open until {proposal.voting_deadline} and {active_members - cast} member(s) have not voted yet."
+            )
+        quorum_met = active_members > 0 and cast * 2 > active_members
+        if not quorum_met:
+            proposal.status = ProposalStatus.CLOSED  # no decision: fewer than half of the members took part
+        else:
+            proposal.status = ProposalStatus.APPROVED if approve_count > reject_count else ProposalStatus.REJECTED
         proposal.closed_at = timezone.now()
         proposal.save(update_fields=["status", "closed_at", "updated_at"])
 
@@ -799,6 +903,8 @@ class CircleProposalViewSet(
                 "approve_count": approve_count,
                 "reject_count": reject_count,
                 "abstain_count": abstain_count,
+                "active_members": active_members,
+                "quorum_met": quorum_met,
             },
             request=request,
         )

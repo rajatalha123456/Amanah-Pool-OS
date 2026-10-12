@@ -6,6 +6,7 @@ from rest_framework import serializers
 from .models import (
     AllocationLine,
     AllocationRun,
+    AllocationRunStatus,
     DepositorStatement,
     ProfitSharingRatio,
     ReservePolicy,
@@ -66,6 +67,7 @@ class PSRSerializer(serializers.ModelSerializer):
             "pool",
             "depositor_share",
             "mudarib_share",
+            "wakalah_fee_pct",
             "effective_from",
             "effective_to",
             "status",
@@ -76,6 +78,15 @@ class PSRSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "tenant", "status", "created_at", "updated_at")
 
     def validate(self, attrs):
+        fee = attrs.get("wakalah_fee_pct", getattr(self.instance, "wakalah_fee_pct", None)) or Decimal("0")
+        pool_for_fee = attrs.get("pool", getattr(self.instance, "pool", None))
+        if fee < 0 or fee > 100:
+            raise serializers.ValidationError({"wakalah_fee_pct": "The fee must be between 0 and 100 (% per annum)."})
+        if fee > 0 and pool_for_fee is not None:
+            if pool_for_fee.product.contract_template.contract_type != "wakalah":
+                raise serializers.ValidationError(
+                    {"wakalah_fee_pct": "A Wakalah fee can only be set on a pool whose contract is Wakalah."}
+                )
         depositor_share = attrs.get(
             "depositor_share", getattr(self.instance, "depositor_share", None)
         )
@@ -94,6 +105,17 @@ class PSRSerializer(serializers.ModelSerializer):
             "effective_from", getattr(self.instance, "effective_from", None)
         )
         effective_to = attrs.get("effective_to", getattr(self.instance, "effective_to", None))
+
+        # The jurisdiction rule pack caps the manager's share of profit (BR-001: rule pack is enforced, not decorative).
+        if pool is not None and mudarib_share is not None:
+            from apps.pools.config_snapshot import bound_rule_pack
+
+            pack = bound_rule_pack(pool)
+            cap = (pack.rules_config or {}).get("mudarib_share_cap_pct") if pack else None
+            if cap is not None and mudarib_share > Decimal(str(cap)):
+                raise serializers.ValidationError(
+                    {"mudarib_share": f"Rule pack {pack.code} caps the manager's profit share at {cap}%."}
+                )
 
         try:
             check_no_overlap(
@@ -129,10 +151,30 @@ class AllocationLineSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+_STAGE_ORDINAL = {
+    AllocationRunStatus.SIMULATED: 0,
+    AllocationRunStatus.PENDING_APPROVAL: 1,
+    AllocationRunStatus.CHECKED: 2,
+    AllocationRunStatus.SHARIAH_REVIEW: 3,
+    AllocationRunStatus.SIGNED: 4,
+    AllocationRunStatus.REVERSED: 4,
+}
+
+
+def _person(user):
+    return (user.full_name or user.email) if user else None
+
+
+def _iso(value):
+    return value.isoformat() if value else None
+
+
 class AllocationRunSerializer(serializers.ModelSerializer):
     lines = AllocationLineSerializer(many=True, read_only=True)
     journal_batch = serializers.SerializerMethodField()
     shariah_review_required = serializers.BooleanField(read_only=True)
+    stages = serializers.SerializerMethodField()
+    control_gates = serializers.SerializerMethodField()
 
     class Meta:
         model = AllocationRun
@@ -161,6 +203,10 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "created_by",
             "checked_by",
             "checked_at",
+            "released_by",
+            "released_at",
+            "stages",
+            "control_gates",
             "rejection_reason",
             "shariah_review_required",
             "shariah_signed_off_by",
@@ -172,6 +218,76 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+
+    def _ordinal(self, run):
+        if run.status != AllocationRunStatus.REJECTED:
+            return _STAGE_ORDINAL.get(run.status, 0)
+        # A rejected run stopped where its last completed stage left it.
+        if run.shariah_signed_off_at:
+            return 3
+        return 2 if run.checked_at else 1
+
+    def get_stages(self, obj):
+        """The approval ceremony (UI Catalogue screen 14): prepared, independent check, Shariah review, final release."""
+
+        ordinal = self._ordinal(obj)
+        rejected = obj.status == AllocationRunStatus.REJECTED
+        shariah = obj.shariah_review_required
+
+        def stage(key, label, owner, index, by, at):
+            if ordinal > index:
+                state = "completed"
+            elif ordinal == index:
+                state = "rejected" if rejected else ("draft" if obj.status == AllocationRunStatus.SIMULATED else "in_review")
+            else:
+                state = "waiting"
+            return {"key": key, "label": label, "owner": owner, "state": state, "by": _person(by), "at": _iso(at)}
+
+        stages = [
+            stage("prepared", "Prepared", "Finance Maker", 0, obj.created_by, obj.created_at),
+            stage("independent_check", "Independent check", "Finance Checker", 1, obj.checked_by, obj.checked_at),
+        ]
+        release_index = 2
+        if shariah:
+            stages.append(
+                stage("shariah_review", "Shariah review", "Shariah Secretariat / Board", 2,
+                      obj.shariah_signed_off_by, obj.shariah_signed_off_at)
+            )
+            release_index = 3
+        stages.append(
+            stage("final_release", "Final release", "Authorized Signatory", release_index, obj.released_by, obj.released_at)
+        )
+        return stages
+
+    def get_control_gates(self, obj):
+        from apps.accounting.models import ReconciliationBatch
+
+        reconciliation = (
+            ReconciliationBatch._base_manager.filter(
+                tenant_id=obj.tenant_id, pool_id=obj.pool_id, reconciliation_date__lte=obj.value_date
+            )
+            .order_by("-reconciliation_date")
+            .first()
+        )
+        snapshot = obj.config_snapshot or {}
+        return [
+            {
+                "key": "reconciled",
+                "label": "Reconciled",
+                "passed": bool(reconciliation and reconciliation.status in ("matched", "cleared")),
+            },
+            {
+                "key": "shariah_parameters_sealed",
+                "label": "Shariah parameters sealed",
+                "passed": bool(snapshot.get("psr") and snapshot.get("weightage_bands") is not None and obj.calculation_hash),
+            },
+            {
+                "key": "shariah_review",
+                "label": "Shariah review complete" if obj.shariah_review_required else "Shariah review not required",
+                "passed": (not obj.shariah_review_required) or obj.shariah_signed_off_at is not None,
+            },
+            {"key": "final_authority", "label": "Final authority", "passed": obj.released_at is not None},
+        ]
 
     def get_journal_batch(self, obj):
         # Local import to avoid a hard app-load-order dependency between
@@ -226,8 +342,11 @@ class AllocationRunInputSerializer(serializers.Serializer):
     period_start = serializers.DateField(
         required=False, allow_null=True, default=None, help_text="Period start; omit for a single-day run."
     )
-    gross_income = serializers.DecimalField(max_digits=18, decimal_places=2)
-    direct_expenses = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, default=Decimal("0"))
+    # Omit both to derive income/expenses from the pool's posted ledger events (BR-005).
+    # A hand-typed gross_income is a manual override and needs an override_reason.
+    gross_income = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, allow_null=True, default=None)
+    direct_expenses = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, allow_null=True, default=None)
+    override_reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

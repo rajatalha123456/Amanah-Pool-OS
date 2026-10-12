@@ -1,6 +1,8 @@
 import logging
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import ProtectedError
 from django.http import Http404
 from rest_framework import exceptions as drf_exceptions
 from rest_framework.response import Response
@@ -34,6 +36,15 @@ class ServiceUnavailable(drf_exceptions.APIException):
 
 
 EXCEPTION_CODES[ServiceUnavailable] = "service_unavailable"
+
+
+class ConflictError(drf_exceptions.APIException):
+    status_code = 409
+    default_detail = "The request conflicts with the current state of the record."
+    default_code = "conflict"
+
+
+EXCEPTION_CODES[ConflictError] = "conflict"
 
 
 def _error_code_for(exc):
@@ -70,6 +81,11 @@ def custom_exception_handler(exc, context):
         exc = drf_exceptions.NotFound(*exc.args)
     elif isinstance(exc, DjangoPermissionDenied):
         exc = drf_exceptions.PermissionDenied(*exc.args)
+    elif isinstance(exc, DjangoValidationError):
+        # Model-level guards (immutability, invariants) are business-rule violations, not server errors.
+        exc = drf_exceptions.ValidationError(exc.messages)
+    elif isinstance(exc, ProtectedError):
+        exc = ConflictError("This record is referenced by other records and cannot be deleted.")
 
     response = drf_exception_handler(exc, context)
 

@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -114,6 +115,7 @@ class TenantBindingAndMfaTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    @override_settings(MFA_ENFORCED=True)
     def test_login_requires_mfa_when_enforced(self):
         response = self.client.post(
             reverse("auth-login"), {"email": "auditor-a@example.com", "password": "Password123!"}

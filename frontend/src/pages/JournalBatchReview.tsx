@@ -199,7 +199,7 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
         <StatCard
           label="Batches Posted"
           value={`${batches.length} Batches`}
-          subtext="100% Balanced Double-Entry"
+          subtext="posted batches"
         />
       </div>
 
@@ -352,26 +352,11 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
       </Card>
 
       {/* Bottom Control Total Bar matching Catalogue Screen 15 */}
-      <div className="mt-6 border-t border-white/8 pt-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-xs">
-          <div>
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase">
-              RECORDS PROCESSED
-            </p>
-            <p className="text-base font-bold text-ink-primary">
-              {batches.length} <span className="text-emerald-400 text-xs">100%</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase">MATCHED</p>
-            <p className="text-base font-bold text-emerald-400">100.00% +0.00</p>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase">VARIANCE</p>
-            <p className="text-base font-bold text-emerald-400">PKR 0.00</p>
-          </div>
-        </div>
-      </div>
+      <p className="mt-6 border-t border-white/8 pt-4 text-xs text-ink-secondary">
+        {batches.length} batch{batches.length === 1 ? "" : "es"} · debits {totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })} ·
+        credits {totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })} ·{" "}
+        {allBalanced ? "every batch balances" : `out of balance by ${netVariance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+      </p>
     </div>
   )
 }

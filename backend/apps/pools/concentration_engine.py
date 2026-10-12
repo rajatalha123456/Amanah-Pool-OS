@@ -28,126 +28,34 @@ SBP_POWER_ENERGY_SECTOR_LIMIT_PCT = Decimal("30.0")
 SBP_GENERAL_SECTOR_LIMIT_PCT = Decimal("20.0")
 EARLY_WARNING_THRESHOLD_PCT = Decimal("80.0")
 
-# Known counterparty intelligence mapping for institutional seed assets
-KNOWN_ASSET_METADATA = {
-    "AST-SUK-01": {
-        "obligor_name": "Government of Pakistan (Ministry of Finance)",
-        "obligor_group": "Sovereign / Public Sector",
-        "sector": "Sovereign & Public Sector",
-        "credit_rating": "AAA (PKR Sovereign)",
-        "rating_agency": "PACRA / VIS",
-        "is_sovereign": True,
-        "is_related_party": False,
-        "shariah_structure": "Ijarah Sukuk",
-    },
-    "AST-MUR-02": {
-        "obligor_name": "Engro Corporation Limited",
-        "obligor_group": "Dawood Hercules / Engro Group",
-        "sector": "Fertilizer & Petrochemicals",
-        "credit_rating": "AA+",
-        "rating_agency": "PACRA",
-        "is_sovereign": False,
-        "is_related_party": False,
-        "shariah_structure": "Murabaha",
-    },
-    "AST-IJR-03": {
-        "obligor_name": "Master Motors Corporation Pvt Ltd",
-        "obligor_group": "Master Group of Industries",
-        "sector": "Automobile & Logistics",
-        "credit_rating": "A-",
-        "rating_agency": "VIS",
-        "is_sovereign": False,
-        "is_related_party": False,
-        "shariah_structure": "Ijarah",
-    },
-    "AST-MUS-04": {
-        "obligor_name": "TechPark Commercial REIT & Real Estate SPV",
-        "obligor_group": "Independent Real Estate SPV",
-        "sector": "Real Estate & Commercial Infrastructure",
-        "credit_rating": "BBB+",
-        "rating_agency": "PACRA",
-        "is_sovereign": False,
-        "is_related_party": False,
-        "shariah_structure": "Diminishing Musharakah",
-    },
-    "AST-SUK-05": {
-        "obligor_name": "Water and Power Development Authority (WAPDA)",
-        "obligor_group": "Public Sector Enterprises (PSE)",
-        "sector": "Power, Utilities & Energy",
-        "credit_rating": "AAA (Sovereign Guaranteed)",
-        "rating_agency": "PACRA / VIS",
-        "is_sovereign": True,
-        "is_related_party": False,
-        "shariah_structure": "Ijarah / Istisna",
-    },
-}
+# Assets carry no obligor, group, sector or rating fields yet. Until they do, the obligor is the asset's own
+# recorded description, the sector is a keyword inference that is labelled as such, and no credit rating is
+# shown. (Earlier versions attached real companies and invented ratings to the seed assets - removed.)
+RATING_NOT_RECORDED = "not recorded"
 
 
 def _infer_asset_metadata(asset: Asset) -> Dict[str, Any]:
-    """Infers or enriches counterparty, group, and sector from asset details."""
-    ref = (asset.reference_code or "").strip().upper()
-    if ref in KNOWN_ASSET_METADATA:
-        return KNOWN_ASSET_METADATA[ref]
-
     desc = (asset.description or "").lower()
-    asset_type = (asset.asset_type or "").lower()
-
-    # Rule-based inference for custom or newly imported assets
-    if "sukuk" in desc or "gop" in desc or "sovereign" in desc:
-        return {
-            "obligor_name": asset.description or "Government / Public Sector Issuer",
-            "obligor_group": "Sovereign / Public Sector",
-            "sector": "Sovereign & Public Sector",
-            "credit_rating": "AAA",
-            "rating_agency": "VIS",
-            "is_sovereign": True,
-            "is_related_party": False,
-            "shariah_structure": "Sukuk",
-        }
-    elif "real estate" in desc or "park" in desc or "property" in desc or "building" in desc:
-        return {
-            "obligor_name": asset.description or "Real Estate SPV Obligor",
-            "obligor_group": "Real Estate Group",
-            "sector": "Real Estate & Commercial Infrastructure",
-            "credit_rating": "BBB",
-            "rating_agency": "PACRA",
-            "is_sovereign": False,
-            "is_related_party": False,
-            "shariah_structure": "Diminishing Musharakah" if "musharakah" in asset_type else "Ijarah",
-        }
-    elif "energy" in desc or "power" in desc or "hydro" in desc or "solar" in desc:
-        return {
-            "obligor_name": asset.description or "Energy IPP Obligor",
-            "obligor_group": "Power & Energy Consortia",
-            "sector": "Power, Utilities & Energy",
-            "credit_rating": "AA-",
-            "rating_agency": "PACRA",
-            "is_sovereign": False,
-            "is_related_party": False,
-            "shariah_structure": "Ijarah",
-        }
-    elif "textile" in desc or "cotton" in desc:
-        return {
-            "obligor_name": asset.description or "Textile Mills Obligor",
-            "obligor_group": "Textile Industry Group",
-            "sector": "Textiles & Apparel",
-            "credit_rating": "A",
-            "rating_agency": "PACRA",
-            "is_sovereign": False,
-            "is_related_party": False,
-            "shariah_structure": "Murabaha",
-        }
-    else:
-        return {
-            "obligor_name": asset.description or f"Corporate Obligor ({asset.reference_code})",
-            "obligor_group": "Commercial Corporate",
-            "sector": "General Commercial",
-            "credit_rating": "A",
-            "rating_agency": "PACRA",
-            "is_sovereign": False,
-            "is_related_party": False,
-            "shariah_structure": asset.asset_type.capitalize(),
-        }
+    sector, is_sovereign = "General Commercial (inferred)", False
+    if "sukuk" in desc or "sovereign" in desc or "government" in desc:
+        sector, is_sovereign = "Sovereign & Public Sector (inferred)", True
+    elif any(word in desc for word in ("real estate", "property", "building")):
+        sector = "Real Estate (inferred)"
+    elif any(word in desc for word in ("energy", "power", "solar", "hydro")):
+        sector = "Power & Energy (inferred)"
+    elif "textile" in desc:
+        sector = "Textiles (inferred)"
+    name = asset.description or f"Asset {asset.reference_code}"
+    return {
+        "obligor_name": name,
+        "obligor_group": name,  # no group data is recorded, so each obligor is its own group
+        "sector": sector,
+        "credit_rating": RATING_NOT_RECORDED,
+        "rating_agency": None,
+        "is_sovereign": is_sovereign,
+        "is_related_party": False,
+        "shariah_structure": asset.asset_type.replace("_", " ").title(),
+    }
 
 
 def get_sector_limit_pct(sector: str) -> Decimal:
@@ -173,7 +81,8 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
         pool_name = pool.name
         pool_id = str(pool.id)
     else:
-        assets = list(Asset.objects.all())
+        held = AssetAssignment.objects.filter(unassigned_date__isnull=True).select_related("asset")
+        assets = [a.asset for a in held]
         pool_name = "Consolidated Portfolio (All Pools)"
         pool_id = "consolidated"
 
@@ -399,12 +308,12 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
             "status": "compliant" if related_party_pct <= 5.0 else "breach",
         },
         {
-            "regulation": "AAOIFI FAS-30 Prohibited Sector Ring-Fence",
-            "description": "Zero tolerance for conventional financial, alcohol or non-halal activities",
+            "regulation": "Prohibited-sector screen",
+            "description": "Not assessed: assets carry no recorded activity / sector classification yet",
             "statutory_limit": "0.0%",
-            "current_value": "0.0%",
-            "passed": True,
-            "status": "compliant",
+            "current_value": "not assessed",
+            "passed": None,
+            "status": "not_assessed",
         },
     ]
 
@@ -426,6 +335,11 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
             "highest_sector_utilization": float(sectors_list[0]["utilization_pct"]) if sectors_list else 0.0,
         },
         "as_of_timestamp": timezone.now().isoformat(),
+        "basis_note": (
+            "Limits are applied to the pool's own asset total using the configured thresholds in this module. "
+            "They are indicative and must be confirmed by Risk & Compliance against the applicable prudential "
+            "regulations (which may be measured against the bank's equity)."
+        ),
     }
 
 

@@ -9,6 +9,9 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
+# MFA is mandatory outside development unless explicitly switched off.
+MFA_ENFORCED = config("MFA_ENFORCED", default=True, cast=bool)
+
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv())

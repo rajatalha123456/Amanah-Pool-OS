@@ -426,6 +426,17 @@ class PayoutClearingEngine:
                 posted_by=user if user.is_authenticated else None,
             )
 
+            from apps.accounting.chart import ChartResolver
+
+            chart = ChartResolver(tenant.id, pool)
+
+            def post(key, entry_type, amount, suffix=""):
+                name, code = chart.resolve(key, suffix)
+                JournalEntry.objects.create(
+                    tenant=tenant, batch=jb, account_name=name, account_key=key, gl_code=code,
+                    entry_type=entry_type, amount=amount,
+                )
+
             # 1. Dr. the same per-class Depositor Payable control accounts that the signed
             #    allocation run credited, so the liability clears exactly.
             gross_by_class = {}
@@ -434,53 +445,17 @@ class PayoutClearingEngine:
                     txn["participant_class"], Decimal("0.00")
                 ) + Decimal(str(txn["gross_profit"])).quantize(Decimal("0.01"))
             for participant_class in sorted(gross_by_class):
-                JournalEntry.objects.create(
-                    tenant=tenant,
-                    batch=jb,
-                    account_name=f"Depositor Payable - {participant_class}",
-                    entry_type=JournalEntryType.DEBIT,
-                    amount=gross_by_class[participant_class],
-                )
+                post("depositor_payable", JournalEntryType.DEBIT, gross_by_class[participant_class], participant_class)
 
-            # 2. Cr. FBR Withholding Tax Payable
+            # 2-5. Credits: withholding tax, zakat, settled net, and any returned/unclaimed amount.
             if total_wht > Decimal("0.00"):
-                JournalEntry.objects.create(
-                    tenant=tenant,
-                    batch=jb,
-                    account_name="2102-005 Federal Board of Revenue Withholding Tax Payable",
-                    entry_type=JournalEntryType.CREDIT,
-                    amount=total_wht,
-                )
-
-            # 3. Cr. Central Zakat Collection Fund
+                post("wht_payable", JournalEntryType.CREDIT, total_wht)
             if total_zakat > Decimal("0.00"):
-                JournalEntry.objects.create(
-                    tenant=tenant,
-                    batch=jb,
-                    account_name="2102-009 Central Zakat Collection Account (Ministry of Religious Affairs)",
-                    entry_type=JournalEntryType.CREDIT,
-                    amount=total_zakat,
-                )
-
-            # 4. Cr. SBP Raast / 1LINK Settlement Clearing Account
+                post("zakat_payable", JournalEntryType.CREDIT, total_zakat)
             if settled_net > Decimal("0.00"):
-                JournalEntry.objects.create(
-                    tenant=tenant,
-                    batch=jb,
-                    account_name="1001-002 SBP Raast RTGS & 1LINK Settlement Clearing Account",
-                    entry_type=JournalEntryType.CREDIT,
-                    amount=settled_net,
-                )
-
-            # 5. Cr. Unclaimed / Suspended Profit Liability (if any rejected)
+                post("settlement_clearing", JournalEntryType.CREDIT, settled_net)
             if failed_net > Decimal("0.00"):
-                JournalEntry.objects.create(
-                    tenant=tenant,
-                    batch=jb,
-                    account_name="2109-099 Suspense / Unclaimed Depositor Profit Liability (Dormant Accounts)",
-                    entry_type=JournalEntryType.CREDIT,
-                    amount=failed_net,
-                )
+                post("unclaimed_profit", JournalEntryType.CREDIT, failed_net)
 
         batch_obj["journal_batch_id"] = str(jb.id)
         batch_obj["contra_voucher_code"] = f"JV-{jb.batch_date.strftime('%Y%m')}-{str(jb.id)[:8].upper()}"

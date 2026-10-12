@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsProductManager, IsShariahBoard, IsStrictShariahBoard
 from apps.core.audit import log_action
+from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
 
 from .models import (
     ContractTemplate,
@@ -62,6 +63,8 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        if serializer.instance.status != ShariahDecisionStatus.DRAFT:
+            raise ValidationError("An approved Shariah decision cannot be edited; issue a new decision instead.")
         instance = serializer.save()
         log_action(
             tenant=instance.tenant,
@@ -74,11 +77,10 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
-        if instance.status == ShariahDecisionStatus.APPROVED:
-            if getattr(self.request.user, "role", None) not in ("shariah_board", "platform_super_admin"):
-                raise PermissionDenied(
-                    "Shariah Secretariat cannot delete an approved Shariah decision. Only the Shariah Supervisory Board can delete or revoke approved rulings."
-                )
+        if instance.status != ShariahDecisionStatus.DRAFT:
+            raise ValidationError(
+                "An approved Shariah decision is a permanent record and cannot be deleted; issue a revoking decision instead."
+            )
         if instance.contract_templates.exists():
             raise ValidationError(
                 "Cannot delete this Shariah decision: it is actively linked to one or more Contract Templates."
@@ -123,18 +125,28 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="cast-quorum-vote")
     def cast_quorum_vote(self, request, pk=None):
+        from .shariah import board_size, quorum_required
+
         decision = self.get_object()
         data = request.data
-        scholar_name = data.get("scholar_name", "").strip()
-        scholar_title = data.get("scholar_title", "Shariah Board Member").strip()
+        # A vote is always the logged-in Board member's own: the name is never taken from the request.
+        scholar_name = request.user.full_name
+        scholar_title = str(data.get("scholar_title") or "Shariah Board member").strip()
         vote = data.get("vote", "approve")
-        fiqh_notes = data.get("fiqh_opinion_notes", "").strip()
+        fiqh_notes = str(data.get("fiqh_opinion_notes") or "").strip()
 
-        if not scholar_name:
-            raise ValidationError({"scholar_name": ["Scholar name is required for quorum signature."]})
-
-        if decision.quorum_votes.filter(scholar_name=scholar_name).exists():
-            raise ValidationError(f"Scholar '{scholar_name}' has already cast a signature for this ruling.")
+        if decision.status != ShariahDecisionStatus.DRAFT:
+            raise ValidationError(f"This ruling is already {decision.status}.")
+        if vote not in ("approve", "reject", "abstain"):
+            raise ValidationError({"vote": ["Must be approve, reject or abstain."]})
+        if not fiqh_notes:
+            raise ValidationError({"fiqh_opinion_notes": ["Record the reasoning for your vote."]})
+        if decision.created_by_id == request.user.id:
+            raise ValidationError("Maker-checker: the member who drafted this ruling cannot vote on it.")
+        if decision.quorum_votes.filter(signatory_user=request.user).exists():
+            raise ValidationError("You have already voted on this ruling.")
+        if board_size(decision.tenant_id) < 2:
+            raise ValidationError("A quorum needs at least two active Shariah Board members in this tenant.")
 
         now = timezone.now()
         sig_payload = f"{decision.decision_code}:{scholar_name}:{vote}:{now.isoformat()}"
@@ -152,7 +164,8 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         )
 
         approvals = decision.quorum_votes.filter(decision_vote="approve").count()
-        if approvals >= 2 and decision.status != ShariahDecisionStatus.APPROVED:
+        required = quorum_required(decision.tenant_id)
+        if approvals >= required and decision.status != ShariahDecisionStatus.APPROVED:
             decision.status = ShariahDecisionStatus.APPROVED
             decision.approved_by = request.user
             decision.approved_at = now
@@ -169,7 +182,7 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
                     "quorum_approvals": approvals,
                     "final_signatory": scholar_name,
                 },
-                reason="Shariah Board Quorum of 2 scholars achieved; Fatwa officially sealed.",
+                reason=f"Shariah Board quorum of {required} reached.",
                 request=request,
             )
 
@@ -189,18 +202,19 @@ CONTRACT_CLAUSES_SCHEMA = [
 ]
 
 
-class ContractTemplateViewSet(viewsets.ModelViewSet):
+class ContractTemplateViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
+    http_method_names = NO_DELETE
     serializer_class = ContractTemplateSerializer
 
     def get_queryset(self):
         return ContractTemplate.objects.all()
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action in ("create", "update", "partial_update"):
             return [IsAuthenticated(), IsProductManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     @action(detail=True, methods=["get"], url_path="clauses-schema")
     def clauses_schema(self, request, pk=None):
@@ -240,18 +254,19 @@ class ContractTemplateViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(template).data)
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
+    http_method_names = NO_DELETE
     serializer_class = ProductSerializer
 
     def get_queryset(self):
         return Product.objects.all()
 
     def get_permissions(self):
-        if self.action in ("create", "submit_for_review"):
+        if self.action in ("create", "update", "partial_update", "submit_for_review"):
             return [IsAuthenticated(), IsProductManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -318,15 +333,16 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 class JurisdictionRulePackViewSet(viewsets.ModelViewSet):
+    http_method_names = NO_DELETE
     serializer_class = JurisdictionRulePackSerializer
 
     def get_queryset(self):
         return JurisdictionRulePack.objects.all()
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy", "activate"):
-            return [IsAuthenticated(), HasAnyRole(["platform_super_admin", "risk_manager", "compliance_officer"])()]
-        return [IsAuthenticated()]
+        if self.action in ("create", "update", "partial_update", "activate"):
+            return [IsAuthenticated(), HasAnyRole(["platform_super_admin", "risk_compliance"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)

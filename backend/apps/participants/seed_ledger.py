@@ -90,7 +90,9 @@ def seed_circle_first_cycle(tenant, pool, members, *, maker, checker, pm_user):
     call(maker, "post", f"{base}{payout['id']}/settle/", {"settlement_utr": "DEMO-RAAST-20260910-0001"})
 
 
-def seed_participant_ledger(tenant, pool, *, maker, checker, board_user, pm_user, risk_user, investor_user, stdout=None):
+def seed_participant_ledger(
+    tenant, pool, *, maker, checker, board_user, pm_user, risk_user, investor_user, signatory, stdout=None
+):
     def say(message):
         if stdout:
             stdout.write(message)
@@ -172,40 +174,120 @@ def seed_participant_ledger(tenant, pool, *, maker, checker, board_user, pm_user
 
     base_url = "/api/v1/allocation/allocation-runs/"
 
-    def create_run(start, end, gross, expenses):
+    from apps.accounting.models import IncomeExpenseEvent, IncomeExpenseEventType
+
+    def post_event(event_type, category, amount, on, description):
+        """Pool income/expense through the real maker (create) -> checker (post) flow."""
+        event = IncomeExpenseEvent.objects.create(
+            tenant=tenant, pool=pool, event_type=event_type, category=category, amount=Decimal(amount),
+            event_date=on, description=description, created_by=maker,
+        )
+        call(checker, "post", f"/api/v1/accounting/income-expense-events/{event.id}/post/")
+        return event
+
+    def create_run(start, end):
+        # No figures typed in: income and expenses are derived from the posted events (BR-005).
         data = call(
             maker, "post", base_url,
-            {"pool": str(pool.id), "period_start": str(start), "value_date": str(end),
-             "gross_income": gross, "direct_expenses": expenses},
+            {"pool": str(pool.id), "period_start": str(start), "value_date": str(end)},
         )
         return data["id"]
+
+    INCOME, EXPENSE = IncomeExpenseEventType.INCOME, IncomeExpenseEventType.EXPENSE
+    # July: 1,025,000 permissible income, 45,000 direct expense (about 12% a year on the 100M pool). The penalty income is
+    # non-permissible (purified, never distributed) and the branch rent is bank overhead.
+    post_event(INCOME, "Financing Profit", "650000.00", date(2026, 7, 12), "Sukuk coupon periodic rental accrual")
+    post_event(INCOME, "Financing Profit", "375000.00", date(2026, 7, 24), "Engro Murabaha sales profit settlement")
+    post_event(INCOME, "Penalty income", "9000.00", date(2026, 7, 27), "Late payment penalty received from customer")
+    post_event(EXPENSE, "Direct Takaful", "45000.00", date(2026, 7, 28), "Asset protection takaful premium")
+    post_event(EXPENSE, "Overhead", "24000.00", date(2026, 7, 29), "Branch rent allocation")
+    # August: 1,125,000 income, 52,500 direct expense.
+    post_event(INCOME, "Financing Profit", "750000.00", date(2026, 8, 14), "Ijarah rental income")
+    post_event(INCOME, "Financing Profit", "375000.00", date(2026, 8, 27), "Murabaha profit settlement")
+    post_event(EXPENSE, "Custody Fees", "52500.00", date(2026, 8, 30), "CDC sukuk custody fee")
+    # September: 1,300,000 income, 60,000 direct expense.
+    post_event(INCOME, "Financing Profit", "725000.00", date(2026, 9, 11), "Sukuk coupon periodic rental accrual")
+    post_event(INCOME, "Financing Profit", "575000.00", date(2026, 9, 25), "Murabaha profit settlement")
+    post_event(EXPENSE, "Direct Takaful", "60000.00", date(2026, 9, 27), "Asset protection takaful premium")
 
     def submit(run_id):
         call(maker, "post", f"{base_url}{run_id}/submit-for-checking/")
 
     def sign(run_id, note):
+        # Approval ceremony: independent check -> Shariah review -> final release by the Authorized Signatory.
+        call(checker, "post", f"{base_url}{run_id}/check/")
         call(board_user, "post", f"{base_url}{run_id}/shariah-sign-off/", {"note": note})
-        call(checker, "post", f"{base_url}{run_id}/approve/")
+        call(signatory, "post", f"{base_url}{run_id}/approve/")
 
     # July 2026: signed, then a restatement rerun left awaiting approval (Restatement Wizard demo).
-    july = create_run(date(2026, 7, 1), date(2026, 7, 31), "4100000.00", "180000.00")
+    july = create_run(date(2026, 7, 1), date(2026, 7, 31))
     submit(july)
     sign(july, "Certified conforming to AAOIFI FAS-30 and SBP IBD Circular 03/2012.")
+    # A July accrual posted after the run was signed: the restatement re-derives the period (1,037,500).
+    post_event(INCOME, "Financing Profit", "12500.00", date(2026, 7, 31), "Late CBS asset accrual adjustment")
     call(
         maker, "post", f"{base_url}{july}/restate/",
-        {"restatement_reason": "[Regulatory Examination Finding] Late CBS asset accrual adjustment.",
-         "gross_income": "4150000.00"},
+        {"restatement_reason": "[Regulatory Examination Finding] Late CBS asset accrual adjustment."},
     )
 
     # August 2026: signed, statements issued.
-    august = create_run(date(2026, 8, 1), date(2026, 8, 31), "4500000.00", "210000.00")
+    august = create_run(date(2026, 8, 1), date(2026, 8, 31))
     submit(august)
     sign(august, "Certified conforming to AAOIFI FAS-30 and SBP IBD Circular 03/2012.")
     call(maker, "post", f"{base_url}{august}/generate-statements/")
 
     # September 2026: awaiting the Shariah Board / Finance Checker.
-    september = create_run(date(2026, 9, 1), date(2026, 9, 30), "5200000.00", "240000.00")
+    september = create_run(date(2026, 9, 1), date(2026, 9, 30))
     submit(september)
 
     say("[OK] July (signed + restatement rerun), August (signed + statements) and September (pending) runs seeded")
     return {"july": july, "august": august, "september": september}
+
+
+def seed_mudarabah_distribution(tenant, pool, capital_account, *, maker, checker, password):
+    """
+    Mudarabah profit distribution for an investment pool through the real workflow:
+    August signed (journal posted), September awaiting the checker. The investor
+    gets a portal login linked to their participant record (own data only).
+    """
+
+    from apps.accounts.models import User, UserRole
+    from apps.allocation.models import PSRStatus, ProfitSharingRatio
+
+    from .models import KYCStatus, Participant
+
+    ProfitSharingRatio.objects.get_or_create(
+        tenant=tenant, pool=pool, effective_from=date(2026, 1, 1),
+        defaults={"depositor_share": Decimal("75.00"), "mudarib_share": Decimal("25.00"), "status": PSRStatus.APPROVED},
+    )
+
+    investor, _ = User.objects.get_or_create(
+        email="mudarabah.investor@novulabsdemo.test",
+        defaults={"tenant": tenant, "full_name": "Indus Valley Agro Ventures", "role": UserRole.INVESTOR_MEMBER},
+    )
+    investor.tenant, investor.role, investor.is_active = tenant, UserRole.INVESTOR_MEMBER, True
+    investor.set_password(password)
+    investor.save()
+
+    participant = Participant.objects.create(
+        tenant=tenant, reference="INV-P-003", full_name=capital_account.investor_name,
+        participant_class="Corporate / Institutional", kyc_status=KYCStatus.VERIFIED, user=investor,
+    )
+    capital_account.participant = participant
+    capital_account.save(update_fields=["participant", "updated_at"])
+
+    call = make_api_caller(tenant)
+    base = "/api/v1/investments/distribution-runs/"
+
+    def draft(start, end, gross, expenses):
+        data = call(
+            maker, "post", base,
+            {"pool": str(pool.id), "period_start": start, "period_end": end,
+             "gross_income": gross, "direct_expenses": expenses},
+        )
+        call(maker, "post", f"{base}{data['id']}/submit-for-checking/")
+        return data["id"]
+
+    august = draft("2026-08-01", "2026-08-31", "2750000.00", "130000.00")
+    call(checker, "post", f"{base}{august}/approve/")
+    draft("2026-09-01", "2026-09-30", "2900000.00", "140000.00")

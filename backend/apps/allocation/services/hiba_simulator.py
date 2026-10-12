@@ -129,7 +129,7 @@ def simulate_mudarib_hiba(
             "id": "RULE-HIBA-01",
             "rule": "Ex-Post Determination (Post-Allocation)",
             "standard": "AAOIFI Shariah Standard No. 13 (Clause 8/5)",
-            "passed": True,
+            "passed": allocation_run.status in ("simulated", "pending_approval", "checked", "shariah_review", "signed"),
             "details": f"Hiba evaluated on actual elapsed cycle ({allocation_run.value_date}) - zero prior contractual guarantee.",
         },
         {
@@ -144,14 +144,14 @@ def simulate_mudarib_hiba(
             "rule": "Equal Pro-Rata Distribution Across Participant Tiers",
             "standard": "AAOIFI Shariah Standard No. 40",
             "passed": True,
-            "details": "Hiba apportioned strictly according to SBP approved weightage matrix without arbitrary preference.",
+            "details": "Hiba is spread over the participant lines in proportion to their weighted funds.",
         },
         {
             "id": "RULE-HIBA-04",
             "rule": "Irrevocability of Voluntary Gift",
             "standard": "AAOIFI Shariah Standard No. 13",
             "passed": True,
-            "details": "Hiba once approved is non-refundable and cannot be clawed back from future depositor profits.",
+            "details": "A hiba applied to a run is recorded in the audit log; it is a one-way concession in this system.",
         },
     ]
 
@@ -159,7 +159,7 @@ def simulate_mudarib_hiba(
 
     # ALCO & Shariah Resolution Memorandum
     now_str = timezone.now().strftime("%Y-%m-%d %H:%M UTC")
-    memo = f"""# ALCO & SHARIAH BOARD RESOLUTION MEMORANDUM: MUDARIB HIBA CONCESSION
+    memo = f"""# DRAFT - MUDARIB HIBA CONCESSION SIMULATION (not a resolution)
 **Allocation Run ID:** {str(allocation_run.id)} | **Pool:** {allocation_run.pool.name}
 **Value Date:** {allocation_run.value_date} | **Evaluation Date:** {now_str}
 **Benchmark Reference Rate (1M KIBOR):** {target_kibor_rate}%
@@ -180,9 +180,8 @@ To prevent depositor attrition and optimize yield parity, the Bank hereby consid
 - **Revised Depositor Allocation:** PKR {revised_depositor_share:,.2f} (Effective Yield: {avg_revised_yield:.2f}%)
 - **Net Yield Uplift to Depositors:** +{int((avg_revised_yield - avg_base_yield) * 100)} bps
 
-### 3. SHARIAH SUPERVISORY BOARD CERTIFICATION
-The concession has been reviewed under AAOIFI FAS-30 and SBP IBD Circular 03/2012. 
-Because the concession is determined ex-post without prior contractual commitment, it constitutes a valid Shar'i Hiba.
+### 3. STATUS
+This is a simulation draft. It has not been reviewed or certified by the Shariah Board; the Board's own review of the run is what decides whether the concession is valid.
 """
 
     return {

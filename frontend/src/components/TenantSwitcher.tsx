@@ -1,11 +1,30 @@
-import { RegulatoryJurisdictionSwitcher } from "./RegulatoryJurisdictionSwitcher"
-
-export { RegulatoryJurisdictionSwitcher }
+import { useEffect, useState } from "react"
+import { useAuth } from "../api/auth"
+import { fetchTenants } from "../api/tenants"
+import type { TenantRecord } from "../types"
+import { Badge } from "./Badge"
 
 /**
- * TenantSwitcher (BRD Foundation Screen 02 & 06)
- * Re-exports the full interactive Cross-Jurisdiction & Regulatory Switcher.
+ * Shows the tenant (institution) the signed-in user works in. A user belongs to exactly one tenant and the
+ * API refuses any other, so this is an indicator, not a switch; the platform admin manages tenants under
+ * Administration.
  */
 export function TenantSwitcher() {
-  return <RegulatoryJurisdictionSwitcher />
+  const { user } = useAuth()
+  const [tenant, setTenant] = useState<TenantRecord | null>(null)
+
+  useEffect(() => {
+    fetchTenants()
+      .then((rows) => setTenant(rows.find((t) => t.code === user?.tenant_code) ?? null))
+      .catch(() => setTenant(null))
+  }, [user?.tenant_code])
+
+  if (!tenant) return null
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-white/10 px-3 py-1.5 text-xs">
+      <span className="font-semibold text-ink-primary">{tenant.name}</span>
+      <span className="font-mono text-ink-muted">{tenant.code}</span>
+      <Badge variant={tenant.is_suspended ? "gold" : "emerald"}>{tenant.is_suspended ? "suspended" : "active"}</Badge>
+    </div>
+  )
 }

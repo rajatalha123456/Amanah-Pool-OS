@@ -32,16 +32,21 @@ import { JurisdictionRulePacks } from "./pages/administration/JurisdictionRulePa
 import { RiskLimitDashboard } from "./pages/RiskLimitDashboard"
 import { PayoutExecutionEngine } from "./pages/PayoutExecutionEngine"
 import { IncomeExpenseWorkbench } from "./pages/IncomeExpenseWorkbench"
+import { GovernanceConfig } from "./pages/GovernanceConfig"
+import { Notifications } from "./pages/Notifications"
 import { ParticipantRegistry } from "./pages/ParticipantRegistry"
 import { SignIn } from "./pages/auth/SignIn"
 import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
+import { useAuth } from "./api/auth"
+import { InvestorPortal } from "./pages/InvestorPortal"
 import { navItems } from "./layouts/navItems"
 
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/products-pools": <ProductCatalogue />,
   "/risk-compliance": <AssetRegistry />,
   "/participants": <ParticipantRegistry />,
+  "/governance-config": <GovernanceConfig />,
   "/daily-operations": <DailyOperationsCockpit />,
   "/allocation-engine": <AllocationSimulator />,
   "/finance-ledger": <FinanceLedger />,
@@ -51,6 +56,11 @@ const CUSTOM_ROUTES: Record<string, ReactNode> = {
   "/community-circles": <CommunityCircles />,
   "/reports": <AuditorPortal />,
   "/administration": <UserAdministration />,
+}
+
+function HomeRoute() {
+  const { user } = useAuth()
+  return user?.role === "investor_member" ? <InvestorPortal /> : <CommandCenter />
 }
 
 function App() {
@@ -66,7 +76,8 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<CommandCenter />} />
+        <Route index element={<HomeRoute />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="pools" element={<PoolCatalogue />} />
         <Route path="pools/new" element={<NewPoolWizard />} />
         <Route path="pools/:id" element={<PoolDetail />} />

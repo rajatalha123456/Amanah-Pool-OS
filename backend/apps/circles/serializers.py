@@ -14,6 +14,7 @@ class CircleMemberSerializer(serializers.ModelSerializer):
             "payout_position",
             "status",
             "joined_date",
+            "email",
             "kyc_status",
             "iban",
             "bank_name",

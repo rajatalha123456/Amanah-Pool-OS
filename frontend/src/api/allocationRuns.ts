@@ -37,6 +37,11 @@ export async function submitRunForChecking(id: string): Promise<AllocationRun> {
   return response.data
 }
 
+export async function checkRun(id: string): Promise<AllocationRun> {
+  const response = await apiClient.post<AllocationRun>(`allocation/allocation-runs/${id}/check/`)
+  return response.data
+}
+
 export async function shariahSignOffRun(id: string, note: string): Promise<AllocationRun> {
   const response = await apiClient.post<AllocationRun>(
     `allocation/allocation-runs/${id}/shariah-sign-off/`,

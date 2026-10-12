@@ -1,3 +1,4 @@
+import { ActivationReadinessCard } from "../components/pools/ActivationReadinessCard"
 import { useEffect, useState } from "react"
 import { useLocation, useParams, Link } from "react-router-dom"
 import { Card } from "../components/Card"
@@ -106,7 +107,9 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const snap = version.snapshot as any
         if (snap?.product?.name && snap?.contract_template?.name) {
-          return `${snap.product.name} (${snap.product.status ?? "—"}) — ${snap.contract_template.name} v${snap.contract_template.version ?? "1.0"}`
+          const psr = snap.psr ? ` · PSR ${snap.psr.investor_share_pct}/${snap.psr.manager_share_pct}` : ""
+          const pack = snap.rule_pack ? ` · ${snap.rule_pack.code} v${snap.rule_pack.version}` : ""
+          return `${snap.product.name} — ${snap.contract_template.name} v${snap.contract_template.version ?? "1.0"}${psr}${pack}`
         }
         if (snap?.name) {
           return `${snap.name}${snap.target_yield_pct ? ` (Target Yield: ${snap.target_yield_pct}%)` : ""}`
@@ -244,6 +247,12 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
               <p className="text-sm text-ink-secondary">Pool is closed</p>
             )}
           </Card>
+
+          {["draft", "pending_approval", "approved"].includes(pool.status) && (
+            <div className="mb-6">
+              <ActivationReadinessCard poolId={pool.id} refreshKey={pool.status} />
+            </div>
+          )}
 
           <Card
             title="Version History"

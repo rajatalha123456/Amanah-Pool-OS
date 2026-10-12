@@ -23,7 +23,7 @@ import { ShariahDecisionDetailModal } from "./governance/ShariahDecisionDetailMo
 import { PurificationLedger } from "./PurificationLedger"
 import { ShariahAuditPlan } from "./governance/ShariahAuditPlan"
 import { ShariahQuorumCeremony } from "../components/governance/ShariahQuorumCeremony"
-import { fetchPools } from "../api/pools"
+import { fetchPortfolioSummary, fetchPools, type PortfolioSummary } from "../api/pools"
 import type { BadgeVariant, ExceptionCase, ShariahDashboard, ShariahDecision, Pool } from "../types"
 
 type Tab = "workspace" | "quorum-ceremony" | "fatwa-register" | "exception-cases" | "purification-ledger" | "audit-plan"
@@ -182,6 +182,7 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
   const [dashboard, setDashboard] = useState<ShariahDashboard | null>(null)
   const [exceptions, setExceptions] = useState<ExceptionCase[]>([])
   const [pools, setPools] = useState<Pool[]>([])
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [pageState, setPageState] = useState<"loading" | "loaded" | "error">("loading")
   const [error, setError] = useState("")
 
@@ -190,11 +191,13 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
       fetchShariahDashboard(),
       fetchExceptions().catch(() => []),
       fetchPools().catch(() => []),
+      fetchPortfolioSummary().catch(() => null),
     ])
-      .then(([dashData, excData, poolsData]) => {
+      .then(([dashData, excData, poolsData, portfolioData]) => {
         setDashboard(dashData)
         setExceptions(excData)
         setPools(poolsData)
+        setPortfolio(portfolioData)
         setPageState("loaded")
       })
       .catch((err) => {
@@ -207,38 +210,19 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
     return exceptions.filter((e) => e.status === "open").length
   }, [exceptions])
 
-  const totalFundsAcrossPools = useMemo(() => {
-    return pools.reduce((acc, p) => {
-      const amt =
-        p.code === "POOL-GEN-01"
-          ? 8.7e9
-          : p.code === "POOL-CORP-03"
-          ? 3.2e9
-          : p.code === "POOL-TREAS-02"
-          ? 5.58e9
-          : p.product_detail?.operating_model === "community_circle"
-          ? 50000
-          : 2.48e7
-      return acc + amt
-    }, 0)
-  }, [pools])
-
   const activePoolsCount = useMemo(() => {
     return pools.filter((p) => p.status === "open" || p.status === "allocation").length
   }, [pools])
 
-  const closeReadinessPct = useMemo(() => {
-    return pools.length > 0 ? Math.round((activePoolsCount / pools.length) * 100) : 0
-  }, [pools, activePoolsCount])
-
-  const reconHealthRate = useMemo(() => {
-    const reconExc = exceptions.filter((e) => e.source_module === "reconciliation" && e.status === "open")
-    return reconExc.length === 0 ? "100.0%" : (100 - reconExc.length * 0.06).toFixed(2) + "%"
-  }, [exceptions])
-
   const highAlertCount = useMemo(() => {
-    return exceptions.filter((e) => e.severity === "critical" || e.severity === "high").length
+    return exceptions.filter((e) => e.status === "open" && (e.severity === "critical" || e.severity === "high")).length
   }, [exceptions])
+
+  const money = (value: string | null | undefined) => {
+    if (value === null || value === undefined) return "-"
+    const n = Number(value)
+    return n >= 1e9 ? `PKR ${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `PKR ${(n / 1e6).toFixed(2)}M` : `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+  }
 
   if (pageState === "loading") {
     return (
@@ -263,37 +247,27 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="TOTAL MANAGED FUNDS"
-          value={
-            pools.length > 0
-              ? totalFundsAcrossPools >= 1e9
-                ? `PKR ${(totalFundsAcrossPools / 1e9).toFixed(2)}B`
-                : `PKR ${(totalFundsAcrossPools / 1e6).toFixed(2)}M`
-              : "PKR 0.00"
-          }
-          delta={pools.length > 0 ? `${pools.length} active pools` : "No active pools"}
-          deltaTone={pools.length > 0 ? "positive" : "neutral"}
+          value={money(portfolio?.total_funds)}
+          delta={`${pools.length} pool${pools.length === 1 ? "" : "s"}`}
+          deltaTone="neutral"
         />
         <StatCard
-          label="PERIOD PROFIT"
-          value={
-            pools.length > 0
-              ? `PKR ${(Math.round(totalFundsAcrossPools * 0.01165) / 1e6).toFixed(1)}M`
-              : "PKR 0.00"
-          }
-          delta={pools.length > 0 ? "+4.1%" : "0.0%"}
-          deltaTone={pools.length > 0 ? "positive" : "neutral"}
+          label="LAST SIGNED PROFIT"
+          value={portfolio && Number(portfolio.total_signed_profit) !== 0 ? money(portfolio.total_signed_profit) : "-"}
+          delta="latest signed run per pool"
+          deltaTone="neutral"
         />
         <StatCard
           label="OPEN EXCEPTIONS"
           value={String(openExceptionsCount)}
-          delta={openExceptionsCount > 0 ? `${openExceptionsCount} open` : "All clear"}
-          deltaTone={openExceptionsCount > 0 ? "negative" : "positive"}
+          delta={highAlertCount > 0 ? `${highAlertCount} high / critical` : "none high"}
+          deltaTone={highAlertCount > 0 ? "negative" : "positive"}
         />
         <StatCard
-          label="CLOSE READINESS"
-          value={`${closeReadinessPct}%`}
-          delta={pools.length > 0 ? `${activePoolsCount} of ${pools.length} active` : "Not started"}
-          deltaTone={closeReadinessPct >= 80 ? "positive" : "neutral"}
+          label="PENDING SHARIAH ITEMS"
+          value={String(dashboard.summary_counts.total_pending_items)}
+          delta={`${activePoolsCount} of ${pools.length} pools in operation`}
+          deltaTone={dashboard.summary_counts.total_pending_items > 0 ? "negative" : "positive"}
         />
       </div>
 
@@ -314,17 +288,7 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-ink-secondary">Reconciliation:</span>
-              <Badge variant={pools.length > 0 ? "emerald" : "neutral"}>
-                {reconHealthRate}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-ink-secondary">Liquidity buffer:</span>
-              <Badge variant="emerald">18.2%</Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-ink-secondary">AI alerts:</span>
+              <span className="text-ink-secondary">High / critical exceptions:</span>
               <Badge variant={highAlertCount > 0 ? "gold" : "emerald"}>
                 {highAlertCount > 0 ? `${highAlertCount} high` : "0 high"}
               </Badge>
@@ -340,7 +304,7 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
                 <th className="py-2.5 px-3">POOL</th>
                 <th className="py-2.5 px-3">MODEL</th>
                 <th className="py-2.5 px-3">FUNDS</th>
-                <th className="py-2.5 px-3">YIELD</th>
+                <th className="py-2.5 px-3">LATEST SIGNED YIELD</th>
                 <th className="py-2.5 px-3 text-right">STATUS</th>
               </tr>
             </thead>
@@ -360,37 +324,12 @@ function WorkspaceTab({ onNavigateTab }: { onNavigateTab?: (tab: Tab) => void })
                       ? "Investment"
                       : "Bank"
 
-                  const estimatedFunds =
-                    p.code === "POOL-GEN-01"
-                      ? 8700000000
-                      : p.code === "POOL-CORP-03"
-                      ? 3200000000
-                      : p.code === "POOL-TREAS-02"
-                      ? 5580000000
-                      : p.product_detail?.operating_model === "community_circle"
-                      ? 50000
-                      : 24800000
-
-                  const fundsDisplay =
-                    estimatedFunds >= 1e9
-                      ? `PKR ${(estimatedFunds / 1e9).toFixed(2)}B`
-                      : estimatedFunds >= 1e6
-                      ? `PKR ${(estimatedFunds / 1e6).toFixed(2)}M`
-                      : `PKR ${estimatedFunds.toLocaleString()}`
-
-                  const yieldDisplay =
-                    p.product_detail?.operating_model === "community_circle"
-                      ? "0.00% (Qard)"
-                      : p.code === "POOL-GEN-01"
-                      ? "11.82%"
-                      : p.code === "POOL-CORP-03"
-                      ? "14.10%"
-                      : p.code === "POOL-TREAS-02"
-                      ? "12.45%"
-                      : "10.50%"
+                  const row = portfolio?.pools.find((r) => r.pool === p.id)
+                  const fundsDisplay = money(row?.funds)
+                  const yieldDisplay = row?.annualised_yield_pct ? `${row.annualised_yield_pct}% p.a.` : "no signed run"
 
                   const statusVariant = p.status === "open" ? "emerald" : "gold"
-                  const statusLabel = p.status === "open" ? "Ready" : p.status
+                  const statusLabel = p.status.replace("_", " ")
 
                   return (
                     <tr key={p.id} className="hover:bg-white/3">

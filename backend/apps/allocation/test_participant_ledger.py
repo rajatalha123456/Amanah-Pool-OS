@@ -13,6 +13,7 @@ from apps.pools.models import DailyBalance, Pool
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
+from .ceremony_helpers import complete_ceremony
 from .engine import calculate_allocation
 from .models import (
     AllocationLine,
@@ -55,6 +56,8 @@ class ParticipantLedgerTestBase(APITestCase):
 
         self.maker = self._user("maker", UserRole.FINANCE_MAKER)
         self.checker = self._user("checker", UserRole.FINANCE_CHECKER)
+        self.signatory = self._user("signatory", UserRole.AUTHORIZED_SIGNATORY)
+        self.secretariat = self._user("secretariat", UserRole.SHARIAH_SECRETARIAT)
         self.pool_manager = self._user("poolmanager", UserRole.POOL_MANAGER)
         self.risk = self._user("risk", UserRole.RISK_COMPLIANCE)
         self.investor_b = self._user("bano", UserRole.INVESTOR_MEMBER)
@@ -134,7 +137,7 @@ class ParticipantLedgerTestBase(APITestCase):
             reverse("allocation-run-list"),
             {
                 "pool": str(self.pool.id), "period_start": str(START), "value_date": str(END),
-                "gross_income": gross, "direct_expenses": "0.00",
+                "gross_income": gross, "direct_expenses": "0.00", "override_reason": "test fixture",
             },
             format="json",
         )
@@ -146,8 +149,7 @@ class ParticipantLedgerTestBase(APITestCase):
         self.authenticate(self.maker)
         base = reverse("allocation-run-detail", args=[run_id])
         self.assertEqual(self.client.post(base + "submit-for-checking/").status_code, status.HTTP_200_OK)
-        self.authenticate(self.checker)
-        response = self.client.post(base + "approve/")
+        response = complete_ceremony(self, run_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         return run_id
 
@@ -230,22 +232,20 @@ class SignedRunLedgerTests(ParticipantLedgerTestBase):
         self.authenticate(self.maker)
         base = reverse("allocation-run-detail", args=[run_id])
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(complete_ceremony(self, run_id).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_overlapping_signed_runs_are_blocked(self):
         self.sign_run()
         self.authenticate(self.maker)
         response = self.client.post(
             reverse("allocation-run-list"),
-            {"pool": str(self.pool.id), "period_start": "2026-09-08", "value_date": "2026-09-10", "gross_income": "50.00"},
+            {"pool": str(self.pool.id), "period_start": "2026-09-08", "value_date": "2026-09-10", "gross_income": "50.00", "override_reason": "test fixture"},
             format="json",
         )
         run_id = response.data["id"]
         base = reverse("allocation-run-detail", args=[run_id])
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(complete_ceremony(self, run_id).status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class StatementTests(ParticipantLedgerTestBase):

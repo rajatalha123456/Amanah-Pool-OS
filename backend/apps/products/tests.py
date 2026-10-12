@@ -165,11 +165,13 @@ class ShariahDecisionApiTests(APITestCase):
         approve_resp = self.client.post(f"{detail_url}approve/")
         self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
 
-        # Secretariat tries to delete approved fatwa -> 403 Forbidden
+        # An approved fatwa is a permanent record: nobody deletes it (a revocation is a new decision)
         self.authenticate(self.secretariat)
         del_resp = self.client.delete(detail_url)
-        self.assertEqual(del_resp.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("Shariah Secretariat cannot delete an approved Shariah decision", str(del_resp.data))
+        self.assertEqual(del_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cannot be deleted", str(del_resp.data))
+        # ...and it cannot be edited either
+        self.assertEqual(self.client.patch(detail_url, {"title": "Changed"}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_board_can_delete_unlinked_approved_decision(self):
         # Secretariat creates draft
@@ -182,9 +184,9 @@ class ShariahDecisionApiTests(APITestCase):
         approve_resp = self.client.post(f"{detail_url}approve/")
         self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
 
-        # Board deletes unlinked approved decision -> 204 No Content
+        # Not even the Board deletes an approved decision
         del_resp = self.client.delete(detail_url)
-        self.assertEqual(del_resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(del_resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_wrong_role_cannot_edit_or_delete(self):
         self.authenticate(self.secretariat)

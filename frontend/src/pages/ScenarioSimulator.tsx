@@ -161,12 +161,14 @@ export function ScenarioSimulator() {
           value_date: scenarioA.valueDate,
           gross_income: scenarioA.grossIncome,
           direct_expenses: scenarioA.directExpenses || "0",
+          override_reason: "What-if scenario (not persisted)",
         }),
         simulateAllocation({
           pool: scenarioB.poolId,
           value_date: scenarioB.valueDate,
           gross_income: scenarioB.grossIncome,
           direct_expenses: scenarioB.directExpenses || "0",
+          override_reason: "What-if scenario (not persisted)",
         }),
       ])
       setResultA(a)

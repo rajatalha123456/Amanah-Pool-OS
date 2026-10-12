@@ -24,8 +24,10 @@ import {
 import { closeCircleProposal, createCircleProposal, fetchCircleProposals, recordVote } from "../api/circleProposals"
 import { fetchPools } from "../api/pools"
 import { extractErrorMessage } from "../api/errors"
-import { RaastSettlementModal } from "../components/banking/RaastSettlementModal"
 import { FraudCollusionGraphView } from "../components/governance/FraudCollusionGraphView"
+import { CircleGovernance } from "../components/circles/CircleGovernance"
+import { fetchRulesSummary } from "../api/circleGovernance"
+import { fetchPoolTerms, type PoolTerms } from "../api/disclosures"
 import { DrawRoomConsole } from "../components/circles/DrawRoomConsole"
 import { PayoutReleaseCeremony } from "../components/circles/PayoutReleaseCeremony"
 import type {
@@ -44,6 +46,7 @@ type Tab =
   | "roster"
   | "calendar"
   | "draw"
+  | "governance_ops"
   | "payout"
   | "mobile"
   | "arrears"
@@ -55,6 +58,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "roster", label: "Member Roster" },
   { key: "calendar", label: "Contribution Calendar" },
   { key: "draw", label: "Rotation / Draw Room" },
+  { key: "governance_ops", label: "Rules, Draw & Closure" },
   { key: "payout", label: "Payout Release Ceremony" },
   { key: "mobile", label: "Member Mobile Experience" },
   { key: "arrears", label: "Hardship & Arrears" },
@@ -177,20 +181,10 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false)
   const [isDrawConfirmOpen, setIsDrawConfirmOpen] = useState(false)
   const [lastDraw, setLastDraw] = useState<RunDrawResponse | null>(null)
+  const [rules, setRules] = useState<Awaited<ReturnType<typeof fetchRulesSummary>> | null>(null)
+  const [terms, setTerms] = useState<PoolTerms | null>(null)
 
   const [contributionModalMember, setContributionModalMember] = useState<CircleMember | null>(null)
-  const [bankingModal, setBankingModal] = useState<{
-    isOpen: boolean
-    amount: number | string
-    senderTitle: string
-    senderIban?: string
-    recipientTitle?: string
-    recipientIban?: string
-    purpose: string
-    mode: "collection" | "disbursement"
-    memberId?: string
-    onSettled?: () => Promise<void>
-  } | null>(null)
 
   useEffect(() => {
     fetchPools()
@@ -198,9 +192,8 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         const circlePools = data.filter(
           (pool) => pool.product_detail?.operating_model === "community_circle",
         )
-        const poolsToUse = circlePools.length > 0 ? circlePools : data
-        setPools(poolsToUse)
-        setSelectedPoolId(poolsToUse[0]?.id ?? "")
+        setPools(circlePools)
+        setSelectedPoolId(circlePools[0]?.id ?? "")
       })
       .catch((error) => setPageError(extractErrorMessage(error, "Unable to load community circle pools.")))
       .finally(() => setIsLoading(false))
@@ -229,6 +222,8 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
       setMembers(membersData)
       setContributions(contribData)
       setPayouts(payoutData)
+      setRules(await fetchRulesSummary(poolId).catch(() => null))
+      setTerms(await fetchPoolTerms(poolId).catch(() => null))
     } catch (error) {
       setPageError(extractErrorMessage(error, "Unable to load circle data."))
     } finally {
@@ -241,6 +236,63 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
       void loadCircleData(selectedPoolId)
     }
   }, [selectedPoolId])
+
+  function setupRows(step: number): Array<[string, string]> {
+    const none = "not recorded"
+    const r = rules?.rules
+    const money = (v: string) => `PKR ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+    const collected = contributions.reduce((sum, c) => sum + Number(c.amount), 0)
+    const disbursed = payouts.filter((p) => p.status === "disbursed").reduce((sum, p) => sum + Number(p.amount), 0)
+    if (step === 0)
+      return [
+        ["Circle", selectedPool?.name ?? none],
+        ["Code", selectedPool?.code ?? none],
+        ["Product", terms?.product ?? selectedPool?.product_detail?.name ?? none],
+        ["Currency", terms?.base_currency ?? none],
+        ["Status", selectedPool?.status.replace("_", " ") ?? none],
+        ["Effective date", selectedPool?.effective_date ?? none],
+      ]
+    if (step === 1)
+      return [
+        ["Contract", terms ? `${terms.contract.name} (v${terms.contract.version})` : none],
+        ["Contract type", terms?.contract.type.replace(/_/g, " ") ?? none],
+        ["Shariah decision", terms?.shariah_decision ? `${terms.shariah_decision.code} - ${terms.shariah_decision.title}` : none],
+        ["Hardship policy", r?.hardship_policy ?? "no rules published"],
+      ]
+    if (step === 2)
+      return [
+        ["Contribution per member", r ? money(r.contribution_amount) : "no rules published"],
+        ["Cycle length", r ? `${r.cycle_days} days` : "no rules published"],
+        ["Members", String(members.length)],
+        ["Pot per cycle", r ? money(String(Number(r.contribution_amount) * members.filter((m) => m.status !== "withdrawn").length)) : none],
+        ["Payout order", r?.order_policy ?? "no rules published"],
+      ]
+    if (step === 3)
+      return [
+        ["Collected to date", money(String(collected))],
+        ["Disbursed to date", money(String(disbursed))],
+        ["Held (collected less paid out)", money(String(collected - disbursed))],
+        ["Settlement rail", "set per payout when it is requested"],
+      ]
+    if (step === 4)
+      return [
+        ["Jurisdiction rule pack", terms?.jurisdiction_rule_pack ? `${terms.jurisdiction_rule_pack.code} v${terms.jurisdiction_rule_pack.version}` : none],
+        ["Circle rules", r ? `v${r.version} sealed ${r.content_hash.slice(0, 12)}...` : "not published"],
+        ["Rules accepted by", rules ? `${rules.accepted} of ${rules.total} members` : none],
+      ]
+    const gaps = [
+      !r && "published circle rules",
+      rules && rules.missing.length > 0 && `${rules.missing.length} member(s) have not accepted the rules`,
+      members.some((m) => m.payout_position === null) && "members without a draw position",
+      members.some((m) => m.kyc_status !== "verified") && "members without verified KYC",
+      !terms?.shariah_decision && "Shariah decision in force",
+    ].filter(Boolean) as string[]
+    return [
+      ["Open items", gaps.length ? gaps.join("; ") : "none"],
+      ["Members", String(members.length)],
+      ["Ready for payouts", gaps.length === 0 ? "yes" : "no - see open items"],
+    ]
+  }
 
   async function handleCreateMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -290,7 +342,8 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
       await recordContribution(contributionModalMember.id, {
         amount: String(form.get("amount")),
         contribution_date: String(form.get("contribution_date")),
-        cycle_number: 1,
+        cycle_number: Number(form.get("cycle_number")),
+        payment_reference: String(form.get("payment_reference")),
       })
       await loadCircleData(selectedPoolId)
       setContributionModalMember(null)
@@ -316,7 +369,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         const c = contributions.find((item) => item.member === member.id)
         return (
           <span className="font-mono text-ink-primary">
-            PKR {c ? Number(c.amount).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "10,000.00"}
+            {c ? `PKR ${Number(c.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "-"}
           </span>
         )
       },
@@ -457,332 +510,17 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                 </span>
               </div>
 
-              {/* Dynamic Parameter Cards for Phase 1: Model */}
-              {setupStep === 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">POOL NAME</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {selectedPool?.name || "Karachi Healthcare Workers Welfare Circle"}
-                    </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {setupRows(setupStep).map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-white/8 bg-navy-900 p-4">
+                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-ink-primary">{value}</p>
                   </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">OPERATING MODEL</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {selectedPool?.product_detail?.operating_model === "community_circle"
-                        ? "Qard-Based Rotating Savings (Community Circle / ROSCA)"
-                        : selectedPool?.product_detail?.operating_model || "Community Circle"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">POOL CODE / IDENTIFIER</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400 font-mono">
-                      {selectedPool?.code || "POOL-CIR-01"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">LINKED PRODUCT CLASSIFICATION</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {selectedPool?.product_detail?.name || "Tier-1 Community Welfare Circle"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">BASE CURRENCY</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">PKR - Pakistani Rupee</p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">LIFECYCLE STATUS</p>
-                    <div className="mt-1">
-                      <Badge variant="emerald">{selectedPool?.status?.toUpperCase() || "OPEN"}</Badge>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">EFFECTIVE ACTIVATION DATE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {selectedPool?.effective_date
-                        ? new Date(selectedPool.effective_date).toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric",
-                          })
-                        : "01 September 2026"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">INSTITUTIONAL TENANT</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">Novu Labs Demo Tenant (NOVU-DEMO)</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Parameter Cards for Phase 2: Contract */}
-              {setupStep === 1 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRACT TEMPLATE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {selectedPool?.product_detail?.contract_template?.name ||
-                        "Standard Qard-e-Hasana Rotating Savings Charter"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRACT ARCHETYPE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Qard-e-Hasana (Bilateral Mutual Interest-Free Loan)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">RIBA / TIME-VALUE OF MONEY</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      Strict 0.00% Zero-Interest Guarantee (Riba-Free)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">PENALTY RATE ON HARDSHIP</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      0.00% Penalty Rate (Charity forfeiture prohibited)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">SHARIAH DECISION REF</p>
-                    <p className="mt-1 text-sm font-semibold text-gold-400">FATWA-2025-01 • Approved by Board</p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">GOVERNING STANDARD</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      AAOIFI Standard No. 19 (Qard) & SBP Annexure II
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">EARLY WITHDRAWAL PROTOCOL</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Mutual consent resolution with 100% escrow balance return
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">DISPUTE RESOLUTION</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Independent Shariah Secretariat Advisory Council
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Parameter Cards for Phase 3: Economics */}
-              {setupStep === 2 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRIBUTION PER MEMBER</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">PKR 10,000.00 / Cycle</p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">TOTAL POOL / CYCLE AGGREGATE</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400 font-mono">
-                      PKR {(members.length > 0 ? members.length * 10000 : 50000).toLocaleString()}.00 / Cycle
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ACTIVE MEMBER ROSTER</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {members.length > 0 ? `${members.length} Enrolled Contributing Members` : "5 Members Enrolled"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ROTATION SELECTION METHOD</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Randomized Transparent Cryptographic Draw
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTRIBUTION CADENCE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Monthly (Every 30 Calendar Days)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">TOTAL PLANNED CYCLES</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {members.length > 0 ? `${members.length} Consecutive Monthly Cycles` : "5 Consecutive Monthly Cycles"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">PROFIT SHARING RATIO (PSR)</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Non-Profit Mutual Aid (0% Bank Uplift / 0% Sood)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ADMIN / MUDARIB FEE</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      PKR 0.00 (Zero Management Fee)
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Parameter Cards for Phase 4: Assets */}
-              {setupStep === 3 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">PAYMENT & SETTLEMENT RAIL</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Raast Instant P2P / 1LINK IBFT Core Gateway
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">SEGREGATED ESCROW ACCOUNT</p>
-                    <p className="mt-1 text-sm font-semibold font-mono text-emerald-400">
-                      PK92-AMANAH-001928374619 (Islamic Escrow)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ESCROW BALANCE COLLECTED</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary font-mono">
-                      PKR {contributions.reduce((s, c) => s + Number(c.amount), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">MEMBER COLLATERAL / GUARANTEE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      100% Collateral-Free Mutual Guarantee (Kafalah)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">EMERGENCY HARDSHIP RESERVE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      PKR 0.00 Deployed (100% Reserve Solvency)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CBS RECONCILIATION CADENCE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Automated Real-Time Core Banking Balance Synchronization
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">DISBURSEMENT EXECUTION METHOD</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Multi-Sig Automated Direct Credit to Recipient IBAN
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CRYPTOGRAPHIC RECORD ANCHOR</p>
-                    <p className="mt-1 text-sm font-semibold font-mono text-xs text-ink-secondary">
-                      SHA-256 Tamper-Evident Hash Audit Chain
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Parameter Cards for Phase 5: Governance */}
-              {setupStep === 4 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">JURISDICTION REGULATORY PACK</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Pakistan / SBP • Version 2025.01 (Qard ROSCA)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">DEMOCRATIC VOTING THRESHOLD</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      Simple Majority (&gt;50% of active circle members)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ALLOWED MEMBER PROPOSALS</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Contribution Adjustments, Member Replacements, Rule Amendments
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">HARDSHIP RELIEF POLICY</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      0% penalty waiver, repayment pause up to 60 calendar days
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">SHARIAH GOVERNANCE OVERSIGHT</p>
-                    <p className="mt-1 text-sm font-semibold text-gold-400">
-                      Annual Compliance Review & Continuous Audit Trail
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">RISK & COMPLIANCE TIER</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Tier-1 Low Risk Microfinance Mutual Cooperative
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">QUORUM REQUIREMENT</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      4 out of 5 Members (80% minimum quorum)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">AUDIT LOGGING POLICY</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      Append-Only Immutable Event Journal
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Parameter Cards for Phase 6: Review */}
-              {setupStep === 5 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">OVERALL SETUP READINESS</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      100% Configured & Verified (Ready for Operations)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">MEMBER ROSTER READINESS</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {members.length} Registered Members (100% KYC Verified)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CYCLE 1 CONTRIBUTIONS</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400 font-mono">
-                      {contributions.length} Contributions Recorded (PKR {contributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()} Total)
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CYCLE 1 PAYOUT STATUS</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      {payouts.length > 0
-                        ? `PKR ${Number(payouts[0].amount).toLocaleString()} — ${payouts[0].status} (cycle ${payouts[0].cycle_number})`
-                        : "No payout released yet"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ROTATION SCHEDULE</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-primary">
-                      1 Recipient / Month across {members.length || 5} months
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ZERO-PENALTY HARDSHIP COMPLIANCE</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      Active & Protected under AAOIFI Std 19
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">ESCROW SAFETY LOCK</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      Active Bank Escrow Ringfence
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/8 bg-navy-900 p-4">
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">OPERATIONAL ACTIVATION</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                      Fully Active & Verified by Shariah Board
-                    </p>
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
+              <p className="text-[11px] text-ink-muted">
+                Shown from the circle&apos;s recorded configuration. Anything not recorded says so.
+              </p>
 
               {/* Phase Navigation Footer */}
               <div className="flex items-center justify-between pt-2">
@@ -811,21 +549,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                 </button>
               </div>
 
-              {/* AI CONFIGURATION CHECK banner matching PDF Page 24 */}
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-5">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                  </span>
-                  <p className="text-xs font-bold tracking-wider text-emerald-400 uppercase">
-                    AI CONFIGURATION CHECK • PHASE {SETUP_STEPS[setupStep].number}: {SETUP_STEPS[setupStep].label.toUpperCase()}
-                  </p>
-                </div>
-                <p className="mt-2 text-sm text-ink-primary">
-                  {SETUP_STEPS[setupStep].check}
-                </p>
-              </div>
             </div>
           )}
 
@@ -877,38 +600,12 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                 <Table columns={rosterColumns} data={members} keyField={(member) => member.id} />
               )}
 
-              {/* Bottom Control Total Bar matching Catalogue Screen 24 */}
-              <div className="mt-6 border-t border-white/8 pt-4">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-xs">
-                  <div>
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">RECORDS PROCESSED</p>
-                    <p className="text-base font-bold text-ink-primary">
-                      {members.length} Members <span className="text-emerald-400 text-xs">100%</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">MATCHED</p>
-                    <p className="text-base font-bold text-emerald-400">
-                      {members.length > 0 ? "100.0%" : "0.0%"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">EXCEPTIONS</p>
-                    <p className="text-base font-bold text-ink-primary">
-                      {members.filter((m) => m.status !== "active").length}{" "}
-                      <span className="text-emerald-400 text-xs">
-                        {members.filter((m) => m.status !== "active").length > 0 ? "action required" : "all clear"}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-ink-secondary uppercase">CONTROL TOTAL</p>
-                    <p className="text-base font-bold text-emerald-400">
-                      {members.filter((m) => m.status !== "active").length === 0 ? "Balanced PASS" : "Exceptions REVIEW"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <p className="mt-4 border-t border-white/8 pt-3 text-xs text-ink-secondary">
+                {members.length} members ·{" "}
+                {members.filter((m) => m.kyc_status === "verified").length} with verified KYC ·{" "}
+                {members.filter((m) => m.payout_position === null).length} without a draw position ·{" "}
+                {members.filter((m) => m.status === "paid_out").length} already paid out
+              </p>
             </Card>
           )}
 
@@ -916,65 +613,43 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* SCREEN 25: Contribution Calendar (PDF Page 26)                           */}
           {/* ========================================================================= */}
           {activeTab === "calendar" && (
-            <Card>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-ink-primary uppercase">SEPTEMBER 2026</h3>
-                  <p className="text-xs text-ink-secondary">Collections, arrears and receipts cycle tracking</p>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-                    <span className="text-ink-secondary">DUE (Collection Scheduled)</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                    <span className="text-ink-secondary">PAID (Recorded / Reconciled)</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Calendar Grid 7 columns */}
-              <div className="grid grid-cols-7 gap-2.5 text-center">
-                {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
-                  <div key={day} className="py-2 text-xs font-bold tracking-wider text-ink-secondary">
-                    {day}
-                  </div>
-                ))}
-
-                {/* 35 Calendar Cells matching Page 26 */}
-                {Array.from({ length: 35 }, (_, index) => {
-                  const day = index + 1
-                  const isDue = [3, 10, 17, 24].includes(day)
-                  const isPaid = [5, 12, 19, 26].includes(day)
-
-                  return (
-                    <div
-                      key={day}
-                      className={`flex min-h-[72px] flex-col justify-between rounded-lg border p-2 text-left transition-all ${
-                        isDue
-                          ? "border-amber-500/40 bg-amber-950/20"
-                          : isPaid
-                          ? "border-emerald-500/40 bg-emerald-950/20"
-                          : "border-white/5 bg-navy-900/60 hover:border-white/15"
-                      }`}
-                    >
-                      <span className="text-xs font-semibold text-ink-primary">{day}</span>
-                      <div className="mt-1">
-                        {isDue && (
-                          <span className="inline-block rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                            DUE
-                          </span>
-                        )}
-                        {isPaid && (
-                          <span className="inline-block rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                            PAID
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+            <Card title="Contribution ledger by cycle">
+              <p className="mb-3 text-xs text-ink-secondary">
+                One column per cycle (the circle runs one cycle per member). A cell shows the recorded receipt; &quot;-&quot; means none
+                is recorded yet. Due dates follow the circle rules ({rules?.rules ? `every ${rules.rules.cycle_days} days` : "not published"}).
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/8 text-[11px] uppercase text-ink-secondary">
+                      <th className="px-3 py-2">Member</th>
+                      {Array.from({ length: Math.max(members.filter((m) => m.status !== "withdrawn").length, 1) }, (_, i) => (
+                        <th key={i} className="px-3 py-2">Cycle {i + 1}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {members.map((m) => (
+                      <tr key={m.id}>
+                        <td className="px-3 py-2 text-ink-primary">{m.member_reference}</td>
+                        {Array.from({ length: Math.max(members.filter((x) => x.status !== "withdrawn").length, 1) }, (_, i) => {
+                          const c = contributions.find((x) => x.member === m.id && x.cycle_number === i + 1)
+                          return (
+                            <td key={i} className="px-3 py-2">
+                              {c ? (
+                                <span className="text-emerald-400">
+                                  {Number(c.amount).toLocaleString()} <span className="text-ink-muted">{c.contribution_date}</span>
+                                </span>
+                              ) : (
+                                <span className="text-ink-muted">-</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </Card>
           )}
@@ -982,6 +657,8 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* ========================================================================= */}
           {/* SCREEN 26: Rotation / Draw Room (PDF Page 27)                            */}
           {/* ========================================================================= */}
+          {activeTab === "governance_ops" && selectedPoolId && <CircleGovernance poolId={selectedPoolId} />}
+
           {activeTab === "draw" && (
             <DrawRoomConsole
               poolId={selectedPoolId}
@@ -1004,123 +681,24 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* SCREEN 28: Member Mobile Home (PDF Page 29)                              */}
           {/* ========================================================================= */}
           {activeTab === "mobile" && (
-            <div className="flex flex-wrap items-center justify-center gap-8 py-4">
-              {/* Smartphone Frame 1: My Circle */}
-              <div className="w-72 rounded-[36px] border-4 border-white/10 bg-navy-950 p-5 shadow-2xl">
-                <div className="mx-auto mb-4 h-4 w-28 rounded-full bg-white/10"></div>
-                <div className="space-y-6 text-center">
-                  <p className="text-[11px] font-bold tracking-widest text-emerald-400 uppercase">AMANAH CIRCLE</p>
-                  <h3 className="text-xl font-bold text-white">My Circle</h3>
-
-                  <div className="rounded-xl border border-white/8 bg-navy-900 p-4">
-                    <p className="text-xs font-semibold text-ink-secondary uppercase">CONTRIBUTION</p>
-                    <p className="mt-1 text-2xl font-extrabold text-white">PKR 50,000</p>
-                    <span className="mt-2 inline-block rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                      ACTIVE • POSITION #1
+            <Card title="Member view">
+              <p className="mb-3 text-xs text-ink-secondary">
+                Members do not have their own login yet. Open a member&apos;s own view (ledger, receipts, next payout) from here;
+                contributions are recorded by staff from the bank receipt (Member Roster, + Pay).
+              </p>
+              <div className="space-y-2">
+                {members.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between text-sm">
+                    <span className="text-ink-primary">
+                      {m.member_reference} - {m.member_name}
                     </span>
+                    <Button variant="secondary" size="sm" onClick={() => navigate(`/circles/members/${m.id}`)}>
+                      Open member view
+                    </Button>
                   </div>
-
-                  <Button
-                    variant="primary"
-                    className="w-full py-2.5 text-xs font-semibold"
-                    onClick={() => navigate(`/circles/members/${members[0]?.id || ""}`)}
-                  >
-                    VIEW LEDGER
-                  </Button>
-
-                  <div className="flex justify-around border-t border-white/8 pt-3 text-[11px] text-ink-muted">
-                    <span className="font-bold text-emerald-400">Home</span>
-                    <span>Ledger</span>
-                    <span>Help</span>
-                  </div>
-                </div>
+                ))}
               </div>
-
-              {/* Smartphone Frame 2: Contribute */}
-              <div className="w-72 rounded-[36px] border-4 border-white/10 bg-navy-950 p-5 shadow-2xl">
-                <div className="mx-auto mb-4 h-4 w-28 rounded-full bg-white/10"></div>
-                <div className="space-y-6 text-center">
-                  <p className="text-[11px] font-bold tracking-widest text-emerald-400 uppercase">AMANAH CIRCLE</p>
-                  <h3 className="text-xl font-bold text-white">Contribute</h3>
-
-                  <div className="rounded-xl border border-white/8 bg-navy-900 p-4">
-                    <p className="text-xs font-semibold text-ink-secondary uppercase">AMOUNT DUE</p>
-                    <p className="mt-1 text-2xl font-extrabold text-amber-300">PKR 50,000</p>
-                    <p className="mt-1 text-[11px] text-ink-muted">Due 3rd of month</p>
-                  </div>
-
-                  <Button
-                    variant="primary"
-                    className="w-full py-2.5 text-xs font-semibold"
-                    onClick={() => {
-                      const member = members[0]
-                      setBankingModal({
-                        isOpen: true,
-                        amount: 50000,
-                        senderTitle: member?.member_name || "Dr. Ayesha Tariq (Member)",
-                        senderIban: "PK92MEZN0001928172601",
-                        recipientTitle: "Amanah Circle Central Escrow Vault",
-                        recipientIban: "PK55AMAN0000109928172601",
-                        purpose: "Qard-e-Hasana Monthly Contribution - Cycle 1",
-                        mode: "collection",
-                        memberId: member?.id,
-                        onSettled: async () => {
-                          if (member) {
-                            try {
-                              await recordContribution(member.id, {
-                                amount: "50000.00",
-                                contribution_date: new Date().toISOString().split("T")[0],
-                                cycle_number: 1,
-                              })
-                              await loadCircleData(selectedPoolId)
-                            } catch (e) {
-                              console.error(e)
-                            }
-                          }
-                        },
-                      })
-                    }}
-                  >
-                    ⚡ PAY SECURELY VIA RAAST
-                  </Button>
-
-                  <div className="flex justify-around border-t border-white/8 pt-3 text-[11px] text-ink-muted">
-                    <span>Home</span>
-                    <span className="font-bold text-emerald-400">Contribute</span>
-                    <span>Help</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Smartphone Frame 3: Payout */}
-              <div className="w-72 rounded-[36px] border-4 border-white/10 bg-navy-950 p-5 shadow-2xl">
-                <div className="mx-auto mb-4 h-4 w-28 rounded-full bg-white/10"></div>
-                <div className="space-y-6 text-center">
-                  <p className="text-[11px] font-bold tracking-widest text-emerald-400 uppercase">AMANAH CIRCLE</p>
-                  <h3 className="text-xl font-bold text-white">Payout</h3>
-
-                  <div className="rounded-xl border border-white/8 bg-navy-900 p-4">
-                    <p className="text-xs font-semibold text-ink-secondary uppercase">NEXT PAYOUT</p>
-                    <p className="mt-1 text-2xl font-extrabold text-emerald-400">12 Sep</p>
-                    <p className="mt-1 text-[11px] text-ink-muted">Disbursement Cycle 1</p>
-                  </div>
-
-                  <Button
-                    variant="secondary"
-                    className="w-full py-2.5 text-xs font-semibold"
-                    onClick={() => setActiveTab("calendar")}
-                  >
-                    VIEW SCHEDULE
-                  </Button>
-
-                  <div className="flex justify-around border-t border-white/8 pt-3 text-[11px] text-ink-muted">
-                    <span>Home</span>
-                    <span>Ledger</span>
-                    <span className="font-bold text-emerald-400">Payout</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </Card>
           )}
 
           {/* ========================================================================= */}
@@ -1165,7 +743,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
             </label>
             <label className={labelClasses}>
               Joined Date
-              <input name="joined_date" type="date" defaultValue="2026-09-01" required className={inputClasses} />
+              <input name="joined_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required className={inputClasses} />
             </label>
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <Button type="submit" disabled={isSaving}>
@@ -1205,11 +783,19 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           <form onSubmit={handleRecordContribution} className="space-y-4">
             <label className={labelClasses}>
               Amount (PKR)
-              <input name="amount" type="number" step="0.01" min="0" defaultValue="10000.00" required className={inputClasses} />
+              <input name="amount" type="number" step="0.01" min="0.01" required className={inputClasses} placeholder="As set in the circle rules" />
+            </label>
+            <label className={labelClasses}>
+              Cycle Number
+              <input name="cycle_number" type="number" min="1" step="1" required className={inputClasses} />
             </label>
             <label className={labelClasses}>
               Contribution Date
-              <input name="contribution_date" type="date" defaultValue="2026-09-03" required className={inputClasses} />
+              <input name="contribution_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required className={inputClasses} />
+            </label>
+            <label className={labelClasses}>
+              Bank / Raast Payment Reference
+              <input name="payment_reference" required className={inputClasses} placeholder="Receipt reference from the bank statement" />
             </label>
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <Button type="submit" disabled={isSaving}>
@@ -1219,24 +805,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         </Modal>
       )}
 
-      {/* SBP Raast / 1LINK Central Banking Rails Settlement Gateway */}
-      {bankingModal?.isOpen && (
-        <RaastSettlementModal
-          amount={bankingModal.amount}
-          senderTitle={bankingModal.senderTitle}
-          senderIban={bankingModal.senderIban}
-          recipientTitle={bankingModal.recipientTitle}
-          recipientIban={bankingModal.recipientIban}
-          purpose={bankingModal.purpose}
-          mode={bankingModal.mode}
-          onClose={() => setBankingModal(null)}
-          onSuccess={async () => {
-            if (bankingModal.onSettled) {
-              await bankingModal.onSettled()
-            }
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -1532,11 +1100,21 @@ function ArrearsTab({
           </p>
           {isRiskCompliance && (
             <div className="flex gap-2">
-              {members.slice(0, 1).map((m) => (
-                <Button key={m.id} variant="secondary" onClick={() => setFlagModalMember(m)}>
-                  Flag Member Arrears
-                </Button>
-              ))}
+              <select
+                className="rounded-md border border-white/10 bg-navy-800 px-2 py-1 text-xs text-ink-primary"
+                value=""
+                onChange={(e) => {
+                  const m = members.find((x) => x.id === e.target.value)
+                  if (m) setFlagModalMember(m)
+                }}
+              >
+                <option value="">Flag arrears for member...</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.member_reference} - {m.member_name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
@@ -1560,11 +1138,11 @@ function ArrearsTab({
             <form onSubmit={handleFlagArrears} className="space-y-4">
               <label className={labelClasses}>
                 Cycle Number
-                <input name="cycle_number" type="number" defaultValue="2" required className={inputClasses} />
+                <input name="cycle_number" type="number" min="1" required className={inputClasses} />
               </label>
               <label className={labelClasses}>
                 Expected Amount (PKR)
-                <input name="expected_amount" type="number" defaultValue="10000.00" required className={inputClasses} />
+                <input name="expected_amount" type="number" min="0.01" step="0.01" required className={inputClasses} />
               </label>
               {actionError && <p className="text-sm text-red-400">{actionError}</p>}
               <Button type="submit" disabled={isSaving}>
@@ -1612,6 +1190,9 @@ function ProposalsTab({
   const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [votingProposal, setVotingProposal] = useState<CircleProposal | null>(null)
+  const [voteMemberId, setVoteMemberId] = useState("")
+  const [voteMethod, setVoteMethod] = useState<"in_person" | "otp" | "e_sign">("in_person")
+  const [voteEvidence, setVoteEvidence] = useState("")
   const [actionError, setActionError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
@@ -1652,13 +1233,15 @@ function ProposalsTab({
   }
 
   async function handleVote(decision: "approve" | "reject") {
-    if (!votingProposal || members.length === 0) return
+    if (!votingProposal || !voteMemberId) return
     setActionError("")
     setIsSaving(true)
     try {
       await recordVote(votingProposal.id, {
-        member_id: members[0].id,
+        member_id: voteMemberId,
         decision,
+        method: voteMethod,
+        evidence_reference: voteEvidence,
       })
       await refreshProposals()
       setVotingProposal(null)
@@ -1754,11 +1337,31 @@ function ProposalsTab({
         <Modal title={`Cast Vote: ${votingProposal.title}`} onClose={() => setVotingProposal(null)}>
           <div className="space-y-4">
             <p className="text-sm text-ink-secondary">{votingProposal.description}</p>
+            <p className="text-xs text-ink-muted">Record the vote one member cast, with how it was cast.</p>
+            <select required className={inputClasses} value={voteMemberId} onChange={(e) => setVoteMemberId(e.target.value)}>
+              <option value="">Select the voting member</option>
+              {members
+                .filter((m) => m.status === "active")
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.member_reference} - {m.member_name}
+                  </option>
+                ))}
+            </select>
+            <select className={inputClasses} value={voteMethod} onChange={(e) => setVoteMethod(e.target.value as "in_person" | "otp" | "e_sign")}>
+              <option value="in_person">In person</option>
+              <option value="otp">OTP</option>
+              <option value="e_sign">E-signature</option>
+            </select>
+            {voteMethod !== "in_person" && (
+              <input className={inputClasses} placeholder="OTP / e-signature reference" value={voteEvidence} onChange={(e) => setVoteEvidence(e.target.value)} />
+            )}
+            {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => void handleVote("reject")} disabled={isSaving}>
+              <Button variant="outline" onClick={() => void handleVote("reject")} disabled={isSaving || !voteMemberId}>
                 Reject
               </Button>
-              <Button variant="primary" onClick={() => void handleVote("approve")} disabled={isSaving}>
+              <Button variant="primary" onClick={() => void handleVote("approve")} disabled={isSaving || !voteMemberId}>
                 Approve
               </Button>
             </div>

@@ -35,6 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
+    // Revoke the refresh token on the server (best effort) before forgetting it locally.
+    const refresh = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (refresh) {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || "/api/v1/"
+      void fetch(`${baseURL}auth/logout/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      }).catch(() => undefined)
+    }
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(TENANT_CODE_KEY)

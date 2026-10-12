@@ -58,6 +58,7 @@ ENDPOINTS = {
     "pools.Pool": "pool",
     "pools.Asset": "asset",
     "pools.AssetAssignment": "asset-assignment",
+    "pools.AssetProvisionEntry": "asset-provision",
     "pools.DailyBalance": "daily-balance",
     "pools.BalanceImportBatch": "balance-import",
     "allocation.WeightageBand": "weightage-band",
@@ -80,6 +81,12 @@ ENDPOINTS = {
     "circles.Payout": "circle-payout",
     "circles.ArrearsRecord": "circle-arrears-record",
     "circles.CircleProposal": "circle-proposal",
+    "circles.CircleRules": "circle-rules",
+    "ai_agents.AIRecommendation": "ai-recommendation",
+    "governance.ConfigChangeRequest": "config-change",
+    "investments.PoolDisclosure": "pool-disclosure",
+    "circles.CircleDraw": "circle-draw",
+    "circles.CircleClosure": "circle-closure",
 }
 
 # Subset of ENDPOINTS whose viewset only exposes list (no retrieve action,

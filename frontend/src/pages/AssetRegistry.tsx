@@ -12,13 +12,15 @@ import { ExceptionQueue } from "./governance/ExceptionQueue"
 import { DisputeCenter } from "./governance/DisputeCenter"
 import { RelatedPartyReview } from "./RelatedPartyReview"
 import { RiskLimitDashboard } from "./RiskLimitDashboard"
+import { AssetProvisions } from "./AssetProvisions"
 import type { Asset, BadgeVariant } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
-type RiskComplianceTab = "assets" | "exceptions" | "related-party" | "risk-dashboard" | "disputes"
+type RiskComplianceTab = "assets" | "provisions" | "exceptions" | "related-party" | "risk-dashboard" | "disputes"
 
 const TABS: { key: RiskComplianceTab; label: string }[] = [
   { key: "assets", label: "Asset Registry" },
+  { key: "provisions", label: "Provisions & Write-offs" },
   { key: "exceptions", label: "Exception Queue" },
   { key: "related-party", label: "Related-Party" },
   { key: "risk-dashboard", label: "Risk Dashboard" },
@@ -67,7 +69,8 @@ export function AssetRegistry({ initialTab }: { initialTab?: RiskComplianceTab }
   const columns: TableColumn<Asset>[] = [
     { header: "Reference Code", accessor: (asset) => asset.reference_code },
     { header: "Asset Type", accessor: (asset) => asset.asset_type },
-    { header: "Face Value", accessor: (asset) => asset.face_value },
+    { header: "Face Value (PKR)", accessor: (asset) => Number(asset.face_value).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+    { header: "Maturity", accessor: (asset) => asset.maturity_date ?? "—" },
     {
       header: "Status",
       accessor: (asset) => <Badge variant={assetStatusBadgeVariant(asset.status)}>{asset.status}</Badge>,
@@ -148,6 +151,7 @@ export function AssetRegistry({ initialTab }: { initialTab?: RiskComplianceTab }
         </>
       )}
 
+      {activeTab === "provisions" && <AssetProvisions />}
       {activeTab === "exceptions" && <ExceptionQueue />}
       {activeTab === "related-party" && <RelatedPartyReview />}
       {activeTab === "risk-dashboard" && <RiskLimitDashboard />}

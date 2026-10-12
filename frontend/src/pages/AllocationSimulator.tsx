@@ -32,8 +32,11 @@ export function AllocationSimulator() {
   const [selectedPoolId, setSelectedPoolId] = useState("")
 
   const [valueDate, setValueDate] = useState("")
-  const [grossIncome, setGrossIncome] = useState("5000000.00")
-  const [directExpenses, setDirectExpenses] = useState("100000.00")
+  const [periodStart, setPeriodStart] = useState("")
+  const [incomeMode, setIncomeMode] = useState<"ledger" | "override">("ledger")
+  const [overrideReason, setOverrideReason] = useState("")
+  const [grossIncome, setGrossIncome] = useState("")
+  const [directExpenses, setDirectExpenses] = useState("")
 
   const [simulateError, setSimulateError] = useState("")
   const [isSimulating, setIsSimulating] = useState(false)
@@ -93,8 +96,11 @@ export function AllocationSimulator() {
     return {
       pool: selectedPoolId,
       value_date: valueDate,
-      gross_income: grossIncome,
-      direct_expenses: directExpenses || "0",
+      ...(periodStart ? { period_start: periodStart } : {}),
+      // Ledger mode sends no figures: the server derives them from posted events (BR-005).
+      ...(incomeMode === "override"
+        ? { gross_income: grossIncome, direct_expenses: directExpenses || "0", override_reason: overrideReason }
+        : {}),
     }
   }
 
@@ -107,8 +113,7 @@ export function AllocationSimulator() {
     if (generalPool) {
       setSelectedPoolId(generalPool.id)
     }
-    setGrossIncome("5000000.00")
-    setDirectExpenses("100000.00")
+    setIncomeMode("ledger")
     setValueDate("2026-09-28")
     setSimulateError("")
   }
@@ -183,6 +188,7 @@ export function AllocationSimulator() {
   const STATUS_BADGE: Record<string, BadgeVariant> = {
     simulated: "neutral",
     pending_approval: "gold",
+    checked: "gold",
     shariah_review: "gold",
     signed: "emerald",
     rejected: "navy",
@@ -290,7 +296,7 @@ export function AllocationSimulator() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                    Value Date *
+                    Period End / Value Date *
                   </label>
                   <input
                     type="date"
@@ -303,31 +309,76 @@ export function AllocationSimulator() {
 
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                    Gross Pool Income (PKR) *
+                    Period Start (optional)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={grossIncome}
-                    onChange={(e) => setGrossIncome(e.target.value)}
-                    required
+                    type="date"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
                     className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
-                    Direct Expenses (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={directExpenses}
-                    onChange={(e) => setDirectExpenses(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
-                  />
+                <div className="sm:col-span-4 rounded-lg border border-white/10 bg-navy-900/50 p-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex items-center gap-2 text-ink-primary">
+                      <input type="radio" checked={incomeMode === "ledger"} onChange={() => setIncomeMode("ledger")} />
+                      Derive from posted income/expense events (recommended)
+                    </label>
+                    <label className="flex items-center gap-2 text-ink-primary">
+                      <input type="radio" checked={incomeMode === "override"} onChange={() => setIncomeMode("override")} />
+                      Manual override (needs a reason)
+                    </label>
+                  </div>
+                  <p className="mt-2 text-ink-secondary">
+                    Non-permissible income and bank-absorbed overheads are excluded automatically; only posted
+                    events in the period that no signed run has used are included.
+                  </p>
                 </div>
+
+                {incomeMode === "override" && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                        Gross Pool Income (PKR) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={grossIncome}
+                        onChange={(e) => setGrossIncome(e.target.value)}
+                        required
+                        className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                        Direct Expenses (PKR)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={directExpenses}
+                        onChange={(e) => setDirectExpenses(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                        Override Reason *
+                      </label>
+                      <input
+                        type="text"
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        required
+                        placeholder="Why the ledger figures are not used"
+                        className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="sm:col-span-4 pt-2">
                   <Button type="submit" variant="primary" disabled={isSimulating}>
@@ -360,6 +411,32 @@ export function AllocationSimulator() {
                   {saveError}
                 </div>
               )}
+
+              {result.income_source && (
+                <div className="rounded-lg border border-white/10 bg-navy-900/50 p-3 text-xs text-ink-secondary">
+                  {result.income_source.mode === "derived_from_events" ? (
+                    <>
+                      Income <strong className="text-ink-primary">PKR {Number(result.gross_income).toLocaleString()}</strong>{" "}
+                      and direct expenses{" "}
+                      <strong className="text-ink-primary">PKR {Number(result.direct_expenses).toLocaleString()}</strong>{" "}
+                      derived from {result.income_source.event_count} posted ledger event(s). Excluded: non-permissible income
+                      PKR {Number(result.income_source.excluded_non_permissible_income ?? 0).toLocaleString()} (to
+                      purification) and bank-absorbed overhead PKR{" "}
+                      {Number(result.income_source.excluded_bank_absorbed_overhead ?? 0).toLocaleString()}.
+                    </>
+                  ) : (
+                    <>
+                      Manual override — reason: <strong className="text-amber-300">{result.income_source.reason}</strong>
+                      {" "}(ledger said PKR {Number(result.income_source.derived_gross_income ?? 0).toLocaleString()}).
+                    </>
+                  )}
+                </div>
+              )}
+              {(result.warnings ?? []).map((warning) => (
+                <div key={warning} className="rounded border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-300">
+                  {warning}
+                </div>
+              ))}
 
               {result.is_loss && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-950/20 p-4 text-amber-300">
@@ -414,8 +491,8 @@ export function AllocationSimulator() {
 
               {/* Shariah Waterfall Breakdown */}
               <ProfitWaterfallChart
-                grossIncome={Number(grossIncome) || Number(result.distributable) + Number(directExpenses || 0)}
-                directExpenses={Number(directExpenses) || 0}
+                grossIncome={Number(result.gross_income ?? 0) || Number(result.distributable) + Number(result.direct_expenses ?? 0)}
+                directExpenses={Number(result.direct_expenses ?? 0)}
                 distributable={Number(result.distributable)}
                 mudaribShare={Number(result.mudarib_share)}
                 depositorShare={Number(result.depositor_pool_share)}

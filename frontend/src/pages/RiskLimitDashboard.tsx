@@ -455,7 +455,7 @@ export function RiskLimitDashboard() {
         {[
           { key: "obligors", label: "Single-Obligor & Counterparties (PR R-1)", count: concentrationData?.obligors.length },
           { key: "sectors", label: "Economic Sector Distribution (PR R-6)", count: concentrationData?.sectors.length },
-          { key: "prudential", label: "SBP Prudential Scorecard", count: concentrationData?.prudential_scorecard.length },
+          { key: "prudential", label: "Indicative Limit Scorecard", count: concentrationData?.prudential_scorecard.length },
           { key: "stress-test", label: "⚡ Concentration Stress Simulator" },
           { key: "exceptions", label: "Governance & Exceptions", count: totalExceptions },
         ].map((tab) => (
@@ -630,8 +630,10 @@ export function RiskLimitDashboard() {
                         </span>
                       ) : item.status === "warning" ? (
                         <Badge variant="gold">EARLY WARNING</Badge>
+                      ) : item.status === "not_assessed" ? (
+                        <Badge variant="neutral">NOT ASSESSED</Badge>
                       ) : (
-                        <Badge variant="emerald">COMPLIANT</Badge>
+                        <Badge variant="emerald">WITHIN LIMIT</Badge>
                       )}
                     </td>
                   </tr>

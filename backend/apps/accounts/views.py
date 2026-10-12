@@ -8,8 +8,10 @@ import qrcode
 from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -18,8 +20,10 @@ from apps.core.audit import log_action
 
 from .authentication import issue_pending_mfa_token, resolve_pending_mfa_user
 from .models import User
-from .permissions import IsPlatformSuperAdmin
+from .permissions import HasAnyRole, IsPlatformSuperAdmin
+from .models import ApprovalAction, ApprovalMatrixRule
 from .serializers import (
+    ApprovalMatrixRuleSerializer,
     LoginSerializer,
     MfaSetupSerializer,
     MfaVerifySerializer,
@@ -40,6 +44,8 @@ TOTP_ISSUER = "Amanah Pool OS"
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -71,6 +77,8 @@ class LoginView(APIView):
 
 class MfaSetupView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = MfaSetupSerializer(data=request.data)
@@ -81,6 +89,10 @@ class MfaSetupView(APIView):
         except InvalidToken as exc:
             return Response({"detail": str(exc)}, status=401)
 
+        if user.mfa_enabled:
+            # The secret is shown only once, at enrolment. Re-issuing it to anyone holding the password would
+            # turn MFA into a single factor; a lost device is reset by an administrator.
+            return Response({"detail": "MFA is already set up for this account."}, status=400)
         if not user.totp_secret:
             user.totp_secret = pyotp.random_base32()
             user.save(update_fields=["totp_secret"])
@@ -104,6 +116,8 @@ class MfaSetupView(APIView):
 
 class MfaVerifyView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = MfaVerifySerializer(data=request.data)
@@ -250,3 +264,58 @@ class UserManagementViewSet(
             },
             request=self.request,
         )
+
+
+class ApprovalMatrixViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Who may give release-type approvals and up to what amount. Owned by Risk & Compliance
+    (BRD 6.1: "Risk validates limits"); rules are deactivated, never deleted.
+    """
+
+    serializer_class = ApprovalMatrixRuleSerializer
+
+    def get_queryset(self):
+        return ApprovalMatrixRule.objects.filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance", "platform_super_admin"])()]
+        return [IsAuthenticated(), HasAnyRole(
+            ["risk_compliance", "platform_super_admin", "finance_checker", "finance_maker", "pool_manager", "auditor",
+             "shariah_board"]
+        )()]
+
+    # Maker-checker: these endpoints only PROPOSE a change (HTTP 202); a different finance checker
+    # approves it under /governance/config-changes/ and only then is it applied.
+    def create(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(kind=ConfigChangeKind.APPROVAL_MATRIX, serializer=serializer, request=request)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    def update(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(
+            kind=ConfigChangeKind.APPROVAL_MATRIX, serializer=serializer, request=request, instance=instance
+        )
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    @action(detail=False, methods=["get"])
+    def actions(self, request):
+        return Response([{"key": key, "label": label} for key, label in ApprovalAction.choices])

@@ -109,6 +109,14 @@ class PurificationEntry(TenantScopedModel):
         blank=True,
         related_name="purification_entries",
     )
+    # The quarantined income event this purification was raised for (one entry per event).
+    income_event = models.OneToOneField(
+        "accounting.IncomeExpenseEvent",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="purification_entry",
+    )
     charity_recipient = models.CharField(max_length=255, null=True, blank=True)
     distributed_date = models.DateField(null=True, blank=True)
     approved_by = models.ForeignKey(
@@ -286,3 +294,39 @@ class ShariahAuditFinding(TenantScopedModel):
     def __str__(self):
         return f"[{self.severity}] {self.title}"
 
+
+
+class ConfigChangeKind(models.TextChoices):
+    APPROVAL_MATRIX = "approval_matrix", "Approval matrix rule"
+    ACCOUNT_MAPPING = "account_mapping", "Account mapping"
+
+
+class ConfigChangeOperation(models.TextChoices):
+    CREATE = "create", "Create"
+    UPDATE = "update", "Update"
+
+
+class ConfigChangeStatus(models.TextChoices):
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved and applied"
+    REJECTED = "rejected", "Rejected"
+
+
+class ConfigChangeRequest(TenantScopedModel):
+    """A proposed change to governance configuration; applied only when an independent approver accepts it."""
+
+    kind = models.CharField(max_length=20, choices=ConfigChangeKind.choices)
+    operation = models.CharField(max_length=10, choices=ConfigChangeOperation.choices)
+    target_id = models.CharField(max_length=64, blank=True, default="")
+    payload = models.JSONField(default=dict)
+    before = models.JSONField(default=dict)
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=ConfigChangeStatus.choices, default=ConfigChangeStatus.PENDING)
+    requested_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True, default="")
+    applied_id = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]

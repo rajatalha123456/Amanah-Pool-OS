@@ -50,6 +50,7 @@ class Participant(TenantScopedModel):
     zakat_exempt = models.BooleanField(default=False)
     default_channel = models.CharField(max_length=10, choices=PayoutChannel.choices, default=PayoutChannel.RAAST)
     nominee_name = models.CharField(max_length=255, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
     user = models.OneToOneField(
         "accounts.User",
         on_delete=models.SET_NULL,

@@ -51,71 +51,50 @@ class ReconciliationTests(TestCase):
     def tearDown(self):
         set_current_tenant(None)
 
-    def _batch(self, total):
+    def _batch(self, gl_credit, subledger_total):
         run = AllocationRun.objects.create(
             tenant=self.tenant,
             pool=self.pool,
             value_date=date(2026, 1, 10),
-            gross_income=total,
-            distributable_amount=total,
-            total_weighted_funds=total,
-            depositor_pool_share=total,
+            gross_income=subledger_total,
+            distributable_amount=subledger_total,
+            total_weighted_funds=subledger_total,
+            depositor_pool_share=subledger_total,
             mudarib_share=Decimal("0"),
+        )
+        AllocationLine.objects.create(
+            tenant=self.tenant, allocation_run=run, participant_class="retail", daily_funds=Decimal("1000.00"),
+            weightage=Decimal("1.00"), weighted_funds=Decimal("1000.00"), allocated_amount=subledger_total,
         )
         batch = JournalBatch.objects.create(
             tenant=self.tenant,
             allocation_run=run,
             pool=self.pool,
             batch_date=date(2026, 1, 10),
-            total_debit=total,
-            total_credit=total,
+            total_debit=gl_credit,
+            total_credit=gl_credit,
         )
         JournalEntry.objects.create(
             tenant=self.tenant,
             batch=batch,
             account_name="Depositor Payable - retail",
+            account_key="depositor_payable",
             entry_type=JournalEntryType.CREDIT,
-            amount=total,
+            amount=gl_credit,
         )
         return batch
 
-    def test_matching_latest_snapshot_creates_no_exception(self):
+    def test_gl_matching_the_participant_subledger_creates_no_exception(self):
+        # Deposits (daily balances) are irrelevant: profit payable is compared with the profit sub-ledger.
         DailyBalance.objects.create(
-            tenant=self.tenant,
-            pool=self.pool,
-            participant_class="retail",
-            value_date=date(2026, 1, 9),
-            balance_amount=Decimal("999.00"),
+            tenant=self.tenant, pool=self.pool, participant_class="retail", value_date=date(2026, 1, 10),
+            balance_amount=Decimal("999999.00"),
         )
-        DailyBalance.objects.create(
-            tenant=self.tenant,
-            pool=self.pool,
-            participant_class="retail",
-            value_date=date(2026, 1, 10),
-            balance_amount=Decimal("60.00"),
-        )
-        DailyBalance.objects.create(
-            tenant=self.tenant,
-            pool=self.pool,
-            participant_class="corporate",
-            value_date=date(2026, 1, 10),
-            balance_amount=Decimal("40.00"),
-        )
-
-        self._batch(Decimal("60.00"))
-        self.assertFalse(check_reconciliation(self._batch(Decimal("40.00"))))
+        self.assertFalse(check_reconciliation(self._batch(Decimal("60.00"), Decimal("60.00"))))
         self.assertFalse(ExceptionCase.objects.exists())
 
-    def test_large_mismatch_creates_high_exception_with_exact_totals(self):
-        DailyBalance.objects.create(
-            tenant=self.tenant,
-            pool=self.pool,
-            participant_class="retail",
-            value_date=date(2026, 1, 10),
-            balance_amount=Decimal("50.00"),
-        )
-
-        batch = self._batch(Decimal("100.00"))
+    def test_gl_subledger_mismatch_creates_high_exception_with_exact_totals(self):
+        batch = self._batch(Decimal("100.00"), Decimal("50.00"))
         self.assertTrue(check_reconciliation(batch))
 
         exception = ExceptionCase.objects.get()
@@ -124,7 +103,6 @@ class ReconciliationTests(TestCase):
         self.assertEqual(exception.severity, "high")
         self.assertIn("100.00", exception.description)
         self.assertIn("50.00", exception.description)
-        self.assertIn("100.00%", exception.description)
 
     @patch("apps.accounting.services.check_reconciliation", side_effect=RuntimeError("test"))
     def test_reconciliation_failure_does_not_block_journal_posting(self, check):

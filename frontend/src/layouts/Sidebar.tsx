@@ -1,9 +1,18 @@
 import { NavLink } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { navItems } from "./navItems"
+import { useAuth } from "../api/auth"
 
 export function Sidebar() {
   const { t, i18n } = useTranslation()
+  const { user } = useAuth()
+  const items =
+    user?.role === "investor_member"
+      ? [
+          { label: "My Portal", labelKey: "nav.myPortal", path: "/" },
+          { label: "Notifications", labelKey: "nav.notifications", path: "/notifications" },
+        ]
+      : navItems
   const isUrdu = i18n.language?.startsWith("ur")
 
   return (
@@ -18,7 +27,7 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 overflow-y-auto px-3">
         <ul className="space-y-0.5">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
@@ -31,16 +40,14 @@ export function Sidebar() {
                   }`
                 }
               >
-                {t(item.labelKey)}
+                {t(item.labelKey, item.label)}
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
       <div className="border-t border-white/5 px-6 py-4">
-        <p className="text-xs text-ink-muted">
-          {isUrdu ? "منیب اے جعفری • چیئرمین" : "Moneeb A. Jaffari • Chairman"}
-        </p>
+        <p className="text-xs text-ink-muted">{user ? `${user.full_name} - ${user.role.replace(/_/g, " ")}` : ""}</p>
       </div>
     </aside>
   )

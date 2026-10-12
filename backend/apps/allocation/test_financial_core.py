@@ -13,6 +13,7 @@ from apps.pools.models import DailyBalance, PeriodCloseChecklist, PeriodCloseSta
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
+from .ceremony_helpers import complete_ceremony
 from .engine import calculate_allocation, compute_run_hash
 from .models import (
     AllocationLine,
@@ -48,6 +49,8 @@ class FinancialCoreTestBase(APITestCase):
 
         self.maker = self._user("maker", UserRole.FINANCE_MAKER)
         self.checker = self._user("checker", UserRole.FINANCE_CHECKER)
+        self.signatory = self._user("signatory", UserRole.AUTHORIZED_SIGNATORY)
+        self.secretariat = self._user("secretariat", UserRole.SHARIAH_SECRETARIAT)
         self.pool = self._make_pool()
 
     def tearDown(self):
@@ -122,6 +125,7 @@ class FinancialCoreTestBase(APITestCase):
                 "pool": str(self.pool.id),
                 "value_date": str(VALUE_DATE),
                 "gross_income": gross,
+                "override_reason": "test fixture",
                 "direct_expenses": expenses,
             },
             format="json",
@@ -138,8 +142,7 @@ class FinancialCoreTestBase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
     def approve(self, run_id):
-        self.authenticate(self.checker)
-        return self.client.post(self.detail(run_id, "approve/"))
+        return complete_ceremony(self, run_id)
 
     def sign_run(self, **kwargs):
         run_id = self.create_run(**kwargs)
@@ -338,7 +341,7 @@ class PeriodLockTests(FinancialCoreTestBase):
         self.authenticate(self.maker)
         response = self.client.post(
             reverse("allocation-run-list"),
-            {"pool": str(self.pool.id), "value_date": str(VALUE_DATE), "gross_income": "10.00"},
+            {"pool": str(self.pool.id), "value_date": str(VALUE_DATE), "gross_income": "10.00", "override_reason": "test fixture"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -348,7 +351,7 @@ class PeriodLockTests(FinancialCoreTestBase):
         self.authenticate(self.maker)
         response = self.client.post(
             reverse("allocation-run-list"),
-            {"pool": str(self.pool.id), "value_date": str(VALUE_DATE), "gross_income": "10.00"},
+            {"pool": str(self.pool.id), "value_date": str(VALUE_DATE), "gross_income": "10.00", "override_reason": "test fixture"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

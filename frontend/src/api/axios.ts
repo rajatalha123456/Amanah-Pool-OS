@@ -85,11 +85,13 @@ apiClient.interceptors.response.use(
 
       try {
         const baseURL = import.meta.env.VITE_API_BASE_URL || "/api/v1/"
-        const response = await axios.post<{ access: string }>(`${baseURL}auth/refresh/`, {
+        const response = await axios.post<{ access: string; refresh?: string }>(`${baseURL}auth/refresh/`, {
           refresh: refreshToken,
         })
         const newAccessToken = response.data.access
         localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken)
+        // Refresh tokens rotate: the old one is blacklisted, so keep the new one.
+        if (response.data.refresh) localStorage.setItem(REFRESH_TOKEN_KEY, response.data.refresh)
         apiClient.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
 

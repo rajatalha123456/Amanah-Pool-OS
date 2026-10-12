@@ -20,17 +20,22 @@ from apps.accounts.permissions import (
     IsShariahBoard,
 )
 from apps.core.audit import log_action
+from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.notifications import events
 from apps.core.exceptions_helper import create_exception_case
 from apps.participants.models import AccountStatus, KYCStatus, ParticipantAccount
 from apps.products.models import ProductStatus
 
+from .activation import activation_checks
+from .config_snapshot import bound_rule_pack, build_pool_snapshot
 from .liquidity import calculate_liquidity_forecast
 from .period_lock import assert_period_open
-from .version_diff import compute_snapshot_hash, generate_version_diff
+from .version_diff import generate_version_diff
 
 from .models import (
     Asset,
     AssetAssignment,
+    AssetProvisionEntry,
     AssetStatus,
     BalanceImportBatch,
     BalanceImportBatchStatus,
@@ -44,6 +49,7 @@ from .models import (
 )
 from .serializers import (
     AssetAssignmentSerializer,
+    AssetProvisionEntrySerializer,
     AssetSerializer,
     BalanceImportBatchSerializer,
     BulkBalanceImportSerializer,
@@ -56,61 +62,9 @@ from .serializers import (
 CONTROL_TOTAL_TOLERANCE = Decimal("0.01")
 
 
-def _build_pool_snapshot(pool):
-    product = pool.product
-    contract_template = product.contract_template
-    snapshot = {
-        "product": {
-            "id": str(product.id),
-            "name": product.name,
-            "code": product.code,
-            "operating_model": product.operating_model,
-            "status": product.status,
-        },
-        "contract_template": {
-            "id": str(contract_template.id),
-            "name": contract_template.name,
-            "contract_type": contract_template.contract_type,
-            "version": contract_template.version,
-            "clauses": contract_template.clauses,
-            "status": contract_template.status,
-        },
-        "psr": {
-            "mudarib_share_pct": 50.0,
-            "rabbul_maal_share_pct": 50.0,
-            "wakalah_fee_pct": 0.0,
-            "performance_incentive_pct": 10.0,
-        },
-        "reserve_policy": {
-            "per_ceiling_pct": 2.0,
-            "irr_ceiling_pct": 1.0,
-            "max_monthly_appropriation_pct": 15.0,
-            "hiba_concession_allowed": True,
-        },
-        "benchmarks": {
-            "benchmark_index": "1-Month KIBOR",
-            "spread_bps": 50,
-            "target_yield_pct": 18.50,
-        },
-        "weightage_bands": [
-            {"code": "TIER-SAV-01", "name": "Savings Account - Retail", "weight": 1.00, "min_tenor_days": 0},
-            {"code": "TIER-SAV-02", "name": "Savings Account - High Net Worth", "weight": 1.20, "min_tenor_days": 0},
-            {"code": "TIER-TERM-03", "name": "Term Deposit - 1 Year", "weight": 1.45, "min_tenor_days": 365},
-            {"code": "TIER-TERM-04", "name": "Term Deposit - 3 Year", "weight": 1.65, "min_tenor_days": 1095},
-        ],
-        "governance": {
-            "shariah_resolution_code": "SB-RES-2026-01",
-            "approving_scholar": "Mufti Dr. Taqi Usmani (Shariah Board Chair)",
-            "effective_value_date": str(pool.effective_date),
-            "change_rationale": "Initial pool structure approval by Shariah Board",
-        },
-    }
-    snapshot["snapshot_hash"] = compute_snapshot_hash(snapshot)
-    return snapshot
-
-
-class PoolViewSet(viewsets.ModelViewSet):
+class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     serializer_class = PoolSerializer
+    http_method_names = NO_DELETE
 
     def get_queryset(self):
         # See apps/products/views.py for why this must be a method rather
@@ -119,13 +73,13 @@ class PoolViewSet(viewsets.ModelViewSet):
         return Pool.objects.all()
 
     def get_permissions(self):
-        if self.action in ("create", "submit_for_approval", "open"):
+        if self.action in ("create", "update", "partial_update", "submit_for_approval", "open", "create_version"):
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
         if self.action == "close":
             return [IsAuthenticated(), IsFinanceChecker()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -137,6 +91,14 @@ class PoolViewSet(viewsets.ModelViewSet):
             object_id=str(instance.id),
             request=self.request,
         )
+
+    @action(detail=False, methods=["get"], url_path="portfolio-summary")
+    def portfolio_summary(self, request):
+        """Real funds / signed profit / yield per pool for the dashboards (no placeholder figures)."""
+        from .portfolio import portfolio_summary
+
+        pools = Pool.objects.select_related("product__contract_template").order_by("code")
+        return Response(portfolio_summary(list(pools)))
 
     @action(detail=True, methods=["get"])
     def versions(self, request, pk=None):
@@ -181,50 +143,54 @@ class PoolViewSet(viewsets.ModelViewSet):
         diff_data = generate_version_diff(pool, v1, v2)
         return Response(diff_data)
 
+    @action(detail=True, methods=["get"], url_path="activation-readiness")
+    def activation_readiness(self, request, pk=None):
+        """BR-001 checklist: what stands between this pool and activation."""
+        pool = self.get_object()
+        checks = activation_checks(pool)
+        return Response({"pool": str(pool.id), "ready": all(c["passed"] for c in checks), "checks": checks})
+
     @action(detail=True, methods=["post"], url_path="create-version")
     def create_version(self, request, pk=None):
         """
-        Create a new pool version with updated parameters and Shariah attestation.
+        Seals the pool's *current* governing configuration as a new version. Economics are not typed
+        here: change the approved PSR / weightage bands / reserves through their own approvals, then
+        seal. A version identical to the latest one is refused.
         """
         pool = self.get_object()
+        if pool.status not in (PoolStatus.OPEN, PoolStatus.ALLOCATION):
+            raise ValidationError("Versions can only be sealed for an open pool.")
+
         data = request.data or {}
+        rationale = (data.get("change_rationale") or "").strip()
+        if not rationale:
+            raise ValidationError({"change_rationale": ["A change rationale is required."]})
+
+        effective = data.get("effective_value_date")
+        if effective:
+            try:
+                effective = date.fromisoformat(str(effective))
+            except ValueError:
+                raise ValidationError({"effective_value_date": ["Enter a valid date (YYYY-MM-DD)."]})
 
         latest_version = pool.versions.order_by("-version_number").first()
+        snapshot = build_pool_snapshot(pool, change_rationale=rationale, effective_value_date=effective)
+        if latest_version and (latest_version.snapshot or {}).get("config_hash") == snapshot["config_hash"]:
+            raise ValidationError(
+                "The pool's governing configuration has not changed since the latest version; nothing to seal."
+            )
         new_version_num = (latest_version.version_number + 1) if latest_version else 1
 
-        # Base snapshot
-        snapshot = dict(latest_version.snapshot) if (latest_version and latest_version.snapshot) else _build_pool_snapshot(pool)
-
-        if "psr" in data:
-            snapshot["psr"] = data["psr"]
-        if "reserve_policy" in data:
-            snapshot["reserve_policy"] = data["reserve_policy"]
-        if "benchmarks" in data:
-            snapshot["benchmarks"] = data["benchmarks"]
-        if "weightage_bands" in data:
-            snapshot["weightage_bands"] = data["weightage_bands"]
-
-        gov = snapshot.get("governance", {})
-        gov.update({
-            "shariah_resolution_code": data.get("shariah_resolution_code", f"SB-RES-2026-V{new_version_num}"),
-            "approving_scholar": data.get("approving_scholar", "Mufti Dr. Taqi Usmani (Shariah Board Chair)"),
-            "effective_value_date": data.get("effective_value_date", str(timezone.localdate())),
-            "change_rationale": data.get("change_rationale", f"Periodic parameter calibration v{new_version_num}"),
-        })
-        snapshot["governance"] = gov
-        snapshot["snapshot_hash"] = compute_snapshot_hash(snapshot)
-
-        # Deactivate prior versions
-        pool.versions.all().update(is_current=False)
-
-        new_version = PoolVersion.objects.create(
-            tenant=pool.tenant,
-            pool=pool,
-            version_number=new_version_num,
-            snapshot=snapshot,
-            created_by=request.user,
-            is_current=True,
-        )
+        with transaction.atomic():
+            pool.versions.all().update(is_current=False)
+            new_version = PoolVersion.objects.create(
+                tenant=pool.tenant,
+                pool=pool,
+                version_number=new_version_num,
+                snapshot=snapshot,
+                created_by=request.user,
+                is_current=True,
+            )
 
         log_action(
             tenant=pool.tenant,
@@ -232,7 +198,8 @@ class PoolViewSet(viewsets.ModelViewSet):
             action="create_pool_version",
             model_name="PoolVersion",
             object_id=str(new_version.id),
-            reason=gov["change_rationale"],
+            reason=rationale,
+            changes={"version_number": new_version_num, "config_hash": snapshot["config_hash"]},
             request=request,
         )
 
@@ -278,6 +245,7 @@ class PoolViewSet(viewsets.ModelViewSet):
             changes={"status": {"before": PoolStatus.DRAFT, "after": PoolStatus.PENDING_APPROVAL}},
             request=request,
         )
+        events.pool_submitted(pool, request.user)
         return Response(self.get_serializer(pool).data)
 
     @action(detail=True, methods=["post"])
@@ -302,6 +270,7 @@ class PoolViewSet(viewsets.ModelViewSet):
             changes={"status": {"before": PoolStatus.PENDING_APPROVAL, "after": PoolStatus.APPROVED}},
             request=request,
         )
+        events.pool_approved(pool, request.user)
         return Response(self.get_serializer(pool).data)
 
     @action(detail=True, methods=["post"])
@@ -314,14 +283,26 @@ class PoolViewSet(viewsets.ModelViewSet):
                 f"(current status: '{pool.status}')."
             )
 
+        # BR-001: contract, Shariah decision, rule pack, approved economics, accounting mapping and
+        # approval matrix must all be in place before the pool goes live.
+        failed = [
+            f"{check['label']}: {check['detail']}".rstrip(": ")
+            for check in activation_checks(pool)
+            if not check["passed"]
+        ]
+        if failed:
+            raise ValidationError({"activation": failed})
+
+        if pool.rule_pack_id is None:
+            pool.rule_pack = bound_rule_pack(pool)
         pool.status = PoolStatus.OPEN
-        pool.save(update_fields=["status", "updated_at"])
+        pool.save(update_fields=["status", "rule_pack", "updated_at"])
 
         version = PoolVersion.objects.create(
             tenant=pool.tenant,
             pool=pool,
             version_number=1,
-            snapshot=_build_pool_snapshot(pool),
+            snapshot=build_pool_snapshot(pool, change_rationale="Initial version sealed on activation"),
             created_by=request.user,
             is_current=True,
         )
@@ -372,8 +353,11 @@ class PoolViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(pool).data)
 
 
-class AssetViewSet(viewsets.ModelViewSet):
+class AssetViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     serializer_class = AssetSerializer
+    http_method_names = NO_DELETE
+    # An asset held by a pool is changed only through provisions, write-offs or transfers.
+    editable_statuses = ("available",)
 
     def get_queryset(self):
         return Asset.objects.all()
@@ -381,7 +365,9 @@ class AssetViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
-        return [IsAuthenticated()]
+        if self.action in ("remediation_plan", "stress_test"):
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant)
@@ -443,6 +429,8 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 class AssetAssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = AssetAssignmentSerializer
+    # Assignments are history: created, ended (unassign) or moved (transfer) - never edited or deleted.
+    http_method_names = READ_AND_POST
 
     def get_queryset(self):
         queryset = AssetAssignment.objects.all()
@@ -452,9 +440,9 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "unassign"):
+        if self.action in ("create", "unassign", "transfer"):
             return [IsAuthenticated(), IsPoolManager()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
         instance = serializer.save(tenant=self.request.user.tenant, assigned_by=self.request.user)
@@ -495,6 +483,40 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(assignment).data)
+
+    @action(detail=True, methods=["post"])
+    def transfer(self, request, pk=None):
+        """Effective-dated move of the asset to another pool (old assignment ends the day before)."""
+        from .asset_rules import transfer_asset
+
+        assignment = self.get_object()
+        to_pool = Pool.objects.filter(id=request.data.get("to_pool")).first()
+        if to_pool is None:
+            raise ValidationError({"to_pool": ["A valid destination pool is required."]})
+        try:
+            effective_date = date.fromisoformat(str(request.data.get("effective_date")))
+        except ValueError:
+            raise ValidationError({"effective_date": ["A valid date (YYYY-MM-DD) is required."]})
+
+        with transaction.atomic():
+            new_assignment = transfer_asset(
+                assignment, to_pool, effective_date, str(request.data.get("reason") or ""), request.user
+            )
+            log_action(
+                tenant=assignment.tenant,
+                actor=request.user,
+                action="transfer",
+                model_name="AssetAssignment",
+                object_id=str(assignment.id),
+                changes={
+                    "from_pool": str(assignment.pool_id),
+                    "to_pool": str(to_pool.id),
+                    "effective_date": str(effective_date),
+                },
+                reason=new_assignment.transfer_reason,
+                request=request,
+            )
+        return Response(self.get_serializer(new_assignment).data)
 
 
 class DailyBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -743,121 +765,163 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 
 
-class PeriodCloseChecklistViewSet(viewsets.ModelViewSet):
+class PeriodCloseChecklistViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+):
     """
-    Screen 16: Period Close Manager - Close checklist, locks and certification.
+    Screen 16: Period Close Manager. Status only moves through gate verification, three role sign-offs
+    and the lock ceremony (see period_close_engine); it is never edited directly and a record is never deleted.
     """
 
     serializer_class = PeriodCloseChecklistSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = PeriodCloseChecklist.objects.all()
+        queryset = PeriodCloseChecklist.objects.select_related("pool__product")
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
         return queryset
 
+    def get_permissions(self):
+        if self.action in ("create", "auto_verify_gates"):
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker", "finance_checker"])()]
+        if self.action == "sign_off_role":
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "shariah_secretariat", "shariah_board", "finance_checker"])()]
+        if self.action in ("lock", "lock_ceremony", "certify"):
+            return [IsAuthenticated(), HasAnyRole(["finance_checker", "authorized_signatory"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+
     def perform_create(self, serializer):
-        default_checklist = {
-            "reconciled": True,
-            "shariah_parameters_sealed": True,
-            "exceptions_cleared": True,
-            "allocation_signed": True,
-            "journals_posted": True,
-        }
-        checklist = serializer.validated_data.get("checklist_data") or default_checklist
-        instance = serializer.save(
-            tenant=self.request.user.tenant,
-            checklist_data=checklist,
+        data = serializer.validated_data
+        if data["period_start"] > data["period_end"]:
+            raise ValidationError({"period_start": ["The period cannot start after it ends."]})
+        overlapping = PeriodCloseChecklist.objects.filter(
+            pool=data["pool"], period_start__lte=data["period_end"], period_end__gte=data["period_start"]
         )
+        if overlapping.exists():
+            raise ValidationError("A close record already covers part of this period.")
+        instance = serializer.save(tenant=self.request.user.tenant, checklist_data={})
         log_action(
-            tenant=instance.tenant,
-            actor=self.request.user,
-            action="create",
-            model_name="PeriodCloseChecklist",
-            object_id=str(instance.id),
-            request=self.request,
+            tenant=instance.tenant, actor=self.request.user, action="create", model_name="PeriodCloseChecklist",
+            object_id=str(instance.id), request=self.request,
         )
 
     @action(detail=True, methods=["post"], url_path="certify")
     def certify(self, request, pk=None):
-        instance = self.get_object()
-        instance.status = PeriodCloseStatus.CERTIFIED
-        instance.certified_by = request.user
-        instance.certified_at = timezone.now()
-        instance.decision_note = request.data.get(
-            "decision_note", "Variance is within tolerance. Certified for close."
+        raise ValidationError(
+            "A period is certified by the three role sign-offs (pool manager, Shariah reviewer, finance checker)."
         )
-        instance.save(
-            update_fields=["status", "certified_by", "certified_at", "decision_note", "updated_at"]
-        )
-        log_action(
-            tenant=instance.tenant,
-            actor=request.user,
-            action="certify",
-            model_name="PeriodCloseChecklist",
-            object_id=str(instance.id),
-            request=request,
-        )
-        return Response(self.get_serializer(instance).data)
 
     @action(detail=True, methods=["post"], url_path="lock")
     def lock(self, request, pk=None):
-        instance = self.get_object()
-        instance.status = PeriodCloseStatus.LOCKED
-        instance.save(update_fields=["status", "updated_at"])
-        log_action(
-            tenant=instance.tenant,
-            actor=request.user,
-            action="lock",
-            model_name="PeriodCloseChecklist",
-            object_id=str(instance.id),
-            request=request,
-        )
-        return Response(self.get_serializer(instance).data)
+        return self.lock_ceremony(request, pk)
 
     @action(detail=True, methods=["post"], url_path="auto-verify-gates")
     def auto_verify_gates(self, request, pk=None):
-        instance = self.get_object()
         from .period_close_engine import auto_verify_period_gates
-        res = auto_verify_period_gates(instance)
-        return Response(res)
+
+        return Response(auto_verify_period_gates(self.get_object(), request.user))
 
     @action(detail=True, methods=["post"], url_path="sign-off-role")
     def sign_off_role(self, request, pk=None):
-        instance = self.get_object()
-        role = request.data.get("role", "pool_manager")
-        notes = request.data.get("notes", "")
-        fatwa_ref = request.data.get("fatwa_ref", "")
-
         from .period_close_engine import sign_off_period_role
-        res = sign_off_period_role(
-            period_close=instance,
-            user=request.user,
-            role=role,
-            notes=notes,
-            fatwa_ref=fatwa_ref,
+
+        return Response(
+            sign_off_period_role(
+                period_close=self.get_object(), user=request.user, role=str(request.data.get("role") or ""),
+                notes=str(request.data.get("notes") or ""), fatwa_ref=str(request.data.get("fatwa_ref") or ""),
+            )
         )
-        return Response(res)
 
     @action(detail=True, methods=["post"], url_path="lock-ceremony")
     def lock_ceremony(self, request, pk=None):
-        instance = self.get_object()
-        lock_note = request.data.get("lock_note", "")
-
         from .period_close_engine import execute_cryptographic_lock_ceremony
-        res = execute_cryptographic_lock_ceremony(
-            period_close=instance,
-            user=request.user,
-            lock_note=lock_note,
+
+        return Response(
+            execute_cryptographic_lock_ceremony(
+                period_close=self.get_object(), user=request.user, lock_note=str(request.data.get("lock_note") or "")
+            )
         )
-        return Response(res)
 
     @action(detail=True, methods=["get"], url_path="filing-package")
     def filing_package(self, request, pk=None):
-        instance = self.get_object()
         from .period_close_engine import get_sbp_filing_certificate
-        pkg = get_sbp_filing_certificate(instance)
-        return Response(pkg)
 
+        return Response(get_sbp_filing_certificate(self.get_object()))
+
+
+class AssetProvisionEntryViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+):
+    """Maker-checker provisions, write-offs and recoveries on assets (BRD 6.4)."""
+
+    serializer_class = AssetProvisionEntrySerializer
+
+    def get_queryset(self):
+        queryset = AssetProvisionEntry.objects.select_related("asset", "pool", "created_by", "approved_by")
+        for param in ("asset", "pool", "status"):
+            value = self.request.query_params.get(param)
+            if value:
+                queryset = queryset.filter(**{param: value})
+        return queryset
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager"])()]
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), HasAnyRole(["finance_checker"])()]
+        return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker", "pool_manager", "auditor",
+                                               "risk_compliance", "shariah_board", "shariah_secretariat",
+                                               "platform_super_admin"])()]
+
+    def create(self, request, *args, **kwargs):
+        from .provisions import create_entry
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        entry = create_entry(
+            asset=data["asset"], entry_type=data["entry_type"], amount=data["amount"],
+            effective_date=data["effective_date"], reason=data["reason"], user=request.user,
+        )
+        log_action(
+            tenant=entry.tenant, actor=request.user, action=f"asset_{entry.entry_type}_requested",
+            model_name="AssetProvisionEntry", object_id=str(entry.id),
+            changes={"asset": str(entry.asset_id), "amount": str(entry.amount)}, reason=entry.reason,
+            request=request,
+        )
+        return Response(self.get_serializer(entry).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from .provisions import approve_entry
+
+        entry = approve_entry(self.get_object(), request.user)
+        log_action(
+            tenant=entry.tenant, actor=request.user, action=f"asset_{entry.entry_type}_approved",
+            model_name="AssetProvisionEntry", object_id=str(entry.id),
+            changes={"amount": str(entry.amount), "journal_batch": str(entry.journal_batch_id)}, request=request,
+        )
+        return Response(self.get_serializer(entry).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .provisions import reject_entry
+
+        entry = reject_entry(self.get_object(), request.user, str(request.data.get("reason") or ""))
+        log_action(
+            tenant=entry.tenant, actor=request.user, action=f"asset_{entry.entry_type}_rejected",
+            model_name="AssetProvisionEntry", object_id=str(entry.id), reason=entry.rejection_reason,
+            request=request,
+        )
+        return Response(self.get_serializer(entry).data)
+
+    @action(detail=False, methods=["get"])
+    def position(self, request):
+        """Provision balance / write-off / recovery position of one asset (?asset=<id>)."""
+        from .provisions import asset_position
+
+        asset = Asset.objects.filter(id=request.query_params.get("asset")).first()
+        if asset is None:
+            raise ValidationError({"asset": ["A valid asset is required."]})
+        return Response({k: str(v) for k, v in asset_position(asset).items()})

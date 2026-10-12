@@ -33,6 +33,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 ]
 
@@ -43,6 +44,7 @@ LOCAL_APPS = [
     "apps.products",
     "apps.pools",
     "apps.participants",
+    "apps.notifications",
     "apps.allocation",
     "apps.accounting",
     "apps.governance",
@@ -147,10 +149,12 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.accounts.authentication.TenantBoundJWTAuthentication",
     ],
+    # Login and MFA endpoints are rate limited per client to stop password / 6-digit code guessing.
+    "DEFAULT_THROTTLE_RATES": {"auth": config("AUTH_THROTTLE_RATE", default="10/min")},
 }
 
-# Require TOTP MFA at login. Disable only for local development via env.
-MFA_ENFORCED = config("MFA_ENFORCED", default=True, cast=bool)
+# Require TOTP MFA at login when explicitly enabled via env.
+MFA_ENFORCED = config("MFA_ENFORCED", default=False, cast=bool)
 
 
 # JWT (djangorestframework-simplejwt)
@@ -158,7 +162,10 @@ MFA_ENFORCED = config("MFA_ENFORCED", default=True, cast=bool)
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=20),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": False,
+    # Each refresh issues a new refresh token and blacklists the old one, so a stolen refresh token
+    # stops working after one use and logout can revoke it.
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
@@ -195,6 +202,16 @@ ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL = config(
 # Payout clearing: liquidity of the settlement (nostro) account. There is no live
 # balance feed, so the pre-disbursement liquidity gate fails unless this is set.
 PAYOUT_SETTLEMENT_ACCOUNT_BALANCE = config("PAYOUT_SETTLEMENT_ACCOUNT_BALANCE", default=None, cast=lambda v: Decimal(v) if v else None)
+
+
+# Email (notifications). The console backend only prints; set EMAIL_BACKEND and SMTP_* for real delivery.
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = config("EMAIL_HOST", default="localhost")
+EMAIL_PORT = config("EMAIL_PORT", default=25, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=False, cast=bool)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Amanah Pool OS <no-reply@amanah.local>")
 
 
 # Logging

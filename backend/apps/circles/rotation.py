@@ -1,62 +1,114 @@
+"""
+Verifiable payout-order draw (Qur'ah) for community circles.
+
+Commit-reveal: `commit_draw` stores a secret server seed and publishes only its SHA-256
+commitment; `execute_draw` takes a client seed (supplied by the organizer / members after the
+commitment is public), derives the order, and reveals the server seed. The order is a pure function
+of (server seed, client seed, participant list), so `verify_draw` lets anyone recompute it and check
+that the seed matches the earlier commitment - the organizer cannot choose the outcome.
+"""
+
+import hashlib
+import hmac
 import secrets
 
 from django.db import transaction
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
-from .models import CircleMember, CircleMemberStatus
+from .models import CircleDraw, CircleMember, CircleMemberStatus, DrawStatus
+from .rules import assert_rules_accepted
 
 
-def run_draw(pool):
-    """
-    Randomly assigns payout_position to every "active" CircleMember of
-    `pool` whose payout_position is currently null.
+def commitment_of(server_seed, pool_code, sequence):
+    return hashlib.sha256(f"{server_seed}:{pool_code}:{sequence}".encode()).hexdigest()
 
-    Uses the `secrets` module (not `random`) because `random` is a
-    Mersenne Twister PRNG - its output is predictable from enough past
-    samples, which would let someone with knowledge of prior draws (or
-    the process's PRNG state) infer or influence future draw order.
-    `secrets` draws from the OS's cryptographically secure random source,
-    so the order can't be predicted or manipulated in advance.
 
-    A hex seed (secrets.token_hex()) is generated per draw and returned
-    alongside the assignments purely as an audit/transparency record -
-    it is stored (via the caller, in the AuditLog and later copied onto
-    each Payout) so the draw can be pointed to later as evidence a
-    member's position was assigned by this specific randomized run, not
-    chosen after the fact. The seed itself does not (and, because
-    `secrets` is not seedable in the way `random.seed()` is, cannot)
-    deterministically reproduce the shuffle - it is an audit token, not
-    a replayable RNG seed.
+def derive_order(server_seed, client_seed, participants):
+    """Deterministic Fisher-Yates shuffle keyed by HMAC-SHA256 (modulo bias is ~2^-250, negligible)."""
+    order = list(participants)
+    message_base = f"{client_seed}|{'|'.join(participants)}"
+    for i in range(len(order) - 1, 0, -1):
+        digest = hmac.new(server_seed.encode(), f"{message_base}|{i}".encode(), hashlib.sha256).digest()
+        j = int.from_bytes(digest, "big") % (i + 1)
+        order[i], order[j] = order[j], order[i]
+    return order
 
-    New positions are appended after whatever positions are already
-    assigned (i.e. this can be called incrementally as new members join
-    an existing circle without disturbing earlier members' positions).
 
-    Returns: {"seed": str, "assignments": [{"member_id": str, "position": int}]}
-    """
+def _undrawn(pool):
+    return list(
+        CircleMember.objects.select_for_update().filter(
+            pool=pool, status=CircleMemberStatus.ACTIVE, payout_position__isnull=True
+        )
+    )
 
-    seed = secrets.token_hex(16)
 
+def commit_draw(pool, user=None):
     with transaction.atomic():
-        members = list(
-            CircleMember.objects.select_for_update()
-            .filter(pool=pool, status=CircleMemberStatus.ACTIVE, payout_position__isnull=True)
+        if CircleDraw.objects.filter(pool=pool, status=DrawStatus.COMMITTED).exists():
+            raise ValidationError("A draw is already committed for this circle; execute it first.")
+        assert_rules_accepted(pool)
+        members = _undrawn(pool)
+        if not members:
+            raise ValidationError("Every active member already has a payout position.")
+        sequence = CircleDraw.objects.filter(pool=pool).count() + 1
+        server_seed = secrets.token_hex(32)
+        return CircleDraw.objects.create(
+            tenant=pool.tenant, pool=pool, sequence=sequence, server_seed=server_seed,
+            commitment=commitment_of(server_seed, pool.code, sequence),
+            participants=sorted(m.member_reference for m in members), committed_by=user,
         )
 
-        # secrets.SystemRandom().shuffle uses the same os.urandom-backed
-        # source as the rest of the `secrets` module, unlike the default
-        # `random.shuffle` (Mersenne Twister).
-        secrets.SystemRandom().shuffle(members)
 
-        starting_position = (
-            CircleMember.objects.filter(pool=pool, payout_position__isnull=False).count()
-        )
-
+def execute_draw(draw, client_seed, user=None):
+    if draw.status != DrawStatus.COMMITTED:
+        raise ValidationError("This draw has already been executed.")
+    client_seed = (client_seed or "").strip()
+    if len(client_seed) < 4:
+        raise ValidationError({"client_seed": ["A client seed of at least 4 characters is required."]})
+    pool = draw.pool
+    with transaction.atomic():
+        assert_rules_accepted(pool)
+        members = {m.member_reference: m for m in _undrawn(pool)}
+        if sorted(members) != draw.participants:
+            raise ValidationError("Membership changed since the draw was committed; start a new draw.")
+        order = derive_order(draw.server_seed, client_seed, draw.participants)
+        start = CircleMember.objects.filter(pool=pool, payout_position__isnull=False).count()
         assignments = []
-        for offset, member in enumerate(members, start=1):
-            position = starting_position + offset
-            member.payout_position = position
-            assignments.append({"member_id": str(member.id), "position": position})
+        for offset, reference in enumerate(order, start=1):
+            members[reference].payout_position = start + offset
+            assignments.append(
+                {"member_reference": reference, "member_id": str(members[reference].id), "position": start + offset}
+            )
+        CircleMember.objects.bulk_update(list(members.values()), ["payout_position", "updated_at"])
+        draw.client_seed = client_seed
+        draw.assignments = assignments
+        draw.status = DrawStatus.EXECUTED
+        draw.executed_by = user
+        draw.executed_at = timezone.now()
+        draw.result_hash = hashlib.sha256(
+            f"{draw.commitment}|{draw.server_seed}|{client_seed}|{order}".encode()
+        ).hexdigest()
+        draw.save()
+    return draw
 
-        CircleMember.objects.bulk_update(members, ["payout_position", "updated_at"])
 
-    return {"seed": seed, "assignments": assignments}
+def verify_draw(draw):
+    """Recomputes an executed draw from its revealed seeds."""
+    if draw.status != DrawStatus.EXECUTED:
+        return {"verified": False, "reason": "The draw has not been executed; the server seed is still hidden."}
+    commitment_ok = draw.commitment == commitment_of(draw.server_seed, draw.pool.code, draw.sequence)
+    order = derive_order(draw.server_seed, draw.client_seed, draw.participants)
+    recorded = [a["member_reference"] for a in sorted(draw.assignments, key=lambda a: a["position"])]
+    return {
+        "verified": commitment_ok and order == recorded,
+        "commitment_matches_seed": commitment_ok,
+        "order_matches": order == recorded,
+        "recomputed_order": order,
+    }
+
+
+def run_draw(pool, client_seed=None, user=None):
+    """Single-step draw (commit + execute immediately). Prefer the two-step flow for real circles."""
+    draw = execute_draw(commit_draw(pool, user), client_seed or secrets.token_hex(8), user)
+    return {"seed": draw.server_seed, "assignments": draw.assignments, "draw_id": str(draw.id)}

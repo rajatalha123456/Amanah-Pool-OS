@@ -55,6 +55,12 @@ class TenantBoundJWTAuthentication(JWTAuthentication):
             return None
 
         user, _token = result
+        # Investors/members only reach their own self-service endpoints (deny by default).
+        from .investor_scope import assert_investor_scope
+
+        if not request.path.startswith("/api/v1/auth/me"):
+            assert_investor_scope(user, request)
+
         # DRF wraps the Django request; the middleware set .tenant on the original.
         request_tenant = getattr(request, "tenant", None)
         if request_tenant is None:

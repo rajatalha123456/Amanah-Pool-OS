@@ -3,6 +3,8 @@ from rest_framework import serializers
 from .models import (
     CapitalAccount,
     ImpairmentEvent,
+    InvestmentDistributionLine,
+    InvestmentDistributionRun,
     InvestorProfile,
     NAVSnapshot,
     Redemption,
@@ -18,12 +20,46 @@ class CapitalAccountSerializer(serializers.ModelSerializer):
             "pool",
             "investor_name",
             "investor_reference",
+            "participant",
+            "is_managing_partner",
             "units_held",
             "status",
             "created_at",
             "updated_at",
         )
         read_only_fields = ("id", "units_held", "status", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            # An account's pool and owner never change: units, movements and statements belong to them.
+            for field in ("pool", "participant", "is_managing_partner"):
+                if field in attrs and attrs[field] != getattr(self.instance, field):
+                    raise serializers.ValidationError({field: ["This cannot be changed once the account exists."]})
+        if attrs.get("is_managing_partner"):
+            pool = attrs.get("pool", getattr(self.instance, "pool", None))
+            if pool is not None:
+                if pool.product.contract_template.contract_type != "musharakah":
+                    raise serializers.ValidationError(
+                        {"is_managing_partner": "Only a Musharakah pool has a managing partner capital account."}
+                    )
+                others = CapitalAccount.objects.filter(pool=pool, is_managing_partner=True)
+                if self.instance is not None:
+                    others = others.exclude(pk=self.instance.pk)
+                if others.exists():
+                    raise serializers.ValidationError(
+                        {"is_managing_partner": "This pool already has a managing partner capital account."}
+                    )
+        return attrs
+
+    def __init__(self, *args, **kwargs):
+        # Built per instance, after TenantMiddleware set the tenant (a class-level
+        # queryset on a TenantScopedManager would be frozen empty at import time).
+        super().__init__(*args, **kwargs)
+        from apps.participants.models import Participant
+
+        self.fields["participant"] = serializers.PrimaryKeyRelatedField(
+            queryset=Participant.objects.all(), required=False, allow_null=True
+        )
 
 
 class InvestorProfileSerializer(serializers.ModelSerializer):
@@ -115,10 +151,17 @@ class RedemptionSerializer(serializers.ModelSerializer):
             "amount",
             "transaction_date",
             "status",
+            "requested_by",
+            "approved_by",
+            "approved_at",
+            "rejection_reason",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "amount", "status", "created_at", "updated_at")
+        read_only_fields = (
+            "id", "amount", "status", "requested_by", "approved_by", "approved_at", "rejection_reason",
+            "created_at", "updated_at",
+        )
 
 
 class NAVSnapshotSerializer(serializers.ModelSerializer):
@@ -149,3 +192,62 @@ class NAVSnapshotSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+
+class DistributionLineSerializer(serializers.ModelSerializer):
+    investor_reference = serializers.CharField(source="capital_account.investor_reference", read_only=True)
+    investor_name = serializers.CharField(source="capital_account.investor_name", read_only=True)
+
+    class Meta:
+        model = InvestmentDistributionLine
+        fields = (
+            "id",
+            "capital_account",
+            "investor_reference",
+            "investor_name",
+            "average_units",
+            "share_ratio",
+            "allocated_amount",
+        )
+        read_only_fields = fields
+
+
+class DistributionRunSerializer(serializers.ModelSerializer):
+    lines = DistributionLineSerializer(many=True, read_only=True)
+    journal_batch_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvestmentDistributionRun
+        fields = (
+            "id",
+            "pool",
+            "period_start",
+            "period_end",
+            "gross_income",
+            "direct_expenses",
+            "distributable_amount",
+            "investor_share",
+            "manager_share",
+            "rounding_residual",
+            "total_average_units",
+            "is_loss",
+            "config_snapshot",
+            "status",
+            "calculation_hash",
+            "replaces_run",
+            "is_restatement",
+            "restatement_reason",
+            "created_by",
+            "checked_by",
+            "checked_at",
+            "rejection_reason",
+            "lines",
+            "journal_batch_id",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_journal_batch_id(self, obj):
+        batch = getattr(obj, "journal_batch", None)
+        return str(batch.id) if batch else None

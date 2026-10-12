@@ -115,6 +115,12 @@ class Product(TenantScopedModel):
     )
     status = models.CharField(max_length=20, choices=ProductStatus.choices, default=ProductStatus.DRAFT)
     base_currency = models.CharField(max_length=10, default="PKR")
+    # Asset types (pools.AssetType values) a pool of this product may hold. Empty = no restriction.
+    eligible_asset_types = models.JSONField(default=list, blank=True)
+    # Investment-pool exit terms: minimum notice before the dealing date, and the share of pool value that may
+    # be redeemed in any 30-day window (100 = no gate).
+    redemption_notice_days = models.PositiveIntegerField(default=0)
+    redemption_gate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=100)
 
     class Meta:
         constraints = [

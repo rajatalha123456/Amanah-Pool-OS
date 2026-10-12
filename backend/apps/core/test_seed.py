@@ -18,7 +18,7 @@ class SeedProjectDataTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        call_command("seed_project_data", tenant_code="SEED-TEST", stdout=StringIO())
+        call_command("seed_project_data", tenant_code="SEED-TEST", allow_non_debug=True, stdout=StringIO())
         cls.tenant = Tenant.objects.get(code="SEED-TEST")
 
     def setUp(self):
@@ -28,11 +28,11 @@ class SeedProjectDataTests(TestCase):
         set_current_tenant(None)
 
     def test_participants_accounts_and_balances(self):
-        self.assertEqual(Participant.objects.count(), 12)
-        self.assertEqual(ParticipantAccount.objects.count(), 12)
+        self.assertEqual(Participant.objects.count(), 13)  # 12 depositors + the Mudarabah investor
+        self.assertEqual(ParticipantAccount.objects.count(), 12)  # depositor accounts in the bank pool
         self.assertEqual(DailyBalance.objects.filter(account__isnull=False).count(), 12 * 92)
         self.assertEqual(DailyBalance.objects.filter(account__isnull=True).count(), 0)
-        self.assertEqual(Participant.objects.filter(user__isnull=False).count(), 1)
+        self.assertEqual(Participant.objects.filter(user__isnull=False).count(), 2)
 
     def test_runs_are_real_signed_and_sealed(self):
         statuses = sorted(AllocationRun.objects.values_list("status", flat=True))
@@ -72,3 +72,18 @@ class SeedProjectDataTests(TestCase):
             set(AllocationLine.objects.filter(allocation_run=run).values_list("account_id", flat=True)),
             set(ParticipantAccount.objects.values_list("id", flat=True)),
         )
+
+    def test_mudarabah_distributions_are_signed_through_the_workflow(self):
+        from apps.investments.distribution import compute_run_hash
+        from apps.investments.models import DistributionRunStatus, InvestmentDistributionRun
+
+        statuses = sorted(InvestmentDistributionRun.objects.values_list("status", flat=True))
+        self.assertEqual(statuses, sorted([DistributionRunStatus.SIGNED, DistributionRunStatus.PENDING_APPROVAL]))
+        for run in InvestmentDistributionRun.objects.all():
+            self.assertEqual(run.calculation_hash, compute_run_hash(run))
+        signed = InvestmentDistributionRun.objects.get(status=DistributionRunStatus.SIGNED)
+        batch = JournalBatch.objects.get(investment_run=signed)
+        self.assertEqual(batch.total_debit, batch.total_credit)
+        # 25% manager share of (2,750,000 - 130,000)
+        self.assertEqual(signed.manager_share, Decimal("655000.00"))
+        self.assertEqual(signed.lines.count(), 1)
