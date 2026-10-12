@@ -166,3 +166,28 @@ class PayoutClearingTests(ParticipantLedgerTestBase):
             with self.subTest(url=url):
                 self.authenticate(user)
                 self.assertEqual(self.client.post(url, body, format="json").status_code, 409)
+
+
+    def test_an_investor_gets_tax_support_for_their_own_payments_only(self):
+        # CNICs are needed to match a payment line to its participant.
+        from apps.participants.models import Participant
+
+        Participant.objects.filter(pk=self.ali.pk).update(cnic_ntn="42101-1111111-1")
+        Participant.objects.filter(pk=self.bano.pk).update(cnic_ntn="42101-2222222-2")
+        self.assertEqual(self.batch().status_code, status.HTTP_200_OK)  # builds and stores the payout batch
+
+        self.authenticate(self.investor_a)
+        response = self.client.get("/api/v1/participants/my-tax-support/")
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.data
+        self.assertEqual(data["participant"], "P-ALI")
+        self.assertEqual(len(data["rows"]), 2)  # Ali holds two accounts in the pool
+        self.assertTrue(all(row["wht_rate_pct"] == 15.0 for row in data["rows"]))  # the filer rate from the rule pack
+        gross = sum(float(r["gross_profit"]) for r in data["rows"])
+        wht = sum(float(r["wht_amount"]) for r in data["rows"])
+        self.assertAlmostEqual(wht, gross * 0.15, places=1)
+        self.assertEqual(float(data["totals"]["wht_amount"]), round(wht, 2))
+        self.assertNotIn("Bano", str(data))
+
+        self.authenticate(self.maker)
+        self.assertEqual(self.client.get("/api/v1/participants/my-tax-support/").status_code, 403)

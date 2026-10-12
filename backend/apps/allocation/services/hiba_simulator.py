@@ -23,8 +23,6 @@ def simulate_mudarib_hiba(
     """
     Simulates the impact of Hiba (voluntary reduction of Mudarib share) on depositor yields.
     """
-    gross_income = Decimal(allocation_run.gross_income)
-    direct_expenses = Decimal(allocation_run.direct_expenses)
     distributable = Decimal(allocation_run.distributable_amount)
     total_weighted_funds = Decimal(allocation_run.total_weighted_funds)
     baseline_depositor_share = Decimal(allocation_run.depositor_pool_share)

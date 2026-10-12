@@ -24,6 +24,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Q
 
+from apps.participants.models import ParticipantAccount
 from apps.pools.models import DailyBalance, DailyBalanceStatus
 
 from .models import (
@@ -63,26 +64,30 @@ def _load_entities(pool, start, end):
             value_date__lte=end,
         )
         .exclude(status=DailyBalanceStatus.REJECTED)
-        .select_related("account__participant")
+        .values_list("account_id", "participant_class", "value_date", "balance_amount")
+        .iterator(chunk_size=20000)
     )
+    # One account object per account, not one per balance row: building three model instances per row was the cost
+    # that dominated the run (see `manage.py benchmark_allocation`).
+    accounts = {a.id: a for a in ParticipantAccount.objects.filter(pool=pool).select_related("participant")}
 
     entities = {}
-    for row in rows:
-        if row.account_id:
-            key = ("account", str(row.account_id))
-            participant_class = row.account.participant.participant_class
-            account = row.account
+    for account_id, row_class, value_date, balance_amount in rows:
+        if account_id:
+            account = accounts.get(account_id) or ParticipantAccount.objects.select_related("participant").get(pk=account_id)
+            accounts[account_id] = account
+            key = ("account", str(account_id))
+            participant_class = account.participant.participant_class
         else:
-            key = ("class", row.participant_class)
-            participant_class = row.participant_class
+            key = ("class", row_class)
+            participant_class = row_class
             account = None
 
-        entity = entities.setdefault(
-            key, {"account": account, "participant_class": participant_class, "series": {}}
-        )
-        entity["series"][row.value_date] = entity["series"].get(row.value_date, Decimal("0")) + Decimal(
-            row.balance_amount
-        )
+        entity = entities.get(key)
+        if entity is None:
+            entity = entities[key] = {"account": account, "participant_class": participant_class, "series": {}}
+        series = entity["series"]
+        series[value_date] = series.get(value_date, Decimal("0")) + Decimal(balance_amount)
     return entities
 
 

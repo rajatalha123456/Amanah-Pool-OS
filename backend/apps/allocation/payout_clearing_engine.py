@@ -408,7 +408,6 @@ class PayoutClearingEngine:
             raise ValueError("The contra voucher for this batch has already been posted.")
 
         pool = Pool._base_manager.get(id=batch_obj["pool_id"])
-        total_gross = Decimal(str(batch_obj["total_gross_profit"])).quantize(Decimal("0.01"))
         total_wht = Decimal(str(batch_obj["total_wht_deducted"])).quantize(Decimal("0.01"))
         total_zakat = Decimal(str(batch_obj["total_zakat_deducted"])).quantize(Decimal("0.01"))
 
@@ -534,7 +533,7 @@ class PayoutClearingEngine:
                 '      </Dbtr>',
                 '      <DbtrAcct>',
                 '        <Id>',
-                f'          <Othr><Id>GL-2101-001</Id></Othr>',
+                '          <Othr><Id>GL-2101-001</Id></Othr>',
                 '        </Id>',
                 '      </DbtrAcct>',
                 '      <DbtrAgt>',
