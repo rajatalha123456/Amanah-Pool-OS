@@ -392,7 +392,7 @@ class CircleMemberViewSet(
         return queryset
 
     def get_permissions(self):
-        if self.action in ("my_circles", "accept_rules"):
+        if self.action in ("my_circles", "accept_rules", "my_proposals", "cast_vote"):
             return [IsAuthenticated(), HasAnyRole(["investor_member"])()]
         if self.action == "link_login":
             return [IsAuthenticated(), IsPoolManager()]
@@ -413,7 +413,6 @@ class CircleMemberViewSet(
     @action(detail=False, methods=["get"], url_path="my-circles")
     def my_circles(self, request):
         """Self-service: the caller's own memberships, contributions, payouts and rules status - nothing of other members."""
-        from .rules import acceptance_summary  # noqa: F401  (kept local to avoid import cycles)
         from .models import RulesAcceptance
 
         result = []
@@ -435,14 +434,81 @@ class CircleMemberViewSet(
                 },
                 "contributions": [
                     {"cycle_number": c.cycle_number, "amount": str(c.amount), "date": str(c.contribution_date),
-                     "status": c.status} for c in contributions
+                     "status": c.status, "payment_reference": c.payment_reference} for c in contributions
                 ],
+                "ledger": self._pool_ledger(member.pool),
                 "payouts": [
                     {"cycle_number": p.cycle_number, "amount": str(p.amount), "date": str(p.payout_date),
                      "status": p.status} for p in payouts
                 ],
             })
         return Response(result)
+
+    @staticmethod
+    def _pool_ledger(pool):
+        """The circle's transparent ledger (BRD 6.5): per cycle what was collected and who received the pot."""
+        cycles = {}
+        for c in Contribution.objects.filter(member__pool=pool, status=ContributionStatus.RECEIVED):
+            row = cycles.setdefault(c.cycle_number, {"cycle_number": c.cycle_number, "received": 0, "collected": Decimal("0")})
+            row["received"] += 1
+            row["collected"] += c.amount
+        payouts = {p.cycle_number: p for p in Payout.objects.filter(pool=pool).select_related("member")}
+        for number, payout in payouts.items():
+            cycles.setdefault(number, {"cycle_number": number, "received": 0, "collected": Decimal("0")})
+        rows = []
+        for number in sorted(cycles):
+            row, payout = cycles[number], payouts.get(number)
+            rows.append({
+                "cycle_number": number, "contributions_received": row["received"], "collected": str(row["collected"]),
+                "payout": None if payout is None else {
+                    "recipient": payout.member.member_reference, "amount": str(payout.amount), "status": payout.status,
+                    "date": str(payout.payout_date),
+                },
+            })
+        return rows
+
+    @action(detail=False, methods=["get"], url_path="my-proposals")
+    def my_proposals(self, request):
+        """Proposals of the circles the caller belongs to, with the caller's own vote. Tallies show once closed."""
+        out = []
+        for member in CircleMember.objects.filter(user=request.user).select_related("pool"):
+            for proposal in CircleProposal.objects.filter(pool=member.pool).order_by("-created_at"):
+                mine = CircleVote.objects.filter(proposal=proposal, member=member).first()
+                closed = proposal.status != ProposalStatus.OPEN
+                tally = None
+                if closed:
+                    votes = CircleVote.objects.filter(proposal=proposal)
+                    tally = {d: votes.filter(decision=d).count() for d in VoteDecision.values}
+                out.append({
+                    "id": str(proposal.id), "pool_name": member.pool.name, "title": proposal.title,
+                    "description": proposal.description, "status": proposal.status,
+                    "voting_deadline": str(proposal.voting_deadline), "my_vote": mine.decision if mine else None,
+                    "can_vote": (
+                        not closed and mine is None and member.status == CircleMemberStatus.ACTIVE
+                        and timezone.localdate() <= proposal.voting_deadline
+                    ),
+                    "tally": tally,
+                })
+        return Response(out)
+
+    @action(detail=False, methods=["post"], url_path="cast-vote")
+    def cast_vote(self, request):
+        """A member votes with their own login: the vote is bound to the caller's membership, never to a chosen member."""
+        from .voting import cast_vote
+
+        proposal = CircleProposal.objects.filter(pk=request.data.get("proposal")).first()
+        member = CircleMember.objects.filter(user=request.user, pool_id=proposal.pool_id).first() if proposal else None
+        if proposal is None or member is None:
+            raise ValidationError({"proposal": ["Unknown proposal."]})  # never reveal other circles
+        vote = cast_vote(
+            proposal=proposal, member=member, decision=str(request.data.get("decision") or ""), method="portal",
+            evidence_reference="", recorder=request.user,
+        )
+        log_action(
+            tenant=proposal.tenant, actor=request.user, action="vote_by_member", model_name="CircleVote",
+            object_id=str(vote.id), changes={"proposal_id": str(proposal.id), "decision": vote.decision}, request=request,
+        )
+        return Response({"voted": True, "decision": vote.decision}, status=201)
 
     @action(detail=False, methods=["post"], url_path="accept-rules")
     def accept_rules(self, request):
@@ -498,6 +564,12 @@ class CircleMemberViewSet(
         )
 
     def perform_create(self, serializer):
+        from apps.investments.participation import assert_room_for_participant
+
+        pool = serializer.validated_data["pool"]
+        assert_room_for_participant(
+            pool, CircleMember.objects.filter(pool=pool).exclude(status=CircleMemberStatus.WITHDRAWN).count(), "members"
+        )
         instance = serializer.save(tenant=self.request.user.tenant)
         log_action(
             tenant=instance.tenant,
@@ -915,29 +987,14 @@ class CircleProposalViewSet(
             member = CircleMember.objects.get(pk=member_id, pool=proposal.pool)
         except CircleMember.DoesNotExist:
             raise ValidationError("Member not found on this proposal's pool.")
-        if member.status != CircleMemberStatus.ACTIVE:
-            raise ValidationError("Only active members vote.")
-        if timezone.localdate() > proposal.voting_deadline:
-            raise ValidationError(f"Voting closed on {proposal.voting_deadline}.")
-
         method = str(request.data.get("method") or "in_person")
-        evidence = str(request.data.get("evidence_reference") or "").strip()
-        if method not in ("in_person", "otp", "e_sign"):
-            raise ValidationError({"method": ["Must be in_person, otp or e_sign."]})
-        if method != "in_person" and not evidence:
-            raise ValidationError({"evidence_reference": ["An OTP / e-signature reference is required."]})
+        if method == "portal":
+            raise ValidationError({"method": ["Staff record in_person, otp or e_sign votes; members vote in the portal."]})
+        from .voting import cast_vote
 
-        if CircleVote.objects.filter(proposal=proposal, member=member).exists():
-            raise ValidationError("This member has already voted on this proposal.")
-
-        vote = CircleVote.objects.create(
-            tenant=proposal.tenant,
-            proposal=proposal,
-            member=member,
-            decision=decision,
-            method=method,
-            evidence_reference=evidence,
-            recorded_by=request.user,
+        vote = cast_vote(
+            proposal=proposal, member=member, decision=decision, method=method,
+            evidence_reference=str(request.data.get("evidence_reference") or ""), recorder=request.user,
         )
 
         log_action(

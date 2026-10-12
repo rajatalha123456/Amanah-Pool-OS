@@ -75,6 +75,9 @@ def request_redemption(*, account, units, dealing_date, user):
         raise ValidationError(
             f"Cannot redeem {units} units: {account.units_held} held, {reserved_units(account)} already requested."
         )
+    from .participation import assert_redemption_terms
+
+    assert_redemption_terms(account, dealing_date)
     notice = pool.product.redemption_notice_days
     today = timezone.localdate()
     if notice and dealing_date < today + timedelta(days=notice):

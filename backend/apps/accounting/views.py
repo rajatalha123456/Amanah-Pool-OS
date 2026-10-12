@@ -422,9 +422,9 @@ class AccountMappingViewSet(
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update"):
-            return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker", "platform_super_admin"])()]
+            return [IsAuthenticated(), HasAnyRole(["finance_maker", "finance_checker"])()]
         return [IsAuthenticated(), HasAnyRole(
-            ["finance_maker", "finance_checker", "platform_super_admin", "pool_manager", "risk_compliance", "auditor"]
+            ["finance_maker", "finance_checker", "pool_manager", "risk_compliance", "auditor"]
         )()]
 
     # Maker-checker: these endpoints only PROPOSE a change (HTTP 202); a different finance checker

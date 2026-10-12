@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision, ShariahQuorumVote
+from .models import ContractTemplate, JurisdictionRulePack, Product, ShariahDecision, ShariahDecisionStatus, ShariahQuorumVote
 
 
 class ShariahQuorumVoteSerializer(serializers.ModelSerializer):
@@ -34,6 +34,17 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
     quorum_votes = ShariahQuorumVoteSerializer(many=True, read_only=True)
     quorum_summary = serializers.SerializerMethodField()
 
+    def validate_supersedes(self, value):
+        if value is None:
+            return value
+        if value.tenant_id != self.context["request"].user.tenant_id:
+            raise serializers.ValidationError("Choose a ruling of your own tenant.")
+        if value.status != ShariahDecisionStatus.APPROVED:
+            raise serializers.ValidationError("Only an approved ruling can be superseded.")
+        if self.instance is not None and value.pk == self.instance.pk:
+            raise serializers.ValidationError("A ruling cannot supersede itself.")
+        return value
+
     class Meta:
         model = ShariahDecision
         fields = (
@@ -52,6 +63,8 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
             "effective_date",
             "expiry_date",
             "document_url",
+            "scope",
+            "supersedes",
             "created_by",
             "created_by_name",
             "approved_by",
@@ -155,6 +168,11 @@ class ProductSerializer(serializers.ModelSerializer):
             "eligible_asset_types",
             "redemption_notice_days",
             "redemption_gate_pct",
+            "minimum_subscription",
+            "subscription_cap",
+            "minimum_tenure_days",
+            "required_kyc_tier",
+            "max_participants",
             "is_active",
             "created_at",
             "updated_at",
@@ -165,6 +183,23 @@ class ProductSerializer(serializers.ModelSerializer):
         if not 0 < value <= 100:
             raise serializers.ValidationError("The gate must be above 0 and at most 100 percent.")
         return value
+
+    def validate_required_kyc_tier(self, value):
+        from apps.participants.kyc_tiers import TIERS
+
+        if value not in TIERS:
+            raise serializers.ValidationError(f"Must be one of: {', '.join(TIERS)}.")
+        return value
+
+    def validate(self, attrs):
+        minimum = attrs.get("minimum_subscription", getattr(self.instance, "minimum_subscription", None))
+        cap = attrs.get("subscription_cap", getattr(self.instance, "subscription_cap", None))
+        for name, value in (("minimum_subscription", minimum), ("subscription_cap", cap)):
+            if value is not None and value <= 0:
+                raise serializers.ValidationError({name: ["Must be above zero, or left empty for no limit."]})
+        if minimum is not None and cap is not None and minimum > cap:
+            raise serializers.ValidationError({"subscription_cap": ["The cap cannot be below the minimum subscription."]})
+        return attrs
 
     def validate_eligible_asset_types(self, value):
         from apps.pools.models import AssetType

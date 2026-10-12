@@ -30,6 +30,13 @@ class Pool(TenantScopedModel):
     status = models.CharField(max_length=20, choices=PoolStatus.choices, default=PoolStatus.DRAFT)
     effective_date = models.DateField()
     closed_date = models.DateField(null=True, blank=True)
+    # Identity (BRD section 5): the legal entity that runs the pool, its branch, timezone and working calendar.
+    legal_entity = models.ForeignKey(
+        "tenants.LegalEntity", on_delete=models.PROTECT, null=True, blank=True, related_name="pools"
+    )
+    branch = models.CharField(max_length=120, blank=True, default="")
+    timezone = models.CharField(max_length=50, blank=True, default="")
+    calendar = models.CharField(max_length=10, default="daily")  # daily, mon_fri or sun_thu: working days for dealing dates
     # Freeze record (apps/pools/lifecycle.py): the status to return to, why, and who applied it.
     frozen_from = models.CharField(max_length=20, blank=True, default="")
     freeze_reason = models.TextField(blank=True, default="")

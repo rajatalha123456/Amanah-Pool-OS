@@ -41,7 +41,6 @@ def simulate_cbs_sftp_ingestion(
     Executes automated CBS balance feed ingestion via simulated secure SFTP daemon.
     """
     now = timezone.now()
-    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
     file_name = f"{tenant.code}_{pool.code}_EOD_BALANCES_{value_date.strftime('%Y%m%d')}.csv"
     sftp_remote_path = f"/var/sftp/cbs_feeds/{cbs_vendor.lower().replace(' ', '_')}/{file_name}"
     sftp_host = "sftp-eod.cbs.amanah-bank.internal:2222"

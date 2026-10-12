@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import viewsets
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -15,7 +16,7 @@ from .serializers import ParticipantAccountSerializer, ParticipantSerializer
 
 # Roles that may see the participant registry. Investors/members never list it:
 # they only ever see their own statements (allocation "my-statements").
-READ_ROLES = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board"]
+READ_ROLES = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor"]  # personal data: no Board
 WRITE_ROLES = ["pool_manager", "finance_maker"]
 
 
@@ -195,3 +196,15 @@ class ConsentViewSet(viewsets.ViewSet):
             object_id=str(participant.id), request=request,
         )
         return Response(data_subject_export(participant))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, HasAnyRole(["investor_member"])])
+def my_tax_support(request):
+    """The caller's own tax and Zakat support statement."""
+    from .tax_support import tax_support_for
+
+    data = tax_support_for(request.user)
+    if data is None:
+        raise ValidationError("No participant record is linked to your login.")
+    return Response(data)

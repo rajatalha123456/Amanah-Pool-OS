@@ -65,6 +65,11 @@ class ShariahDecision(TenantScopedModel):
     effective_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True)
     document_url = models.URLField(max_length=500, null=True, blank=True)
+    # What the ruling covers (products, contract types, pools) and the earlier ruling it replaces.
+    scope = models.TextField(blank=True, default="")
+    supersedes = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="superseded_by"
+    )
     created_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -121,6 +126,12 @@ class Product(TenantScopedModel):
     # be redeemed in any 30-day window (100 = no gate).
     redemption_notice_days = models.PositiveIntegerField(default=0)
     redemption_gate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=100)
+    # Participation terms. Empty / zero means "no limit".
+    minimum_subscription = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    subscription_cap = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)  # per account, in total
+    minimum_tenure_days = models.PositiveIntegerField(default=0)  # no redemption before first subscription + N days
+    required_kyc_tier = models.CharField(max_length=10, default="basic")  # basic < standard < enhanced
+    max_participants = models.PositiveIntegerField(null=True, blank=True)  # accounts / members per pool
 
     class Meta:
         constraints = [

@@ -16,6 +16,7 @@ class ProductBasicSerializer(serializers.Serializer):
 
 class PoolSerializer(serializers.ModelSerializer):
     product_detail = serializers.SerializerMethodField()
+    legal_entity_name = serializers.CharField(source="legal_entity.name", read_only=True, default=None)
 
     class Meta:
         model = Pool
@@ -29,6 +30,11 @@ class PoolSerializer(serializers.ModelSerializer):
             "status",
             "effective_date",
             "closed_date",
+            "legal_entity",
+            "legal_entity_name",
+            "branch",
+            "timezone",
+            "calendar",
             "freeze_reason",
             "frozen_at",
             "is_active",
@@ -38,6 +44,24 @@ class PoolSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id", "tenant", "status", "closed_date", "freeze_reason", "frozen_at", "created_at", "updated_at",
         )
+
+    def validate_calendar(self, value):
+        from .calendars import CALENDARS
+
+        if value not in CALENDARS:
+            raise serializers.ValidationError(f"Must be one of: {', '.join(CALENDARS)}.")
+        return value
+
+    def validate_legal_entity(self, value):
+        if value is not None and value.tenant_id != self.context["request"].user.tenant_id:
+            raise serializers.ValidationError("Choose one of your own legal entities.")
+        return value
+
+    def validate(self, attrs):
+        entity = attrs.get("legal_entity")
+        if entity is not None and not attrs.get("timezone"):
+            attrs["timezone"] = entity.timezone  # a pool follows its entity's timezone unless told otherwise
+        return attrs
 
     def validate_code(self, value):
         # Pool.code is only enforced unique via a composite

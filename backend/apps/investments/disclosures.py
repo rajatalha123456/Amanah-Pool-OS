@@ -43,6 +43,7 @@ def current_terms(pool):
             {"code": snap["shariah_decision"]["decision_code"], "title": snap["shariah_decision"]["title"]}
             if snap["shariah_decision"] else None
         ),
+        "participation": snap["participation"],
         "jurisdiction_rule_pack": snap["rule_pack"],
         "base_currency": product.base_currency,
     }

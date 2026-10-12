@@ -13,8 +13,8 @@ from .models import CapitalAccount, PoolDisclosure
 
 PUBLISH_ROLES = ["pool_manager", "product_manager"]  # prepare
 APPROVE_ROLES = ["shariah_board", "risk_compliance"]  # validate (a different person)
-STAFF_READ = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board",
-              "shariah_secretariat", "platform_super_admin"]
+STAFF_READ = ["pool_manager", "product_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor",
+              "shariah_board", "shariah_secretariat", "authorized_signatory"]
 
 
 class PoolDisclosureSerializer(serializers.ModelSerializer):

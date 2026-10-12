@@ -110,6 +110,10 @@ class CapitalAccountViewSet(
         return [IsAuthenticated()]  # list/retrieve/statement: investors are limited to their own accounts
 
     def perform_create(self, serializer):
+        from .participation import assert_room_for_participant
+
+        pool = serializer.validated_data["pool"]
+        assert_room_for_participant(pool, CapitalAccount.objects.filter(pool=pool).count(), "investor accounts")
         instance = serializer.save(tenant=self.request.user.tenant)
         log_action(
             tenant=instance.tenant,
@@ -155,6 +159,9 @@ class CapitalAccountViewSet(
         amount = Decimal(str(amount))
         if amount <= 0:
             raise ValidationError({"amount": ["Amount must be positive."]})
+        from apps.investments.participation import assert_subscription_terms
+
+        assert_subscription_terms(account, amount)
         units_allotted = amount / nav_per_unit
         effective_date = _parse_date(transaction_date)
         assert_period_open(account.pool, effective_date, what="a subscription")
@@ -430,6 +437,13 @@ class InvestorProfileViewSet(
             raise ValidationError({"kyc_status": ["Must be 'verified' or 'rejected'."]})
 
         previous_status = profile.kyc_status
+        tier = request.data.get("kyc_tier")
+        if tier is not None:
+            from apps.participants.kyc_tiers import TIERS
+
+            if tier not in TIERS:
+                raise ValidationError({"kyc_tier": [f"Must be one of: {', '.join(TIERS)}."]})
+            profile.kyc_tier = tier
         profile.kyc_status = kyc_status
         profile.suitability_assessment_notes = request.data.get("notes")
         profile.verified_by = request.user

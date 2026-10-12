@@ -112,6 +112,9 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         decision.approved_by = request.user
         decision.approved_at = timezone.now()
         decision.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+        from .shariah import apply_supersession
+
+        apply_supersession(decision)
         log_action(
             tenant=decision.tenant,
             actor=request.user,
@@ -170,6 +173,9 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
             decision.approved_by = request.user
             decision.approved_at = now
             decision.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+            from .shariah import apply_supersession
+
+            apply_supersession(decision)
 
             log_action(
                 tenant=decision.tenant,

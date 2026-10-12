@@ -89,6 +89,7 @@ class InvestorProfile(TenantScopedModel):
     kyc_status = models.CharField(
         max_length=10, choices=KYCStatus.choices, default=KYCStatus.PENDING
     )
+    kyc_tier = models.CharField(max_length=10, default="basic")
     id_document_type = models.CharField(max_length=50)
     id_document_number = models.CharField(max_length=100)
     date_of_birth = models.DateField()

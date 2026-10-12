@@ -261,7 +261,6 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
 
     # SBP Prudential Regulations Scorecard Matrix
     real_estate_pct = next((s["portfolio_pct"] for s in sectors_list if "real estate" in s["sector_name"].lower()), 0.0)
-    top_obligor_pct = obligors_list[0]["portfolio_pct"] if obligors_list else 0.0
     top5_obligors_pct = sum(o["portfolio_pct"] for o in obligors_list[:5])
     related_party_pct = sum(o["portfolio_pct"] for o in obligors_list if o["is_related_party"])
 

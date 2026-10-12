@@ -73,6 +73,19 @@ def build_pool_snapshot(pool, *, change_rationale="", effective_value_date=None)
     chart = ChartResolver(pool.tenant_id, pool)
 
     snapshot = {
+        "identity": {
+            "legal_entity": pool.legal_entity.name if pool.legal_entity_id else None,
+            "branch": pool.branch,
+            "timezone": pool.timezone,
+            "calendar": pool.calendar,
+        },
+        "participation": {
+            "minimum_subscription": str(pool.product.minimum_subscription) if pool.product.minimum_subscription is not None else None,
+            "subscription_cap": str(pool.product.subscription_cap) if pool.product.subscription_cap is not None else None,
+            "minimum_tenure_days": pool.product.minimum_tenure_days,
+            "required_kyc_tier": pool.product.required_kyc_tier,
+            "max_participants": pool.product.max_participants,
+        },
         "product": {
             "id": str(pool.product.id),
             "name": pool.product.name,
