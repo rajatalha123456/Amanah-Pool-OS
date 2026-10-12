@@ -445,3 +445,22 @@ Not built (BRD gaps that remain): a daily-close object (BRD 6.2 "checker signs t
 - The sign-in page now shares the website's look and links back to it.
 - 413 backend tests, 37 Playwright runs, `tsc` and build clean.
 - Website polish round: animated aurora and pointer-light hero, scroll progress and active-section navigation, counters, a concepts ribbon, model explorer tabs, bento platform grid with pointer-follow cards, and two small honest demos (a release-rule playground and a hash-chain tamper demo, both labelled as illustrations). 38 browser tests pass.
+
+### 2026-10-12 (role sweep) - every screen a role is shown must load without a refused call
+Triggered by a screenshot: the Super Admin saw "Jurisdiction & Rule Packs" with a permission error, because the tab also asked for pools and reserve policies. A browser sweep (`frontend/e2e/role-sweep.spec.ts`, run with `npm run e2e:roles`, about 12 minutes) now logs in as each of the ten staff roles, opens every screen in its menu and every tab, and fails if any API call is refused. First run found refusals for nine of ten roles; all fixed:
+- **Super Admin**: rule-pack tab loads rule packs only; Governance Config removed from its menu and the approval-matrix, account-mapping and config-change endpoints no longer list it (limits are Risk's, mappings are Finance's). Invented "100% SBP / AAOIFI" and "Standards covered" figures removed; the screen shows real counts and "not set" instead of made-up default rates.
+- **Reports**: tabs by role (audit log and sampling for Auditor and Risk; chain verification for Auditor; sampling for the Shariah Board). Authorized Signatory no longer sees Reports.
+- **Community Circles**: payout ceremony tab not shown to the Secretariat; collusion graph only to Risk and Auditor; hardship forecast only to Risk, Pool Manager and Shariah oversight.
+- **Shariah dashboard** readable by the roles that work with the decision register; **investor disclosures** readable by the Product Manager and Authorized Signatory.
+- Signatory's Governance Config removed. Sweep now passes for all ten roles. 413 backend tests and 38 browser tests pass.
+
+### 2026-10-12 (member and investor self-service, BRD 13 / 15)
+Built: disputes and hardship requests raised by an investor or member (new `raised_by` on support requests, own-only list, staff notified, name and priority taken from the login); circle voting by the member with their own login (`my-proposals`, `cast-vote`; shared rules with the staff-recorded vote; portal votes cannot be recorded by staff); circle ledger and printable receipts; transactions list; tax / Zakat support statement from the payout batches. The role sweep now also covers the investor and member logins (and found the tenant indicator asking for a list they cannot read; fixed). 424 backend tests, 40 browser tests.
+
+### 2026-10-12 (remaining code gaps closed)
+Pool identity and participation terms, ruling scope and supersession, related-party price test / conflict declaration / elevated approval, annual Shariah audit report, role-specific home dashboards, six-step pool wizard. Technical clean-up: the Windows log-rotation lock (the log is appended without rotation on Windows), unused variables and imports, an invalid `<input>` element, and code-splitting of the pages (the main bundle went from 1.1 MB to 0.35 MB). One bug of my own found and fixed on the way: the product form accepted free-text asset types that the API rejects; it now offers the valid types. 443 backend tests and 43 browser tests pass.
+
+### 2026-10-12 (decisions, performance, operations)
+- Decisions that were waiting on the owner were taken and recorded in `docs/DECISIONS.md`, with the people who must still confirm the tax, Zakat, retention and ceiling values.
+- **Performance defect found by benchmark and fixed**: the allocation engine built an account and participant object for every balance row (3x model instances); loading accounts once and reading balances as tuples made it about 4x faster and cut peak memory from 57 MB to 9 MB, with identical results. New command `benchmark_allocation`.
+- Dependency vulnerabilities (PyJWT, requests, source-map-js) removed. Backup and restore-check scripts, a readiness endpoint, three draft retention policies, and a role-by-role user acceptance checklist (`docs/UAT_CHECKLIST.md`) added.

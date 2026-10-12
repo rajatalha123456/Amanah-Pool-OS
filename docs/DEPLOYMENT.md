@@ -77,6 +77,23 @@ python manage.py apply_retention --apply          # only after the dry run was r
 7. **Shariah Board UAT and a two-period finance parallel run** against your existing spreadsheets.
 8. **Monitoring.** Application logs go to `backend/logs/`; add metrics, alerting and log shipping.
 
+## 6a. Capacity, backups and monitoring (measured / provided)
+
+- **Allocation capacity** (`python manage.py benchmark_allocation --accounts N --days D`, run in a throw-away tenant that is removed afterwards).
+  Profiling found that the engine built three model objects per balance row; that was fixed and results are unchanged (golden tests pass).
+  Measured on a developer laptop, one process: 500 accounts x 30 days (15,000 rows) 5.7 s before, **1.5 s** after (peak memory 57 MB to 9 MB);
+  5,000 accounts x 30 days (150,000 rows) **11 s** (about 13,000 rows/s). The cost is linear, so a million accounts over 30 days is
+  roughly 30 to 40 minutes in one process; run it in partitions across workers, and repeat the benchmark with your real volumes and
+  database server before relying on it.
+- **Backups**: `backend/scripts/backup_db.py` (pg_dump, compressed, with a checksum) and `backend/scripts/restore_check.py` (verifies the checksum, restores
+  into a scratch database, compares row counts, drops it). They need the PostgreSQL client tools on the server and were not run on the
+  development machine, which has none: run them once in your environment and keep the restore check on a schedule. The RPO target of 15 minutes
+  needs continuous WAL archiving on the database service (see `docs/DECISIONS.md`).
+- **Monitoring**: `GET /api/v1/health/` (process is up) and `GET /api/v1/health/ready/` (database answers; 503 otherwise) for a load balancer or monitor.
+  Application logs are in `backend/logs/`; ship them to your log platform and alert on 5xx rates and failed sign-ins.
+- **Dependency audit** (2026-10-12): `pip-audit` and `npm audit` report no known vulnerabilities after upgrading PyJWT to 2.15.0, requests to 2.33.0 and
+  the transitive `source-map-js`. Repeat before every release.
+
 ## 7. Verification before each release
 
 ```
