@@ -22,6 +22,21 @@ def health_check(request):
     return Response({"status": "ok"})
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def readiness_check(request):
+    """Ready only if the database answers (for a load balancer or a monitor). Reveals no detail beyond ok / not ok."""
+    from django.db import connection
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception:  # noqa: BLE001 - any failure means "not ready"
+        return Response({"status": "database unavailable"}, status=503)
+    return Response({"status": "ready"})
+
+
 def _filtered_audit_log_queryset(request):
     # AuditLog is deliberately not a TenantScopedModel (see its
     # docstring), so there's no TenantScopedManager auto-filtering -
@@ -60,7 +75,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     """
 
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin"])]
+    permission_classes = [IsAuthenticated, HasAnyRole(["auditor", "risk_compliance", "platform_super_admin"])]
 
     def get_queryset(self):
         return _filtered_audit_log_queryset(self.request)
@@ -99,7 +114,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "platform_super_admin"])])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "risk_compliance", "platform_super_admin"])])
 def audit_log_export(request):
     queryset = _filtered_audit_log_queryset(request)
 
@@ -281,3 +296,17 @@ def period_report(request):
         response["Content-Disposition"] = f'attachment; filename="period_report_{start}_{end}.csv"'
         return response
     return Response(report)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def home_dashboard_view(request):
+    """The signed-in role's own dashboard (BRD 13). Roles without one (investors, the platform admin) get 404."""
+    from rest_framework.exceptions import NotFound
+
+    from .dashboards import home_dashboard
+
+    data = home_dashboard(request.user)
+    if data is None:
+        raise NotFound("No dashboard is defined for this role.")
+    return Response(data)

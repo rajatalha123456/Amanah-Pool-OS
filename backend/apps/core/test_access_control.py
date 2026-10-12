@@ -80,7 +80,8 @@ class AccessControlTests(APITestCase):
             ("post", "/api/v1/participants/consents/"),
             ("get", "/api/v1/accounting/income-expense-events/"),
             ("get", "/api/v1/governance/exceptions/"),
-            ("get", "/api/v1/governance/support-requests/"),
+            ("post", "/api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/resolve/"),
+            ("post", "/api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/assign/"),
             ("get", "/api/v1/accounting/journal-batches/"),
             ("get", "/api/v1/tenants/"),
         ]
@@ -96,6 +97,9 @@ class AccessControlTests(APITestCase):
             "/api/v1/notifications/",
             "/api/v1/circles/circle-members/my-circles/",
             "/api/v1/participants/consents/mine/",
+            "/api/v1/participants/my-tax-support/",
+            "/api/v1/circles/circle-members/my-proposals/",
+            "/api/v1/governance/support-requests/",
             "/api/v1/auth/me/",
         ):
             with self.subTest(url=url):

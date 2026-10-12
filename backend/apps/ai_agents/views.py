@@ -221,7 +221,7 @@ from .services.audit_sampler import perform_audit_sampling_analysis
 
 
 @api_view(["POST", "GET"])
-@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "shariah_board", "platform_super_admin"])])
+@permission_classes([IsAuthenticated, HasAnyRole(["auditor", "risk_compliance", "shariah_board", "platform_super_admin"])])
 def run_audit_sampling(request):
     """
     Executes the AI Audit Sampling & Risk Ranker Engine for the current tenant.

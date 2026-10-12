@@ -285,9 +285,9 @@ class ApprovalMatrixViewSet(
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update"):
-            return [IsAuthenticated(), HasAnyRole(["risk_compliance", "platform_super_admin"])()]
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance"])()]
         return [IsAuthenticated(), HasAnyRole(
-            ["risk_compliance", "platform_super_admin", "finance_checker", "finance_maker", "pool_manager", "auditor",
+            ["risk_compliance", "finance_checker", "finance_maker", "pool_manager", "auditor",
              "shariah_board"]
         )()]
 

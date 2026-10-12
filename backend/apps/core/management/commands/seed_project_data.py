@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -534,6 +534,9 @@ class Command(BaseCommand):
                 "contract_template": tpl_musharakah,
                 "status": ProductStatus.APPROVED,
                 "base_currency": "PKR",
+                # Participation terms are part of the investor disclosure, so they exist from the start.
+                "minimum_subscription": Decimal("1000.00"),
+                "base_currency": "PKR",
             },
         )
 
@@ -1024,9 +1027,51 @@ class Command(BaseCommand):
                 "transaction_type": "Mudarib Subordinated Placement",
                 "amount": Decimal("15000000.00"),
                 "disclosure_status": RelatedPartyDisclosureStatus.APPROVED,
-                "reviewed_by": board_user,
+                "reviewed_by": risk_user,
                 "review_notes": "Terms strictly match standard published institutional Mudarabah PSR schedule.",
+                "conflict_declaration": "The sponsor is the shareholder of the Mudarib; the placement is on the published schedule.",
+                "benchmark_amount": Decimal("15000000.00"),
+                "benchmark_source": "Published institutional Mudarabah schedule",
+                "approved_by": board_user,
+                "approved_at": timezone.now(),
             },
+        )
+        # A second one waiting for review, so the price test, conflict declaration and elevated approval can be tried.
+        RelatedPartyTransaction.objects.get_or_create(
+            tenant=tenant,
+            pool=pool_gen,
+            related_party_name="Amanah Facilities Services",
+            transaction_date=date(2026, 9, 20),
+            defaults={
+                "relationship_type": RelatedPartyRelationshipType.AFFILIATE_COMPANY,
+                "transaction_type": "Premises maintenance",
+                "amount": Decimal("1250000.00"),
+                "conflict_declaration": "A director of the Mudarib also owns the facilities company.",
+                "benchmark_amount": Decimal("1000000.00"),
+                "benchmark_source": "Two independent quotations",
+            },
+        )
+
+        # Retention policies proposed by Risk & Compliance and still waiting for a different person to approve them
+        # (documented defaults: docs/DECISIONS.md).
+        from apps.governance.models import RetentionPolicy
+
+        for category, days, basis in (
+            ("notifications", 180, "In-app notices lose their value once read; six months keeps the recent history."),
+            ("support_requests", 2190, "Disputes and complaints are kept six years after resolution in case they are reopened or examined."),
+            ("ai_recommendations", 1095, "AI outputs and the decisions taken on them are kept three years for model validation."),
+        ):
+            RetentionPolicy.objects.get_or_create(
+                tenant=tenant, data_category=category, status="draft",
+                defaults={"retention_days": days, "basis": basis, "proposed_by": risk_user},
+            )
+
+        # Pool identity and participation terms (BRD section 5).
+        Pool.objects.filter(tenant=tenant, code=pool_gen.code).update(
+            legal_entity=legal_entity, branch="Main Branch, Karachi", timezone="Asia/Karachi", calendar="mon_fri"
+        )
+        Pool.objects.filter(tenant=tenant).exclude(code=pool_gen.code).update(
+            legal_entity=legal_entity, timezone="Asia/Karachi"
         )
 
         SupportRequest.objects.get_or_create(
@@ -1279,8 +1324,17 @@ class Command(BaseCommand):
             defaults={
                 "description": "Hamza Ali requests swapping payout cycle from month 4 to month 2 for educational fee.",
                 "proposal_type": ProposalType.OTHER,
-                "voting_deadline": date(2026, 10, 15),
+                "voting_deadline": timezone.localdate() + timedelta(days=30),
                 "status": ProposalStatus.OPEN,
+            },
+        )
+        # A second, still-unvoted proposal so the member portal's voting can be tried (deadline relative to today).
+        CircleProposal.objects.get_or_create(
+            tenant=tenant, pool=pool_circle, title="Move the monthly due date to the 10th",
+            defaults={
+                "description": "Contributions would fall due on the 10th instead of the 5th from the next cycle.",
+                "proposal_type": ProposalType.OTHER, "voting_deadline": timezone.localdate() + timedelta(days=30),
+                "status": ProposalStatus.OPEN, "created_by": users_by_role[UserRole.POOL_MANAGER],
             },
         )
         CircleVote.objects.get_or_create(
@@ -1319,6 +1373,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("*** DEMO TENANT SEEDED ***"))
         self.stdout.write(self.style.SUCCESS("========================================================"))
         self.stdout.write(f"Tenant:      {tenant.name} (Code: {tenant.code})")
-        self.stdout.write(f"Login URL:   /login")
+        self.stdout.write("Login URL:   /login")
         self.stdout.write(f"Credentials: Email: superadmin@{domain} (or maker, checker, board, etc.)")
         self.stdout.write(f"Password:    {password}\n")

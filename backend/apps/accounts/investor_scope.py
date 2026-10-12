@@ -26,7 +26,11 @@ ALLOWED = [
     ({"GET"}, API + r"allocation/allocation-runs/my-statements/$"),
     ({"GET"}, API + r"participants/consents/(mine|my-data)/$"),
     ({"POST"}, API + r"participants/consents/" + UUID + r"/withdraw/$"),
-    ({"GET"}, API + r"circles/circle-members/my-circles/$"),
+    ({"GET"}, API + r"participants/my-tax-support/$"),
+    ({"GET", "POST"}, API + r"governance/support-requests/$"),
+    ({"GET"}, API + r"governance/support-requests/" + UUID + r"/$"),
+    ({"GET"}, API + r"circles/circle-members/(my-circles|my-proposals)/$"),
+    ({"POST"}, API + r"circles/circle-members/cast-vote/$"),
     ({"POST"}, API + r"circles/circle-members/accept-rules/$"),
 ]
 _COMPILED = [(methods, re.compile(pattern)) for methods, pattern in ALLOWED]
@@ -57,8 +61,6 @@ ADMIN_ALLOWED = [
     API + r"demo-requests/",
     API + r"legal-entities/",
     API + r"products/jurisdiction-rule-packs/",
-    API + r"governance/config-changes/",
-    API + r"accounting/account-mappings/",
     API + r"core/audit-log/",
 ]
 _ADMIN_COMPILED = [re.compile("^" + pattern.lstrip("^")) for pattern in ADMIN_ALLOWED]

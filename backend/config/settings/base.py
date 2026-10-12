@@ -2,6 +2,8 @@
 Base settings shared by all environments for the amanah_pool_os project.
 """
 
+import os
+
 from decimal import Decimal
 from pathlib import Path
 from datetime import timedelta
@@ -239,14 +241,20 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
-        "file": {
-            "level": "INFO",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": LOGS_DIR / "app.log",
-            "maxBytes": 5 * 1024 * 1024,  # 5 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-        },
+        # Rotation renames the open file, which Windows refuses while a second process (the dev server and the tests, for
+        # example) holds it. There the log is appended without rotation; elsewhere it rotates at 5 MB.
+        "file": (
+            {"level": "INFO", "class": "logging.handlers.WatchedFileHandler", "filename": LOGS_DIR / "app.log", "formatter": "verbose"}
+            if os.name == "nt"
+            else {
+                "level": "INFO",
+                "class": "logging.handlers.RotatingFileHandler",
+                "filename": LOGS_DIR / "app.log",
+                "maxBytes": 5 * 1024 * 1024,
+                "backupCount": 5,
+                "formatter": "verbose",
+            }
+        ),
     },
     "loggers": {
         "django": {
