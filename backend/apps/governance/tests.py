@@ -77,31 +77,72 @@ class RelatedPartyTransactionApiTests(APITestCase):
 			"transaction_date": "2026-09-18",
 		}
 
-	def test_create_review_approve_and_flag(self):
-		self.authenticate(self.maker)
-		response = self.client.post(self.url, self.transaction_payload(), format="json")
-		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-		transaction_url = reverse(
-			"related-party-transaction-detail", args=[response.data["id"]]
+	def rpt_payload(self, **extra):
+		return {
+			**self.transaction_payload(), "conflict_declaration": "The director also sits on the supplier's board.",
+			"benchmark_amount": "120000.00", "benchmark_source": "Two independent quotations", **extra,
+		}
+
+	def _board_and_signatory(self):
+		board = User.objects.create_user(
+			email="rpt-board@example.com", password="password", full_name="Board", role=UserRole.SHARIAH_BOARD, tenant=self.tenant
 		)
+		signatory = User.objects.create_user(
+			email="rpt-sig@example.com", password="password", full_name="Signatory", role=UserRole.AUTHORIZED_SIGNATORY, tenant=self.tenant
+		)
+		return board, signatory
+
+	def test_create_review_recommend_elevated_approve_and_flag(self):
+		self.authenticate(self.maker)
+		response = self.client.post(self.url, self.rpt_payload(), format="json")
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+		self.assertEqual(response.data["price_test"], "passed")  # 125,000 vs 120,000 is within 5%
+		transaction_url = reverse("related-party-transaction-detail", args=[response.data["id"]])
 
 		self.authenticate(self.risk_user)
-		approved = self.client.post(
-			f"{transaction_url}review/", {"decision": "approved", "notes": "Reviewed."}, format="json"
-		)
-		self.assertEqual(approved.status_code, status.HTTP_200_OK)
-		self.assertEqual(approved.data["disclosure_status"], "approved")
+		recommended = self.client.post(f"{transaction_url}review/", {"decision": "recommended", "notes": "Reviewed."}, format="json")
+		self.assertEqual(recommended.status_code, status.HTTP_200_OK, recommended.content)
+		self.assertEqual(recommended.data["disclosure_status"], "recommended")
+
+		# Risk cannot give the elevated approval; the Board or the Authorized Signatory can.
+		self.assertEqual(self.client.post(f"{transaction_url}elevated-approve/", {}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+		board, signatory = self._board_and_signatory()
+		self.authenticate(signatory)
+		approved = self.client.post(f"{transaction_url}elevated-approve/", {}, format="json")
+		self.assertEqual(approved.status_code, status.HTTP_200_OK, approved.content)
+		self.assertEqual((approved.data["disclosure_status"], approved.data["approved_by"]), ("approved", signatory.id))
 
 		self.authenticate(self.maker)
-		second = self.client.post(self.url, self.transaction_payload(), format="json")
+		second = self.client.post(self.url, self.rpt_payload(), format="json")
 		self.authenticate(self.risk_user)
 		flagged = self.client.post(
 			f"{reverse('related-party-transaction-detail', args=[second.data['id']])}review/",
-			{"decision": "flagged", "notes": "Needs escalation."},
-			format="json",
+			{"decision": "flagged", "notes": "Needs escalation."}, format="json",
 		)
-		self.assertEqual(flagged.status_code, status.HTTP_200_OK)
 		self.assertEqual(flagged.data["disclosure_status"], "flagged")
+
+	def test_a_recommendation_needs_a_conflict_declaration_and_a_price_test(self):
+		self.authenticate(self.maker)
+		bare = self.client.post(self.url, self.transaction_payload(), format="json")
+		url = reverse("related-party-transaction-detail", args=[bare.data["id"]])
+		self.authenticate(self.risk_user)
+		refused = self.client.post(f"{url}review/", {"decision": "recommended"}, format="json")
+		self.assertEqual(refused.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("conflict", str(refused.data))
+		self.assertEqual(self.client.post(f"{url}review/", {"decision": "flagged"}, format="json").status_code, 400)  # a reason is required
+
+	def test_a_failed_price_test_needs_a_written_justification_from_a_different_approver(self):
+		self.authenticate(self.maker)
+		response = self.client.post(self.url, self.rpt_payload(benchmark_amount="80000.00"), format="json")
+		self.assertEqual(response.data["price_test"], "failed")
+		url = reverse("related-party-transaction-detail", args=[response.data["id"]])
+		self.authenticate(self.risk_user)
+		self.client.post(f"{url}review/", {"decision": "recommended", "notes": "Price is high."}, format="json")
+		_, signatory = self._board_and_signatory()
+		self.authenticate(signatory)
+		self.assertEqual(self.client.post(f"{url}elevated-approve/", {}, format="json").status_code, 400)
+		ok = self.client.post(f"{url}elevated-approve/", {"justification": "Only supplier able to deliver on time."}, format="json")
+		self.assertEqual(ok.status_code, 200, ok.content)
 
 	def test_wrong_role_cannot_create_or_review(self):
 		self.authenticate(self.risk_user)
@@ -114,7 +155,7 @@ class RelatedPartyTransactionApiTests(APITestCase):
 			"related-party-transaction-detail", args=[response.data["id"]]
 		)
 		forbidden_review = self.client.post(
-			f"{transaction_url}review/", {"decision": "approved"}, format="json"
+			f"{transaction_url}review/", {"decision": "recommended"}, format="json"
 		)
 		self.assertEqual(forbidden_review.status_code, status.HTTP_403_FORBIDDEN)
 

@@ -2,13 +2,23 @@
 
 from django.utils import timezone
 
-from .models import ShariahDecisionStatus
+from .models import ShariahDecision, ShariahDecisionStatus
 
 
 def shariah_decision_for(pool):
     """The approved, in-force Shariah decision backing the pool's contract template, or None."""
 
     decision = pool.product.contract_template.shariah_decision
+    # A contract keeps pointing at the ruling it was approved under. When the Board supersedes that ruling, the
+    # approved successor is the one in force; the chain is followed, never silently rewritten on the contract.
+    seen = set()
+    while decision is not None and decision.status == ShariahDecisionStatus.SUPERSEDED and decision.pk not in seen:
+        seen.add(decision.pk)
+        decision = (
+            ShariahDecision._base_manager.filter(supersedes=decision, status=ShariahDecisionStatus.APPROVED)
+            .order_by("-approved_at")
+            .first()
+        )
     if decision is None or decision.status != ShariahDecisionStatus.APPROVED:
         return None
     today = timezone.localdate()
@@ -28,3 +38,11 @@ def quorum_required(tenant_id):
     import math
 
     return max(2, math.ceil(board_size(tenant_id) * 2 / 3))
+
+
+def apply_supersession(decision):
+    """Called when a ruling is approved: the ruling it replaces is marked superseded (history is kept)."""
+    if decision.supersedes_id:
+        ShariahDecision._base_manager.filter(
+            pk=decision.supersedes_id, status=ShariahDecisionStatus.APPROVED
+        ).update(status=ShariahDecisionStatus.SUPERSEDED)

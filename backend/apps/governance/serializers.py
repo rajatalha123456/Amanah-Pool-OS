@@ -86,6 +86,13 @@ class RelatedPartyTransactionSerializer(serializers.ModelSerializer):
             "disclosure_status",
             "reviewed_by",
             "review_notes",
+            "conflict_declaration",
+            "benchmark_amount",
+            "benchmark_source",
+            "price_tolerance_pct",
+            "price_test",
+            "approved_by",
+            "approved_at",
             "created_at",
             "updated_at",
         )
@@ -94,9 +101,14 @@ class RelatedPartyTransactionSerializer(serializers.ModelSerializer):
             "disclosure_status",
             "reviewed_by",
             "review_notes",
+            "price_test",
+            "approved_by",
+            "approved_at",
             "created_at",
             "updated_at",
         )
+
+    price_test = serializers.CharField(read_only=True)
 
     def validate_pool(self, pool):
         request = self.context.get("request")

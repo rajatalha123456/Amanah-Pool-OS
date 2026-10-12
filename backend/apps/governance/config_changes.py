@@ -17,8 +17,8 @@ from .models import ConfigChangeKind, ConfigChangeOperation, ConfigChangeRequest
 
 # kind -> who may approve (the proposing roles are enforced by each configuration endpoint)
 APPROVER_ROLES = {
-    ConfigChangeKind.APPROVAL_MATRIX: ["finance_checker", "platform_super_admin"],
-    ConfigChangeKind.ACCOUNT_MAPPING: ["finance_checker", "platform_super_admin"],
+    ConfigChangeKind.APPROVAL_MATRIX: ["finance_checker"],
+    ConfigChangeKind.ACCOUNT_MAPPING: ["finance_checker"],
 }
 
 

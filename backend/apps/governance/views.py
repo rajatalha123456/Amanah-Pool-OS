@@ -258,6 +258,8 @@ class SupportRequestViewSet(
             queryset = queryset.filter(status=status_param)
         if priority:
             queryset = queryset.filter(priority=priority)
+        if self.request.user.role == "investor_member":
+            queryset = queryset.filter(raised_by=self.request.user)  # a member sees only their own requests
 
         return queryset
 
@@ -270,8 +272,44 @@ class SupportRequestViewSet(
         # request's assigned_to (an object-level check, not a role).
         return [IsAuthenticated()]
 
+    def create(self, request, *args, **kwargs):
+        if request.user.role != "investor_member":
+            return super().create(request, *args, **kwargs)
+        # From the portal the name, priority and linkage come from the login, never from the form.
+        data = {
+            "request_type": request.data.get("request_type"), "subject": request.data.get("subject"),
+            "description": request.data.get("description"), "raised_by_name": request.user.full_name,
+            "pool": request.data.get("pool") or None, "priority": "medium",
+        }
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        pool = serializer.validated_data.get("pool")
+        if pool is not None and pool.id not in self._own_pool_ids(request.user):
+            raise ValidationError({"pool": ["Choose one of your own pools or circles."]})
+        self.perform_create(serializer)
+        return Response(serializer.data, status=201)
+
+    @staticmethod
+    def _own_pool_ids(user):
+        from apps.circles.models import CircleMember
+        from apps.investments.models import CapitalAccount
+
+        ids = set(CapitalAccount.objects.filter(participant__user=user).values_list("pool_id", flat=True))
+        ids |= set(CircleMember.objects.filter(user=user).values_list("pool_id", flat=True))
+        return ids
+
     def perform_create(self, serializer):
-        instance = serializer.save(tenant=self.request.user.tenant)
+        extra = {"raised_by": self.request.user} if self.request.user.role == "investor_member" else {}
+        instance = serializer.save(tenant=self.request.user.tenant, **extra)
+        if extra:
+            from apps.notifications.models import NotificationCategory
+            from apps.notifications.services import notify_roles
+
+            notify_roles(
+                instance.tenant, ["risk_compliance", "pool_manager"], category=NotificationCategory.SYSTEM,
+                title=f"New {instance.get_request_type_display().lower()} from a member",
+                body=instance.subject, link="/risk-compliance", related=("SupportRequest", instance.id),
+            )
         log_action(
             tenant=instance.tenant,
             actor=self.request.user,
@@ -479,6 +517,8 @@ class RelatedPartyTransactionViewSet(EditableWhileDraftMixin, viewsets.ModelView
             return [IsAuthenticated(), HasAnyRole(["finance_maker", "pool_manager"])()]
         if self.action == "review":
             return [IsAuthenticated(), HasAnyRole(["risk_compliance", "shariah_board"])()]
+        if self.action == "elevated_approve":
+            return [IsAuthenticated(), HasAnyRole(["shariah_board", "authorized_signatory"])()]
         return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
@@ -495,18 +535,26 @@ class RelatedPartyTransactionViewSet(EditableWhileDraftMixin, viewsets.ModelView
 
     @action(detail=True, methods=["post"])
     def review(self, request, pk=None):
+        """Risk (or the Board) examines the transaction: it is recommended for elevated approval, or flagged."""
         transaction = self.get_object()
         decision = request.data.get("decision")
-        if decision not in {
-            RelatedPartyDisclosureStatus.APPROVED,
-            RelatedPartyDisclosureStatus.FLAGGED,
-        }:
-            raise ValidationError({"decision": ["Must be 'approved' or 'flagged'."]})
+        if decision not in {RelatedPartyDisclosureStatus.RECOMMENDED, RelatedPartyDisclosureStatus.FLAGGED}:
+            raise ValidationError({"decision": ["Must be 'recommended' or 'flagged'."]})
+        if transaction.disclosure_status != RelatedPartyDisclosureStatus.PENDING_REVIEW:
+            raise ValidationError(f"Only a transaction pending review can be reviewed (current status: '{transaction.disclosure_status}').")
+        notes = str(request.data.get("notes") or "").strip()
+        if decision == RelatedPartyDisclosureStatus.RECOMMENDED:
+            if not transaction.conflict_declaration.strip():
+                raise ValidationError("A conflict-of-interest declaration is required before the transaction can be recommended.")
+            if transaction.price_test == "not_tested":
+                raise ValidationError("The price test needs an independent benchmark amount and its source.")
+        elif not notes:
+            raise ValidationError({"notes": ["Say why the transaction is flagged."]})
 
         previous_status = transaction.disclosure_status
         transaction.disclosure_status = decision
         transaction.reviewed_by = request.user
-        transaction.review_notes = request.data.get("notes")
+        transaction.review_notes = notes
         transaction.save(update_fields=["disclosure_status", "reviewed_by", "review_notes", "updated_at"])
         log_action(
             tenant=transaction.tenant,
@@ -514,15 +562,40 @@ class RelatedPartyTransactionViewSet(EditableWhileDraftMixin, viewsets.ModelView
             action="review",
             model_name="RelatedPartyTransaction",
             object_id=str(transaction.id),
-            changes={"status": {"before": previous_status, "after": decision}},
+            changes={"status": {"before": previous_status, "after": decision}, "price_test": transaction.price_test},
             reason=transaction.review_notes,
             request=request,
         )
         return Response(self.get_serializer(transaction).data)
 
+    @action(detail=True, methods=["post"], url_path="elevated-approve")
+    def elevated_approve(self, request, pk=None):
+        """Elevated approval (BRD section 8): the Board or the Authorized Signatory, never the reviewer."""
+        transaction = self.get_object()
+        if transaction.disclosure_status != RelatedPartyDisclosureStatus.RECOMMENDED:
+            raise ValidationError("Only a recommended transaction can be approved.")
+        if transaction.reviewed_by_id == request.user.id:
+            raise ValidationError("The elevated approval must come from a different person than the reviewer.")
+        justification = str(request.data.get("justification") or "").strip()
+        if transaction.price_test == "failed" and not justification:
+            raise ValidationError(
+                {"justification": ["The price is outside the tolerance of the benchmark; a written justification is required."]}
+            )
+        transaction.disclosure_status = RelatedPartyDisclosureStatus.APPROVED
+        transaction.approved_by = request.user
+        transaction.approved_at = timezone.now()
+        if justification:
+            transaction.review_notes = f"{transaction.review_notes or ''}\nApproval justification: {justification}".strip()
+        transaction.save(update_fields=["disclosure_status", "approved_by", "approved_at", "review_notes", "updated_at"])
+        log_action(
+            tenant=transaction.tenant, actor=request.user, action="elevated_approve", model_name="RelatedPartyTransaction",
+            object_id=str(transaction.id), changes={"price_test": transaction.price_test}, reason=justification, request=request,
+        )
+        return Response(self.get_serializer(transaction).data)
+
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat"])])
+@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "risk_compliance", "pool_manager", "product_manager", "auditor", "authorized_signatory"])])
 def shariah_dashboard(request):
     """
     Aggregates everything currently awaiting Shariah Board / Secretariat
@@ -656,7 +729,25 @@ class ShariahAuditPlanViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
             return [IsAuthenticated(), HasAnyRole(["shariah_secretariat"])()]
         if self.action == "approve":
             return [IsAuthenticated(), HasAnyRole(["shariah_board"])()]
+        if self.action == "annual_report":
+            return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat", "auditor", "risk_compliance"])()]
         return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+
+    @action(detail=False, methods=["get"], url_path="annual-report")
+    def annual_report(self, request):
+        """The sealed annual Shariah audit report for ?year=YYYY."""
+        from .audit_report import build_annual_report
+
+        try:
+            year = int(request.query_params.get("year") or timezone.localdate().year)
+        except ValueError:
+            raise ValidationError({"year": ["A four-digit year is required."]})
+        report = build_annual_report(request.user.tenant, year)
+        log_action(
+            tenant=request.user.tenant, actor=request.user, action="shariah_audit_annual_report", model_name="Report",
+            object_id=report["content_hash"][:16], changes={"year": year, "findings": report["findings"]["total"]}, request=request,
+        )
+        return Response(report)
 
     def perform_create(self, serializer):
         plan = serializer.save(tenant=self.request.user.tenant)
@@ -746,9 +837,9 @@ class ConfigChangeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixi
 
     def get_permissions(self):
         if self.action in ("approve", "reject"):
-            return [IsAuthenticated(), HasAnyRole(["finance_checker", "platform_super_admin"])()]
+            return [IsAuthenticated(), HasAnyRole(["finance_checker"])()]
         return [IsAuthenticated(), HasAnyRole(
-            ["risk_compliance", "platform_super_admin", "finance_checker", "finance_maker", "pool_manager",
+            ["risk_compliance", "finance_checker", "finance_maker", "pool_manager",
              "auditor", "shariah_board"]
         )()]
 

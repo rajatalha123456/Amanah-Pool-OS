@@ -143,6 +143,7 @@ class RelatedPartyRelationshipType(models.TextChoices):
 class RelatedPartyDisclosureStatus(models.TextChoices):
     DISCLOSED = "disclosed", "Disclosed"
     PENDING_REVIEW = "pending_review", "Pending Review"
+    RECOMMENDED = "recommended", "Recommended (awaiting elevated approval)"
     APPROVED = "approved", "Approved"
     FLAGGED = "flagged", "Flagged"
 
@@ -169,6 +170,23 @@ class RelatedPartyTransaction(TenantScopedModel):
         related_name="reviewed_related_party_transactions",
     )
     review_notes = models.TextField(null=True, blank=True)
+    # BRD section 8: disclose, price-test, conflict declaration, elevated approval.
+    conflict_declaration = models.TextField(blank=True, default="")
+    benchmark_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    benchmark_source = models.CharField(max_length=255, blank=True, default="")
+    price_tolerance_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5)
+    approved_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_related_party_transactions"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def price_test(self):
+        """Is the price within the tolerance of an independent benchmark (arm's length)? not_tested without one."""
+        if not self.benchmark_amount:
+            return "not_tested"
+        deviation = abs(self.amount - self.benchmark_amount) / self.benchmark_amount * 100
+        return "passed" if deviation <= self.price_tolerance_pct else "failed"
 
     def __str__(self):
         return f"{self.related_party_name} - {self.amount}"
@@ -179,6 +197,8 @@ class SupportRequestType(models.TextChoices):
     PAYOUT_INQUIRY = "payout_inquiry", "Payout Inquiry"
     KYC_ISSUE = "kyc_issue", "KYC Issue"
     GENERAL_COMPLAINT = "general_complaint", "General Complaint"
+    DISPUTE = "dispute", "Dispute"
+    HARDSHIP_REQUEST = "hardship_request", "Hardship Request"
     OTHER = "other", "Other"
 
 
@@ -211,6 +231,10 @@ class SupportRequest(TenantScopedModel):
     subject = models.CharField(max_length=255)
     description = models.TextField()
     raised_by_name = models.CharField(max_length=255)
+    # Set when an investor or member raised it from the portal; staff-entered requests have only the name.
+    raised_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="raised_support_requests"
+    )
     status = models.CharField(
         max_length=20, choices=SupportRequestStatus.choices, default=SupportRequestStatus.OPEN
     )
