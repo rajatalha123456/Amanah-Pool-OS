@@ -95,3 +95,42 @@ class ParticipantAccount(TenantScopedModel):
 
     def __str__(self):
         return f"{self.account_number} ({self.participant.full_name})"
+
+
+class ConsentPurpose(models.TextChoices):
+    DATA_PROCESSING = "data_processing", "Processing of personal data for the account"
+    ELECTRONIC_STATEMENTS = "electronic_statements", "Electronic delivery of statements and notices"
+    THIRD_PARTY_SHARING = "third_party_sharing", "Sharing with banks / regulators beyond legal duty"
+    MARKETING = "marketing", "Product communications"
+
+
+class ConsentStatus(models.TextChoices):
+    GRANTED = "granted", "Granted"
+    WITHDRAWN = "withdrawn", "Withdrawn"
+
+
+class Consent(TenantScopedModel):
+    """
+    A participant's consent for one purpose (BRD privacy: purpose limitation, consent, data-subject workflows).
+    A grant is a permanent record; withdrawing it stamps the withdrawal and keeps the history. Re-granting creates
+    a new row, so the evidence of every period of consent survives.
+    """
+
+    participant = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name="consents")
+    purpose = models.CharField(max_length=30, choices=ConsentPurpose.choices)
+    status = models.CharField(max_length=10, choices=ConsentStatus.choices, default=ConsentStatus.GRANTED)
+    granted_at = models.DateTimeField()
+    method = models.CharField(max_length=20)  # in_person, e_sign, otp, portal
+    evidence_reference = models.CharField(max_length=100, blank=True, default="")
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        ordering = ["-granted_at"]
+        constraints = [
+            # At most one live consent per participant and purpose.
+            models.UniqueConstraint(
+                fields=["participant", "purpose"], condition=models.Q(status="granted"), name="one_live_consent_per_purpose"
+            ),
+        ]

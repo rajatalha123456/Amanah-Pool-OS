@@ -73,7 +73,6 @@ const SETUP_STEPS = [
     label: "Model",
     title: "Operating Model & Pool Identification",
     desc: "Core identity, operating archetype, currency, and product categorization",
-    check: "Operating model and legal entity structure verified against SBP microfinance regulations. Zero time-value uplift confirmed.",
   },
   {
     key: "contract",
@@ -81,7 +80,6 @@ const SETUP_STEPS = [
     label: "Contract",
     title: "Shariah Contract Charter & Legal Clauses",
     desc: "Qard-e-Hasana bilateral agreement, 0% interest and 0% penalty clauses",
-    check: "Bilateral Qard-e-Hasana charter verified. Strict 0% Riba and zero-penalty hardship relief clauses intact.",
   },
   {
     key: "economics",
@@ -89,7 +87,6 @@ const SETUP_STEPS = [
     label: "Economics",
     title: "Contribution, Rotation & Payout Economics",
     desc: "Monthly share per member, aggregated pool total, and rotation cadence",
-    check: "Total cycle aggregate matches member contribution sum. 100% mutual fund distribution confirmed with 0% admin fees.",
   },
   {
     key: "assets",
@@ -97,7 +94,6 @@ const SETUP_STEPS = [
     label: "Assets",
     title: "Settlement Rails, Escrow & Collateral Assets",
     desc: "Segregated escrow account, Raast/1LINK payment rails, and balance holds",
-    check: "Escrow account balance holds verified with core banking integration. Segregated funds operational without interest accrual.",
   },
   {
     key: "governance",
@@ -105,7 +101,6 @@ const SETUP_STEPS = [
     label: "Governance",
     title: "Shariah Oversight, Rules & Democratic Voting",
     desc: "Jurisdiction rule pack, fatwa rulings, quorum rules, and hardship protocol",
-    check: "Democratic quorum requirements, voting thresholds, and Shariah Board resolution FATWA-2025-01 validated.",
   },
   {
     key: "review",
@@ -113,7 +108,6 @@ const SETUP_STEPS = [
     label: "Review",
     title: "AI Multi-Gate Audit Check & Pool Activation",
     desc: "Automated Shariah verification, integrity checksums, and operational lock",
-    check: "All 6 setup phases verified. Zero time-value uplift and Shariah Qard-e-Hasana mutual assistance clauses verified. Ready for operational cycles.",
   },
 ]
 
@@ -1323,7 +1317,7 @@ function ProposalsTab({
             </label>
             <label className={labelClasses}>
               Voting Deadline
-              <input name="voting_deadline" type="date" defaultValue="2026-10-15" required className={inputClasses} />
+              <input name="voting_deadline" type="date" required className={inputClasses} />
             </label>
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <Button type="submit" disabled={isSaving}>

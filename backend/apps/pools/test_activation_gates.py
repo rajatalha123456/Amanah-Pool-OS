@@ -47,6 +47,7 @@ class ActivationBase(APITestCase):
         self.client.request = request_keeping_tenant
 
         self.pm = self._user("pm", UserRole.POOL_MANAGER)
+        self.checker = self._user("checker", UserRole.FINANCE_CHECKER)
         self.investor = self._user("investor", UserRole.INVESTOR_MEMBER)
         self.risk = self._user("risk", UserRole.RISK_COMPLIANCE)
         self.finance_checker = self._user("fchecker", UserRole.FINANCE_CHECKER)
@@ -118,7 +119,7 @@ class ActivationBase(APITestCase):
         self.add_matrix()
 
     def open_pool(self):
-        self.authenticate(self.pm)
+        self.authenticate(self.checker)  # BRD 6.1: an independent checker activates
         return self.client.post(reverse("pool-open", args=[self.pool.id]))
 
 
@@ -188,8 +189,10 @@ class ActivationGateTests(ActivationBase):
         self.assertNotIn("Usmani", str(snapshot))
         self.assertNotIn("TIER-", str(snapshot))
 
-    def test_only_pool_managers_can_open_or_seal(self):
+    def test_only_a_checker_can_open_and_only_a_pool_manager_can_seal(self):
         self.add_everything()
+        self.authenticate(self.pm)
+        self.assertEqual(self.client.post(reverse("pool-open", args=[self.pool.id])).status_code, status.HTTP_403_FORBIDDEN)
         self.authenticate(self.investor)
         self.assertEqual(self.client.post(reverse("pool-open", args=[self.pool.id])).status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(
@@ -200,6 +203,9 @@ class ActivationGateTests(ActivationBase):
     def test_community_circle_needs_no_economics_or_chart(self):
         self.product.operating_model = "community_circle"
         self.product.save()
+        template = self.product.contract_template
+        template.contract_type = "qard"  # a Qard circle; a Mudarabah contract would be a rule conflict
+        template.save()
         self.add_rule_pack()
         ApprovalMatrixRule.objects.create(
             tenant=self.tenant, action="payout_approve", role=UserRole.FINANCE_CHECKER, max_amount=None
@@ -256,3 +262,21 @@ class PoolVersionTests(ActivationBase):
     def test_a_changed_rule_pack_or_mapping_is_a_real_change_too(self):
         AccountMapping.objects.filter(account_key="rounding_account").update(gl_code="NEW-CODE")
         self.assertEqual(self.seal(change_rationale="Re-coded rounding account").status_code, status.HTTP_201_CREATED)
+
+
+class RuleConflictTests(ActivationBase):
+    def test_a_manager_share_above_the_rule_pack_cap_blocks_activation(self):
+        self.add_everything()
+        JurisdictionRulePack.objects.filter(tenant=self.tenant).update(rules_config={"mudarib_share_cap_pct": 10.0})
+        response = self.open_pool()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("exceeds the rule pack cap", str(response.data))
+
+    def test_a_contract_that_does_not_fit_the_model_blocks_activation(self):
+        self.add_everything()
+        template = self.product.contract_template
+        template.contract_type = "qard"
+        template.save()
+        response = self.open_pool()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cannot run a bank_pool", str(response.data))

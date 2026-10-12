@@ -8,6 +8,7 @@ class PoolStatus(models.TextChoices):
     PENDING_APPROVAL = "pending_approval", "Pending Approval"
     APPROVED = "approved", "Approved"
     OPEN = "open", "Open"
+    FROZEN = "frozen", "Frozen"
     ALLOCATION = "allocation", "Allocation"
     CLOSED = "closed", "Closed"
     ARCHIVED = "archived", "Archived"
@@ -29,6 +30,13 @@ class Pool(TenantScopedModel):
     status = models.CharField(max_length=20, choices=PoolStatus.choices, default=PoolStatus.DRAFT)
     effective_date = models.DateField()
     closed_date = models.DateField(null=True, blank=True)
+    # Freeze record (apps/pools/lifecycle.py): the status to return to, why, and who applied it.
+    frozen_from = models.CharField(max_length=20, blank=True, default="")
+    freeze_reason = models.TextField(blank=True, default="")
+    frozen_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    frozen_at = models.DateTimeField(null=True, blank=True)
     # Jurisdiction rule pack the pool operates under (bound at activation if left empty).
     rule_pack = models.ForeignKey(
         "products.JurisdictionRulePack", on_delete=models.PROTECT, null=True, blank=True, related_name="pools"
@@ -272,3 +280,31 @@ class AssetProvisionEntry(TenantScopedModel):
 
     def __str__(self):
         return f"{self.entry_type} {self.amount} on {self.asset.reference_code} ({self.status})"
+
+
+class DailyCloseStatus(models.TextChoices):
+    OPEN = "open", "Open (gates failing)"
+    PREPARED = "prepared", "Prepared (awaiting checker)"
+    SIGNED = "signed", "Signed"
+
+
+class DailyClose(TenantScopedModel):
+    """
+    Daily close of a pool (BRD 6.2: "maker resolves exceptions; checker signs the daily close"). The gates are computed
+    from recorded data by the server, never typed in. Once signed, the day's balances and income / expense events
+    are frozen; a correction needs an approved restatement.
+    """
+
+    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name="daily_closes")
+    value_date = models.DateField()
+    status = models.CharField(max_length=10, choices=DailyCloseStatus.choices, default=DailyCloseStatus.OPEN)
+    gates = models.JSONField(default=list)
+    notes = models.TextField(blank=True, default="")
+    prepared_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    prepared_at = models.DateTimeField(null=True, blank=True)
+    signed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    signed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-value_date"]
+        constraints = [models.UniqueConstraint(fields=["pool", "value_date"], name="unique_daily_close_per_pool_day")]

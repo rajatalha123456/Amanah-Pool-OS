@@ -35,7 +35,7 @@ const ARTIFACT_ICONS: Record<string, string> = {
 export function EvidenceBundleBuilder() {
   const [pools, setPools] = useState<Pool[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState<string>("")
-  const [periodDate, setPeriodDate] = useState<string>("2026-09-30")
+  const [periodDate, setPeriodDate] = useState<string>(new Date().toISOString().slice(0, 10))
   const [auditMandate, setAuditMandate] = useState<string>(AUDIT_MANDATES[0])
 
   const [bundle, setBundle] = useState<EvidenceBundlePayload | null>(null)
@@ -112,7 +112,7 @@ export function EvidenceBundleBuilder() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wider font-semibold text-emerald-400">
-              BRD Screen Inventory: AI & Assurance Screen 7 / Screen 39
+              Audit evidence
             </span>
             <span className="text-text-muted">•</span>
             <span className="text-xs text-text-muted">AAOIFI & SBP Inspection Dossier</span>
@@ -290,7 +290,7 @@ export function EvidenceBundleBuilder() {
               </div>
               <div className="text-[10px] text-text-muted mt-1 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                <span>Deterministic Checksum • Tamper-Evident Subledger Verified</span>
+                <span>SHA-256 seal over the bundle contents</span>
               </div>
             </div>
           </div>

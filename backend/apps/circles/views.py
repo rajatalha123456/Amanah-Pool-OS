@@ -185,6 +185,10 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             }
         )
 
+    def _locked(self, payout):
+        """Re-reads the payout under a row lock so two concurrent decisions cannot both pass the status check."""
+        return Payout._base_manager.select_for_update(of=("self",)).select_related("pool", "member").get(pk=payout.pk)
+
     @action(detail=False, methods=["post"], url_path="request-payout/(?P<pool_id>[^/.]+)")
     def request_payout(self, request, pool_id=None):
         pool = get_circle_pool(pool_id)
@@ -218,8 +222,9 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
         return Response(PayoutSerializer(payout).data, status=201)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def approve(self, request, pk=None):
-        payout = self.get_object()
+        payout = self._locked(self.get_object())
         if payout.status != PayoutStatus.PENDING:
             raise ValidationError(f"Only a pending payout can be approved (current status: '{payout.status}').")
         if payout.requested_by_id == request.user.id:
@@ -258,8 +263,9 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
         return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def reject(self, request, pk=None):
-        payout = self.get_object()
+        payout = self._locked(self.get_object())
         if payout.status not in (PayoutStatus.PENDING, PayoutStatus.APPROVED):
             raise ValidationError(f"Payout cannot be rejected in status '{payout.status}'.")
         reason = (request.data.get("reason") or "").strip()
@@ -281,9 +287,10 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
         return Response(PayoutSerializer(payout).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def settle(self, request, pk=None):
         """Records that the approved payout was settled, with the bank's own settlement reference."""
-        payout = self.get_object()
+        payout = self._locked(self.get_object())
         if payout.status != PayoutStatus.APPROVED:
             raise ValidationError(f"Only an approved payout can be settled (current status: '{payout.status}').")
 
@@ -385,6 +392,10 @@ class CircleMemberViewSet(
         return queryset
 
     def get_permissions(self):
+        if self.action in ("my_circles", "accept_rules"):
+            return [IsAuthenticated(), HasAnyRole(["investor_member"])()]
+        if self.action == "link_login":
+            return [IsAuthenticated(), IsPoolManager()]
         if self.action == "create":
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "run_draw":
@@ -398,6 +409,78 @@ class CircleMemberViewSet(
         if self.action in ("update", "partial_update", "swap_turns", "execute_provably_fair_draw"):
             return [IsAuthenticated(), IsPoolManager()]
         return [IsAuthenticated(), HasAnyRole(CIRCLE_READ_ROLES)()]
+
+    @action(detail=False, methods=["get"], url_path="my-circles")
+    def my_circles(self, request):
+        """Self-service: the caller's own memberships, contributions, payouts and rules status - nothing of other members."""
+        from .rules import acceptance_summary  # noqa: F401  (kept local to avoid import cycles)
+        from .models import RulesAcceptance
+
+        result = []
+        members = CircleMember.objects.filter(user=request.user).select_related("pool")
+        for member in members:
+            rules = current_rules(member.pool)
+            accepted = bool(rules and RulesAcceptance.objects.filter(member=member, rules=rules).exists())
+            contributions = Contribution.objects.filter(member=member).order_by("cycle_number")
+            payouts = Payout.objects.filter(member=member).order_by("cycle_number")
+            result.append({
+                "member_id": str(member.id), "member_reference": member.member_reference,
+                "pool": str(member.pool_id), "pool_code": member.pool.code, "pool_name": member.pool.name,
+                "status": member.status, "payout_position": member.payout_position,
+                "rules": None if rules is None else {
+                    "version": rules.version, "contribution_amount": str(rules.contribution_amount),
+                    "cycle_days": rules.cycle_days, "schedule_note": rules.schedule_note,
+                    "order_policy": rules.order_policy, "hardship_policy": rules.hardship_policy,
+                    "content_hash": rules.content_hash, "accepted": accepted,
+                },
+                "contributions": [
+                    {"cycle_number": c.cycle_number, "amount": str(c.amount), "date": str(c.contribution_date),
+                     "status": c.status} for c in contributions
+                ],
+                "payouts": [
+                    {"cycle_number": p.cycle_number, "amount": str(p.amount), "date": str(p.payout_date),
+                     "status": p.status} for p in payouts
+                ],
+            })
+        return Response(result)
+
+    @action(detail=False, methods=["post"], url_path="accept-rules")
+    def accept_rules(self, request):
+        """A member accepts the current rules with their own login (e-signature / OTP reference required)."""
+        from .rules import record_acceptance
+
+        member = CircleMember.objects.filter(user=request.user, pool_id=request.data.get("pool")).first()
+        if member is None:
+            raise ValidationError({"pool": ["You are not a member of this circle."]})
+        acceptance = record_acceptance(
+            member=member, user=request.user, method=request.data.get("method", "e_sign"),
+            evidence_reference=str(request.data.get("evidence_reference", "")),
+        )
+        log_action(
+            tenant=member.tenant, actor=request.user, action="circle.rules_accepted_by_member", model_name="CircleMember",
+            object_id=str(member.id), changes={"rules": str(acceptance.rules_id)}, request=request,
+        )
+        return Response({"accepted": True, "rules_version": acceptance.rules.version}, status=201)
+
+    @action(detail=True, methods=["post"], url_path="link-login")
+    def link_login(self, request, pk=None):
+        """Pool manager links a member to an existing member-role user of the same tenant."""
+        from apps.accounts.models import User
+
+        member = self.get_object()
+        email = str(request.data.get("email", "")).strip().lower()
+        user = User.objects.filter(tenant=member.tenant, email__iexact=email, role="investor_member").first()
+        if user is None:
+            raise ValidationError({"email": ["No member-role user with this email exists in this tenant."]})
+        if CircleMember.objects.filter(pool=member.pool, user=user).exclude(pk=member.pk).exists():
+            raise ValidationError({"email": ["This login is already linked to another member of this circle."]})
+        member.user = user
+        member.save(update_fields=["user", "updated_at"])
+        log_action(
+            tenant=member.tenant, actor=request.user, action="circle.member_login_linked", model_name="CircleMember",
+            object_id=str(member.id), changes={"user": str(user.id)}, request=request,
+        )
+        return Response({"linked": True})
 
     def perform_update(self, serializer):
         member = serializer.instance
@@ -647,10 +730,12 @@ class CircleMemberViewSet(
 
         from datetime import date as _date
 
+        from apps.pools.lifecycle import assert_not_frozen
         from apps.pools.period_lock import assert_period_open
 
         from .rules import current_rules
 
+        assert_not_frozen(member.pool, "contributions")
         try:
             amount = Decimal(str(amount))
             cycle_number = int(cycle_number)

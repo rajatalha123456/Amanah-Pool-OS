@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
+import { RoleGate } from "../components/RoleGate"
 import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
@@ -84,11 +85,11 @@ export function AllocationSimulator() {
           )
           setValueDate(sorted[0].value_date)
         } else if (!valueDate) {
-          setValueDate("2026-09-28")
+          setValueDate(new Date().toISOString().slice(0, 10))
         }
       })
       .catch(() => {
-        if (!valueDate) setValueDate("2026-09-28")
+        if (!valueDate) setValueDate(new Date().toISOString().slice(0, 10))
       })
   }, [selectedPoolId])
 
@@ -114,7 +115,7 @@ export function AllocationSimulator() {
       setSelectedPoolId(generalPool.id)
     }
     setIncomeMode("ledger")
-    setValueDate("2026-09-28")
+    setValueDate(new Date().toISOString().slice(0, 10))
     setSimulateError("")
   }
 
@@ -234,7 +235,7 @@ export function AllocationSimulator() {
             onClick={() => navigate("/mudarib-fee-optimization")}
           >
             <span>⚡</span>
-            <span>Mudarib Fee & Hiba Optimizer (Screen 19)</span>
+            <span>Mudarib Fee & Hiba Optimizer</span>
           </Button>
         }
       />
@@ -276,6 +277,7 @@ export function AllocationSimulator() {
             ) : pools.length === 0 ? (
               <p className="text-sm text-gold-400">No pools available. Create a pool first.</p>
             ) : (
+              <RoleGate roles={["pool_manager", "finance_maker"]} fallback={<p className="text-xs text-ink-secondary">Read-only for your role: runs are prepared by the Pool Manager or the Finance Maker.</p>}>
               <form onSubmit={handleSimulate} className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:items-end">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
@@ -386,6 +388,7 @@ export function AllocationSimulator() {
                   </Button>
                 </div>
               </form>
+              </RoleGate>
             )}
 
             {simulateError && (
@@ -441,7 +444,7 @@ export function AllocationSimulator() {
               {result.is_loss && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-950/20 p-4 text-amber-300">
                   <div className="flex items-center gap-2 font-semibold text-sm">
-                    <span>⚠️</span> Shariah Capital Loss Waterfall Active (BRD Sec 2 & 7)
+                    <span>⚠️</span> Shariah Capital Loss Waterfall Active
                   </div>
                   <p className="mt-1 text-xs text-amber-200/80">
                     Net pool income is negative (expenses exceed income). Under Islamic Mudarabah & Musharakah principles, Mudarib receives PKR 0.00 profit share. 100% of verified capital loss is distributed pro-rata to capital providers according to daily funds.

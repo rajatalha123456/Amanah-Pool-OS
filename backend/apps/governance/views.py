@@ -10,14 +10,12 @@ from apps.accounts.models import User
 from apps.accounts.permissions import (
     HasAnyRole,
     IsFinanceChecker,
-    IsFinanceMaker,
-    IsPoolManager,
     IsRiskCompliance,
     IsShariahBoard,
 )
 from apps.allocation.models import ProfitSharingRatio, WeightageBand
 from apps.core.audit import log_action
-from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 from apps.pools.models import Pool, PoolStatus
 from apps.products.models import ContractTemplate, ContractTemplateStatus, ShariahDecision, ShariahDecisionStatus
 
@@ -766,3 +764,62 @@ class ConfigChangeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixi
 
         change = reject_change(self.get_object(), request.user, str(request.data.get("reason") or ""), request)
         return Response(self.get_serializer(change).data)
+
+
+class RetentionPolicyViewSet(viewsets.ViewSet):
+    """Retention register: risk & compliance proposes, a different authorized person approves."""
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance"])()]
+        if self.action == "approve":
+            return [IsAuthenticated(), HasAnyRole(["authorized_signatory", "pool_manager"])()]
+        return [IsAuthenticated(), HasAnyRole(["risk_compliance", "pool_manager", "auditor", "authorized_signatory"])()]
+
+    @staticmethod
+    def _row(p):
+        return {
+            "id": str(p.id), "data_category": p.data_category, "category_label": p.get_data_category_display(),
+            "retention_days": p.retention_days, "basis": p.basis, "status": p.status,
+            "approved_at": p.approved_at.isoformat() if p.approved_at else None,
+        }
+
+    def list(self, request):
+        from .models import RetentionPolicy
+
+        return Response([self._row(p) for p in RetentionPolicy.objects.all()])
+
+    def create(self, request):
+        from . import retention
+
+        policy = retention.propose(
+            tenant=request.user.tenant, user=request.user, data_category=request.data.get("data_category"),
+            retention_days=request.data.get("retention_days"), basis=request.data.get("basis"),
+        )
+        log_action(
+            tenant=policy.tenant, actor=request.user, action="retention_policy_proposed", model_name="RetentionPolicy",
+            object_id=str(policy.id), changes={"category": policy.data_category, "days": policy.retention_days}, request=request,
+        )
+        return Response(self._row(policy), status=201)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from . import retention
+        from .models import RetentionPolicy
+
+        policy = RetentionPolicy.objects.filter(pk=pk).first()
+        if policy is None:
+            raise ValidationError("Unknown policy.")
+        retention.approve(policy, request.user)
+        log_action(
+            tenant=policy.tenant, actor=request.user, action="retention_policy_approved", model_name="RetentionPolicy",
+            object_id=str(policy.id), changes={"category": policy.data_category, "days": policy.retention_days}, request=request,
+        )
+        return Response(self._row(policy))
+
+    @action(detail=False, methods=["get"])
+    def preview(self, request):
+        """What the retention routine would remove or flag today (nothing is deleted by this call)."""
+        from . import retention
+
+        return Response(retention.run_retention(request.user.tenant, apply=False))

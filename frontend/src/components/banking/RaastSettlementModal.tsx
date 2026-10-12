@@ -266,7 +266,7 @@ export function RaastSettlementModal({
 
             <div className="flex justify-between items-center pt-2">
               <span className="text-[10px] text-emerald-400/80 font-mono">
-                ✓ SBP Settlement Verified
+                ✓ Simulated settlement recorded
               </span>
               <Button type="button" variant="primary" onClick={onClose} className="text-xs">
                 Done / Close Receipt

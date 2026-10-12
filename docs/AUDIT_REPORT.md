@@ -376,3 +376,72 @@ I looked at screenshots of 17 screens as different roles. Besides the three issu
 - Period Close page text no longer cites "SBP Prudential Regulations" or the "Resident Shariah Board Member / CFO"; it describes what the system does. Asset face values are formatted. "100% Balanced" static text removed.
 
 E2E: 12 Playwright tests pass (run twice). Note that login is rate limited; for local E2E runs start the backend with `AUTH_THROTTLE_RATE=1000/min`.
+
+### 2026-10-12 (latest) - second screenshot pass (reconciliation, payouts, purification, circles)
+- "Run Automated Matching" renamed "Record matching result" (the screen records a match outcome; it does not run a matcher).
+- Payout engine text no longer claims SBP mandates specific steps or an "Active Taxpayer List"; it describes the internal controls and says WHT follows each participant's recorded tax status. The actual WHT rates remain an open decision (see below).
+- Purification ledger and Balance Import now open on a bank/investment pool instead of the first pool, which was a community circle.
+- Seed: the circle's payout order now comes from the real commit-reveal draw (a verifiable draw record exists), the Qard circle has its own Shariah decision (FATWA-2025-04) instead of the Mudarabah one, and a reseed clears notifications and payout batches.
+- Verification: 367 backend tests pass, `tsc` clean, 25 Playwright runs pass.
+
+Still open: member self-service login for circle members, e2e for allocation ceremony / redemption / provisions / circle payout, remaining P2 wording (hard-coded demo dates, "Rs" vs "PKR"). Decisions needed from the owner: WHT rates (15% / 30%), Zakat basis (2.5% per payout vs yearly balance), PER/IRR ceiling basis (profit vs funds), provisions treatment.
+
+### 2026-10-12 (final) - policy defaults, member login, e2e, cleanup
+- **Policy defaults** (see `docs/BRD_COVERAGE.md` update): WHT rates and Zakat now come from the rule pack instead of constants in the payout engine; the PER/IRR ceiling in the pack is enforced on reserve policies; the seed's PER cap (5%) exceeded the pack's 2% ceiling and was corrected.
+- **Member self-service login:** `CircleMember.user`, `GET circles/circle-members/my-circles/`, `POST circles/circle-members/accept-rules/` (both on the investor allow-list), `POST .../link-login/` for the pool manager. Members cannot reach staff circle endpoints (asserted in `core/test_access_control.py`). Demo login: `member@novulabsdemo.test` (MEM-002).
+- **More fabricated content removed from the Investment Pools screen:** a made-up NAV history (1000 -> 1048.2), a "Lead Partner 60 / Co-Investor 25 / 15" equity donut, a 100 NAV fallback and a 14.1% "estimated profit" were replaced by recorded data or an empty state.
+- **Hard-coded demo dates** (2026-09-28 / 09-30 / 10-15 / 10-31) in the allocation simulator, evidence bundle builder, vote form and audit-finding form replaced by today's date or an empty required field.
+- **E2E:** 17 assertion tests now (member login, circle payout, provisions ledger, redemption button added); `e2e/shots.spec.ts` is a screenshot helper, not an assertion test.
+- Verification: 375 backend tests, `tsc` clean, 30 Playwright runs pass.
+
+### 2026-10-12 (BRD gap round) - pool lifecycle and consent
+- Added the BRD's frozen / archived pool states with enforcement (409 on subscriptions, redemptions, contributions, payouts, allocation runs), a different-person rule for lifting a freeze, and PoolDetail controls.
+- Added the `Consent` entity, member self-service (view, withdraw, data export) and staff recording; isolation-test builder added so the new tenant-scoped model is covered by the cross-tenant suite.
+- 386 backend tests, 31 Playwright runs pass.
+
+### 2026-10-12 (final sweep) - stubs, unverifiable claims, races, hygiene
+Found and fixed in a last full pass (static scan, authorization sweep of every write endpoint, lint/build, and manual review):
+- **Simulated bank rails were available in production.** Raast/1LINK settlement, payout dispatch and the CBS SFTP feed return reference numbers and balances that come from no bank. They are now behind `ALLOW_SIMULATED_INTEGRATIONS` (on in development, **off by default in production**, HTTP 409 when off). The settlement endpoint no longer defaults to a made-up source IBAN/title.
+- **Customer-facing statement text made claims the system cannot know** ("deployed into Murabaha / Ijarah", "principal remains unencumbered", "Shariah Board certified", "SBP statutory disclosure"). Rewritten to state only the statement's own figures and the general rule that profit is not guaranteed.
+- **Static "verified / compliant" labels removed or made data-driven:** "SBP IBD 03/2012 COMPLIANT" on the filing package, the six unused setup "check" strings in Community Circles and Investment Pools (they cited a fatwa and a core-banking escrow integration that did not exist), "All tested samples comply" on an empty audit plan, "Verified Sovereign" data residency (now lists the real values), "Quorum Certified", "Tamper-Evident Subledger Verified", "SBP Settlement Verified" on a simulation, "SBP Directive" on a collusion suggestion.
+- **Hiba simulator:** two checklist items were hard-coded `passed: true` and counted towards the "all passed" verdict; they are now marked informational and excluded.
+- **Race conditions:** payout approve / reject / settle and the allocation-run final release re-read the row under a lock, so two concurrent requests cannot both pass the status check (double settlement / double release).
+- **Hygiene:** about 100 unused imports removed; a malformed `<input>...</input>` in the auditor portal fixed; no migration drift; `check --deploy` clean.
+- Authorization sweep: 233 write endpoints checked; the only ones reachable with just a login are own-profile language, own notifications, and support requests (staff only via the investor deny-list).
+Verification: 387 backend tests, `tsc` and production build clean, 31 Playwright runs pass.
+
+Known remaining gaps (not code defects): real bank/SBP/FBR/KYC/e-sign integrations; WHT and Zakat rates need professional sign-off; no load test, penetration test, accessibility audit, SSO, vault or WAF; the SBP/AAOIFI references in screen headings follow the UI Catalogue and are labels, not verified compliance statements; React lint reports about 45 style warnings (setState in effects, exhaustive-deps) with no errors.
+
+### 2026-10-12 (remaining items) - reminders, retention, deployment guide
+Added contribution reminders (with a first-due-date on circle rules), the retention policy register and routine, and `docs/DEPLOYMENT.md`. New tenant-scoped model covered by the isolation suite. 396 backend tests, 31 Playwright runs pass.
+
+### 2026-10-12 (role visibility) - who sees which screens
+BRD section 3 does not give every user every screen. Before this change every staff role saw all 14 menu items (only investors were filtered), and the Platform Super Admin could read tenant financial data through the API although the BRD says it "cannot view tenant financial data by default".
+- **Menu and routes by role** (`frontend/src/layouts/navItems.ts`): each area lists the roles that work in it (for example Administration: super admin only; Participants / Daily Operations / Risk: operations roles; AI & Analytics: Shariah, product and risk roles). A role that opens a hidden address is sent home. This is a display rule only; the API still enforces permissions.
+- **Platform Super Admin** is now deny-by-default at the API (`accounts/investor_scope.py`): it may use auth, tenants, legal entities, notifications, rule packs, configuration changes, account mappings and the audit trail, and nothing else. It lands on Administration. It was also removed from the Shariah decision create list.
+- Tests: super admin gets 403 on pools, runs, participants, journals, capital accounts and circles; two new browser tests. 398 backend tests and 33 Playwright runs pass.
+
+### 2026-10-12 (BRD section 3 review) - segregation of duties and role powers
+Prompted by the Super Admin finding, every one of the 220 write endpoints was listed per role (script over the live URL conf) and compared with the BRD's "Restricted actions" column. Fixed:
+- **Pool activation**: BRD 6.1 says a checker activates; the Pool Manager who prepares the pool also opened it. `open` now needs a Finance Checker or Authorized Signatory.
+- **Auditor independence**: the auditor could open and annotate negligence cases, accept circle rules and decide on AI recommendations. All three removed (the auditor still reads them).
+- **Circle rules acceptance**: eight roles could record a member's acceptance; now the Pool Manager (the organizer) only.
+- **Rule-hierarchy conflicts block activation** (BRD section 8): new activation gate for a contract that does not fit the operating model, a manager share above the rule-pack cap, or a PER/IRR cap above the rule-pack ceiling.
+- **AI prompt/output logging** now masks CNIC, IBAN, e-mail, mobile and long account numbers (BRD section 9); the hash is over the original text.
+- **Screens showed buttons the role cannot use** (pool lifecycle, new pool/product/asset, income and expense, reconciliation, balance import, allocation simulator, payout engine, AI decisions). They are now gated by role, same rules as the API.
+- **Stub removed**: the Asset Registry "EXPORT" button only showed an alert; it now downloads a real CSV.
+Not built (BRD gaps that remain): a daily-close object (BRD 6.2 "checker signs the daily close"); only the period close exists. Mudarabah/Wakalah/Musharakah specifics beyond what the BRD lists are not modelled.
+
+### 2026-10-12 (remaining BRD gaps) - daily close and disclosure approval
+- **Daily close** (BRD 6.2 "maker resolves exceptions; checker signs the daily close"): `pools.DailyClose`. The finance maker prepares a day; the server computes the gates (balances imported and validated, none pending, no high / critical exception open, no flagged reconciliation variance). A different finance checker signs, and the gates are re-derived at signing. A signed day refuses new balance imports and income / expense entries dated on it. New "Daily Close" tab in Daily Operations; the demo database has a prepared, still-open day (the seeded high-severity exception is a failing gate).
+- **Disclosure approval** (BRD: the Product / Pool Manager drafts, Risk or the Shariah Board validates): a disclosure is prepared by the Pool or Product Manager, stays invisible to investors and cannot be acknowledged until a different Shariah Board / Risk user approves it; approval re-checks that the pool's terms still match.
+- **Checked, no change needed:** reclassifying an income / expense event or quarantining it to charity is only possible while the event is pending, and the finance checker must still post it, so the maker-checker control holds.
+- 408 backend tests, 34 Playwright runs, `tsc` and build clean.
+
+### 2026-10-12 (public website)
+- **Public website** at `/welcome` (a visitor opening the bare address `/` is sent there; deeper addresses still go straight to sign-in; a signed-in user sees "Open workspace"). Sections: hero with the release-ceremony diagram, facts, brand statement, the three operating models, platform controls, the release ceremony, governance and security, AI guardrails, roles, FAQ, demo request, footer. Responsive, keyboard accessible, motion switched off for users who ask for less.
+- Content rule: only things the platform really does. No customer names, quotations, performance figures or certifications; regulations are described as "designed to support", as the BRD says.
+- **Demo requests are real**: `POST /api/v1/public/demo-requests/` (no login, throttled to 5 per hour per address, hidden honeypot field) stores an enquiry that only the Platform Super Admin can read, under Administration > Website Enquiries.
+- The sign-in page now shares the website's look and links back to it.
+- 413 backend tests, 37 Playwright runs, `tsc` and build clean.
+- Website polish round: animated aurora and pointer-light hero, scroll progress and active-section navigation, counters, a concepts ribbon, model explorer tabs, bento platform grid with pointer-follow cards, and two small honest demos (a release-rule playground and a hash-chain tamper demo, both labelled as illustrations). 38 browser tests pass.

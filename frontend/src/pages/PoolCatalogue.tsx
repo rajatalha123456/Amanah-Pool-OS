@@ -1,3 +1,4 @@
+import { RoleGate } from "../components/RoleGate"
 import { useEffect, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Card } from "../components/Card"
@@ -62,9 +63,11 @@ export function PoolCatalogue() {
         title="Pool Catalogue"
         subtitle="All pools across bank, investment and community models"
         actions={
-          <Link to="/pools/new">
-            <Button variant="primary">+ New Pool</Button>
-          </Link>
+          <RoleGate roles={["pool_manager"]}>
+            <Link to="/pools/new">
+              <Button variant="primary">+ New Pool</Button>
+            </Link>
+          </RoleGate>
         }
       />
 

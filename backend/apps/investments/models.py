@@ -428,7 +428,13 @@ class PoolDisclosure(TenantScopedModel):
     terms_hash = models.CharField(max_length=64)
     risk_warnings = models.TextField()
     fee_statement = models.TextField()
+    # published_by is the person who prepared the disclosure; a different person approves it (BRD: Product /
+    # Pool Manager drafts disclosures, Risk or the Shariah Board validates them).
     published_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    status = models.CharField(max_length=15, choices=[("pending_review", "Pending review"), ("published", "Published")],
+                              default="published")
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-version"]

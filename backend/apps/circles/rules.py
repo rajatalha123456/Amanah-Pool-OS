@@ -15,7 +15,9 @@ def current_rules(pool):
     return CircleRules.objects.filter(pool=pool).order_by("-version").first()
 
 
-def publish_rules(*, pool, user, contribution_amount, cycle_days, order_policy, hardship_policy, schedule_note=""):
+def publish_rules(
+    *, pool, user, contribution_amount, cycle_days, order_policy, hardship_policy, schedule_note="", first_due_date=None
+):
     if pool.product.operating_model != "community_circle":
         raise ValidationError({"pool": ["Rules apply to community circles only."]})
     if contribution_amount <= 0 or cycle_days <= 0:
@@ -29,10 +31,12 @@ def publish_rules(*, pool, user, contribution_amount, cycle_days, order_policy, 
         "cycle_days": cycle_days, "schedule_note": schedule_note, "order_policy": order_policy,
         "hardship_policy": hardship_policy,
     }
+    if first_due_date is not None:  # only sealed when set, so earlier rule versions keep their hashes
+        body["first_due_date"] = str(first_due_date)
     return CircleRules.objects.create(
         tenant=pool.tenant, pool=pool, version=version, contribution_amount=contribution_amount,
         cycle_days=cycle_days, schedule_note=schedule_note, order_policy=order_policy,
-        hardship_policy=hardship_policy, published_by=user,
+        hardship_policy=hardship_policy, published_by=user, first_due_date=first_due_date,
         content_hash=hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest(),
     )
 

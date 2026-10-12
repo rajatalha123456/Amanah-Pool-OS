@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
+import { RoleGate } from "../components/RoleGate"
 import { Button } from "../components/Button"
 import { Spinner } from "../components/Spinner"
 import { StatCard } from "../components/StatCard"
@@ -50,7 +51,7 @@ export function BalanceImport() {
       .then((data) => {
         setPools(data)
         if (data.length > 0) {
-          setSelectedPoolId(data[0].id)
+          setSelectedPoolId((data.find((p) => p.product_detail?.operating_model !== "community_circle") ?? data[0]).id)
         }
       })
       .catch(() => setFormError("Failed to load pools"))
@@ -205,6 +206,7 @@ export function BalanceImport() {
           ) : pools.length === 0 ? (
             <p className="text-sm text-gold-400">No pools available. Create a pool first.</p>
           ) : (
+            <RoleGate roles={["pool_manager", "finance_maker"]} fallback={<p className="text-xs text-ink-secondary">Read-only for your role: balances are imported by the Pool Manager or the Finance Maker.</p>}>
             <form onSubmit={handleImport} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
@@ -327,6 +329,7 @@ export function BalanceImport() {
               </Button>
             </div>
           </form>
+            </RoleGate>
         )}
       </Card>
       )}

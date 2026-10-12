@@ -188,7 +188,7 @@ export function TenantManagement({ hideHeader }: TenantManagementProps) {
       header: "Residency",
       accessor: (t) => (
         <span className="rounded bg-navy-800 px-2 py-0.5 font-mono text-xs text-emerald-400">
-          {t.data_residency} (Local Cloud)
+          {t.data_residency}
         </span>
       ),
     },
@@ -574,7 +574,7 @@ export function TenantManagement({ hideHeader }: TenantManagementProps) {
           </div>
           <div>
             <p className="text-[11px] font-semibold text-ink-secondary uppercase">DATA RESIDENCY</p>
-            <p className="text-base font-bold text-emerald-400">Verified Sovereign</p>
+            <p className="text-base font-bold text-emerald-400">{Array.from(new Set(tenants.map((t) => t.data_residency))).join(", ") || "-"}</p>
           </div>
         </div>
       </div>

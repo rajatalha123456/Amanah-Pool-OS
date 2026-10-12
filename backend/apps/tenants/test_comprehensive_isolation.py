@@ -252,14 +252,14 @@ class EndpointIsolationTests(APITestCase):
         cls.rows_a = build_one_of_each(cls.tenant_a)
         cls.user_a = User.objects.create_user(
             email="a@example.com", password="password", full_name="Tenant A User",
-            role=UserRole.PLATFORM_SUPER_ADMIN, tenant=cls.tenant_a,
+            role=UserRole.AUDITOR, tenant=cls.tenant_a,
         )
 
         set_current_tenant(cls.tenant_b)
         build_one_of_each(cls.tenant_b)
         cls.user_b = User.objects.create_user(
             email="b@example.com", password="password", full_name="Tenant B User",
-            role=UserRole.PLATFORM_SUPER_ADMIN, tenant=cls.tenant_b,
+            role=UserRole.AUDITOR, tenant=cls.tenant_b,
         )
         set_current_tenant(None)
 

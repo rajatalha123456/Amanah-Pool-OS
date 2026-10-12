@@ -1,8 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 
   /* Navy - primary background / header color */
   --color-navy-950: #070c18;
@@ -69,3 +70,120 @@ body {
 [dir="rtl"] td {
   text-align: right;
 }
+
+
+/* ------------------------------------------------------------------------------------------------------------
+   Public website (src/pages/site). Motion is decorative only and switched off for users who ask for less.
+   ------------------------------------------------------------------------------------------------------------ */
+.site-pattern {
+  /* eight-pointed star tile, drawn once and repeated at low contrast */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72' fill='none' stroke='%23d4af37' stroke-opacity='0.16' stroke-width='1'%3E%3Cpath d='M36 6l7.4 17.9L61.3 16.5 54 34.4 72 36l-18 1.6 7.3 17.9-17.9-7.4L36 66l-7.4-17.9L10.7 55.5 18 37.6 0 36l18-1.6-7.3-17.9 17.9 7.4z'/%3E%3C/svg%3E");
+  background-size: 72px 72px;
+}
+
+.site-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.site-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes site-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes site-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@keyframes site-line {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.site-float { animation: site-float 7s ease-in-out infinite; }
+.site-float-slow { animation: site-float 10s ease-in-out infinite; animation-delay: -3s; }
+.site-glow { animation: site-glow 5s ease-in-out infinite; }
+.site-line { transform-origin: top; animation: site-line 1.6s ease-out both; animation-delay: 0.4s; }
+
+.site-gradient-text {
+  background: linear-gradient(100deg, #f3f4f6 10%, #e6c65c 55%, #34d399 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- premium layer ---------------------------------------------------------------------------------------- */
+@keyframes site-drift-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,40px) scale(1.15); } }
+@keyframes site-drift-b { 0%,100% { transform: translate(0,0) scale(1.1); } 50% { transform: translate(-50px,60px) scale(0.95); } }
+@keyframes site-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes site-rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes site-dash { to { stroke-dashoffset: -24; } }
+@keyframes site-shine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+.site-aurora-a { animation: site-drift-a 22s ease-in-out infinite; }
+.site-aurora-b { animation: site-drift-b 28s ease-in-out infinite; }
+.site-marquee-track { display: flex; width: max-content; animation: site-marquee 42s linear infinite; }
+.site-marquee:hover .site-marquee-track { animation-play-state: paused; }
+.site-rise { opacity: 0; animation: site-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+.site-dash { stroke-dasharray: 6 6; animation: site-dash 1.2s linear infinite; }
+
+/* fine film grain over the whole page: removes the flat, "web template" feel of big dark gradients */
+.site-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* a soft light that follows the pointer across a card */
+.site-spot { position: relative; isolation: isolate; }
+.site-spot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(230, 198, 92, 0.13), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.site-spot:hover::before { opacity: 1; }
+
+.site-gold-edge { position: relative; }
+.site-gold-edge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(230, 198, 92, 0.55), rgba(255, 255, 255, 0.04) 40%, rgba(52, 211, 153, 0.35));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.site-shine-text {
+  background: linear-gradient(100deg, #f3f4f6 20%, #e6c65c 40%, #34d399 60%, #f3f4f6 80%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: site-shine 9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-reveal { opacity: 1; transform: none; transition: none; }
+  .site-float, .site-float-slow, .site-glow, .site-line, .site-aurora-a, .site-aurora-b, .site-marquee-track,
+  .site-dash, .site-shine-text { animation: none; }
+  .site-rise { opacity: 1; animation: none; }
+  html { scroll-behavior: auto; }
+}
+html { scroll-behavior: smooth; }

@@ -32,6 +32,7 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
     user?.role === "compliance_officer" ||
     user?.role === "risk_manager"
 
+  const isAdmin = user?.role === "platform_super_admin"
   const [rulePacks, setRulePacks] = useState<JurisdictionRulePack[]>([])
   const [reservePolicies, setReservePolicies] = useState<ReservePolicy[]>([])
   const [pools, setPools] = useState<Pool[]>([])
@@ -72,10 +73,12 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
     setLoading(true)
     setError(null)
     try {
+      // The platform administrator provisions rule packs but cannot read pool business data (BRD section 3),
+      // so the reserve-policy half of this screen is loaded only for the roles that work with pools.
       const [packs, policies, poolsData] = await Promise.all([
         fetchJurisdictionRulePacks(),
-        fetchReservePolicies(),
-        fetchPools(),
+        isAdmin ? Promise.resolve([] as ReservePolicy[]) : fetchReservePolicies(),
+        isAdmin ? Promise.resolve([] as Pool[]) : fetchPools(),
       ])
       setRulePacks(packs)
       setReservePolicies(policies)
@@ -249,18 +252,23 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
             />
             <StatCard
               label="Default Regulatory Engine"
-              value={rulePacks.find((p) => p.is_default)?.code || "PK-SBP-2025"}
+              value={rulePacks.find((p) => p.is_default)?.code || "None set"}
               deltaTone="positive"
             />
             <StatCard
-              label="Active Reserve Policies"
-              value={String(reservePolicies.filter((p) => p.is_active).length)}
+              label="Active Rule Packs"
+              value={String(rulePacks.filter((p) => p.is_active).length)}
               deltaTone="neutral"
             />
             <StatCard
-              label="Jurisdictional Compliance"
-              value="100% SBP / AAOIFI"
-              deltaTone="positive"
+              label="Packs Without Withholding Rates"
+              value={String(
+                rulePacks.filter((p) => {
+                  const c = p.rules_config as Record<string, unknown>
+                  return c.wht_filer_pct == null || c.wht_non_filer_pct == null
+                }).length,
+              )}
+              deltaTone="neutral"
             />
           </div>
 
@@ -296,25 +304,33 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
                     <div>
                       <span className="text-ink-muted">PER Ceiling:</span>
                       <p className="font-semibold text-ink-primary">
-                        {String(cfg.per_ceiling_pct ?? "2.0")}% of net income
+                        {cfg.per_ceiling_pct != null ? `${String(cfg.per_ceiling_pct)}% of pool funds` : "not set"}
                       </p>
                     </div>
                     <div>
                       <span className="text-ink-muted">IRR Ceiling:</span>
                       <p className="font-semibold text-ink-primary">
-                        {String(cfg.irr_ceiling_pct ?? "5.0")}% of pool assets
+                        {cfg.irr_ceiling_pct != null ? `${String(cfg.irr_ceiling_pct)}% of pool funds` : "not set"}
                       </p>
                     </div>
                     <div>
                       <span className="text-ink-muted">Notice Period:</span>
                       <p className="font-semibold text-ink-primary">
-                        {String(cfg.notice_period_days ?? "30")} days
+                        {cfg.notice_period_days != null ? `${String(cfg.notice_period_days)} days` : "not set"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-ink-muted">Withholding (filer / non-filer):</span>
+                      <p className="font-semibold text-ink-primary">
+                        {cfg.wht_filer_pct != null && cfg.wht_non_filer_pct != null
+                          ? `${String(cfg.wht_filer_pct)}% / ${String(cfg.wht_non_filer_pct)}%`
+                          : "not set"}
                       </p>
                     </div>
                     <div>
                       <span className="text-ink-muted">Mudarib Fee Cap:</span>
                       <p className="font-semibold text-ink-primary">
-                        {String(cfg.mudarib_share_cap_pct ?? "20.0")}%
+                        {cfg.mudarib_share_cap_pct != null ? `${String(cfg.mudarib_share_cap_pct)}%` : "not set"}
                       </p>
                     </div>
                   </div>
@@ -338,7 +354,8 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
             })}
           </div>
 
-          {/* Reserve Policies Table */}
+          {/* Reserve Policies Table (pool data: not shown to the platform administrator) */}
+          {!isAdmin && (
           <Card
             title="Pool Reserve Policies (PER & IRR Ceilings)"
             actions={
@@ -357,10 +374,11 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
               />
             ) : (
               <div className="rounded border border-dashed border-navy-700 p-8 text-center text-sm text-ink-muted">
-                No pool-specific reserve policies defined yet. System uses default statutory ceilings (2% PER, 5% IRR).
+                No pool-specific reserve policies are defined yet, so no PER / IRR appropriation is made for those pools.
               </div>
             )}
           </Card>
+          )}
         </>
       )}
 
@@ -544,17 +562,15 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
               RULE PACKS ACTIVE
             </p>
             <p className="text-base font-bold text-ink-primary">
-              {rulePacks.filter((p) => p.is_active).length} <span className="text-emerald-400 text-xs">100%</span>
+              {rulePacks.filter((p) => p.is_active).length} of {rulePacks.length}
             </p>
           </div>
-          <div>
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase">STANDARDS COVERED</p>
-            <p className="text-base font-bold text-emerald-400">SBP • AAOIFI • BNM</p>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-ink-secondary uppercase">RESERVE POLICIES</p>
-            <p className="text-base font-bold text-emerald-400">{reservePolicies.length} Active</p>
-          </div>
+          {!isAdmin && (
+            <div>
+              <p className="text-[11px] font-semibold text-ink-secondary uppercase">RESERVE POLICIES</p>
+              <p className="text-base font-bold text-emerald-400">{reservePolicies.length} configured</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

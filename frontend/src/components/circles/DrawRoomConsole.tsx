@@ -158,7 +158,7 @@ export function DrawRoomConsole({
         <div className="rounded-2xl border-2 border-gold-500/60 bg-gradient-to-br from-navy-900 via-navy-950 to-navy-900 p-6 shadow-2xl lg:col-span-2">
           <div className="flex items-center justify-between">
             <span className="rounded bg-gold-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-gold-400">
-              BRD SCREEN 08 • ROTATION / DRAW ROOM
+              ROTATION / DRAW ROOM
             </span>
             <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
               CYCLE #{data.current_cycle} ACTIVE

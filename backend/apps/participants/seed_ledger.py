@@ -13,7 +13,6 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User, UserRole
 from apps.core.context import set_current_tenant
 from apps.pools.models import (
     BalanceImportBatch,
@@ -127,7 +126,14 @@ def seed_participant_ledger(
             opened_date=date(2026, 1, 1),
         )
         accounts.append((account, Decimal(base)))
-    say(f"[OK] {len(accounts)} participants with verified KYC and accounts seeded")
+    from .consents import grant_consent
+
+    for account, _ in accounts:
+        grant_consent(
+            participant=account.participant, purpose="data_processing", method="in_person",
+            evidence_reference="", user=pm_user,
+        )
+    say(f"[OK] {len(accounts)} participants with verified KYC, accounts and data-processing consent seeded")
 
     # Daily end-of-day balances for the whole seeded window (Jul - Sep 2026).
     # Balances drift deterministically within +/-0.5% so averages differ from closing values.

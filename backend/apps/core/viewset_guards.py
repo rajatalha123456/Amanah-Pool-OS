@@ -7,8 +7,10 @@ from .audit import log_action
 NO_DELETE = ["get", "post", "put", "patch", "head", "options"]
 READ_AND_POST = ["get", "post", "head", "options"]
 
+# Roles that may read tenant business data. The Platform Super Admin is deliberately absent: BRD section 3 says it
+# "cannot view tenant financial data by default" (it provisions tenants, users and configuration only).
 STAFF_ROLES = [
-    "platform_super_admin", "product_manager", "pool_manager", "finance_maker", "finance_checker",
+    "product_manager", "pool_manager", "finance_maker", "finance_checker",
     "shariah_secretariat", "shariah_board", "risk_compliance", "authorized_signatory", "auditor",
 ]
 

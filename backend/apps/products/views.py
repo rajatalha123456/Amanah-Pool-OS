@@ -2,13 +2,13 @@ import hashlib
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsProductManager, IsShariahBoard, IsStrictShariahBoard
 from apps.core.audit import log_action
-from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 
 from .models import (
     ContractTemplate,
@@ -42,7 +42,7 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
-            return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat", "platform_super_admin"])()]
+            return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat"])()]
         if self.action in ("approve", "cast_quorum_vote"):
             return [IsAuthenticated(), IsStrictShariahBoard()]
         return [IsAuthenticated()]
@@ -342,7 +342,8 @@ class JurisdictionRulePackViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "activate"):
             return [IsAuthenticated(), HasAnyRole(["platform_super_admin", "risk_compliance"])()]
-        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+        # Rule packs are configuration, not financial data: the platform administrator who provisions them may read them.
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES + ["platform_super_admin"])()]
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)

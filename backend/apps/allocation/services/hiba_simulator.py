@@ -10,7 +10,7 @@ Implements AAOIFI Shariah Standard No. 13 (Clause 8/5) and SBP IBD Circular 03/2
 from decimal import Decimal
 from typing import Dict, Any, List
 from django.utils import timezone
-from apps.allocation.models import AllocationRun, AllocationRunStatus, AllocationLine
+from apps.allocation.models import AllocationRun, AllocationRunStatus
 from apps.core.audit import log_action
 
 
@@ -135,7 +135,7 @@ def simulate_mudarib_hiba(
         {
             "id": "RULE-HIBA-02",
             "rule": "Non-Negative Mudarib Share Limit",
-            "standard": "SBP IBD Circular 03/2012 Annexure B",
+            "standard": "Internal control",
             "passed": revised_mudarib_share >= 0,
             "details": f"Bank retains PKR {revised_mudarib_share:,.2f} ({effective_mudarib_pct}% of distributable pool profit).",
         },
@@ -144,6 +144,7 @@ def simulate_mudarib_hiba(
             "rule": "Equal Pro-Rata Distribution Across Participant Tiers",
             "standard": "AAOIFI Shariah Standard No. 40",
             "passed": True,
+            "informational": True,  # true by construction of the calculation, not a test of the data
             "details": "Hiba is spread over the participant lines in proportion to their weighted funds.",
         },
         {
@@ -151,11 +152,12 @@ def simulate_mudarib_hiba(
             "rule": "Irrevocability of Voluntary Gift",
             "standard": "AAOIFI Shariah Standard No. 13",
             "passed": True,
+            "informational": True,
             "details": "A hiba applied to a run is recorded in the audit log; it is a one-way concession in this system.",
         },
     ]
 
-    all_shariah_passed = all(item["passed"] for item in shariah_checklist)
+    all_shariah_passed = all(item["passed"] for item in shariah_checklist if not item.get("informational"))
 
     # ALCO & Shariah Resolution Memorandum
     now_str = timezone.now().strftime("%Y-%m-%d %H:%M UTC")

@@ -3,6 +3,7 @@ import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
+import { RoleGate, useHasRole } from "../components/RoleGate"
 import { Spinner } from "../components/Spinner"
 import { StatCard } from "../components/StatCard"
 import { Modal } from "../components/Modal"
@@ -32,6 +33,7 @@ interface ReconciliationCenterProps {
 }
 
 export function ReconciliationCenter({ hideHeader = false }: ReconciliationCenterProps = {}) {
+  const isMaker = useHasRole("finance_maker")
   const [pools, setPools] = useState<Pool[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState<string>("")
   const [batches, setBatches] = useState<ReconciliationBatch[]>([])
@@ -216,13 +218,15 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
       accessor: (item) => {
         if (item.status === "discrepancy" || item.status === "variance_flagged") {
           return (
-            <Button
-              variant="secondary"
-              className="text-xs py-1 px-2"
-              onClick={() => setClearItemTarget(item)}
-            >
-              Clear Variance
-            </Button>
+            <RoleGate roles={["finance_checker"]} fallback={<span className="text-xs text-amber-300">Awaiting checker</span>}>
+              <Button
+                variant="secondary"
+                className="text-xs py-1 px-2"
+                onClick={() => setClearItemTarget(item)}
+              >
+                Clear Variance
+              </Button>
+            </RoleGate>
           )
         }
         return <span className="text-xs text-emerald-400">✓ Reconciled</span>
@@ -255,9 +259,11 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
                   </option>
                 ))}
               </select>
-              <Button variant="primary" onClick={() => setShowNewBatchModal(true)}>
-                + New Reconciliation Batch
-              </Button>
+              <RoleGate roles={["finance_maker"]}>
+                <Button variant="primary" onClick={() => setShowNewBatchModal(true)}>
+                  + New Reconciliation Batch
+                </Button>
+              </RoleGate>
             </div>
           }
         />
@@ -278,9 +284,11 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
               ))}
             </select>
           </div>
-          <Button variant="primary" onClick={() => setShowNewBatchModal(true)}>
-            + New Reconciliation Batch
-          </Button>
+          <RoleGate roles={["finance_maker"]}>
+            <Button variant="primary" onClick={() => setShowNewBatchModal(true)}>
+              + New Reconciliation Batch
+            </Button>
+          </RoleGate>
         </div>
       )}
 
@@ -339,14 +347,14 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
                 <Badge variant={STATUS_BADGE[selectedBatch.status] ?? "neutral"}>
                   {selectedBatch.status.toUpperCase()}
                 </Badge>
-                {selectedBatch.status !== "matched" && selectedBatch.status !== "cleared" && (
+                {selectedBatch.status !== "matched" && selectedBatch.status !== "cleared" && isMaker && (
                   <Button
                     variant="secondary"
                     disabled={isAutoMatching}
                     onClick={handleAutoMatch}
                     className="text-xs"
                   >
-                    {isAutoMatching ? <Spinner className="h-3 w-3" /> : "Run Automated Matching"}
+                    {isAutoMatching ? <Spinner className="h-3 w-3" /> : "Record matching result"}
                   </Button>
                 )}
               </div>
@@ -433,13 +441,15 @@ export function ReconciliationCenter({ hideHeader = false }: ReconciliationCente
             <p className="mt-1 text-xs text-ink-muted">
               Create a batch or run daily operations to feed CBS and GL balances.
             </p>
-            <Button
-              variant="primary"
-              className="mt-4"
-              onClick={() => setShowNewBatchModal(true)}
-            >
-              + Create First Reconciliation Batch
-            </Button>
+            <RoleGate roles={["finance_maker"]}>
+              <Button
+                variant="primary"
+                className="mt-4"
+                onClick={() => setShowNewBatchModal(true)}
+              >
+                + Create First Reconciliation Batch
+              </Button>
+            </RoleGate>
           </div>
         </Card>
       )}

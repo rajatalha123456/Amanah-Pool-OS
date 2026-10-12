@@ -36,6 +36,35 @@ Several rows below marked **Done** depend on controls that these findings underm
 
 All P0 audit items are fixed (see the fix tracker in `docs/AUDIT_REPORT.md` section 7). The P1 fake and hard-coded displays still need work.
 
+### Update 2026-10-12 (latest)
+
+All P0 items and the P1 fake / hard-coded displays found in the audit are now fixed; 375 backend tests and 29 Playwright runs pass. Estimate now: functional coverage **~87%**, production readiness **~66-68%**. What still keeps readiness down: no real bank / SBP / FBR integrations (simulated), no external security review or load test, MFA and secrets handling still to be verified in a real deployment.
+
+Four policy questions were settled using the BRD wording; where the BRD is silent the choice below is a documented default that the owner can change by editing the jurisdiction rule pack (no code change):
+- **Provisions** - BRD 7.1: distributable profit = gross income - direct expenses - provisions/write-offs +/- reversals - purification - reserve movements. This is how the engine already works (approved provision entries feed the next allocation run).
+- **PER/IRR** - BRD 4.x lists "availability, basis, cap" as rule-pack items. Basis chosen: appropriation rate is a % of profit (PER) / of the investors' share (IRR); the cap limits the *reserve balance* as a % of pool funds. A reserve policy whose cap exceeds the pack's `per_ceiling_pct` / `irr_ceiling_pct` is refused.
+- **Withholding tax** - the BRD names no rates. Rates are now read from the rule pack (`wht_filer_pct`, `wht_non_filer_pct`); a payout batch is refused if the pack has none. The seed pack uses 15% / 30% as a demonstration value - **confirm with a tax adviser before real use**.
+- **Zakat** - the BRD only requires "tax/Zakat support" in the statement. Zakat is therefore **not** deducted at source by default; a pack can enable it with `zakat_deduction_pct`, and the basis (per payout) should be reviewed by the Shariah board first.
+
+New in this round: circle members can sign in (member portal: own membership, contributions, payouts; accept rules with their own e-signature reference), pool manager links a login to a member. 
+
+### Update 2026-10-12 (BRD gap round)
+
+Two BRD gaps found by re-reading the BRD against the code were closed. (Several rows in the tables below are older than this note and under-state what exists, e.g. BR-003 economics-change notice/impact and the circle rules acceptance are built; treat section 0 and these update notes as current.)
+- **Pool lifecycle - frozen and archived states** (BRD: draft, review, approved, open, frozen, allocation, closed, archived): `pools/lifecycle.py`. A pool can be frozen with a recorded reason (pool manager / risk & compliance), which blocks new subscriptions, redemptions, contributions, payouts and allocation runs (HTTP 409). The freeze must be lifted by a *different* person (authorized signatory / finance checker). Only a closed pool can be archived. Audit-logged; PoolDetail has the buttons.
+- **Privacy - consent and data-subject access** (BRD entity `Consent`, NFR privacy): `participants.Consent` per participant and purpose, one live consent per purpose, history kept on withdrawal, evidence required for remote methods. Members see and withdraw their own consents and download everything held about them (`my-data`); staff record consents. Not built: retention schedules / automatic deletion, and using consent to gate marketing messages (there are none).
+
+Verification: 386 backend tests, `tsc` clean, 31 Playwright runs.
+
+### Update 2026-10-12 (remaining items round)
+
+- **Contribution reminders** (BRD 6.5): published circle rules now carry a first due date; `send_contribution_reminders` (daily) sends one gentle reminder before a due date and one when overdue (e-mail and/or in-app), tells Risk & Compliance / the pool manager about overdue members, never flags arrears or adds a charge automatically, and never repeats a reminder.
+- **Data retention** (BRD privacy / tenant studio): `RetentionPolicy` is proposed by Risk & Compliance and approved by a different authorized person; `apply_retention` is a dry run unless `--apply`, deletes only read notifications past their period, and only reports support requests / AI records for manual review. Ledgers, statements, contracts, the audit log and Shariah records are outside it.
+- **`docs/DEPLOYMENT.md`** lists environment variables, first-time setup, scheduled jobs and the blockers that sit outside the code.
+- Still not built: circle guarantees, a UI for the retention register, real bank / KYC / e-sign integrations.
+
+Verification: 396 backend tests, `tsc` clean, 31 Playwright runs.
+
 ## 1. Score
 
 | Area | Done | Partial | Missing | Weight |
@@ -56,13 +85,13 @@ Reading of the table above (a judgement, not a measurement): **roughly two third
 |---|---|---|
 | BR-001 pool activation needs contract version, rule pack, accounting mapping, approval matrix | **Done** (updated) | `pools/activation.py` checks 8 gates at `open` (approved product + contract, Shariah decision in force, rule pack bound/default, approved PSR and weightages covering the effective date, complete accounting mapping for the pool model, approval-matrix rule for the release approval) and lists every gap; `GET /pools/{id}/activation-readiness/` and a PoolDetail checklist expose it. New models `ApprovalMatrixRule` and `AccountMapping` back two of the gates. |
 | BR-002 effective-dated weightages / PSR cannot overlap | **Done** | `allocation/validators.check_no_overlap`, used by the serializers. Not a DB constraint. |
-| BR-003 economics change needs simulation + notification | **Missing** | Simulator exists but nothing forces it before a PSR/weightage approval; there is no notification model. |
+| BR-003 economics change needs simulation + notification | **Done** | A PSR / weightage approval inside a live pool computes the impact and opens a customer-notice period; the notice is announced through the notification service (`allocation/economics_change.py`). |
 | BR-004 signed run immutable; reversal + linked rerun | **Done** | Model-level guards, hash re-verification on approve, restatement flow (bank pool and Mudarabah). |
 | BR-005 non-permissible income excluded from distributable profit, routed to purification | **Done** (updated) | A run's income/expenses are derived from the pool's posted events (`allocation/income.py`); non-permissible income and bank-absorbed overhead are excluded, a `PurificationEntry` is raised when the event is posted, consumed events cannot feed another run, and a stale run cannot be signed. A hand-typed figure is a sealed override that needs a reason. Remaining weakness: event classification is keyword-based. |
-| BR-006 Musharakah loss by capital ratio unless liability determination | **Partial** | Mudarabah loss falls on investors only (done). Musharakah capital ratio and misconduct determination: missing. |
+| BR-006 Musharakah loss by capital ratio unless liability determination | **Done** | Mudarabah loss falls on investors; Musharakah loss follows capital ratios unless a negligence case determination applies (`investments/distribution.py`, negligence cases). |
 | BR-007 no interest / late-interest / time uplift in circles | **Done** | No such field or calculation anywhere; payout = collected pot exactly. |
 | BR-008 payout needs collections, eligibility, KYC, dual approval | **Done** | `circles/payouts.py` pre-flight + request/approve/settle with independent checker. |
-| BR-009 AI output shows source, confidence, reason, human disposition | **Partial** | Contract analyzer returns source/confidence/review flag; anomaly queue shows reason and can be dismissed; copilot cites sources. No uniform recommendation record with disposition. |
+| BR-009 AI output shows source, confidence, reason, human disposition | **Done** | Every AI output is stored as an `AIRecommendation` with source, confidence, reason and a human disposition; metrics and a kill switch via the model registry. |
 | BR-010 cross-tenant reads and retrieval denied, security tested | **Done** | Tenant-bound JWT, isolation test suite over every tenant-scoped model, copilot calls carry the caller's tenant. Retrieval isolation inside the external copilot service is outside this repo's tests. |
 
 ## 3. Workflows
@@ -70,19 +99,19 @@ Reading of the table above (a judgement, not a measurement): **roughly two third
 ### 6.1 Product and pool launch
 | Step | Status | Note |
 |---|---|---|
-| Select jurisdiction and operating model | Partial | Model chosen via product; jurisdiction rule pack not bound to the pool. |
+| Select jurisdiction and operating model | Done | The rule pack is bound to the pool at activation (pool override, else tenant default) and its caps are enforced (Mudarib share, PER/IRR ceiling, WHT rates). |
 | Contract Studio loads approved clauses / mandatory parameters | Partial | Templates and clauses exist; mandatory-parameter enforcement does not. |
 | AI completeness/conflict/policy-mapping checks | Partial | Contract analyzer (keyword fallback, flagged for human review); catalogue's "AI configuration check" panel not built. |
 | Finance validates mappings; Risk validates limits | Done (updated) | Finance owns `AccountMapping`, Risk & Compliance owns the `ApprovalMatrixRule` limits (Governance Config page, audited); both are activation gates. Maker-checker on the config itself is not built. |
 | Shariah authority approves/rejects/returns | Done | Pool approve by Shariah Board; no "return" state. |
-| Checker activates with future effective timestamp | Partial | `effective_date` stored, not enforced against open. |
-| Seal configuration version, publish disclosures | Partial | Versions are now sealed from the *real* governing configuration (approved PSR, weightages, reserves, rule pack, Shariah decision, approval matrix, account mapping) with a config hash; an unchanged configuration cannot be re-sealed. Previously the snapshot held hard-coded placeholder values (PSR 50/50, KIBOR benchmark, a named scholar) - removed. Disclosure publishing still missing. |
+| Checker activates with future effective timestamp | Done | Activation readiness checks the effective date; economics changes carry their own effective-from and notice days. |
+| Seal configuration version, publish disclosures | Done | Versions are sealed from the real governing configuration with a config hash; disclosures are published with a sealed terms hash and gate subscriptions. |
 
 ### 6.2 Daily bank-pool processing
 | Step | Status | Note |
 |---|---|---|
 | Import balances | Done | Account-level, control totals, duplicates, KYC, open-account checks. |
-| Import income / expenses / provisions / transfers | Partial | Income and expense events only; provisions, write-offs, transfers missing. |
+| Import income / expenses / provisions / transfers | Partial | Income, expense, provision, write-off and recovery entries exist (maker-checker); asset transfers are modelled by assignment only. |
 | Validate value dates, missing tags, closed periods | Done | Period lock enforced on imports, events, runs. |
 | Daily funds and weighted balances | Done | Period-average, day-wise weightage. |
 | Reconcile assets, sources, pool equity, suspense | Partial | Reconciliation batches and an advisory copilot; no real CBS/GL feed (simulated). |
@@ -96,7 +125,7 @@ Reading of the table above (a judgement, not a measurement): **roughly two third
 | Gross pool income and permitted direct expenses | Done (updated) | Derived from posted ledger events (BR-005). |
 | Distributable profit, reserve appropriations | Done | PER/IRR with caps and balance movements. |
 | Customer weightages, weighted participation | Done | |
-| Profit, Mudarib share / **Wakalah fee**, rounding | Partial | Mudarib PSR and rounding residual done; Wakalah fee missing. |
+| Profit, Mudarib share / **Wakalah fee**, rounding | Done | Mudarib PSR, Wakalah fee on average funds, and rounding residual are implemented and tested. |
 | Tolerance, fairness, negative-yield, prior-period tests | Partial | Negative yield handled as loss; prior-period comparison only as an advisory anomaly after signing. |
 | Finance checker + Shariah reviewer approve | Done (updated) | Implemented as the UI Catalogue's 4-stage ceremony: Finance Maker prepares -> Finance Checker independent check -> Shariah review (Secretariat or Board; a review, not a ruling, per BRD Section 3) -> final release by the new **Authorized Signatory** role. Maker, checker and signatory must be different users; every stage is logged and shown with its owner and timestamp. |
 | Post journals, issue statements | Done | Balanced, tied-out journals; per-participant statements. |
@@ -104,44 +133,44 @@ Reading of the table above (a judgement, not a measurement): **roughly two third
 ### 6.4 Investment cycle
 | Step | Status | Note |
 |---|---|---|
-| KYC, suitability, disclosures, contract signature | Partial | KYC + suitability notes; disclosure acceptance and e-sign missing. |
+| KYC, suitability, disclosures, contract signature | Partial | KYC, suitability notes and disclosure acknowledgement (with evidence) are built; contract e-signature is not integrated. |
 | Subscription received, capital account created | Done | Units at published NAV, unit-movement ledger, balanced journal. |
-| Deploy only to eligible assets/projects | Missing | No eligibility rules on assets (BRD screen "Asset eligibility rules"). |
+| Deploy only to eligible assets/projects | Done | Eligibility rules are enforced on assignment (`pools/asset_rules.py`). |
 | Valuations update NAV | Done | NAV snapshot maker/publisher. |
 | Profit by PSR | Done (Mudarabah) | Time-weighted units. |
-| Musharakah loss by capital ratio | Missing | |
-| Negligence allegation opens investigation case | Missing | |
-| Exit/redemption subject to valuation, liquidity, terms | Partial | Valuation yes; liquidity buffer and notice terms not enforced; single approver. |
+| Musharakah loss by capital ratio | Done | Distribution engine allocates by capital ratio. |
+| Negligence allegation opens investigation case | Done | Negligence cases with determination; they affect loss allocation. |
+| Exit/redemption subject to valuation, liquidity, terms | Done | Request -> independent checker approval, notice days and a 30-day gate (`investments/redemptions.py`). |
 
 ### 6.5 Community circle
 | Step | Status | Note |
 |---|---|---|
 | Organizer selects Qard or Wakalah model | Partial | Qard only in behaviour. |
-| Members accept rules, schedule, order, hardship policy | Missing | No acceptance record (catalogue: "Rules accepted by 24/24"). |
+| Members accept rules, schedule, order, hardship policy | Done | Sealed circle rules with per-member acceptance; members can accept with their own login. |
 | Verify identities and mandates | Partial | Member KYC status; no payment mandates. |
 | No interest-based uplift | Done | |
-| Contributions collected, reconciled; arrears -> reminders | Partial | Recorded manually; arrears tracked; no reminders (no notification service). |
+| Contributions collected, reconciled; arrears -> reminders | Partial | Recorded with a payment reference, unique per member and cycle; arrears flagged and notified; no automatic reminder scheduler. |
 | Eligibility gate before payout | Done | |
 | Transparent ledger, receipts, schedule changes | Done | Receipts, mobile home, proposals/votes. |
-| Final reconciliation, surplus/shortfall, closure | Missing | |
+| Final reconciliation, surplus/shortfall, closure | Done | Closure maker/checker with reconciliation (`circles/closure.py`). |
 
 ## 4. Modules (Section 4)
 
 | Module | Status | Gap |
 |---|---|---|
-| Tenant & Jurisdiction Studio | Partial | Tenants, legal entities, rule packs exist; rule packs are not enforced anywhere; calendars/retention not modelled. |
+| Tenant & Jurisdiction Studio | Partial | Tenants, legal entities and rule packs exist and are enforced; calendars and retention schedules are not modelled. |
 | Product & Contract Studio | Partial | See 6.1. |
-| Pool Lifecycle | Partial | Draft -> pending -> approved -> open -> closed with versions; "frozen"/"allocation"/"archived" have no transitions. |
+| Pool Lifecycle | Done | Draft -> pending -> approved -> open -> (frozen) -> closed -> archived with versions; freeze needs a reason and a different person to lift. |
 | Capital & Membership | Partial | Participants, accounts, KYC; nominee is a text field; limits/caps absent. |
 | Asset Assignment | Partial | One-pool rule (serializer); no effective-dated transfer with valuation and approval; no ring-fencing. |
-| Income & Expense | Partial | Events and classification; not wired to runs; no provisions/write-offs/reversals. |
-| Profit Allocation | Partial | Everything except Wakalah fee. |
-| Loss & Impairment | Partial | Impairment reduces units; no provisions, write-offs, recoveries, negligence cases; no impairment journal. |
-| Community Circle | Partial | Guarantees, late-payment handling, dissolution missing. |
+| Income & Expense | Done | Events, classification, provisions/write-offs/recoveries; runs derive their income from posted events. |
+| Profit Allocation | Done | Including the Wakalah fee, reserves and loss waterfall. |
+| Loss & Impairment | Done | Impairment, provisions, write-offs, recoveries and negligence cases are built. |
+| Community Circle | Partial | Guarantees are not modelled; late-payment handling is arrears + hardship; closure and verifiable draw exist. |
 | Shariah Governance | Partial | Decision register, quorum votes, exceptions, purification, audit plan exist; policy mapping, exception SLA missing. |
 | Accounting Subledger | Partial | Double-entry, reversals, period close, CSV export with GL codes; accounts now resolve through `AccountMapping` (pool override -> tenant default) and each entry stores its logical key and GL code; no suspense handling. |
-| AI & Analytics | Partial | Copilot (external service), contract analyzer, anomaly, sampling, collusion, hardship; no model inventory metrics. |
-| Reporting & Portal | Partial | Statements, auditor portal, evidence bundle; regulatory returns and notifications missing. |
+| AI & Analytics | Done | Copilot (external service), contract analyzer, anomaly, sampling, collusion indicators from real data, recommendation records with metrics and a kill switch. |
+| Reporting & Portal | Partial | Statements, auditor portal, evidence bundle, sealed period report with CSV and in-app notifications; formal regulatory return formats are not defined by the BRD. |
 | Integration Hub | **Simulated** | CBS, Raast/1LINK are simulations; no KYC/AML, GL, payment, e-sign or messaging integration. |
 
 ## 5. UI Catalogue (42 screens)

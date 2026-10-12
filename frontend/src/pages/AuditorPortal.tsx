@@ -231,19 +231,19 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
               variant={activeTab === "evidence-bundle" ? "primary" : "secondary"}
               onClick={() => setActiveTab("evidence-bundle")}
             >
-              📦 Evidence Bundle (Screen 39)
+              📦 Evidence Bundle
             </Button>
             <Button
               variant={activeTab === "merkle-trail" ? "primary" : "secondary"}
               onClick={() => setActiveTab("merkle-trail")}
             >
-              🛡️ Merkle Trail & Diff (Screen 38)
+              🛡️ Merkle Trail & Diff
             </Button>
             <Button
               variant={activeTab === "sampling" ? "primary" : "secondary"}
               onClick={() => setActiveTab("sampling")}
             >
-              🔎 Risk-Ranked Sampling (Screen 40)
+              🔎 Risk-Ranked Sampling
             </Button>
             <Button
               variant={activeTab === "period-report" ? "primary" : "secondary"}
@@ -409,8 +409,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
                 className={inputClasses}
-              >
-              </input>
+              />
             </label>
             <label className={labelClasses}>
               To
@@ -419,8 +418,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
                 className={inputClasses}
-              >
-              </input>
+              />
             </label>
             <Button variant="outline" onClick={loadEntries} disabled={isLoading}>
               Apply Filters

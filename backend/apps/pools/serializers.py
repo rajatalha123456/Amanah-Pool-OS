@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.products.serializers import ContractTemplateBasicSerializer
 
-from .models import Asset, AssetAssignment, AssetProvisionEntry, BalanceImportBatch, DailyBalance, Pool, PoolVersion
+from .models import DailyClose, Asset, AssetAssignment, AssetProvisionEntry, BalanceImportBatch, DailyBalance, Pool, PoolVersion
 
 
 class ProductBasicSerializer(serializers.Serializer):
@@ -29,11 +29,15 @@ class PoolSerializer(serializers.ModelSerializer):
             "status",
             "effective_date",
             "closed_date",
+            "freeze_reason",
+            "frozen_at",
             "is_active",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "tenant", "status", "closed_date", "created_at", "updated_at")
+        read_only_fields = (
+            "id", "tenant", "status", "closed_date", "freeze_reason", "frozen_at", "created_at", "updated_at",
+        )
 
     def validate_code(self, value):
         # Pool.code is only enforced unique via a composite
@@ -264,3 +268,15 @@ class AssetProvisionEntrySerializer(serializers.ModelSerializer):
             "id", "pool", "provision_utilised", "status", "rejection_reason", "created_by", "approved_by",
             "approved_at", "journal_batch", "income_expense_event", "created_at",
         )
+
+
+class DailyCloseSerializer(serializers.ModelSerializer):
+    pool_code = serializers.CharField(source="pool.code", read_only=True)
+    prepared_by_name = serializers.CharField(source="prepared_by.full_name", read_only=True, default=None)
+    signed_by_name = serializers.CharField(source="signed_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = DailyClose
+        fields = ("id", "pool", "pool_code", "value_date", "status", "gates", "notes", "prepared_by_name", "prepared_at",
+                  "signed_by_name", "signed_at")
+        read_only_fields = fields

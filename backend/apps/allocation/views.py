@@ -18,13 +18,12 @@ from apps.accounts.permissions import (
     IsFinanceMaker,
     IsPoolManager,
     IsShariahBoard,
-    IsShariahSecretariat,
 )
 from apps.accounts.approval_matrix import assert_may_approve
 from apps.accounts.workflow import validate_maker_checker
 from apps.accounting.models import IncomeExpenseEvent
 from apps.core.audit import log_action
-from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 from apps.notifications import events
 from apps.pools.period_lock import assert_period_open
 
@@ -437,6 +436,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         """
         data, result = self._run_calculation(request)
 
+        from apps.pools.lifecycle import assert_not_frozen
+
+        assert_not_frozen(data["pool"], "a new allocation run")
         # A closed period accepts no new runs; corrections go through restatement.
         assert_period_open(
             data["pool"], data["value_date"], what="an allocation run", start=data.get("period_start")
@@ -638,6 +640,9 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         try:
             with transaction.atomic():
+                # Re-read under a row lock: a concurrent second release must not pass the status check as well.
+                if AllocationRun.objects.select_for_update().get(pk=run.pk).status != previous_status:
+                    raise ValidationError("This run was already released or changed by another request.")
                 reversal_batch = None
                 if run.is_restatement:
                     reversal_batch = _reverse_replaced_run(run, request.user)
@@ -1051,7 +1056,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     def list(self, request):
         """List all allocation runs eligible for or possessing a payout clearing batch."""
         from .models import AllocationRun, AllocationRunStatus
-        from .payout_clearing_engine import PayoutClearingEngine
 
         runs = AllocationRun.objects.filter(
             status=AllocationRunStatus.SIGNED
@@ -1082,7 +1086,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     def batch_detail(self, request):
         """Fetches complete granular batch details with depositor transactions."""
         from .models import AllocationRun
-        from .payout_clearing_engine import PayoutClearingEngine
 
         run_id = request.query_params.get("allocation_run")
         if not run_id:
@@ -1100,7 +1103,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="verify-gates")
     def verify_gates(self, request):
         """Runs the 5 Pre-Disbursement Statutory Gates."""
-        from .models import AllocationRun
         from .payout_clearing_engine import PayoutClearingEngine
 
         run_id = request.data.get("allocation_run")
@@ -1115,7 +1117,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="authorize")
     def authorize(self, request):
         """Checker authorization prior to clearing network transmission."""
-        from .models import AllocationRun
         from .payout_clearing_engine import PayoutClearingEngine
 
         run_id = request.data.get("allocation_run")
@@ -1133,9 +1134,11 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="dispatch-simulate")
     def dispatch_simulate(self, request):
         """Triggers real-time simulated network clearing on SBP Raast / 1LINK."""
-        from .models import AllocationRun
+        from apps.core.simulation import assert_simulation_allowed
+
         from .payout_clearing_engine import PayoutClearingEngine
 
+        assert_simulation_allowed("Raast / 1LINK dispatch")
         run_id = request.data.get("allocation_run")
         if not run_id:
             raise ValidationError({"allocation_run": ["Field is required."]})
@@ -1157,7 +1160,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     def download_iso_pacs008(self, request):
         """Downloads standard ISO 20022 pacs.008 XML message."""
         from django.http import HttpResponse
-        from .models import AllocationRun
         from .payout_clearing_engine import PayoutClearingEngine
 
         run_id = request.query_params.get("allocation_run")
@@ -1175,7 +1177,6 @@ class PayoutClearingViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="post-contra-gl")
     def post_contra_gl(self, request):
         """Posts automated Contra-Accounting GL voucher in Finance Ledger."""
-        from .models import AllocationRun
         from .payout_clearing_engine import PayoutClearingEngine
 
         run_id = request.data.get("allocation_run")

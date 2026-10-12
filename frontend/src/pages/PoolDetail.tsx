@@ -11,6 +11,9 @@ import { useAuth } from "../api/auth"
 import {
   approvePool,
   closePool,
+  freezePool,
+  unfreezePool,
+  archivePool,
   fetchPoolDetail,
   fetchPoolVersions,
   openPool,
@@ -33,6 +36,7 @@ const POOL_STATUS_BADGE: Record<string, BadgeVariant> = {
   approved: "gold",
   open: "emerald",
   allocation: "emerald",
+  frozen: "gold",
   closed: "navy",
   archived: "neutral",
 }
@@ -45,12 +49,17 @@ const TABS: { key: DetailTab; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "economics", label: "Weightage & PSR" },
   { key: "assets", label: "Assets" },
-  { key: "versions", label: "Version Diff Matrix (Screen 05)" },
+  { key: "versions", label: "Version Diff Matrix" },
 ]
 
 export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
   const { user } = useAuth()
   const canApprove = user?.role === "shariah_board"
+  // Who may do what (BRD section 3); the API enforces the same rules.
+  const role = user?.role ?? ""
+  const isPoolManager = role === "pool_manager"
+  const isChecker = role === "finance_checker" || role === "authorized_signatory"
+  const mayFreeze = role === "pool_manager" || role === "risk_compliance"
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const successMessage = (location.state as { successMessage?: string } | null)?.successMessage
@@ -203,7 +212,7 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
           </div>
 
           <Card title="Actions" className="mb-6">
-            {pool.status === "draft" && (
+            {pool.status === "draft" && isPoolManager && (
               <Button
                 variant="primary"
                 disabled={isActionPending}
@@ -225,7 +234,7 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
                 <p className="text-sm text-gold-400">Waiting for Shariah Board approval.</p>
               )
             )}
-            {pool.status === "approved" && (
+            {pool.status === "approved" && isChecker && (
               <Button
                 variant="primary"
                 disabled={isActionPending}
@@ -234,7 +243,7 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
                 {isActionPending ? <Spinner className="h-4 w-4" /> : "Open Pool"}
               </Button>
             )}
-            {(pool.status === "open" || pool.status === "allocation") && (
+            {(pool.status === "open" || pool.status === "allocation" || pool.status === "frozen") && role === "finance_checker" && (
               <Button
                 variant="primary"
                 disabled={isActionPending}
@@ -243,9 +252,47 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
                 {isActionPending ? <Spinner className="h-4 w-4" /> : "Close Pool"}
               </Button>
             )}
-            {(pool.status === "closed" || pool.status === "archived") && (
-              <p className="text-sm text-ink-secondary">Pool is closed</p>
+            {(pool.status === "open" || pool.status === "allocation") && mayFreeze && (
+              <Button
+                variant="secondary"
+                disabled={isActionPending}
+                onClick={() => {
+                  const reason = window.prompt("Reason for freezing this pool (recorded in the audit trail)")
+                  if (reason) void runAction((poolId) => freezePool(poolId, reason), "Unable to freeze pool.")
+                }}
+              >
+                Freeze Pool
+              </Button>
             )}
+            {pool.status === "frozen" && (
+              <>
+                <p className="text-sm text-gold-400">
+                  Frozen: no subscriptions, redemptions, contributions, payouts or new allocation runs.
+                  {pool.freeze_reason ? ` Reason: ${pool.freeze_reason}` : ""}
+                </p>
+                {isChecker && (
+                <Button
+                  variant="secondary"
+                  disabled={isActionPending}
+                  onClick={() => {
+                    const reason = window.prompt("Reason for lifting the freeze (a different person than who froze it)")
+                    if (reason) void runAction((poolId) => unfreezePool(poolId, reason), "Unable to unfreeze pool.")
+                  }}
+                >
+                  Lift Freeze
+                </Button>
+                )}
+              </>
+            )}
+            {pool.status === "closed" && (
+              <>
+                <p className="text-sm text-ink-secondary">Pool is closed</p>
+                {role === "finance_checker" && <Button variant="secondary" disabled={isActionPending} onClick={() => runAction(archivePool, "Unable to archive pool.")}>
+                  Archive Pool
+                </Button>}
+              </>
+            )}
+            {pool.status === "archived" && <p className="text-sm text-ink-secondary">Pool is archived (read-only)</p>}
           </Card>
 
           {["draft", "pending_approval", "approved"].includes(pool.status) && (
@@ -263,7 +310,7 @@ export function PoolDetail({ initialTab }: { initialTab?: DetailTab } = {}) {
                   className="text-xs"
                   onClick={() => setActiveTab("versions")}
                 >
-                  Open Governance Diff Matrix (Screen 05) →
+                  Open Governance Diff Matrix →
                 </Button>
               ) : undefined
             }

@@ -18,7 +18,7 @@ Implements:
 import hashlib
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, date
+from datetime import date
 from django.utils import timezone
 from django.db import transaction
 
@@ -45,6 +45,25 @@ def _validate_pakistan_iban(iban: str) -> bool:
             return False
     return int(numeric_str) % 97 == 1
 
+
+
+def tax_rates_for(pool):
+    """
+    (filer WHT, non-filer WHT, Zakat) as fractions, read from the pool's jurisdiction rule pack
+    (`wht_filer_pct`, `wht_non_filer_pct`, `zakat_deduction_pct`). Withholding rates are required: the
+    batch is refused rather than guessed. Zakat is not deducted at source unless the pack enables it.
+    """
+    from apps.pools.config_snapshot import bound_rule_pack
+
+    pack = bound_rule_pack(pool)
+    cfg = (pack.rules_config or {}) if pack else {}
+    if cfg.get("wht_filer_pct") is None or cfg.get("wht_non_filer_pct") is None:
+        raise ValueError(
+            "The jurisdiction rule pack does not define wht_filer_pct / wht_non_filer_pct; "
+            "configure the withholding rates before building a payout batch."
+        )
+    pct = lambda key: Decimal(str(cfg.get(key) or 0)) / Decimal(100)
+    return pct("wht_filer_pct"), pct("wht_non_filer_pct"), pct("zakat_deduction_pct")
 
 class PayoutClearingEngine:
     """Enterprise Clearing & Settlement Controller for SBP Raast and 1LINK rails."""
@@ -101,6 +120,7 @@ class PayoutClearingEngine:
                 }
             )
 
+        filer_rate, non_filer_rate, zakat_rate = tax_rates_for(pool)
         transactions = []
         total_gross = Decimal("0.00")
         total_wht = Decimal("0.00")
@@ -111,14 +131,14 @@ class PayoutClearingEngine:
             p_class = dep["participant_class"]
             base_share = Decimal(dep["profit"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-            # WHT rate: Filer 15%, Non-Filer 30% (FBR / SBP Income Tax Ordinance)
-            wht_rate = Decimal("0.15") if dep["tax_status"] == "filer" else Decimal("0.30")
+            # WHT rate comes from the pool's jurisdiction rule pack (never a constant in code).
+            wht_rate = filer_rate if dep["tax_status"] == "filer" else non_filer_rate
             wht_amount = (base_share * wht_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-            # Zakat: 2.5% if not exempt
+            # Zakat at source only when the rule pack enables it (zakat_deduction_pct) and the holder is not exempt.
             zakat_amount = Decimal("0.00")
-            if not dep["zakat_exempt"]:
-                zakat_amount = (base_share * Decimal("0.025")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if zakat_rate > 0 and not dep["zakat_exempt"]:
+                zakat_amount = (base_share * zakat_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
             net_payout = base_share - wht_amount - zakat_amount
             total_gross += base_share
@@ -228,9 +248,10 @@ class PayoutClearingEngine:
 
         # Gate 3: withholding applied at the statutory rate for the filer status recorded on
         # each participant (the FBR Active Taxpayer List itself is not integrated).
+        filer_rate, non_filer_rate, _ = tax_rates_for(pool)
         gate3_passed = all(
-            (t["tax_status"] == "filer" and t["wht_rate_pct"] == 15.0) or
-            (t["tax_status"] == "non_filer" and t["wht_rate_pct"] == 30.0)
+            (t["tax_status"] == "filer" and t["wht_rate_pct"] == float(filer_rate * 100)) or
+            (t["tax_status"] != "filer" and t["wht_rate_pct"] == float(non_filer_rate * 100))
             for t in transactions
         )
 

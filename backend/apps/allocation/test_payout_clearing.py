@@ -25,7 +25,7 @@ class PayoutClearingTests(ParticipantLedgerTestBase):
         # The pool's contract needs an approved Shariah decision for gate 1.
         from datetime import date
 
-        from apps.products.models import ShariahDecision, ShariahDecisionStatus
+        from apps.products.models import JurisdictionRulePack, ShariahDecision, ShariahDecisionStatus
 
         decision = ShariahDecision.objects.create(
             tenant=self.tenant, decision_code="SD-PAYOUT", title="d", description="d",
@@ -34,6 +34,11 @@ class PayoutClearingTests(ParticipantLedgerTestBase):
         template = self.pool.product.contract_template
         template.shariah_decision = decision
         template.save()
+        self.pack = JurisdictionRulePack.objects.create(
+            tenant=self.tenant, code="PK-PAYOUT", name="Payout test pack", effective_date=date(2026, 1, 1),
+            is_default=True,
+            rules_config={"wht_filer_pct": 15.0, "wht_non_filer_pct": 30.0, "per_ceiling_pct": 2.0},
+        )
         self.run_id = self.sign_run()
 
     def get(self, path, user=None, **params):
@@ -127,3 +132,37 @@ class PayoutClearingTests(ParticipantLedgerTestBase):
     def test_unknown_run_is_a_400_not_a_crash(self):
         response = self.get("batch-detail/", allocation_run="00000000-0000-0000-0000-000000000000")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+    def test_withholding_rates_come_from_the_rule_pack(self):
+        self.pack.rules_config = {**self.pack.rules_config, "wht_filer_pct": 10.0}
+        self.pack.save()
+        response = self.batch()
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertTrue(all(t["wht_rate_pct"] == 10.0 for t in response.data["transactions"]))
+        self.assertTrue(all(t["zakat_amount"] == 0 for t in response.data["transactions"]))  # not enabled in the pack
+
+    def test_batch_is_refused_when_the_pack_has_no_withholding_rates(self):
+        self.pack.rules_config = {}
+        self.pack.save()
+        self.assertGreaterEqual(self.batch().status_code, 400)
+
+    def test_reserve_cap_above_the_rule_pack_ceiling_is_refused(self):
+        self.authenticate(self.pool_manager)
+        url = reverse("reserve-policy-list")
+        body = {"pool": str(self.pool.id), "reserve_type": "per", "rate_percentage": "1.00", "is_active": False}
+        self.assertEqual(self.client.post(url, {**body, "cap_percentage": "5.00"}, format="json").status_code, 400)
+        self.assertLess(self.client.post(url, {**body, "cap_percentage": "2.00"}, format="json").status_code, 400)
+
+    @override_settings(ALLOW_SIMULATED_INTEGRATIONS=False)
+    def test_simulated_rails_are_refused_when_disabled(self):
+        for user, url, body in (
+            (self.checker, BASE + "dispatch-simulate/", {"allocation_run": self.run_id}),
+            (self.checker, "/api/v1/banking/settle/", {
+                "amount": "100", "source_title": "A", "source_iban": "X", "destination_title": "B", "destination_iban": "Y",
+            }),
+            (self.maker, "/api/v1/pools/balance-imports/cbs-sftp-daemon/", {"pool_id": str(self.pool.id)}),
+        ):
+            with self.subTest(url=url):
+                self.authenticate(user)
+                self.assertEqual(self.client.post(url, body, format="json").status_code, 409)

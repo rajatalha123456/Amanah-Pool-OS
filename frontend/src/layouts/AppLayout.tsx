@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
+import { homePathFor, roleMayOpen } from "./navItems"
 import { TopBar } from "./TopBar"
 import { Spinner } from "../components/Spinner"
 import { useAuth } from "../api/auth"
@@ -22,6 +23,10 @@ export function AppLayout() {
       location.pathname === "/notifications" ||
       location.pathname.startsWith("/investments/capital-accounts/")
     )
+
+  // Staff only see the areas their role works in (BRD section 3); the API refuses the rest.
+  const staffBlocked = !!user && user.role !== "investor_member" && !roleMayOpen(user.role, location.pathname)
+  const adminHomeRedirect = user?.role === "platform_super_admin" && location.pathname === "/"
 
   useEffect(() => {
     if (!user) {
@@ -48,7 +53,15 @@ export function AppLayout() {
               </div>
             ) : (
               <ErrorBoundary fallbackTitle="Module Render Exception">
-                {investorBlocked ? <Navigate to="/" replace /> : <Outlet />}
+                {investorBlocked ? (
+                  <Navigate to="/" replace />
+                ) : staffBlocked ? (
+                  <Navigate to={homePathFor(user?.role)} replace />
+                ) : adminHomeRedirect ? (
+                  <Navigate to="/administration" replace />
+                ) : (
+                  <Outlet />
+                )}
               </ErrorBoundary>
             )}
           </main>

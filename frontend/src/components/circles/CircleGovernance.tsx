@@ -48,6 +48,7 @@ export function CircleGovernance({ poolId }: { poolId: string }) {
     order_policy: "",
     hardship_policy: "",
     schedule_note: "",
+    first_due_date: "",
   })
   const [clientSeed, setClientSeed] = useState("")
   const [note, setNote] = useState("")
@@ -160,6 +161,10 @@ export function CircleGovernance({ poolId }: { poolId: string }) {
             <input required type="number" min="1" placeholder="Cycle length (days)" className={INPUT} value={rules.cycle_days} onChange={(e) => setRules({ ...rules, cycle_days: e.target.value })} />
             <textarea required rows={2} placeholder="How the payout order is decided" className={INPUT} value={rules.order_policy} onChange={(e) => setRules({ ...rules, order_policy: e.target.value })} />
             <textarea required rows={2} placeholder="Hardship policy" className={INPUT} value={rules.hardship_policy} onChange={(e) => setRules({ ...rules, hardship_policy: e.target.value })} />
+            <label className="text-xs text-ink-secondary sm:col-span-2">
+              First contribution due date (used for reminders)
+              <input type="date" className={`${INPUT} mt-1`} value={rules.first_due_date} onChange={(e) => setRules({ ...rules, first_due_date: e.target.value })} />
+            </label>
             <input placeholder="Schedule note (optional)" className={`${INPUT} sm:col-span-2`} value={rules.schedule_note} onChange={(e) => setRules({ ...rules, schedule_note: e.target.value })} />
             <div className="sm:col-span-2">
               <Button type="submit" variant="primary" disabled={busy}>

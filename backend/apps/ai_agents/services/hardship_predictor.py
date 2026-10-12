@@ -4,7 +4,6 @@ Predicts member contribution default risks in Community Circles / ROSCA pools
 and recommends Islamic 0%-penalty forbearance or mutual aid backstops.
 """
 
-from decimal import Decimal
 from django.utils import timezone
 from apps.circles.models import CircleMember, Contribution, Payout, ArrearsRecord
 

@@ -6,7 +6,6 @@ from apps.accounts.models import User, UserRole
 from apps.core.context import set_current_tenant
 from apps.tenants.models import Tenant
 
-from .models import SupportRequest, SupportRequestStatus
 
 
 class SupportRequestApiTests(APITestCase):

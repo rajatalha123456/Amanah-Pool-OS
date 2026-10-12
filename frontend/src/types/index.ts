@@ -139,6 +139,8 @@ export interface Pool {
   status: string
   effective_date: string
   closed_date: string | null
+  freeze_reason?: string
+  frozen_at?: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -407,6 +409,8 @@ export interface PoolDisclosureRecord {
   terms_hash: string
   risk_warnings: string
   fee_statement: string
+  status: "pending_review" | "published"
+  approved_at?: string | null
   created_at: string
 }
 

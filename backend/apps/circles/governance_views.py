@@ -1,5 +1,6 @@
 """Circle rules, verifiable draws and closure endpoints (BRD 6.5)."""
 
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from rest_framework import mixins, serializers, viewsets
@@ -30,7 +31,7 @@ def _pool(value):
 class CircleRulesSerializer(serializers.ModelSerializer):
     class Meta:
         model = CircleRules
-        fields = ("id", "pool", "version", "contribution_amount", "cycle_days", "schedule_note",
+        fields = ("id", "pool", "version", "contribution_amount", "cycle_days", "first_due_date", "schedule_note",
                   "order_policy", "hardship_policy", "content_hash", "created_at")
         read_only_fields = fields
 
@@ -44,7 +45,7 @@ class CircleRulesViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         return queryset.filter(pool_id=pool_id) if pool_id else queryset
 
     def get_permissions(self):
-        if self.action == "publish":
+        if self.action in ("publish", "accept"):
             return [IsAuthenticated(), HasAnyRole(["pool_manager"])()]
         return [IsAuthenticated(), HasAnyRole(STAFF_READ)()]
 
@@ -56,8 +57,14 @@ class CircleRulesViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
             cycle_days = int(request.data.get("cycle_days"))
         except (InvalidOperation, TypeError, ValueError):
             raise ValidationError("A valid contribution amount and cycle length (days) are required.")
+        first_due = request.data.get("first_due_date") or None
+        if first_due is not None:
+            try:
+                first_due = date.fromisoformat(str(first_due))
+            except ValueError:
+                raise ValidationError({"first_due_date": ["Use the format YYYY-MM-DD."]})
         rules = rules_service.publish_rules(
-            pool=pool, user=request.user, contribution_amount=amount, cycle_days=cycle_days,
+            pool=pool, user=request.user, contribution_amount=amount, cycle_days=cycle_days, first_due_date=first_due,
             order_policy=str(request.data.get("order_policy") or ""),
             hardship_policy=str(request.data.get("hardship_policy") or ""),
             schedule_note=str(request.data.get("schedule_note") or ""),

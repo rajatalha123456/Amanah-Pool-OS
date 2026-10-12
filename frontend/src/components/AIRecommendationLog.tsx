@@ -1,3 +1,4 @@
+import { useHasRole } from "./RoleGate"
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "./Badge"
 import { Card } from "./Card"
@@ -15,6 +16,8 @@ const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%
 
 /** Uniform record of every AI output (BR-009): source, confidence, reason and the human disposition. */
 export function AIRecommendationLog() {
+  // The auditor reads these records but stays independent of the decision (BRD section 3).
+  const mayDecide = useHasRole("product_manager", "pool_manager", "shariah_secretariat", "shariah_board", "risk_compliance")
   const [rows, setRows] = useState<AIRecommendation[]>([])
   const [metrics, setMetrics] = useState<AIMetricsRow[]>([])
   const [filter, setFilter] = useState("")
@@ -131,7 +134,9 @@ export function AIRecommendationLog() {
                   {`PROMPT (sha256 ${rec.prompt_hash.slice(0, 16)}...)\n${rec.prompt_text}\n\nOUTPUT\n${JSON.stringify(rec.output, null, 2)}`}
                 </pre>
               )}
-              {rec.disposition === "pending" ? (
+              {rec.disposition === "pending" && !mayDecide ? (
+                <p className="mt-2 text-ink-secondary">Awaiting a human decision by the responsible reviewer.</p>
+              ) : rec.disposition === "pending" ? (
                 <div className="mt-2 flex gap-4">
                   <button type="button" className="text-emerald-400" onClick={() => void decide(rec, "accepted")}>
                     Accept

@@ -7,6 +7,7 @@ import { PageHeader } from "../components/PageHeader"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { fetchAssets } from "../api/assets"
+import { RoleGate } from "../components/RoleGate"
 import { NewAssetModal } from "./NewAssetModal"
 import { ExceptionQueue } from "./governance/ExceptionQueue"
 import { DisputeCenter } from "./governance/DisputeCenter"
@@ -47,6 +48,20 @@ export function AssetRegistry({ initialTab }: { initialTab?: RiskComplianceTab }
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [assets, setAssets] = useState<Asset[]>([])
+
+  function exportAssetsCsv() {
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`
+    const header = ["Reference", "Type", "Description", "Face value", "Maturity", "Status"]
+    const lines = assets.map((a) =>
+      [a.reference_code, a.asset_type, a.description, a.face_value, a.maturity_date ?? "", a.status].map(cell).join(","),
+    )
+    const url = URL.createObjectURL(new Blob([[header.map(cell).join(","), ...lines].join("\n")], { type: "text/csv" }))
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "asset-registry.csv"
+    link.click()
+    URL.revokeObjectURL(url)
+  }
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
@@ -87,12 +102,14 @@ export function AssetRegistry({ initialTab }: { initialTab?: RiskComplianceTab }
           actions={
             activeTab === "assets" ? (
               <div className="flex items-center gap-2">
-                <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
-                  + NEW RECORD
-                </Button>
+                <RoleGate roles={["pool_manager", "finance_maker"]}>
+                  <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
+                    + NEW RECORD
+                  </Button>
+                </RoleGate>
                 <Button
                   variant="secondary"
-                  onClick={() => alert("Exporting Asset Registry...")}
+                  onClick={exportAssetsCsv}
                   className="text-xs uppercase tracking-wider"
                 >
                   EXPORT

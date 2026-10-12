@@ -12,6 +12,10 @@ export async function publishDisclosure(
   return (await apiClient.post<PoolDisclosureRecord>("investments/disclosures/publish/", { pool: poolId, ...data })).data
 }
 
+export async function approveDisclosure(disclosureId: string): Promise<void> {
+  await apiClient.post(`investments/disclosures/${disclosureId}/approve/`)
+}
+
 export async function acknowledgeDisclosure(
   disclosureId: string,
   accountId: string,

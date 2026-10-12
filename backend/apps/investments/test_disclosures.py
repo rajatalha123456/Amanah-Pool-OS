@@ -15,10 +15,17 @@ class DisclosureTests(MudarabahBase):
         self.authenticate(user)
         return getattr(self.client, method)(f"{BASE}{path}", body, format="json")
 
-    def publish(self, **extra):
+    def prepare(self, **extra):
         body = {"pool": str(self.pool.id), "risk_warnings": "Capital at risk.", "fee_statement": "No fees beyond PSR."}
         body.update(extra)
         return self.call(self.pm, "post", "publish/", body)
+
+    def publish(self, **extra):
+        """Prepare, then approve by a different person (the board); returns the approved record's response."""
+        response = self.prepare(**extra)
+        if response.status_code != 201:
+            return response
+        return self.call(self.shariah, "post", f"{response.data['id']}/approve/")
 
     def subscribe_status(self, account, user=None):
         return self.call(user or self.maker, "get", f"subscription-status/?capital_account={account.id}").data
@@ -26,7 +33,7 @@ class DisclosureTests(MudarabahBase):
     def test_disclosure_states_only_real_terms_and_is_sealed(self):
         # setUp's helper published v1; a manual publish with new warnings is v2 built from the live configuration.
         response = self.publish(risk_warnings="Capital at risk; no guarantee of returns.")
-        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.status_code, 200, response.data)
         terms = response.data["terms"]
         self.assertEqual(terms["contract"]["type"], "mudarabah_unrestricted")
         self.assertEqual(terms["profit_sharing"]["manager_share_pct"], 20.0)
@@ -42,9 +49,28 @@ class DisclosureTests(MudarabahBase):
         self.assertEqual(first["version"], 2)
         self.assertEqual(self.publish(risk_warnings="Warning A").status_code, 400)
 
-    def test_only_pool_manager_or_board_publishes(self):
+    def test_only_pool_or_product_manager_prepares_and_only_board_or_risk_approves(self):
         self.assertEqual(self.call(self.maker, "post", "publish/", {"pool": str(self.pool.id)}).status_code, 403)
         self.assertEqual(self.call(self.inv_a, "post", "publish/", {"pool": str(self.pool.id)}).status_code, 403)
+        self.assertEqual(self.call(self.shariah, "post", "publish/", {"pool": str(self.pool.id)}).status_code, 403)
+        draft = self.prepare(risk_warnings="Draft warnings").data
+        self.assertEqual(draft["status"], "pending_review")
+        for user in (self.pm, self.maker, self.inv_a):
+            self.assertEqual(self.call(user, "post", f"{draft['id']}/approve/").status_code, 403)
+
+    def test_a_pending_disclosure_is_not_binding_until_a_different_person_approves_it(self):
+        ProfitSharingRatio.objects.filter(pool=self.pool).update(depositor_share=Decimal("70.00"), mudarib_share=Decimal("30.00"))
+        draft = self.prepare().data
+        # Still blocked: investors cannot acknowledge, and the old disclosure no longer matches the terms.
+        ack = self.call(self.inv_a, "post", f"{draft['id']}/acknowledge/",
+                        {"capital_account": str(self.acc_a.id), "risk_acknowledged": True})
+        self.assertEqual(ack.status_code, 404)  # a draft is invisible to investors
+        self.assertFalse(self.subscribe_status(self.acc_a)["may_subscribe"])
+        self.assertEqual([d["id"] for d in self.call(self.inv_a, "get", "").data if d["id"] == draft["id"]], [])
+        approved = self.call(self.shariah, "post", f"{draft['id']}/approve/")
+        self.assertEqual(approved.status_code, 200)
+        self.assertEqual(approved.data["status"], "published")
+        self.assertEqual(self.call(self.shariah, "post", f"{draft['id']}/approve/").status_code, 400)  # already approved
 
     def test_a_change_in_terms_blocks_subscription_until_a_new_disclosure_is_acknowledged(self):
         self.assertTrue(self.subscribe_status(self.acc_a)["may_subscribe"])

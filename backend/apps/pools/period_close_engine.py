@@ -27,7 +27,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.core.audit import log_action
 
-from .models import BalanceImportBatch, DailyBalance, PeriodCloseChecklist, PeriodCloseStatus
+from .models import BalanceImportBatch, DailyBalance, PeriodCloseStatus
 
 SIGN_OFF_ROLES = {
     "pool_manager": {"pool_manager"},

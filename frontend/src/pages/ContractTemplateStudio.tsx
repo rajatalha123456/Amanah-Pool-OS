@@ -572,7 +572,7 @@ function AIContractAnalyzerModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title="AI Shariah Contract Analyzer (BRD Section 9)" onClose={onClose}>
+    <Modal title="AI Shariah Contract Analyzer" onClose={onClose}>
       <div className="space-y-4">
         <p className="text-xs text-ink-secondary">
           Paste legal contract clauses or draft agreements. The AI will extract contract type, PSR ratios, and detect prohibited clauses (e.g., capital guarantees).

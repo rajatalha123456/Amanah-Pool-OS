@@ -3,6 +3,7 @@ import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { PageHeader } from "../components/PageHeader"
+import { RoleGate } from "../components/RoleGate"
 import { Spinner } from "../components/Spinner"
 import {
   fetchIncomeExpenseEvents,
@@ -206,21 +207,25 @@ export function IncomeExpenseWorkbench() {
         subtitle="SBP IBD Circular 03/2012 Direct Operating Expense Segregation & Charity Purification Engine"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              className="text-xs"
-              onClick={handleScanOverhead}
-              disabled={isScanning}
-            >
-              {isScanning ? <Spinner className="h-4 w-4" /> : "Scan for Overhead Leakage"}
-            </Button>
-            <Button
-              variant="primary"
-              className="bg-emerald-600 text-xs hover:bg-emerald-500"
-              onClick={() => setIsModalOpen(true)}
-            >
-              + Record Income / Expense
-            </Button>
+            <RoleGate roles={["finance_maker", "shariah_secretariat"]}>
+              <Button
+                variant="secondary"
+                className="text-xs"
+                onClick={handleScanOverhead}
+                disabled={isScanning}
+              >
+                {isScanning ? <Spinner className="h-4 w-4" /> : "Scan for Overhead Leakage"}
+              </Button>
+            </RoleGate>
+            <RoleGate roles={["finance_maker"]}>
+              <Button
+                variant="primary"
+                className="bg-emerald-600 text-xs hover:bg-emerald-500"
+                onClick={() => setIsModalOpen(true)}
+              >
+                + Record Income / Expense
+              </Button>
+            </RoleGate>
           </div>
         }
       />

@@ -74,6 +74,10 @@ class AccessControlTests(APITestCase):
             ("post", "/api/v1/ai/fraud-collusion/detect/"),
             ("get", "/api/v1/auth/users/"),
             ("get", "/api/v1/circles/circle-members/"),
+            ("get", "/api/v1/circles/contributions/"),
+            ("get", "/api/v1/circles/payouts/"),
+            ("get", "/api/v1/participants/consents/"),
+            ("post", "/api/v1/participants/consents/"),
             ("get", "/api/v1/accounting/income-expense-events/"),
             ("get", "/api/v1/governance/exceptions/"),
             ("get", "/api/v1/governance/support-requests/"),
@@ -90,6 +94,8 @@ class AccessControlTests(APITestCase):
             "/api/v1/investments/capital-accounts/",
             "/api/v1/allocation/allocation-runs/my-statements/",
             "/api/v1/notifications/",
+            "/api/v1/circles/circle-members/my-circles/",
+            "/api/v1/participants/consents/mine/",
             "/api/v1/auth/me/",
         ):
             with self.subTest(url=url):
@@ -148,3 +154,38 @@ class AccessControlTests(APITestCase):
         r = self.call(self.user("finance_maker"), "post", f"/api/v1/accounting/income-expense-events/{posted.id}/reclassify/",
                       {"cost_classification": "indirect_overhead"})
         self.assertEqual(r.status_code, 400)
+
+
+    # BRD section 3: the Platform Super Admin "cannot view tenant financial data by default".
+    def test_super_admin_cannot_read_business_data(self):
+        admin = self.user("platform_super_admin")
+        for url in (
+            "/api/v1/pools/pools/",
+            "/api/v1/allocation/allocation-runs/",
+            "/api/v1/participants/participants/",
+            "/api/v1/accounting/journal-batches/",
+            "/api/v1/investments/capital-accounts/",
+            "/api/v1/circles/circle-members/",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.call(admin, "get", url).status_code, 403)
+
+    def test_super_admin_keeps_administration(self):
+        admin = self.user("platform_super_admin")
+        self.assertEqual(self.call(admin, "get", "/api/v1/auth/users/").status_code, 200)
+
+    # BRD section 3 restrictions found by the role-matrix review.
+    def test_auditor_stays_independent_of_operational_decisions(self):
+        auditor = self.user("auditor")
+        for method, url in (
+            ("post", "/api/v1/investments/negligence-cases/"),
+            ("post", "/api/v1/circles/rules/accept/"),
+            ("post", "/api/v1/ai/recommendations/00000000-0000-0000-0000-000000000000/dispose/"),
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.call(auditor, method, url, {}).status_code, 403)
+
+    def test_rules_acceptance_is_recorded_by_the_circle_organizer_only(self):
+        for role in ("finance_maker", "risk_compliance", "shariah_secretariat"):
+            with self.subTest(role=role):
+                self.assertEqual(self.call(self.user(role), "post", "/api/v1/circles/rules/accept/", {}).status_code, 403)

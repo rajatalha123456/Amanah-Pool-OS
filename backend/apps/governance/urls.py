@@ -6,6 +6,7 @@ from .views import (
     ExceptionCaseViewSet,
     PurificationEntryViewSet,
     RelatedPartyTransactionViewSet,
+    RetentionPolicyViewSet,
     ShariahAuditFindingViewSet,
     ShariahAuditPlanViewSet,
     SupportRequestViewSet,
@@ -13,6 +14,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register("retention-policies", RetentionPolicyViewSet, basename="retention-policy")
 router.register("config-changes", ConfigChangeRequestViewSet, basename="config-change")
 router.register("exceptions", ExceptionCaseViewSet, basename="exception-case")
 router.register("purification-entries", PurificationEntryViewSet, basename="purification-entry")

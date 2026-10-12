@@ -15,9 +15,10 @@ import { IncomeExpenseWorkbench } from "./IncomeExpenseWorkbench"
 import { ReconciliationCenter } from "./ReconciliationCenter"
 import { PeriodCloseManager } from "./PeriodCloseManager"
 import { PayoutExecutionEngine } from "./PayoutExecutionEngine"
+import { DailyClosePanel } from "../components/pools/DailyClosePanel"
 import type { BadgeVariant, BalanceImportBatch, Pool } from "../types"
 
-type Tab = "cockpit" | "balance-import" | "income-expense" | "reconciliation" | "period-close" | "payout-clearing"
+type Tab = "cockpit" | "balance-import" | "income-expense" | "reconciliation" | "daily-close" | "period-close" | "payout-clearing"
 type PageState = "loading" | "loaded" | "error"
 
 const TABS: { key: Tab; label: string; num: string }[] = [
@@ -25,6 +26,7 @@ const TABS: { key: Tab; label: string; num: string }[] = [
   { key: "balance-import", label: "Balance Import", num: "" },
   { key: "income-expense", label: "Income & Expense", num: "" },
   { key: "reconciliation", label: "Reconciliation", num: "" },
+  { key: "daily-close", label: "Daily Close", num: "" },
   { key: "period-close", label: "Period Close & Locking", num: "16" },
   { key: "payout-clearing", label: "Payout Clearing Rails (Raast / 1LINK)", num: "35" },
 ]
@@ -101,6 +103,7 @@ export function DailyOperationsCockpit() {
       {activeTab === "balance-import" && <BalanceImport />}
       {activeTab === "income-expense" && <IncomeExpenseWorkbench />}
       {activeTab === "reconciliation" && <ReconciliationCenter hideHeader />}
+      {activeTab === "daily-close" && <DailyClosePanel />}
       {activeTab === "period-close" && <PeriodCloseManager />}
       {activeTab === "payout-clearing" && <PayoutExecutionEngine />}
     </div>

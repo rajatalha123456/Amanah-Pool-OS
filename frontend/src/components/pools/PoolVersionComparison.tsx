@@ -166,7 +166,7 @@ export function PoolVersionComparison({
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded bg-gold-500/20 px-2 py-0.5 text-xs font-semibold text-gold-400">
-                BRD SCREEN 05
+                VERSION COMPARISON
               </span>
               <span className="rounded bg-navy-800 px-2 py-0.5 text-xs text-ink-secondary">
                 Governance Diff Matrix
@@ -315,7 +315,7 @@ export function PoolVersionComparison({
               </div>
               <span className="mt-1 block text-[11px] text-ink-secondary">
                 {diffData.summary.requires_regulatory_filing
-                  ? "SBP Filing Required"
+                  ? "Regulatory filing may be required"
                   : "Internal Routine"}
               </span>
             </Card>
@@ -325,8 +325,7 @@ export function PoolVersionComparison({
                 Shariah Attestation
               </span>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-400">
-                <span>✓</span>
-                <span className="font-semibold">Quorum Certified</span>
+                <span className="font-semibold">Shariah decision on record</span>
               </div>
               <span className="text-[11px] text-ink-secondary font-mono">
                 {diffData.v2.shariah_resolution}

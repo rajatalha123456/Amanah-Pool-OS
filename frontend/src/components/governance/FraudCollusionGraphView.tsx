@@ -415,7 +415,7 @@ export function FraudCollusionGraphView({ poolId }: FraudCollusionGraphViewProps
               </div>
 
               <div className="p-2.5 rounded bg-surface border border-ink/10 text-[11px] text-emerald-300">
-                <span className="font-semibold">SBP Directive:</span> {c.recommended_action}
+                <span className="font-semibold">Suggested next step:</span> {c.recommended_action}
               </div>
             </div>
           ))}

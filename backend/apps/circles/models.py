@@ -53,6 +53,10 @@ class CircleMember(TenantScopedModel):
     iban = models.CharField(max_length=34, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     bank_name = models.CharField(max_length=100, blank=True, default="")
+    # Optional self-service login (role investor_member); the member portal shows only the memberships linked to it.
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="circle_memberships"
+    )
 
     class Meta:
         constraints = [
@@ -246,6 +250,8 @@ class CircleRules(TenantScopedModel):
     version = models.IntegerField()
     contribution_amount = models.DecimalField(max_digits=18, decimal_places=2)
     cycle_days = models.IntegerField()  # length of one contribution cycle in days
+    # Due date of cycle 1; cycle n is due first_due_date + (n - 1) * cycle_days. Needed for reminders.
+    first_due_date = models.DateField(null=True, blank=True)
     schedule_note = models.TextField(blank=True, default="")
     order_policy = models.TextField()  # how the payout order is decided (e.g. verifiable draw)
     hardship_policy = models.TextField()

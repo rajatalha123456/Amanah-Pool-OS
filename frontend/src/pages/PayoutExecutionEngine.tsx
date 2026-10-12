@@ -1,3 +1,4 @@
+import { RoleGate, useHasRole } from "../components/RoleGate"
 import { useEffect, useState } from "react"
 import { Card } from "../components/Card"
 import { Badge } from "../components/Badge"
@@ -18,6 +19,7 @@ import {
 import { extractErrorMessage } from "../api/errors"
 
 export function PayoutExecutionEngine() {
+  const isChecker = useHasRole("finance_checker")
   const [batches, setBatches] = useState<PayoutBatchSummary[]>([])
   const [selectedRunId, setSelectedRunId] = useState<string>("")
   const [batchDetail, setBatchDetail] = useState<PayoutBatchDetail | null>(null)
@@ -90,7 +92,7 @@ export function PayoutExecutionEngine() {
     try {
       const updated = await verifyPayoutGates(selectedRunId)
       setBatchDetail(updated)
-      setSuccessMsg("Pre-disbursement statutory gates verified successfully against SBP clearing regulations.")
+      setSuccessMsg("Pre-disbursement statutory gates verified successfully against the internal payout controls.")
     } catch (err) {
       setErrorMsg(extractErrorMessage(err))
     } finally {
@@ -224,7 +226,7 @@ export function PayoutExecutionEngine() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wider font-semibold text-emerald-400">
-              BRD Module 14 / Screen 35
+              Payout clearing
             </span>
             <span className="text-text-muted">•</span>
             <span className="text-xs text-text-muted">Core-Banking Clearing Rails</span>
@@ -316,7 +318,7 @@ export function PayoutExecutionEngine() {
                 PKR {batchDetail.total_wht_deducted.toLocaleString("en-PK", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-xs text-text-muted mt-1">
-                Active Taxpayer List (15% Filer / 30% Non-Filer)
+                Withheld per each participant's recorded tax status
               </div>
             </Card>
 
@@ -381,28 +383,30 @@ export function PayoutExecutionEngine() {
                   )}
                 </h2>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  State Bank of Pakistan regulations mandate that profit cannot leave pool GL without Shariah Fatwa quorum,
-                  MOD-97 checksum validation, and dual authorization.
+                  Internal control: profit does not leave the pool ledger without an approved Shariah decision, IBAN
+                  checksum validation, and independent dual authorization.
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleVerifyGates}
-                  disabled={isVerifying || isSimulating}
-                >
-                  {isVerifying ? (
-                    <>
-                      <Spinner className="w-4 h-4" /> Verifying...
-                    </>
-                  ) : (
-                    "Re-Run 5 Gates"
-                  )}
-                </Button>
+                <RoleGate roles={["finance_maker", "finance_checker"]}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleVerifyGates}
+                    disabled={isVerifying || isSimulating}
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Spinner className="w-4 h-4" /> Verifying...
+                      </>
+                    ) : (
+                      "Re-Run 5 Gates"
+                    )}
+                  </Button>
+                </RoleGate>
 
-                {batchDetail.status === "validated" && (
+                {batchDetail.status === "validated" && isChecker && (
                   <Button
                     variant="primary"
                     size="sm"
@@ -495,6 +499,7 @@ export function PayoutExecutionEngine() {
                   📄 View pacs.008 XML
                 </Button>
 
+                {isChecker && (
                 <Button
                   variant="primary"
                   size="sm"
@@ -512,9 +517,10 @@ export function PayoutExecutionEngine() {
                     "🚀 Transmit SBP Raast / 1LINK Batch"
                   )}
                 </Button>
+                )}
 
                 {(batchDetail.status === "settled" || batchDetail.status === "partially_settled") &&
-                  !batchDetail.contra_voucher_code && (
+                  !batchDetail.contra_voucher_code && isChecker && (
                     <Button
                       variant="secondary"
                       size="sm"

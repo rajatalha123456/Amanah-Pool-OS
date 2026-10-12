@@ -11,7 +11,8 @@ from apps.pools.models import Pool
 from . import disclosures
 from .models import CapitalAccount, PoolDisclosure
 
-PUBLISH_ROLES = ["pool_manager", "shariah_board"]
+PUBLISH_ROLES = ["pool_manager", "product_manager"]  # prepare
+APPROVE_ROLES = ["shariah_board", "risk_compliance"]  # validate (a different person)
 STAFF_READ = ["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor", "shariah_board",
               "shariah_secretariat", "platform_super_admin"]
 
@@ -20,7 +21,7 @@ class PoolDisclosureSerializer(serializers.ModelSerializer):
     class Meta:
         model = PoolDisclosure
         fields = ("id", "pool", "version", "summary", "terms", "terms_hash", "risk_warnings", "fee_statement",
-                  "published_by", "created_at")
+                  "published_by", "status", "approved_by", "approved_at", "created_at")
         read_only_fields = fields
 
 
@@ -36,12 +37,16 @@ class PoolDisclosureViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
 
     def get_queryset(self):
         queryset = PoolDisclosure.objects.all()
+        if self.request.user.role == "investor_member":
+            queryset = queryset.filter(status="published")
         pool_id = self.request.query_params.get("pool")
         return queryset.filter(pool_id=pool_id) if pool_id else queryset
 
     def get_permissions(self):
         if self.action == "publish":
             return [IsAuthenticated(), HasAnyRole(PUBLISH_ROLES)()]
+        if self.action == "approve":
+            return [IsAuthenticated(), HasAnyRole(APPROVE_ROLES)()]
         if self.action == "acknowledge":
             return [IsAuthenticated(), HasAnyRole(["investor_member", "finance_maker", "pool_manager"])()]
         return [IsAuthenticated(), HasAnyRole(STAFF_READ + ["investor_member"])()]
@@ -59,11 +64,22 @@ class PoolDisclosureViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
             fee_statement=str(request.data.get("fee_statement") or ""), summary=str(request.data.get("summary") or ""),
         )
         log_action(
-            tenant=pool.tenant, actor=request.user, action="disclosure_published", model_name="PoolDisclosure",
+            tenant=pool.tenant, actor=request.user, action="disclosure_prepared", model_name="PoolDisclosure",
             object_id=str(disclosure.id), changes={"version": disclosure.version, "terms_hash": disclosure.terms_hash},
             request=request,
         )
         return Response(self.get_serializer(disclosure).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """A different person validates the prepared disclosure; only then can investors acknowledge it."""
+        disclosure = disclosures.approve_disclosure(self.get_object(), request.user)
+        log_action(
+            tenant=disclosure.tenant, actor=request.user, action="disclosure_approved", model_name="PoolDisclosure",
+            object_id=str(disclosure.id), changes={"version": disclosure.version, "terms_hash": disclosure.terms_hash},
+            request=request,
+        )
+        return Response(self.get_serializer(disclosure).data)
 
     @action(detail=True, methods=["post"])
     def acknowledge(self, request, pk=None):

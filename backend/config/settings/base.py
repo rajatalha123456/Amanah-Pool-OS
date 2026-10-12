@@ -150,10 +150,15 @@ REST_FRAMEWORK = {
         "apps.accounts.authentication.TenantBoundJWTAuthentication",
     ],
     # Login and MFA endpoints are rate limited per client to stop password / 6-digit code guessing.
-    "DEFAULT_THROTTLE_RATES": {"auth": config("AUTH_THROTTLE_RATE", default="10/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": config("AUTH_THROTTLE_RATE", default="10/min"),
+        "public_form": config("PUBLIC_FORM_THROTTLE_RATE", default="5/hour"),
+    },
 }
 
 # Require TOTP MFA at login when explicitly enabled via env.
+# Simulated Raast / 1LINK / CBS integrations produce reference numbers from no bank; production turns them off.
+ALLOW_SIMULATED_INTEGRATIONS = config("ALLOW_SIMULATED_INTEGRATIONS", default=True, cast=bool)
 MFA_ENFORCED = config("MFA_ENFORCED", default=False, cast=bool)
 
 

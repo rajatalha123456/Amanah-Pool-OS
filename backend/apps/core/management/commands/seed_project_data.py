@@ -1,6 +1,5 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-import uuid
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -34,10 +33,7 @@ from apps.pools.models import (
     AssetStatus,
     AssetType,
     BalanceImportBatch,
-    BalanceImportBatchStatus,
-    BalanceSource,
     DailyBalance,
-    DailyBalanceStatus,
     PeriodCloseChecklist,
     PeriodCloseStatus,
     Pool,
@@ -47,7 +43,6 @@ from apps.pools.models import (
 from apps.allocation.models import (
     AllocationLine,
     AllocationRun,
-    AllocationRunStatus,
     DepositorStatement,
     ProfitSharingRatio,
     PSRStatus,
@@ -58,12 +53,8 @@ from apps.allocation.models import (
 )
 from apps.accounting.models import (
     IncomeExpenseEvent,
-    IncomeExpenseEventStatus,
-    IncomeExpenseEventType,
     JournalBatch,
-    JournalBatchStatus,
     JournalEntry,
-    JournalEntryType,
     ReconciliationBatch,
     ReconciliationItem,
     ReconciliationStatus,
@@ -93,7 +84,6 @@ from apps.investments.models import (
     DisclosureAcknowledgement,
     ImpairmentEvent,
     PoolDisclosure,
-    ImpairmentEventStatus,
     InvestmentDistributionLine,
     InvestmentDistributionRun,
     InvestorProfile,
@@ -119,7 +109,6 @@ from apps.circles.models import (
     Contribution,
     ContributionStatus,
     Payout,
-    PayoutStatus,
     ProposalStatus,
     ProposalType,
     VoteDecision,
@@ -176,6 +165,9 @@ class Command(BaseCommand):
 
             # Posted journals reference runs and are PROTECTed: remove them first, then
             # the distribution runs/lines and unit movements that reference capital accounts.
+            from apps.notifications.models import Notification
+
+            Notification.objects.filter(tenant=tenant).delete()
             JournalEntry.objects.filter(tenant=tenant).delete()
             JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
             JournalBatch.objects.filter(tenant=tenant).delete()
@@ -223,6 +215,9 @@ class Command(BaseCommand):
 
             # 5. Allocation
             DepositorStatement.objects.filter(tenant=tenant).delete()
+            from apps.allocation.models import PayoutBatchRecord
+
+            PayoutBatchRecord.objects.filter(tenant=tenant).delete()
             AllocationLine.objects.filter(tenant=tenant).delete()
             AllocationRun.objects.filter(tenant=tenant).delete()
             ReservePolicy.objects.filter(tenant=tenant).delete()
@@ -233,8 +228,14 @@ class Command(BaseCommand):
             AssetAssignment.objects.filter(tenant=tenant).delete()
             DailyBalance.objects.filter(tenant=tenant).delete()
             ParticipantAccount.objects.filter(tenant=tenant).delete()
+            from apps.participants.models import Consent
+
+            Consent.objects.filter(tenant=tenant).delete()
             Participant.objects.filter(tenant=tenant).delete()
             BalanceImportBatch.objects.filter(tenant=tenant).delete()
+            from apps.pools.models import DailyClose
+
+            DailyClose.objects.filter(tenant=tenant).delete()
             PeriodCloseChecklist.objects.filter(tenant=tenant).delete()
             Asset.objects.filter(tenant=tenant).delete()
             PoolVersion.objects.filter(tenant=tenant).delete()
@@ -331,6 +332,9 @@ class Command(BaseCommand):
                     "irr_ceiling_pct": 5.0,
                     "notice_period_days": 30,
                     "mudarib_share_cap_pct": 30.0,
+                    "wht_filer_pct": 15.0,
+                    "wht_non_filer_pct": 30.0,
+                    "zakat_deduction_pct": 0,
                     "purification_interval": "monthly",
                 },
             },
@@ -353,6 +357,9 @@ class Command(BaseCommand):
                     "irr_ceiling_pct": 10.0,
                     "notice_period_days": 15,
                     "mudarib_share_cap_pct": 30.0,
+                    "wht_filer_pct": 15.0,
+                    "wht_non_filer_pct": 30.0,
+                    "zakat_deduction_pct": 0,
                     "purification_interval": "quarterly",
                 },
             },
@@ -403,6 +410,22 @@ class Command(BaseCommand):
                 "description": "Shariah ruling approving joint property co-ownership and lease rental adjustments.",
                 "fiqh_reference": "AAOIFI Shariah Standard No. 12 (Sharika) Section 5",
                 "mandatory_caveats": "Unit purchase promise must remain unilateral and independent of the Ijarah contract.",
+                "status": ShariahDecisionStatus.APPROVED,
+                "effective_date": date(2025, 1, 1),
+                "created_by": sec_user,
+                "approved_by": board_user,
+                "approved_at": timezone.now(),
+            },
+        )
+        fatwa_4, _ = ShariahDecision.objects.get_or_create(
+            tenant=tenant,
+            decision_code="FATWA-2025-04",
+            defaults={
+                "title": "Rotating Community Savings Circle (Qard Hasan) Structure",
+                "decision_type": "product_approval",
+                "description": "Ruling approving an interest-free rotating savings circle in which members lend to one another in turn.",
+                "fiqh_reference": "AAOIFI Shariah Standard No. 19 (Qard)",
+                "mandatory_caveats": "No fee, profit or benefit may be conditioned on the payout; lateness may not be penalised with money.",
                 "status": ShariahDecisionStatus.APPROVED,
                 "effective_date": date(2025, 1, 1),
                 "created_by": sec_user,
@@ -466,7 +489,7 @@ class Command(BaseCommand):
             version="2025.1",
             defaults={
                 "contract_type": "qard",
-                "shariah_decision": fatwa_1,
+                "shariah_decision": fatwa_4,
                 "status": ContractTemplateStatus.APPROVED,
                 "clauses": {
                     "qard_hasan": "Interest-free mutual loan facility among circle members with zero time-value uplift.",
@@ -715,8 +738,8 @@ class Command(BaseCommand):
             pool=pool_gen,
             reserve_type=ReserveType.PER,
             defaults={
-                "rate_percentage": Decimal("2.00"),
-                "cap_percentage": Decimal("5.00"),
+                "rate_percentage": Decimal("1.00"),
+                "cap_percentage": Decimal("2.00"),
                 "current_balance": Decimal("1250000.00"),
                 "is_active": True,
             },
@@ -1021,6 +1044,15 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("[OK] Governance Exceptions, Purification, RPT & Disputes Seeded"))
 
+        # Daily close of the bank pool, prepared through the real workflow. The open high-severity exception seeded
+        # above is a failing gate, so the day stays open until it is resolved - as it should.
+        from apps.participants.seed_ledger import make_api_caller
+
+        make_api_caller(tenant)(
+            maker, "post", "/api/v1/pools/daily-closes/prepare/",
+            {"pool": str(pool_gen.id), "value_date": "2026-09-29", "notes": "Prepared by the finance maker."},
+        )
+
         # 18. Investments: Capital Accounts, Investor Profiles, NAV (Screens 21-24)
         cap_acc_1, _ = CapitalAccount.objects.get_or_create(
             tenant=tenant,
@@ -1185,7 +1217,7 @@ class Command(BaseCommand):
                 defaults={
                     "pool": pool_circle,
                     "member_name": name,
-                    "payout_position": pos,
+                    "payout_position": None,
                     "status": CircleMemberStatus.ACTIVE,
                     "joined_date": date(2026, 1, 1),
                     "kyc_status": KYCStatus.VERIFIED,
@@ -1198,8 +1230,30 @@ class Command(BaseCommand):
         from apps.circles.rules import publish_and_accept_all
 
         publish_and_accept_all(
-            pool_circle, users_by_role[UserRole.POOL_MANAGER], schedule_note="Monthly contribution due by the 5th."
+            pool_circle, users_by_role[UserRole.POOL_MANAGER], schedule_note="Monthly contribution due by the 5th.", first_due_date=date(2026, 9, 5)
         )
+
+        # One circle member can sign in to the member portal (sees only their own membership).
+        member_user, _ = User.objects.get_or_create(
+            email=f"member@{domain}",
+            defaults={"tenant": tenant, "full_name": "Ayesha Khan (Demo Member)", "role": UserRole.INVESTOR_MEMBER},
+        )
+        member_user.tenant, member_user.role, member_user.is_active = tenant, UserRole.INVESTOR_MEMBER, True
+        member_user.set_password(password)
+        member_user.save()
+        for mem in created_members:
+            if mem.member_reference == "MEM-002" and mem.user_id != member_user.id:
+                mem.user = member_user
+                mem.save(update_fields=["user", "updated_at"])
+
+        # Payout order by the verifiable commit-reveal draw (not hand-assigned positions).
+        from apps.circles.rotation import commit_draw, execute_draw
+
+        if any(m.payout_position is None for m in created_members):
+            execute_draw(commit_draw(pool_circle, maker), "amanah-demo-seed-2026", maker)
+        for mem in created_members:
+            mem.refresh_from_db()
+        created_members.sort(key=lambda m: m.payout_position)
 
         # Monthly Contributions
         for mem in created_members:

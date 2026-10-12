@@ -1,4 +1,4 @@
-from rest_framework import viewsets, mixins, status
+from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -104,3 +104,4 @@ class LegalEntityViewSet(
         if self.request.user.role == "platform_super_admin" and tenant_id:
             tenant = Tenant.objects.get(pk=tenant_id)
         serializer.save(tenant=tenant)
+

@@ -11,6 +11,8 @@ import { extractErrorMessage } from "../api/errors"
 import { apiClient } from "../api/axios"
 import { fetchMyStatements } from "../api/participants"
 import { redeem } from "../api/investments"
+import { fetchMyConsents, fetchMyData, withdrawConsent, type ConsentRow } from "../api/consents"
+import { acceptCircleRules, fetchMyCircles, type MyCircle } from "../api/memberCircles"
 import type { CapitalAccount, DepositorStatement, PoolDisclosureRecord } from "../types"
 
 const money = (v: string) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })
@@ -22,6 +24,8 @@ const money = (v: string) => Number(v).toLocaleString(undefined, { minimumFracti
 export function InvestorPortal() {
   const { user } = useAuth()
   const [accounts, setAccounts] = useState<CapitalAccount[]>([])
+  const [circles, setCircles] = useState<MyCircle[]>([])
+  const [consents, setConsents] = useState<ConsentRow[]>([])
   const [statements, setStatements] = useState<DepositorStatement[]>([])
   const [disclosures, setDisclosures] = useState<Record<string, PoolDisclosureRecord | undefined>>({})
   const [cleared, setCleared] = useState<Record<string, { may_subscribe: boolean; reason: string }>>({})
@@ -31,11 +35,15 @@ export function InvestorPortal() {
 
   const load = useCallback(async () => {
     try {
-      const [accountRows, statementRows] = await Promise.all([
+      const [accountRows, statementRows, circleRows, consentRows] = await Promise.all([
         apiClient.get<CapitalAccount[]>("investments/capital-accounts/").then((r) => r.data),
         fetchMyStatements(),
+        fetchMyCircles(),
+        fetchMyConsents(),
       ])
+      setConsents(consentRows)
       setAccounts(accountRows)
+      setCircles(circleRows)
       setStatements(statementRows)
       const latest: Record<string, PoolDisclosureRecord | undefined> = {}
       const status: Record<string, { may_subscribe: boolean; reason: string }> = {}
@@ -95,6 +103,103 @@ export function InvestorPortal() {
       <PageHeader title={`Assalamu alaikum${user?.full_name ? `, ${user.full_name}` : ""}`} subtitle="Your accounts, statements and disclosures" />
       {error && <p className="text-sm text-red-400">{error}</p>}
       {message && <p className="text-sm text-emerald-400">{message}</p>}
+
+      {circles.length > 0 && (
+        <Card title="My savings circles">
+          <div className="space-y-3">
+            {circles.map((circle) => (
+              <div key={circle.member_id} className="rounded-lg border border-white/8 bg-navy-900/50 p-3 text-sm" data-testid="my-circle">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-ink-primary">
+                    {circle.pool_name} · {circle.member_reference}
+                  </span>
+                  <Badge variant="neutral">
+                    {circle.payout_position ? `Payout position ${circle.payout_position}` : "Position not drawn yet"}
+                  </Badge>
+                </div>
+                {circle.rules && (
+                  <p className="mt-1 text-xs text-ink-secondary">
+                    Rules v{circle.rules.version}: PKR {money(circle.rules.contribution_amount)} every {circle.rules.cycle_days} days.{" "}
+                    {circle.rules.accepted ? (
+                      "You have accepted these rules."
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-emerald-400 hover:text-emerald-300"
+                        onClick={() => {
+                          const reference = window.prompt("Enter your e-signature or OTP reference to accept these rules")
+                          if (!reference) return
+                          acceptCircleRules(circle.pool, "e_sign", reference)
+                            .then(() => load())
+                            .catch((err) => setError(extractErrorMessage(err, "Could not record your acceptance.")))
+                        }}
+                      >
+                        Accept rules
+                      </button>
+                    )}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-ink-secondary">
+                  Contributions: {circle.contributions.length === 0 ? "none recorded" : circle.contributions.map((c) => `cycle ${c.cycle_number} PKR ${money(c.amount)} (${c.status})`).join("; ")}
+                </p>
+                {circle.payouts.length > 0 && (
+                  <p className="mt-1 text-xs text-ink-secondary">
+                    Payouts: {circle.payouts.map((p) => `cycle ${p.cycle_number} PKR ${money(p.amount)} (${p.status})`).join("; ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card title="My privacy">
+        <div className="space-y-2 text-sm" data-testid="my-privacy">
+          {consents.length === 0 ? (
+            <p className="text-xs text-ink-secondary">No consents are recorded for you.</p>
+          ) : (
+            consents.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary">
+                <span>
+                  {c.purpose_label} - {c.status === "granted" ? `given ${c.granted_at.slice(0, 10)}` : `withdrawn ${c.withdrawn_at?.slice(0, 10) ?? ""}`}
+                </span>
+                {c.status === "granted" && (
+                  <button
+                    type="button"
+                    className="text-amber-300 hover:text-amber-200"
+                    onClick={() => {
+                      const reason = window.prompt("Why are you withdrawing this consent? (optional)") ?? ""
+                      withdrawConsent(c.id, reason)
+                        .then(() => load())
+                        .catch((err) => setError(extractErrorMessage(err, "Could not withdraw the consent.")))
+                    }}
+                  >
+                    Withdraw
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              void fetchMyData()
+                .then((data) => {
+                  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }))
+                  const link = document.createElement("a")
+                  link.href = url
+                  link.download = "my-data.json"
+                  link.click()
+                  URL.revokeObjectURL(url)
+                })
+                .catch((err) => setError(extractErrorMessage(err, "Could not prepare your data.")))
+            }
+          >
+            Download my data
+          </Button>
+        </div>
+      </Card>
 
       <Card title="My investment accounts">
         {accounts.length === 0 ? (

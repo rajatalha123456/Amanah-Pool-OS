@@ -40,7 +40,7 @@ const CHECKLIST_GATES = [
   {
     key: "shariah_parameters_sealed",
     label: "Gate 2: Shariah Parameters Sealed",
-    description: "Weightage curves, PSR matrices, and Mudarib sharing ratios validated and locked for cycle.",
+    description: "Weightage curves, PSR matrices, and Mudarib sharing ratios recorded as approved for the cycle.",
     screenRef: "Weightages & PSR",
   },
   {
@@ -777,7 +777,7 @@ export function PeriodCloseManager() {
                 <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-500/30 text-emerald-200 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-emerald-300">{sbpPackage.certificate_id}</span>
-                    <Badge variant="emerald">SBP IBD 03/2012 COMPLIANT</Badge>
+                    <Badge variant="emerald">FILING PACKAGE PREPARED</Badge>
                   </div>
                   <div className="text-[11px] font-mono break-all text-emerald-300/80">
                     Seal: {sbpPackage.cryptographic_seal}

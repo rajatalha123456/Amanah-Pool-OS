@@ -11,9 +11,8 @@ Implements State Bank of Pakistan (SBP) Prudential Regulations:
 """
 
 from decimal import Decimal
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from django.utils import timezone
-from django.db.models import Sum
 
 from apps.pools.models import Asset, AssetAssignment, Pool
 from apps.core.exceptions_helper import create_exception_case

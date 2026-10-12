@@ -143,9 +143,11 @@ export function ProductCatalogue() {
         title="Product Catalogue"
         subtitle="Manage Islamic banking and investment product configurations and Shariah governance states"
         actions={
-          <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
-            + New Product
-          </Button>
+          user?.role === "product_manager" ? (
+            <Button variant="primary" onClick={() => setIsModalOpen(true)} className="text-xs">
+              + New Product
+            </Button>
+          ) : null
         }
       />
 

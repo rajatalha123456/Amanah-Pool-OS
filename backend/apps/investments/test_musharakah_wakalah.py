@@ -7,11 +7,10 @@ from rest_framework import status
 
 from apps.accounting.models import JournalBatch
 from apps.accounts.models import UserRole
-from apps.allocation.models import PSRStatus, ProfitSharingRatio
+from apps.allocation.models import ProfitSharingRatio
 
 from .distribution import calculate_distribution
 from .models import (
-    CapitalAccount,
     DistributionRunStatus,
     InvestmentDistributionRun,
     NAVSnapshot,

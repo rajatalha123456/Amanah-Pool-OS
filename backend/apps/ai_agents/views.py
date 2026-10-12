@@ -327,6 +327,10 @@ class AIRecommendationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, 
     serializer_class = AIRecommendationSerializer
 
     def get_permissions(self):
+        if self.action == "dispose":
+            # The human decision on an AI output belongs to the people who own the subject matter; the auditor
+            # reads the record but stays independent of the decision (BRD section 3).
+            return [IsAuthenticated(), HasAnyRole([r for r in REVIEWER_ROLES if r not in ("auditor", "platform_super_admin")])()]
         return [IsAuthenticated(), HasAnyRole(REVIEWER_ROLES)()]
 
     def get_queryset(self):

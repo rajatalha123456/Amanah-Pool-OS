@@ -100,7 +100,7 @@ export function MerkleChainVerifier() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wider font-semibold text-emerald-400">
-              BRD Module 15 / Screen 38
+              Audit trail integrity
             </span>
             <span className="text-text-muted">•</span>
             <span className="text-xs text-text-muted">AAOIFI & SBP Prudential Audit Trail</span>

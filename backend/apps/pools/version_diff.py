@@ -1,6 +1,5 @@
 import hashlib
 import json
-from decimal import Decimal
 
 
 def compute_snapshot_hash(snapshot_dict):

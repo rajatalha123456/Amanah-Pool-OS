@@ -315,6 +315,22 @@ class ReservePolicySerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "tenant", "created_at", "updated_at")
 
+    def validate(self, attrs):
+        """The rule pack's PER/IRR ceiling (a % of pool funds) limits the policy's balance cap."""
+        pool = attrs.get("pool", getattr(self.instance, "pool", None))
+        reserve_type = attrs.get("reserve_type", getattr(self.instance, "reserve_type", None))
+        cap = attrs.get("cap_percentage", getattr(self.instance, "cap_percentage", None))
+        if pool is not None and cap is not None and reserve_type in ("per", "irr"):
+            from apps.pools.config_snapshot import bound_rule_pack
+
+            pack = bound_rule_pack(pool)
+            ceiling = (pack.rules_config or {}).get(f"{reserve_type}_ceiling_pct") if pack else None
+            if ceiling is not None and Decimal(str(cap)) > Decimal(str(ceiling)):
+                raise serializers.ValidationError(
+                    {"cap_percentage": f"Rule pack {pack.code} limits the {reserve_type.upper()} balance to {ceiling}% of pool funds."}
+                )
+        return attrs
+
 
 class RestatementInputSerializer(serializers.Serializer):
     restatement_reason = serializers.CharField(required=True)

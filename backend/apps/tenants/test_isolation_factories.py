@@ -79,7 +79,7 @@ from apps.pools.models import (
     PoolVersion,
 )
 from apps.notifications.models import Notification
-from apps.participants.models import Participant, ParticipantAccount
+from apps.participants.models import Consent, Participant, ParticipantAccount
 from apps.products.models import (
     ContractTemplate,
     JurisdictionRulePack,
@@ -333,6 +333,39 @@ def _build_participant_account(tenant, cache):
         pool=cache.pool(),
         account_number=f"ACC-{tenant.code}",
         opened_date=_D,
+    )
+
+
+def _daily_close_model():
+    from apps.pools.models import DailyClose
+
+    return DailyClose
+
+
+def _build_daily_close(tenant, cache):
+    from apps.pools.models import DailyClose
+
+    return DailyClose.objects.create(tenant=tenant, pool=cache.pool(), value_date=_D, status="open")
+
+
+def _retention_model():
+    from apps.governance.models import RetentionPolicy
+
+    return RetentionPolicy
+
+
+def _build_retention_policy(tenant, cache):
+    from apps.governance.models import RetentionPolicy
+
+    return RetentionPolicy.objects.create(tenant=tenant, data_category="notifications", retention_days=90, basis="test")
+
+
+def _build_consent(tenant, cache):
+    from django.utils import timezone
+
+    participant = Participant._base_manager.filter(tenant=tenant).first()
+    return Consent.objects.create(
+        tenant=tenant, participant=participant, purpose="data_processing", method="in_person", granted_at=timezone.now()
     )
 
 
@@ -778,6 +811,9 @@ BUILDERS = {
     "allocation.PayoutBatchRecord": (PayoutBatchRecord, _build_payout_batch_record),
     "participants.Participant": (Participant, _build_participant),
     "participants.ParticipantAccount": (ParticipantAccount, _build_participant_account),
+    "participants.Consent": (Consent, _build_consent),
+    "pools.DailyClose": (_daily_close_model(), _build_daily_close),
+    "governance.RetentionPolicy": (_retention_model(), _build_retention_policy),
     "products.ShariahQuorumVote": (ShariahQuorumVote, _build_shariah_quorum_vote),
     "products.ContractTemplate": (ContractTemplate, _build_contract_template),
     "products.Product": (Product, _build_product),

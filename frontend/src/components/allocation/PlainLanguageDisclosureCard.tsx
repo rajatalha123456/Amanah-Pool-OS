@@ -17,36 +17,37 @@ export function PlainLanguageDisclosureCard({ statement }: PlainLanguageDisclosu
   const closingAmt = Number(statement.closing_balance).toLocaleString(undefined, { minimumFractionDigits: 2 })
   const openingAmt = Number(statement.opening_balance).toLocaleString(undefined, { minimumFractionDigits: 2 })
 
-  // Plain-Language Urdu Translation conforming to SBP IBD Circular 03/2012
-  const urduText = `محترم کھاتہ دار! 
-اسٹیٹ بینک آف پاکستان (SBP) کے اسلامک بینکنگ سرکلر نمبر 03/2012 اور ایوفی (AAOIFI FAS-30) شریعہ معیارات کے تحت، آپ کے سرمایہ کاری پول کے منافع کی تقسیم مکمل ہو چکی ہے۔
+  // Plain-language summary. It states only what the statement itself shows and the general rules of profit sharing;
+  // it makes no claim about asset types, Shariah certification or capital protection.
+  const urduText = `محترم شریک!
+یہ اس مدت کے لیے آپ کے منافع کی سادہ زبان میں وضاحت ہے۔
 
 • آپ کا کھاتہ / زمرہ: ${participantName}
-• ابتدائی سرمایہ (Opening Balance): PKR ${openingAmt}
+• ابتدائی رقم (Opening Balance): PKR ${openingAmt}
 • منافع کا حصہ (Profit Allocated): PKR ${profitAmt}
 • اختتامی رقم (Closing Balance): PKR ${closingAmt}
 
-وضاحتی نوٹ برائے عوامی فہم:
-1. بینک نے مضارب (فنڈ منیجر) کے طور پر آپ کے فنڈز کو صرف شرعی طور پر منظور شدہ اسلامی اثاثہ جات (مرابحہ، اجارہ، مشارکہ) میں استعمال کیا۔
-2. حاصل شدہ مجموعی آمدن میں سے براہ راست اخراجات منہا کرنے کے بعد، طے شدہ شرح کے مطابق نفع کھاتہ داروں اور مضارب کے درمیان تقسیم کیا گیا۔
-3. پرنسپل رقم محفوظ رہی ہے اور کوئی غیر شرعی کٹوتی یا سود (ربا) شامل نہیں ہے۔ شریعہ بورڈ نے اس حساب کتاب اور نفع تقسیم کی توثیق کر دی ہے۔`
+وضاحتی نوٹ:
+1. منافع پول کے قابلِ تقسیم منافع (آمدن منفی منظور شدہ براہِ راست اخراجات) میں سے آپ کا حصہ ہے، جو اس پول کے منظور شدہ نفع تقسیم تناسب اور وزن کے مطابق تقسیم ہوتا ہے۔
+2. منافع کی ضمانت نہیں ہوتی۔ یہ اس مدت میں پول کی اصل آمدن پر منحصر ہے، اور پول کو نقصان ہو تو سرمایہ کم بھی ہو سکتا ہے۔
+3. یہ اعداد و شمار دستخط شدہ تقسیمی عمل سے لیے گئے ہیں۔ طریقۂ کار اور پول کا منظور شدہ شرعی فیصلہ درخواست پر دستیاب ہے۔`
 
-  const englishText = `Respected Depositor!
-In compliance with State Bank of Pakistan (SBP) IBD Circular 03/2012 and AAOIFI FAS-30 Standards, the profit distribution for your investment pool has been finalized.
+  const englishText = `Respected participant,
+This is a plain-language summary of your profit statement for the period.
 
-• Participant Tier: ${participantName}
-• Opening Balance: PKR ${openingAmt}
-• Net Profit Allocated: PKR ${profitAmt}
-• Closing Balance: PKR ${closingAmt}
+• Participant tier: ${participantName}
+• Opening balance: PKR ${openingAmt}
+• Net profit allocated: PKR ${profitAmt}
+• Closing balance: PKR ${closingAmt}
 
-Plain-Language Explanatory Summary:
-1. The bank, acting as Mudarib (Investment Agent), deployed your funds strictly into Shariah-compliant financing assets (Murabaha, Ijarah, Diminishing Musharakah).
-2. After deducting permissible direct asset expenses from gross income, the distributable profit was apportioned in accordance with pre-notified Profit Sharing Ratios (PSR) and Weightage factors.
-3. Your principal remains unencumbered, free from any element of Riba (interest). The Shariah Supervisory Board has reviewed and certified this distribution cycle.`
+How to read this:
+1. Profit is your share of the pool's distributable profit (income less approved direct expenses), shared in line with the profit-sharing ratio and weightage approved for this pool.
+2. Profit is not guaranteed. It depends on the pool's actual income in the period, and capital can fall if the pool makes a loss.
+3. These figures come from the signed allocation run. The methodology and the pool's approved Shariah decision are available on request.`
 
   return (
     <Card
-      title="📜 SBP Statutory Plain-Language Disclosure (عوامی وضاحتی بیان)"
+      title="Plain-language summary (سادہ زبان میں وضاحت)"
       className="border-emerald-500/20 bg-surface/90"
       actions={
         <div className="flex items-center gap-1.5 bg-surface-subtle p-1 rounded-lg border border-ink/10 text-xs">
@@ -88,8 +89,8 @@ Plain-Language Explanatory Summary:
     >
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs text-ink-muted border-b border-ink/10 pb-2">
-          <span>State Bank of Pakistan (SBP) Transparency Mandate • Circular 03/2012</span>
-          <Badge variant="emerald">Shariah Board Certified</Badge>
+          <span>Figures from the signed allocation run</span>
+          <Badge variant="neutral">Summary</Badge>
         </div>
 
         <div className={`grid gap-4 ${lang === "bilingual" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>

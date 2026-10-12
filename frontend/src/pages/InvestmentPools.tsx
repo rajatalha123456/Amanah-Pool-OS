@@ -74,7 +74,6 @@ const ONBOARDING_STEPS = [
     label: "Model",
     title: "Operating Model & Pool Identification",
     desc: "Core identity, operating archetype, currency, and product categorization",
-    check: "Operating model and legal entity structure verified against SBP Islamic banking regulations.",
   },
   {
     key: "contract",
@@ -82,7 +81,6 @@ const ONBOARDING_STEPS = [
     label: "Contract",
     title: "Mudarabah Contract Charter & Reserves",
     desc: "Profit Equalization Reserve (PER) and Investment Risk Reserve (IRR) parameters",
-    check: "Mudarabah contract template and reserve policy verified against AAOIFI Standard No. 13.",
   },
   {
     key: "economics",
@@ -90,7 +88,6 @@ const ONBOARDING_STEPS = [
     label: "Economics",
     title: "Profit Sharing Ratio (PSR) & Weightages",
     desc: "Mudarib and Rabb-ul-Mal profit split, calculation frequency, and hurdle rate",
-    check: "PSR tiers and daily funds calculation cadence verified. 0% unapproved deduction policy active.",
   },
   {
     key: "assets",
@@ -98,7 +95,6 @@ const ONBOARDING_STEPS = [
     label: "Assets",
     title: "Underlying Financing Assets & Treasury Placements",
     desc: "Sukuk holdings, Ijarah financing assets, and SBP statutory liquidity buffer",
-    check: "Asset concentration and SBP prudential buffers validated. Real-time CBS balance synchronization operational.",
   },
   {
     key: "governance",
@@ -106,7 +102,6 @@ const ONBOARDING_STEPS = [
     label: "Governance",
     title: "Shariah Oversight, Rule Pack & Audit Rulings",
     desc: "SBP regulatory rule pack, Shariah Board resolution, and compliance audit trail",
-    check: "FATWA-2025-01 / SBD-2026-044 resolution sealed. Full regulatory compliance verified.",
   },
   {
     key: "review",
@@ -114,7 +109,6 @@ const ONBOARDING_STEPS = [
     label: "Review",
     title: "AI Compliance Check & Investor Onboarding Activation",
     desc: "Final suitability verification, automated disclosure review, and onboarding clearance",
-    check: "All mandatory parameters are complete. Zero time-value uplift and Shariah compliance verified. Ready for capital subscription.",
   },
 ]
 
@@ -589,7 +583,7 @@ export function InvestmentPools() {
     if (accounts.length === 0) return
     const headers = ["ID", "Name", "Units Held", "Valuation (PKR)", "Status", "Updated"]
     const rows = accounts.map((a) => {
-      const val = latestNAV ? (Number(a.units_held) * Number(latestNAV.nav_per_unit)).toFixed(2) : "0.00"
+      const val = latestNAV ? (Number(a.units_held) * Number(latestNAV.nav_per_unit)).toFixed(2) : ""
       return [a.investor_reference, `"${a.investor_name}"`, a.units_held, val, a.status, a.updated_at]
     })
     const csvContent =
@@ -669,42 +663,25 @@ export function InvestmentPools() {
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [poolSubscriptions, poolRedemptions, accounts])
 
-  // Institutional NAV Historical Curve Data for Screen 18
+  // NAV history for Screen 18
   const navTrendPoints: TrendDataPoint[] = useMemo(() => {
     const published = snapshots
       .filter((s) => s.status === "published")
       .sort((a, b) => new Date(a.valuation_date).getTime() - new Date(b.valuation_date).getTime())
 
-    if (published.length >= 2) {
-      return published.map((s) => ({
-        label: s.valuation_date,
-        value: Number(s.nav_per_unit),
-        tooltipExtra: `Pool Valuation: PKR ${Number(s.total_pool_value).toLocaleString()}`,
-      }))
-    }
-
-    // Default multi-point valuation progression matching Catalogue Screen 18
-    const baseNav = latestNAV ? Number(latestNAV.nav_per_unit) : 1048.2
-    return [
-      { label: "2026-05-31", value: 1000.0, tooltipExtra: "Initial Capitalization" },
-      { label: "2026-06-30", value: 1014.2, tooltipExtra: "Q2 Final Valuation" },
-      { label: "2026-07-31", value: 1026.5, tooltipExtra: "Post-Distribution NAV" },
-      { label: "2026-08-31", value: 1039.1, tooltipExtra: "August Audit Point" },
-      { label: latestNAV?.valuation_date ?? "2026-09-28", value: baseNav, tooltipExtra: "Latest Published NAV" },
-    ]
-  }, [snapshots, latestNAV])
+    // Only recorded, published valuations are plotted; fewer than two points shows the chart's empty state.
+    return published.map((s) => ({
+      label: s.valuation_date,
+      value: Number(s.nav_per_unit),
+      tooltipExtra: `Pool Valuation: PKR ${Number(s.total_pool_value).toLocaleString()}`,
+    }))
+  }, [snapshots])
 
   // Screen 21 Musharakah Partner Equity Slices
   const partnerEquitySlices: DonutSlice[] = useMemo(() => {
     const PARTNER_COLORS = ["#10b981", "#38bdf8", "#a855f7", "#f59e0b", "#ec4899", "#6366f1", "#14b8a6"]
     const totalUnits = accounts.reduce((sum, a) => sum + Number(a.units_held), 0)
-    if (accounts.length === 0 || totalUnits === 0) {
-      return [
-        { label: "Lead Partner", value: 60, color: "#10b981" },
-        { label: "Co-Investor A", value: 25, color: "#38bdf8" },
-        { label: "Co-Investor B", value: 15, color: "#f59e0b" },
-      ]
-    }
+    if (accounts.length === 0 || totalUnits === 0) return []
     return accounts.map((acc, idx) => ({
       label: acc.investor_name,
       value: Number(acc.units_held),
@@ -960,7 +937,7 @@ export function InvestmentPools() {
                 <Card title="Published NAV Trend & Performance" className="lg:col-span-2">
                   <div className="space-y-4">
                     <p className="text-xs text-ink-secondary">
-                      Multi-period published Net Asset Value per unit trajectory (Cubic Bezier curve with historical valuation points)
+                      Published Net Asset Value per unit at each recorded valuation date
                     </p>
                     <TrendAreaChart
                       data={navTrendPoints}
@@ -1472,17 +1449,18 @@ export function InvestmentPools() {
                           <th className="py-2.5 px-3">UNITS HELD</th>
                           <th className="py-2.5 px-3">EQUITY RATIO</th>
                           <th className="py-2.5 px-3">CURRENT VALUATION</th>
-                          <th className="py-2.5 px-3 text-right">EST. SHARE OF PROFIT</th>
+                          <th className="py-2.5 px-3 text-right">PRO-RATA OF LAST SIGNED PROFIT</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {(() => {
                           const totalUnits = accounts.reduce((sum, a) => sum + Number(a.units_held), 0)
-                          const nav = latestNAV ? Number(latestNAV.nav_per_unit) : 100
+                          const nav = latestNAV ? Number(latestNAV.nav_per_unit) : null
                           return accounts.map((acc) => {
                             const ratio = totalUnits > 0 ? Number(acc.units_held) / totalUnits : 0
-                            const val = Number(acc.units_held) * nav
-                            const estProfit = val * 0.141 * (30 / 365) // 14.1% annualized on 30 days
+                            const val = nav === null ? null : Number(acc.units_held) * nav
+                            const lastProfit = selectedPool ? portfolio?.pools.find((r) => r.pool === selectedPool.id)?.last_signed_profit : null
+                            const profitShare = lastProfit ? Number(lastProfit) * ratio : null
 
                             return (
                               <tr key={acc.id} className="hover:bg-white/3">
@@ -1494,10 +1472,10 @@ export function InvestmentPools() {
                                   {(ratio * 100).toFixed(2)}%
                                 </td>
                                 <td className="py-3 px-3 font-semibold text-ink-primary">
-                                  PKR {val.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  {val === null ? "-" : `PKR ${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                                 </td>
                                 <td className="py-3 px-3 text-right font-semibold text-emerald-400">
-                                  PKR {estProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                  {profitShare === null ? "-" : `PKR ${profitShare.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                                 </td>
                               </tr>
                             )

@@ -53,6 +53,11 @@ def terms_hash(terms):
 
 
 def latest_disclosure(pool):
+    """The latest disclosure investors can rely on: published (approved) ones only."""
+    return PoolDisclosure.objects.filter(pool=pool, status="published").order_by("-version").first()
+
+
+def _latest_any(pool):
     return PoolDisclosure.objects.filter(pool=pool).order_by("-version").first()
 
 
@@ -64,20 +69,36 @@ def publish_disclosure(*, pool, user, risk_warnings, fee_statement, summary=""):
     terms = current_terms(pool)
     if terms["profit_sharing"] is None:
         raise ValidationError("The pool has no approved profit-sharing ratio yet; there is nothing to disclose.")
-    previous = latest_disclosure(pool)
+    previous = _latest_any(pool)
     if previous and previous.terms_hash == terms_hash(terms) and previous.risk_warnings == risk_warnings \
             and previous.fee_statement == fee_statement:
-        raise ValidationError("The current disclosure already states these terms; nothing has changed.")
+        raise ValidationError("The latest disclosure already states these terms; nothing has changed.")
+    # Prepared here, but investors only see and acknowledge it once a different person approves it.
     return PoolDisclosure.objects.create(
         tenant=pool.tenant, pool=pool, version=(previous.version if previous else 0) + 1, summary=summary,
         terms=terms, terms_hash=terms_hash(terms), risk_warnings=risk_warnings, fee_statement=fee_statement,
-        published_by=user,
+        published_by=user, status="pending_review",
     )
+
+
+def approve_disclosure(disclosure, user):
+    if disclosure.status != "pending_review":
+        raise ValidationError("Only a disclosure that is pending review can be approved.")
+    if disclosure.published_by_id and disclosure.published_by_id == user.id:
+        raise ValidationError("A different person than the preparer must approve the disclosure.")
+    if disclosure.terms_hash != terms_hash(current_terms(disclosure.pool)):
+        raise ValidationError("The pool's terms changed after this disclosure was prepared; prepare it again.")
+    # The disclosure itself is immutable, so the status moves with a direct update.
+    PoolDisclosure.objects.filter(pk=disclosure.pk).update(status="published", approved_by=user, approved_at=timezone.now())
+    disclosure.refresh_from_db()
+    return disclosure
 
 
 def acknowledge(*, account, disclosure, method, user, evidence_reference="", risk_acknowledged=False):
     if disclosure.pool_id != account.pool_id:
         raise ValidationError("This disclosure belongs to a different pool.")
+    if disclosure.status != "published":
+        raise ValidationError("This disclosure has not been approved yet.")
     if method not in METHODS:
         raise ValidationError({"method": [f"Must be one of: {', '.join(METHODS)}."]})
     if not risk_acknowledged:
@@ -122,6 +143,7 @@ def ensure_acknowledged(account, user=None):
             tenant=pool.tenant, pool=pool, version=(disclosure.version if disclosure else 0) + 1, terms=terms,
             terms_hash=terms_hash(terms), risk_warnings="Capital is at risk; returns are not guaranteed.",
             fee_statement="Fees are limited to the profit-sharing terms stated above.", published_by=user,
+            status="published", approved_at=timezone.now(),
         )
     if not DisclosureAcknowledgement.objects.filter(capital_account=account, disclosure=disclosure).exists():
         acknowledge(account=account, disclosure=disclosure, method="in_person", user=user, risk_acknowledged=True)

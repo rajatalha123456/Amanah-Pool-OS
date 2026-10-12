@@ -160,6 +160,9 @@ def build_preflight(pool, member, cycle_number, rail):
 
 
 def create_payout_request(*, pool, member, user, rail, payout_date, cycle_number=None):
+    from apps.pools.lifecycle import assert_not_frozen
+
+    assert_not_frozen(pool, "payouts")
     computed_cycle = next_cycle_number(pool)
     if cycle_number is not None and int(cycle_number) != computed_cycle:
         raise ValidationError(f"The current cycle is {computed_cycle}, not {cycle_number}.")

@@ -81,6 +81,18 @@ export async function closePool(id: string): Promise<Pool> {
   return response.data
 }
 
+export async function freezePool(id: string, reason: string): Promise<Pool> {
+  return (await apiClient.post<Pool>(`pools/pools/${id}/freeze/`, { reason })).data
+}
+
+export async function unfreezePool(id: string, reason: string): Promise<Pool> {
+  return (await apiClient.post<Pool>(`pools/pools/${id}/unfreeze/`, { reason })).data
+}
+
+export async function archivePool(id: string): Promise<Pool> {
+  return (await apiClient.post<Pool>(`pools/pools/${id}/archive/`)).data
+}
+
 export async function fetchApprovedProducts(): Promise<Product[]> {
   // The backend's ProductViewSet.get_queryset() doesn't support a
   // ?status= filter, so we fetch everything and filter client-side.

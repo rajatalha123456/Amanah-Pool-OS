@@ -14,15 +14,17 @@ import { GeneratedPasswordModal } from "./administration/GeneratedPasswordModal"
 import { JurisdictionRulePacks } from "./administration/JurisdictionRulePacks"
 import { SecurityAuditLog } from "./administration/SecurityAuditLog"
 import { TenantManagement } from "./administration/TenantManagement"
+import { DemoRequests } from "./administration/DemoRequests"
 import type { BadgeVariant, UserAdmin, UserCreateResponse } from "../types"
 
-type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs"
+type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs" | "enquiries"
 
 const TABS: { key: AdminTab; label: string; num: string }[] = [
   { key: "audit-log", label: "Security & Audit Log", num: "" },
   { key: "multi-tenant", label: "Multi-Tenant Configuration", num: "" },
   { key: "users", label: "User Administration", num: "" },
   { key: "rule-packs", label: "Jurisdiction & Rule Packs", num: "" },
+  { key: "enquiries", label: "Website Enquiries", num: "" },
 ]
 
 export function UserAdministration() {
@@ -338,6 +340,7 @@ export function UserAdministration() {
 
       {/* Tab 4: Screen 42 Jurisdiction & Rule Packs */}
       {activeTab === "rule-packs" && <JurisdictionRulePacks hideHeader />}
+      {activeTab === "enquiries" && isSuperAdmin && <DemoRequests />}
     </div>
   )
 }

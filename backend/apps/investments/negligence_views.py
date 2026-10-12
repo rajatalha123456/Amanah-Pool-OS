@@ -11,9 +11,10 @@ from apps.notifications import events
 
 from .models import NegligenceCase, NegligenceCaseStatus
 
-RAISE_ROLES = ["risk_compliance", "pool_manager", "auditor", "shariah_board"]
+# The auditor reads cases but does not open or work them: it stays independent of operational decisions.
+RAISE_ROLES = ["risk_compliance", "pool_manager", "shariah_board"]
 NOTE_ROLES = RAISE_ROLES + ["shariah_secretariat"]
-READ_ROLES = NOTE_ROLES + ["finance_maker", "finance_checker"]
+READ_ROLES = NOTE_ROLES + ["finance_maker", "finance_checker", "auditor"]
 
 
 class NegligenceCaseSerializer(serializers.ModelSerializer):

@@ -10,7 +10,7 @@ from apps.pools.models import Pool
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
-from .models import CircleMember, CircleProposal, CircleVote, ProposalStatus
+from .models import CircleMember, CircleProposal, CircleVote
 
 
 class CircleProposalTests(APITestCase):

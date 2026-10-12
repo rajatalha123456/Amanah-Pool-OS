@@ -29,7 +29,7 @@ from .models import (
     WeightageBandStatus,
 )
 
-LIVE_STATUSES = (PoolStatus.OPEN, PoolStatus.ALLOCATION)
+LIVE_STATUSES = (PoolStatus.OPEN, PoolStatus.ALLOCATION, PoolStatus.FROZEN)
 
 
 def _money(value):

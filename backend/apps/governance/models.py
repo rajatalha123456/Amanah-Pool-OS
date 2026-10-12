@@ -330,3 +330,40 @@ class ConfigChangeRequest(TenantScopedModel):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class RetentionCategory(models.TextChoices):
+    NOTIFICATIONS = "notifications", "In-app notifications (read)"
+    SUPPORT_REQUESTS = "support_requests", "Resolved support requests"
+    AI_RECOMMENDATIONS = "ai_recommendations", "AI recommendation records"
+
+
+class RetentionPolicyStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    APPROVED = "approved", "Approved"
+    SUPERSEDED = "superseded", "Superseded"
+
+
+class RetentionPolicy(TenantScopedModel):
+    """
+    How long a class of operational data is kept (BRD privacy: retention). Proposed by one person, approved by
+    another. Ledgers, statements, contracts, the audit log and Shariah records are *not* covered: they follow the
+    legal retention period and are never purged by the retention routine.
+    """
+
+    data_category = models.CharField(max_length=30, choices=RetentionCategory.choices)
+    retention_days = models.IntegerField()
+    basis = models.TextField()  # the legal / policy basis for the period
+    status = models.CharField(max_length=12, choices=RetentionPolicyStatus.choices, default=RetentionPolicyStatus.DRAFT)
+    proposed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["data_category", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "data_category"], condition=models.Q(status="approved"),
+                name="one_approved_retention_policy_per_category",
+            ),
+        ]

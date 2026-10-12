@@ -1,21 +1,19 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from datetime import date
 from decimal import Decimal
 import uuid
 
-from django.db import models, transaction
-from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.accounts.permissions import (
     HasAnyRole,
     IsFinanceChecker,
-    IsFinanceMaker,
     IsPoolManager,
     IsShariahBoard,
 )
@@ -29,6 +27,7 @@ from apps.products.models import ProductStatus
 from .activation import activation_checks
 from .config_snapshot import bound_rule_pack, build_pool_snapshot
 from .liquidity import calculate_liquidity_forecast
+from .daily_close import assert_day_open
 from .period_lock import assert_period_open
 from .version_diff import generate_version_diff
 
@@ -41,13 +40,14 @@ from .models import (
     BalanceImportBatchStatus,
     DailyBalance,
     DailyBalanceStatus,
+    DailyClose,
     PeriodCloseChecklist,
-    PeriodCloseStatus,
     Pool,
     PoolStatus,
     PoolVersion,
 )
 from .serializers import (
+    DailyCloseSerializer,
     AssetAssignmentSerializer,
     AssetProvisionEntrySerializer,
     AssetSerializer,
@@ -73,12 +73,19 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
         return Pool.objects.all()
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "submit_for_approval", "open", "create_version"):
+        if self.action == "open":
+            # BRD 6.1: the Pool Manager prepares, an independent checker activates.
+            return [IsAuthenticated(), HasAnyRole(["finance_checker", "authorized_signatory"])()]
+        if self.action in ("create", "update", "partial_update", "submit_for_approval", "create_version"):
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "approve":
             return [IsAuthenticated(), IsShariahBoard()]
-        if self.action == "close":
+        if self.action in ("close", "archive"):
             return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "freeze":
+            return [IsAuthenticated(), HasAnyRole(["pool_manager", "risk_compliance"])()]
+        if self.action == "unfreeze":
+            return [IsAuthenticated(), HasAnyRole(["authorized_signatory", "finance_checker"])()]
         return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
@@ -158,7 +165,7 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
         seal. A version identical to the latest one is refused.
         """
         pool = self.get_object()
-        if pool.status not in (PoolStatus.OPEN, PoolStatus.ALLOCATION):
+        if pool.status not in (PoolStatus.OPEN, PoolStatus.ALLOCATION, PoolStatus.FROZEN):
             raise ValidationError("Versions can only be sealed for an open pool.")
 
         data = request.data or {}
@@ -331,9 +338,9 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
     def close(self, request, pk=None):
         pool = self.get_object()
 
-        if pool.status not in (PoolStatus.OPEN, PoolStatus.ALLOCATION):
+        if pool.status not in (PoolStatus.OPEN, PoolStatus.ALLOCATION, PoolStatus.FROZEN):
             raise ValidationError(
-                f"Pool must be in '{PoolStatus.OPEN}' or '{PoolStatus.ALLOCATION}' status to close "
+                f"Pool must be open, in allocation or frozen to close "
                 f"(current status: '{pool.status}')."
             )
 
@@ -349,6 +356,44 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
             object_id=str(pool.id),
             changes={"status": {"before": previous_status, "after": PoolStatus.CLOSED}},
             request=request,
+        )
+        return Response(self.get_serializer(pool).data)
+
+
+    @action(detail=True, methods=["post"])
+    def freeze(self, request, pk=None):
+        from . import lifecycle
+
+        pool = self.get_object()
+        previous = lifecycle.freeze(pool, request.user, request.data.get("reason"))
+        log_action(
+            tenant=pool.tenant, actor=request.user, action="freeze", model_name="Pool", object_id=str(pool.id),
+            changes={"status": {"before": previous, "after": PoolStatus.FROZEN}}, reason=pool.freeze_reason, request=request,
+        )
+        return Response(self.get_serializer(pool).data)
+
+    @action(detail=True, methods=["post"])
+    def unfreeze(self, request, pk=None):
+        from . import lifecycle
+
+        pool = self.get_object()
+        reason = request.data.get("reason")
+        restored = lifecycle.unfreeze(pool, request.user, reason)
+        log_action(
+            tenant=pool.tenant, actor=request.user, action="unfreeze", model_name="Pool", object_id=str(pool.id),
+            changes={"status": {"before": PoolStatus.FROZEN, "after": restored}}, reason=reason, request=request,
+        )
+        return Response(self.get_serializer(pool).data)
+
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        from . import lifecycle
+
+        pool = self.get_object()
+        lifecycle.archive(pool, request.user)
+        log_action(
+            tenant=pool.tenant, actor=request.user, action="archive", model_name="Pool", object_id=str(pool.id),
+            changes={"status": {"before": PoolStatus.CLOSED, "after": PoolStatus.ARCHIVED}}, request=request,
         )
         return Response(self.get_serializer(pool).data)
 
@@ -569,6 +614,7 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         records = data["records"]
 
         assert_period_open(pool, value_date, what="a balance import")
+        assert_day_open(pool, value_date, what="a balance import")
 
         errors = []
         created_balances = []
@@ -723,7 +769,10 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         Screen 09 / Module 06: Automated Core Banking System SFTP EOD Batch Ingestion.
         """
         from datetime import datetime
+        from apps.core.simulation import assert_simulation_allowed
         from .cbs_daemon import simulate_cbs_sftp_ingestion
+
+        assert_simulation_allowed("The CBS SFTP feed")
 
         pool_id = request.data.get("pool_id")
         if not pool_id:
@@ -741,6 +790,7 @@ class BalanceImportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             value_date = timezone.now().date()
 
         assert_period_open(pool, value_date, what="a balance import")
+        assert_day_open(pool, value_date, what="a balance import")
 
         if ParticipantAccount.objects.filter(pool=pool).exists():
             raise ValidationError(
@@ -925,3 +975,48 @@ class AssetProvisionEntryViewSet(
         if asset is None:
             raise ValidationError({"asset": ["A valid asset is required."]})
         return Response({k: str(v) for k, v in asset_position(asset).items()})
+
+
+class DailyCloseViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """BRD 6.2 daily close: the maker prepares (gates are computed by the server), an independent checker signs."""
+
+    serializer_class = DailyCloseSerializer
+
+    def get_queryset(self):
+        queryset = DailyClose.objects.select_related("pool", "prepared_by", "signed_by")
+        pool_id = self.request.query_params.get("pool")
+        return queryset.filter(pool_id=pool_id) if pool_id else queryset
+
+    def get_permissions(self):
+        if self.action == "prepare":
+            return [IsAuthenticated(), HasAnyRole(["finance_maker"])()]
+        if self.action == "sign":
+            return [IsAuthenticated(), HasAnyRole(["finance_checker"])()]
+        return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker", "finance_checker", "risk_compliance", "auditor"])()]
+
+    @action(detail=False, methods=["post"])
+    def prepare(self, request):
+        from . import daily_close
+
+        try:
+            pool = Pool.objects.select_related("product").get(pk=request.data.get("pool"))
+            day = date.fromisoformat(str(request.data.get("value_date")))
+        except (Pool.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            raise ValidationError("A valid pool and value date (YYYY-MM-DD) are required.")
+        close = daily_close.prepare(pool, day, request.user, notes=str(request.data.get("notes") or ""))
+        log_action(
+            tenant=pool.tenant, actor=request.user, action="daily_close_prepared", model_name="DailyClose",
+            object_id=str(close.id), changes={"date": str(day), "status": close.status}, request=request,
+        )
+        return Response(self.get_serializer(close).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def sign(self, request, pk=None):
+        from . import daily_close
+
+        close = daily_close.sign(self.get_object(), request.user)
+        log_action(
+            tenant=close.tenant, actor=request.user, action="daily_close_signed", model_name="DailyClose",
+            object_id=str(close.id), changes={"date": str(close.value_date)}, request=request,
+        )
+        return Response(self.get_serializer(close).data)

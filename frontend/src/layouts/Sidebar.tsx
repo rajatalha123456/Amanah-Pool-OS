@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { navItems } from "./navItems"
+import { navItemsFor } from "./navItems"
 import { useAuth } from "../api/auth"
 
 export function Sidebar() {
@@ -12,7 +12,7 @@ export function Sidebar() {
           { label: "My Portal", labelKey: "nav.myPortal", path: "/" },
           { label: "Notifications", labelKey: "nav.notifications", path: "/notifications" },
         ]
-      : navItems
+      : navItemsFor(user?.role)
   const isUrdu = i18n.language?.startsWith("ur")
 
   return (

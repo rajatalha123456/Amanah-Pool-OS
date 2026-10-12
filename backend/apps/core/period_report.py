@@ -12,7 +12,7 @@ import io
 import json
 from decimal import Decimal
 
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 ZERO = Decimal("0.00")

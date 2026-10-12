@@ -40,6 +40,7 @@ import { VerifyMfa } from "./pages/auth/VerifyMfa"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { useAuth } from "./api/auth"
 import { InvestorPortal } from "./pages/InvestorPortal"
+import { SitePage } from "./pages/site/SitePage"
 import { navItems } from "./layouts/navItems"
 
 const CUSTOM_ROUTES: Record<string, ReactNode> = {
@@ -66,6 +67,7 @@ function HomeRoute() {
 function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<SitePage />} />
       <Route path="/login" element={<SignIn />} />
       <Route path="/verify-mfa" element={<VerifyMfa />} />
 

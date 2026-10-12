@@ -11,7 +11,7 @@ from apps.pools.models import DailyBalance, Pool
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
-from .models import AllocationRun, AllocationRunStatus, PSRStatus, ProfitSharingRatio, WeightageBand, WeightageBandStatus
+from .models import AllocationRun, PSRStatus, ProfitSharingRatio, WeightageBand, WeightageBandStatus
 
 
 class ApprovalCeremonyApiTests(APITestCase):

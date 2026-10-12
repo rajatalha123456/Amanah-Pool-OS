@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from rest_framework.response import Response
 
-from apps.accounts.permissions import HasAnyRole, IsAuditor
+from apps.accounts.permissions import HasAnyRole
 
 from .models import AuditLog
 from .serializers import AuditLogSerializer
@@ -138,15 +138,20 @@ def process_banking_settlement(request):
     """
     Executes a simulated real-time settlement across SBP Raast / 1LINK rails.
     """
+    from .simulation import assert_simulation_allowed
+
+    assert_simulation_allowed("Raast / 1LINK settlement")
     data = request.data
     amount = data.get("amount")
     if not amount:
         return Response({"error": "amount is required."}, status=400)
 
-    source_title = data.get("source_title", "Account Holder")
-    source_iban = data.get("source_iban", "PK12MEZN0001928172601")
+    source_title = data.get("source_title")
+    source_iban = data.get("source_iban")
     destination_title = data.get("destination_title")
     destination_iban = data.get("destination_iban")
+    if not (source_title and source_iban and destination_title and destination_iban):
+        return Response({"error": "Source and destination account title and IBAN are required."}, status=400)
     channel = data.get("channel", "RAAST_P2M")
     purpose = data.get("purpose", "Pool Settlement")
     simulate_failure = data.get("simulate_failure_code")

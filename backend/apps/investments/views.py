@@ -130,6 +130,9 @@ class CapitalAccountViewSet(
         from .disclosures import assert_subscription_allowed
 
         assert_subscription_allowed(account)
+        from apps.pools.lifecycle import assert_not_frozen
+
+        assert_not_frozen(account.pool, "subscriptions")
 
         amount = request.data.get("amount")
         transaction_date = request.data.get("transaction_date")
@@ -204,6 +207,9 @@ class CapitalAccountViewSet(
         from .redemptions import request_redemption
 
         account = self.get_object()
+        from apps.pools.lifecycle import assert_not_frozen
+
+        assert_not_frozen(account.pool, "redemptions")
         errors = {}
         for field in ("units_redeemed", "transaction_date"):
             if not request.data.get(field):

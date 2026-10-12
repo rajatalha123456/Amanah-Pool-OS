@@ -6,6 +6,7 @@ import { useAuth } from "../../api/auth"
 import { extractErrorMessage } from "../../api/errors"
 import {
   acknowledgeDisclosure,
+  approveDisclosure,
   fetchDisclosures,
   fetchSubscriptionStatus,
   publishDisclosure,
@@ -19,7 +20,8 @@ const INPUT =
 export function InvestorDisclosures({ poolId, accounts }: { poolId: string; accounts: CapitalAccount[] }) {
   const { user } = useAuth()
   const role = user?.role ?? ""
-  const canPublish = role === "pool_manager" || role === "shariah_board"
+  const canPublish = role === "pool_manager" || role === "product_manager" // prepares
+  const canApprove = role === "shariah_board" || role === "risk_compliance" // a different person approves
   const canRecord = role === "finance_maker" || role === "pool_manager"
   const isInvestor = role === "investor_member"
 
@@ -61,7 +63,8 @@ export function InvestorDisclosures({ poolId, accounts }: { poolId: string; acco
     }
   }
 
-  const latest = list[0]
+  const latest = list.find((d) => d.status === "published")
+  const pending = list.find((d) => d.status === "pending_review")
 
   return (
     <Card title="Investor disclosure & acknowledgement">
@@ -137,6 +140,19 @@ export function InvestorDisclosures({ poolId, accounts }: { poolId: string; acco
         </div>
       )}
 
+      {pending && (
+        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200">
+          <p className="font-semibold">Disclosure v{pending.version} is prepared and waiting for approval by a different person.</p>
+          <p className="mt-1 text-amber-100/80">Fees: {pending.fee_statement}</p>
+          <p className="text-amber-100/80">Risks: {pending.risk_warnings}</p>
+          {canApprove && (
+            <Button size="sm" variant="primary" className="mt-2" disabled={busy} onClick={() => void act(() => approveDisclosure(pending.id))}>
+              Approve and publish
+            </Button>
+          )}
+        </div>
+      )}
+
       {canPublish && (
         <form
           className="mt-4 grid grid-cols-1 gap-3 border-t border-white/8 pt-4"
@@ -146,13 +162,13 @@ export function InvestorDisclosures({ poolId, accounts }: { poolId: string; acco
           }}
         >
           <p className="text-xs text-ink-secondary">
-            Publishing seals the pool&apos;s current terms into a new version; every investor must acknowledge it before subscribing again.
+            Preparing seals the pool&apos;s current terms into a new version. A different person must approve it before it is published; every investor then acknowledges it before subscribing again.
           </p>
           <textarea required rows={2} placeholder="Risk warnings" className={INPUT} value={form.risk_warnings} onChange={(e) => setForm({ ...form, risk_warnings: e.target.value })} />
           <textarea required rows={2} placeholder="Fee statement" className={INPUT} value={form.fee_statement} onChange={(e) => setForm({ ...form, fee_statement: e.target.value })} />
           <div>
             <Button type="submit" variant="primary" disabled={busy}>
-              Publish new disclosure version
+              Prepare new disclosure version
             </Button>
           </div>
         </form>

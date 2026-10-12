@@ -46,7 +46,7 @@ export function PurificationLedger() {
       .then((data) => {
         setPools(data)
         if (data.length > 0) {
-          setSelectedPoolId(data[0].id)
+          setSelectedPoolId((data.find((p) => p.product_detail?.operating_model !== "community_circle") ?? data[0]).id)
         } else {
           setPageState("loaded")
         }

@@ -12,8 +12,9 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker
 from apps.core.audit import log_action
-from apps.core.viewset_guards import NO_DELETE, READ_AND_POST, STAFF_ROLES, EditableWhileDraftMixin
+from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES
 from apps.pools.models import Pool
+from apps.pools.daily_close import assert_day_open
 from apps.pools.period_lock import assert_period_open
 
 from .chart import ACCOUNTS, REQUIRED_BY_MODEL
@@ -81,6 +82,7 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             serializer.validated_data["event_date"],
             what="an income/expense event",
         )
+        assert_day_open(serializer.validated_data["pool"], serializer.validated_data["event_date"], what="an income/expense event")
         instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
         log_action(
             tenant=instance.tenant,
@@ -108,6 +110,7 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             )
 
         assert_period_open(event.pool, event.event_date, what="an income/expense event")
+        assert_day_open(event.pool, event.event_date, what="an income/expense event")
 
         if event.created_by_id == request.user.id:
             raise ValidationError("Maker-checker: the user who created an event cannot post it.")

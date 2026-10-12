@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -8,7 +9,8 @@ from rest_framework.response import Response
 from apps.accounts.permissions import HasAnyRole
 from apps.core.audit import log_action
 
-from .models import AccountStatus, KYCStatus, Participant, ParticipantAccount
+from .consents import consent_row, data_subject_export, grant_consent, withdraw_consent
+from .models import AccountStatus, Consent, KYCStatus, Participant, ParticipantAccount
 from .serializers import ParticipantAccountSerializer, ParticipantSerializer
 
 # Roles that may see the participant registry. Investors/members never list it:
@@ -122,3 +124,74 @@ class ParticipantAccountViewSet(viewsets.ModelViewSet):
             request=request,
         )
         return Response(self.get_serializer(account).data)
+
+
+class ConsentViewSet(viewsets.ViewSet):
+    """
+    Consent register. Staff record and withdraw consents on a participant's behalf (with evidence); a member
+    reads and withdraws only their own consents and can download everything held about them.
+    """
+
+    CONSENT_ROLES = ["pool_manager", "finance_maker", "risk_compliance"]
+
+    def get_permissions(self):
+        if self.action in ("mine", "my_data"):
+            return [IsAuthenticated(), HasAnyRole(["investor_member"])()]
+        if self.action == "create":
+            return [IsAuthenticated(), HasAnyRole(self.CONSENT_ROLES)()]
+        if self.action == "withdraw":
+            return [IsAuthenticated(), HasAnyRole(self.CONSENT_ROLES + ["investor_member"])()]
+        return [IsAuthenticated(), HasAnyRole(READ_ROLES)()]
+
+    def list(self, request):
+        queryset = Consent.objects.select_related("participant")
+        participant = request.query_params.get("participant")
+        if participant:
+            queryset = queryset.filter(participant_id=participant)
+        return Response([{**consent_row(c), "participant": str(c.participant_id), "participant_name": c.participant.full_name} for c in queryset])
+
+    def create(self, request):
+        try:
+            participant = Participant.objects.get(pk=request.data.get("participant"))
+        except (Participant.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            raise ValidationError({"participant": ["Unknown participant."]})
+        consent = grant_consent(
+            participant=participant, purpose=request.data.get("purpose"), method=request.data.get("method", "in_person"),
+            evidence_reference=request.data.get("evidence_reference", ""), user=request.user,
+        )
+        log_action(
+            tenant=consent.tenant, actor=request.user, action="consent_granted", model_name="Consent",
+            object_id=str(consent.id), changes={"purpose": consent.purpose, "participant": participant.reference}, request=request,
+        )
+        return Response(consent_row(consent), status=201)
+
+    @action(detail=True, methods=["post"])
+    def withdraw(self, request, pk=None):
+        consent = Consent.objects.filter(pk=pk).first()
+        if consent is None:
+            raise ValidationError("Unknown consent.")
+        if request.user.role == "investor_member" and consent.participant.user_id != request.user.id:
+            raise ValidationError("Unknown consent.")  # never reveal other people's records
+        withdraw_consent(consent, request.data.get("reason"))
+        log_action(
+            tenant=consent.tenant, actor=request.user, action="consent_withdrawn", model_name="Consent",
+            object_id=str(consent.id), changes={"purpose": consent.purpose}, reason=consent.withdrawal_reason, request=request,
+        )
+        return Response(consent_row(consent))
+
+    @action(detail=False, methods=["get"])
+    def mine(self, request):
+        participant = Participant.objects.filter(user=request.user).first()
+        rows = Consent.objects.filter(participant=participant) if participant else []
+        return Response([consent_row(c) for c in rows])
+
+    @action(detail=False, methods=["get"], url_path="my-data")
+    def my_data(self, request):
+        participant = Participant.objects.filter(user=request.user).first()
+        if participant is None:
+            raise ValidationError("No participant record is linked to your login.")
+        log_action(
+            tenant=participant.tenant, actor=request.user, action="data_subject_export", model_name="Participant",
+            object_id=str(participant.id), request=request,
+        )
+        return Response(data_subject_export(participant))

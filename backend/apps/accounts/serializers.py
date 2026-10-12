@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ApprovalAction, ApprovalMatrixRule, User, UserRole
+from .models import ApprovalMatrixRule, User, UserRole
 
 
 class LoginSerializer(serializers.Serializer):

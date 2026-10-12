@@ -72,7 +72,7 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
   const [findingSeverity, setFindingSeverity] = useState<AuditSeverity>("high")
   const [findingStandard, setFindingStandard] = useState("AAOIFI Shariah Standard No. 13 (Mudarabah)")
   const [findingPlan, setFindingPlan] = useState("")
-  const [findingDeadline, setFindingDeadline] = useState("2026-10-31")
+  const [findingDeadline, setFindingDeadline] = useState("")
 
   const loadPlans = async () => {
     setLoading(true)
@@ -157,7 +157,7 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
         remediation_plan: findingPlan,
         status: "open",
         identified_date: new Date().toISOString().split("T")[0],
-        remediation_deadline: findingDeadline,
+        remediation_deadline: findingDeadline || null,
       })
       setShowNewFindingModal(false)
       setFindingTitle("")
@@ -394,7 +394,7 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
                   />
                 ) : (
                   <div className="rounded border border-dashed border-navy-700 p-8 text-center text-sm text-ink-muted">
-                    No Shariah audit findings recorded for this plan cycle. All tested samples comply with AAOIFI/SBP standards.
+                    No Shariah audit findings are recorded for this plan cycle.
                   </div>
                 )}
               </div>
@@ -627,7 +627,7 @@ export function ShariahAuditPlan({ hideHeader = false }: { hideHeader?: boolean 
             <div>
               <label className="block text-xs font-semibold uppercase text-ink-muted">Remediation Deadline</label>
               <input
-                type="date"
+                type="date" required
                 value={findingDeadline}
                 onChange={(e) => setFindingDeadline(e.target.value)}
                 className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary"

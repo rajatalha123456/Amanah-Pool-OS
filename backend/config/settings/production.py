@@ -10,6 +10,7 @@ from .base import *  # noqa: F401,F403
 DEBUG = False
 
 # MFA is mandatory outside development unless explicitly switched off.
+ALLOW_SIMULATED_INTEGRATIONS = config("ALLOW_SIMULATED_INTEGRATIONS", default=False, cast=bool)
 MFA_ENFORCED = config("MFA_ENFORCED", default=True, cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())

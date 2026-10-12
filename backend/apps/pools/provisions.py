@@ -21,7 +21,6 @@ from apps.accounting.models import (
     IncomeExpenseEvent,
     IncomeExpenseEventStatus,
     IncomeExpenseEventType,
-    JournalEntryType,
 )
 from apps.accounting.services import post_adjustment_journal
 

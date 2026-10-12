@@ -5,7 +5,6 @@ anomalies, and extracts stratified risk-weighted sample sets for SBP inspection.
 """
 
 import logging
-from decimal import Decimal
 from django.utils import timezone
 from apps.allocation.models import AllocationRun
 from apps.governance.models import ExceptionCase, PurificationEntry, RelatedPartyTransaction

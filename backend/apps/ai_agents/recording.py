@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import re
 import time
 from decimal import Decimal, InvalidOperation
 
@@ -15,6 +16,25 @@ from .models import AIModelRegistry, AIRecommendation, Disposition
 logger = logging.getLogger("apps")
 PROMPT_STORE_LIMIT = 4000
 OUTPUT_STORE_LIMIT = 200_000
+
+
+# Sensitive identifiers are masked before a prompt or output is stored (BRD section 9: "prompt/output logging with
+# masking of sensitive data"). The prompt hash is taken over the original text, so a record can still be matched
+# to the exact request without keeping the raw identifiers.
+_MASKS = (
+    (re.compile(r"\b\d{5}-\d{7}-\d\b"), "[CNIC]"),
+    (re.compile(r"\bPK\d{2}[A-Z0-9]{4}\d{16}\b|\bPK\d{2}[A-Z]{4}[A-Z0-9]{16}\b"), "[IBAN]"),
+    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "[EMAIL]"),
+    (re.compile(r"(?<!\w)(?:\+92|0092|0)3\d{2}[- ]?\d{7}\b"), "[PHONE]"),
+    (re.compile(r"\b\d{12,}\b"), "[NUMBER]"),
+)
+
+
+def mask_sensitive(value):
+    """Masks CNIC, IBAN, e-mail, mobile and long account-like numbers in a string."""
+    for pattern, label in _MASKS:
+        value = pattern.sub(label, value)
+    return value
 
 
 class Timer:
@@ -41,7 +61,7 @@ def record_ai_output(
     """Returns the AIRecommendation id (str) or None if recording failed."""
     try:
         text = prompt if isinstance(prompt, str) else json.dumps(prompt, sort_keys=True, default=str)
-        stored = json.loads(json.dumps(output, default=str))
+        stored = json.loads(mask_sensitive(json.dumps(output, default=str)))
         if len(json.dumps(stored)) > OUTPUT_STORE_LIMIT:
             stored = {"truncated": True, "keys": list(stored)[:50] if isinstance(stored, dict) else []}
         registry = AIModelRegistry.objects.filter(model_name=model_name).first()
@@ -49,7 +69,7 @@ def record_ai_output(
             tenant=user.tenant, feature=feature, model_name=model_name,
             model_version=registry.version if registry else "", requested_by=user, subject_type=subject_type,
             subject_id=str(subject_id or ""), prompt_hash=hashlib.sha256(text.encode()).hexdigest(),
-            prompt_text=text[:PROMPT_STORE_LIMIT], output=stored, sources=list(sources or []),
+            prompt_text=mask_sensitive(text)[:PROMPT_STORE_LIMIT], output=stored, sources=list(sources or []),
             confidence=_confidence(confidence), reason=reason, requires_human_review=requires_review,
             is_fallback=is_fallback, latency_ms=latency_ms,
         )

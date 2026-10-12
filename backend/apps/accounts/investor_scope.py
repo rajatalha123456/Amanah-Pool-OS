@@ -24,6 +24,10 @@ ALLOWED = [
     ({"GET"}, API + r"investments/disclosures/"),
     ({"POST"}, API + r"investments/disclosures/" + UUID + r"/acknowledge/$"),
     ({"GET"}, API + r"allocation/allocation-runs/my-statements/$"),
+    ({"GET"}, API + r"participants/consents/(mine|my-data)/$"),
+    ({"POST"}, API + r"participants/consents/" + UUID + r"/withdraw/$"),
+    ({"GET"}, API + r"circles/circle-members/my-circles/$"),
+    ({"POST"}, API + r"circles/circle-members/accept-rules/$"),
 ]
 _COMPILED = [(methods, re.compile(pattern)) for methods, pattern in ALLOWED]
 
@@ -40,3 +44,32 @@ def assert_investor_scope(user, request):
         return
     if not investor_may_call(request.method, request.path):
         raise PermissionDenied("This area is not available to investors and members.")
+
+
+# ---- Platform Super Admin (BRD section 3: "cannot view tenant financial data by default") ----------------------
+# It provisions tenants, users and configuration only. Everything else is refused before the view runs, so a business
+# endpoint that forgets to exclude the role can never expose pools, runs, participants, ledgers or members to it.
+ADMIN_ALLOWED = [
+    API + r"auth/",
+    API + r"health/",
+    API + r"notifications/",
+    API + r"tenants/",
+    API + r"demo-requests/",
+    API + r"legal-entities/",
+    API + r"products/jurisdiction-rule-packs/",
+    API + r"governance/config-changes/",
+    API + r"accounting/account-mappings/",
+    API + r"core/audit-log/",
+]
+_ADMIN_COMPILED = [re.compile("^" + pattern.lstrip("^")) for pattern in ADMIN_ALLOWED]
+
+
+def admin_may_call(path):
+    return any(pattern.match(path) for pattern in _ADMIN_COMPILED)
+
+
+def assert_admin_scope(user, request):
+    if getattr(user, "role", None) != "platform_super_admin":
+        return
+    if not admin_may_call(request.path):
+        raise PermissionDenied("The platform administrator role cannot access tenant business data.")
