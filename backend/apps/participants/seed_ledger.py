@@ -9,6 +9,7 @@ movement and per-participant lines/statements.
 """
 
 from datetime import date, timedelta
+from django.utils import timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from rest_framework.test import APIClient
@@ -216,6 +217,16 @@ def seed_participant_ledger(
     post_event(INCOME, "Financing Profit", "575000.00", date(2026, 9, 25), "Murabaha profit settlement")
     post_event(EXPENSE, "Direct Takaful", "60000.00", date(2026, 9, 27), "Asset protection takaful premium")
 
+    # Daily closes for July and August were signed by an independent checker (demo data); September is still in progress.
+    from apps.pools.models import DailyClose, DailyCloseStatus
+
+    for signed_day in sorted({r.value_date for r in rows if r.value_date < date(2026, 9, 1)}):
+        DailyClose.objects.create(
+            tenant=tenant, pool=pool, value_date=signed_day, status=DailyCloseStatus.SIGNED,
+            gates=[], notes="Demo data: signed by the seed.", prepared_by=maker, signed_by=checker,
+            prepared_at=timezone.now(), signed_at=timezone.now(),
+        )
+
     def submit(run_id):
         call(maker, "post", f"{base_url}{run_id}/submit-for-checking/")
 
@@ -230,7 +241,12 @@ def seed_participant_ledger(
     submit(july)
     sign(july, "Certified for the demo data set (synthetic; not a real certification).")
     # A July accrual posted after the run was signed: the restatement re-derives the period (1,037,500).
-    post_event(INCOME, "Financing Profit", "12500.00", date(2026, 7, 31), "Late CBS asset accrual adjustment")
+    # (A signed day refuses a normal post, so the demo records it as the core system would: already posted.)
+    IncomeExpenseEvent.objects.create(
+        tenant=tenant, pool=pool, event_type=INCOME, category="Financing Profit", amount=Decimal("12500.00"),
+        event_date=date(2026, 7, 31), description="Late CBS asset accrual adjustment", created_by=maker,
+        status="posted", posted_by=checker, posted_at=timezone.now(),
+    )
     call(
         maker, "post", f"{base_url}{july}/restate/",
         {"restatement_reason": "[Regulatory Examination Finding] Late CBS asset accrual adjustment."},

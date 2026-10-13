@@ -1,0 +1,1381 @@
+Creating test database for alias 'default'...
+2026-10-13 16:30:11,980 WARNING log Forbidden: /api/v1/accounting/income-expense-events/50123e9b-cd98-4118-b20b-7771043fcdc9/post/
+2026-10-13 16:30:11,997 WARNING log Bad Request: /api/v1/accounting/income-expense-events/50123e9b-cd98-4118-b20b-7771043fcdc9/post/
+..2026-10-13 16:30:12,027 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+...2026-10-13 16:30:12,261 ERROR services Reconciliation check failed for JournalBatch f5a9c4ee-f057-489c-9146-e856a3ada21c
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\accounting\services.py", line 186, in create_journal_from_allocation
+    check_reconciliation(batch)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: test
+...2026-10-13 16:30:12,328 WARNING log Bad Request: /api/v1/auth/me/
+...2026-10-13 16:30:12,732 WARNING log Unauthorized: /api/v1/core/audit-log/
+.2026-10-13 16:30:12,744 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+...2026-10-13 16:30:12,768 WARNING log Forbidden: /api/v1/core/audit-log/
+...2026-10-13 16:30:12,909 ERROR log Service Unavailable: /api/v1/ai/contract-analyzer/analyze/
+...2026-10-13 16:30:12,950 WARNING log Bad Request: /api/v1/ai/recommendations/67a71302-facd-4119-8500-834714300bb9/dispose/
+2026-10-13 16:30:12,953 WARNING log Bad Request: /api/v1/ai/recommendations/67a71302-facd-4119-8500-834714300bb9/dispose/
+2026-10-13 16:30:12,967 WARNING log Bad Request: /api/v1/ai/recommendations/67a71302-facd-4119-8500-834714300bb9/dispose/
+.2026-10-13 16:30:12,982 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 16:30:12,984 WARNING log Forbidden: /api/v1/ai/recommendations/1cfa3edd-0c2e-42de-b1ff-18f775de81d1/dispose/
+....2026-10-13 16:30:13,102 WARNING log Forbidden: /api/v1/ai/models/1/
+.2026-10-13 16:30:13,136 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/ask/
+...2026-10-13 16:30:13,433 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e3baef1d-5202-4ffc-871c-78333096c429/check/
+F2026-10-13 16:30:13,496 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5f7aadf9-a615-4f43-91ea-1770d7310720/check/
+F2026-10-13 16:30:13,559 WARNING log Bad Request: /api/v1/allocation/allocation-runs/6c8f895d-1564-4c4f-bd81-6124c65acd81/check/
+F2026-10-13 16:30:13,626 WARNING log Bad Request: /api/v1/allocation/allocation-runs/43e500ed-7d03-4183-823e-ef18ae99ef4d/check/
+....2026-10-13 16:30:14,078 WARNING log Bad Request: /api/v1/allocation/allocation-runs/06920447-9054-4822-b2b0-79a6bb9bcd7f/check/
+F2026-10-13 16:30:14,144 WARNING log Bad Request: /api/v1/allocation/allocation-runs/bfadeb35-0c3c-4837-8fc8-716d1b481f70/check/
+F.2026-10-13 16:30:14,307 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 16:30:14,323 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-13 16:30:14,361 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 16:30:14,453 WARNING log Bad Request: /api/v1/allocation/allocation-runs/41e56fde-7fec-4d06-8354-3ee5710e79ab/check/
+F2026-10-13 16:30:14,617 WARNING log Bad Request: /api/v1/allocation/allocation-runs/36615f3a-86ec-4441-9560-c1fb78bd7278/check/
+F2026-10-13 16:30:14,683 WARNING log Bad Request: /api/v1/allocation/allocation-runs/eb111140-bd1e-44b0-99c5-5813584fd4f0/check/
+F2026-10-13 16:30:14,755 WARNING log Bad Request: /api/v1/allocation/allocation-runs/96ceb503-018f-4109-99cf-db5c066e560b/check/
+F2026-10-13 16:30:14,814 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a867321f-7ff7-45c1-a1fa-355b12095dfe/check/
+F2026-10-13 16:30:14,884 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a1ebff48-7b2e-4f3f-8344-3cc48c76b644/check/
+F2026-10-13 16:30:15,212 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e55b7844-154e-4f6f-bae0-f7c00cce417f/check/
+F2026-10-13 16:30:15,429 WARNING log Bad Request: /api/v1/allocation/allocation-runs/8f2341e9-f638-46ab-a709-594444588e86/check/
+2026-10-13 16:30:15,451 WARNING log Bad Request: /api/v1/allocation/allocation-runs/8f2341e9-f638-46ab-a709-594444588e86/restate/
+F2026-10-13 16:30:15,635 WARNING log Bad Request: /api/v1/allocation/allocation-runs/7aa7f459-9727-4b0e-89b6-8db900553e79/check/
+F2026-10-13 16:30:15,860 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a522eaf7-3e6b-4573-91c9-2057cef46bb2/check/
+F..2026-10-13 16:30:16,535 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F.2026-10-13 16:30:16,911 WARNING log Bad Request: /api/v1/allocation/allocation-runs/eb8cb7de-f77c-40f2-b2d9-4befa913ff8a/check/
+F2026-10-13 16:30:16,945 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 16:30:17,065 WARNING log Bad Request: /api/v1/accounting/income-expense-events/874e4848-4ed3-4f87-abde-8bdd15cdec60/post/
+.2026-10-13 16:30:17,108 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+.2026-10-13 16:30:17,161 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/0b1b95fc-f1b6-44d5-80dd-ef628167fdbd/
+2026-10-13 16:30:17,163 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/0b1b95fc-f1b6-44d5-80dd-ef628167fdbd/
+..2026-10-13 16:30:17,421 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 16:30:17,463 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+2026-10-13 16:30:17,469 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+..2026-10-13 16:30:17,875 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c6f7d72a-c8ff-40ee-879a-ac2841628ed1/check/
+F.2026-10-13 16:30:18,002 WARNING log Bad Request: /api/v1/allocation/allocation-runs/f106dfcb-dc66-41f1-9521-a5eb7085fcb5/check/
+F2026-10-13 16:30:18,090 WARNING log Bad Request: /api/v1/allocation/allocation-runs/12bfb283-b6b4-47b2-8ad7-8e6efc24a340/check/
+F2026-10-13 16:30:18,176 WARNING log Bad Request: /api/v1/allocation/allocation-runs/fc9b137d-a01b-46e1-b872-81368a434150/check/
+F2026-10-13 16:30:18,265 WARNING log Bad Request: /api/v1/allocation/allocation-runs/11f55500-5a20-41cc-a9f3-b07af537ad4d/check/
+F2026-10-13 16:30:18,348 WARNING log Bad Request: /api/v1/allocation/allocation-runs/df237830-49d7-4c2b-9e5b-af58190a6e93/check/
+F2026-10-13 16:30:18,567 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b886fb36-337f-499f-860b-7eda278a56b7/check/
+F2026-10-13 16:30:18,666 WARNING log Bad Request: /api/v1/allocation/allocation-runs/fd3a24a6-ffa2-4cb8-aaf0-a806cfed50a2/check/
+F2026-10-13 16:30:18,768 WARNING log Bad Request: /api/v1/allocation/allocation-runs/31b3ca71-2d98-4318-b979-3429ab245833/check/
+F2026-10-13 16:30:18,857 WARNING log Bad Request: /api/v1/allocation/allocation-runs/85313fc7-2ec0-4221-89bc-68b9784cbe62/check/
+F2026-10-13 16:30:18,976 WARNING log Bad Request: /api/v1/governance/config-changes/1091d6d4-afe5-4f41-b0d1-b2c8bc3360c9/approve/
+.2026-10-13 16:30:19,017 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,018 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+.2026-10-13 16:30:19,048 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 16:30:19,076 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+2026-10-13 16:30:19,078 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+.2026-10-13 16:30:19,129 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,134 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,155 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,157 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,159 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 16:30:19,161 WARNING log Method Not Allowed: /api/v1/accounting/approval-matrix/c33a296d-653b-4cf5-85b6-70557209b7ea/
+.2026-10-13 16:30:19,224 WARNING log Forbidden: /api/v1/governance/config-changes/fa2cbd0f-1bbf-4fef-ae5b-a0643f462576/approve/
+2026-10-13 16:30:19,226 WARNING log Forbidden: /api/v1/governance/config-changes/fa2cbd0f-1bbf-4fef-ae5b-a0643f462576/approve/
+2026-10-13 16:30:19,229 WARNING log Bad Request: /api/v1/governance/config-changes/fa2cbd0f-1bbf-4fef-ae5b-a0643f462576/reject/
+2026-10-13 16:30:19,240 WARNING log Bad Request: /api/v1/governance/config-changes/fa2cbd0f-1bbf-4fef-ae5b-a0643f462576/approve/
+.2026-10-13 16:30:19,285 WARNING log Bad Request: /api/v1/governance/config-changes/bfae44c7-a146-45df-bdc6-7a0ff38cffe9/approve/
+2026-10-13 16:30:19,289 WARNING log Bad Request: /api/v1/accounting/approval-matrix/76c9d490-5159-4850-bd07-55fe99d17636/
+......2026-10-13 16:30:19,685 WARNING log Bad Request: /api/v1/participants/participants/
+2026-10-13 16:30:19,690 WARNING log Bad Request: /api/v1/participants/accounts/
+..2026-10-13 16:30:19,769 WARNING log Forbidden: /api/v1/participants/participants/04a8fe3f-d465-4a8d-b24d-10148009eae7/verify-kyc/
+.......2026-10-13 16:30:20,284 WARNING log Bad Request: /api/v1/allocation/allocation-runs/31d68ee4-7d2f-456c-a57d-f64a4814e102/check/
+F2026-10-13 16:30:20,373 WARNING log Bad Request: /api/v1/allocation/allocation-runs/6f9651a5-5609-46db-a759-ab5f213db307/check/
+F2026-10-13 16:30:20,461 WARNING log Bad Request: /api/v1/allocation/allocation-runs/06f94b5b-a463-492e-8396-4fd92bef5a82/check/
+.2026-10-13 16:30:20,651 WARNING log Bad Request: /api/v1/allocation/allocation-runs/81f62294-90cf-42fd-b675-e14b3f357afd/check/
+F2026-10-13 16:30:20,740 WARNING log Bad Request: /api/v1/allocation/allocation-runs/47809955-c1a4-43a9-a411-c1d2f134af6e/check/
+F2026-10-13 16:30:20,770 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+.2026-10-13 16:30:20,869 WARNING log Bad Request: /api/v1/allocation/allocation-runs/182316b9-ab6a-4ffc-9b8f-9f8a09b56fe7/check/
+F2026-10-13 16:30:20,958 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5193ab33-be0f-4fe8-8189-545c8a31d622/check/
+F2026-10-13 16:30:21,185 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5048aa47-a5fc-47a7-9c7d-6e9cca023780/check/
+F2026-10-13 16:30:21,283 WARNING log Bad Request: /api/v1/allocation/allocation-runs/bcd5b4c0-16ac-4c2a-8f3c-e2033cf49a28/check/
+F2026-10-13 16:30:21,374 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b5d12e7d-2f4b-43ad-8289-e7a6d45b3653/check/
+F2026-10-13 16:30:21,464 WARNING log Bad Request: /api/v1/allocation/allocation-runs/0e5e3ff2-6614-458a-a6f3-ec827b43eb7c/check/
+F2026-10-13 16:30:21,556 WARNING log Bad Request: /api/v1/allocation/allocation-runs/9ffa0ee7-da2b-4b26-a4e4-d9b52aab4d71/check/
+F2026-10-13 16:30:21,652 WARNING log Bad Request: /api/v1/allocation/allocation-runs/3819fcce-de3e-46d2-9525-bcd4f280b493/check/
+F2026-10-13 16:30:21,812 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4f8ca262-38c9-460a-941d-066faba34cea/check/
+F2026-10-13 16:30:21,909 WARNING log Bad Request: /api/v1/allocation/allocation-runs/41570c9a-e7be-43d4-b496-05ec410f0ede/check/
+F2026-10-13 16:30:22,003 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4832d43d-59d2-4abf-8769-326da5d229d7/check/
+F2026-10-13 16:30:22,094 WARNING log Bad Request: /api/v1/allocation/allocation-runs/21a4c571-3e27-40ca-b0d3-936dd4606d7b/check/
+F2026-10-13 16:30:22,192 WARNING log Bad Request: /api/v1/allocation/allocation-runs/d05f23a8-8b76-482b-8332-46c436323de6/check/
+F2026-10-13 16:30:22,285 WARNING log Bad Request: /api/v1/allocation/allocation-runs/cf8547b3-4de4-4654-b15f-550037a6a703/check/
+F.2026-10-13 16:30:22,432 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+....2026-10-13 16:30:22,781 WARNING log Bad Request: /api/v1/allocation/allocation-runs/fac16336-c80f-437e-8091-51a6a2bdfe0f/check/
+F2026-10-13 16:30:22,865 WARNING log Bad Request: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/shariah-sign-off/
+2026-10-13 16:30:22,869 WARNING log Bad Request: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/approve/
+2026-10-13 16:30:22,871 WARNING log Forbidden: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/check/
+2026-10-13 16:30:22,872 WARNING log Forbidden: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/check/
+2026-10-13 16:30:22,873 WARNING log Forbidden: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/check/
+2026-10-13 16:30:22,878 WARNING log Bad Request: /api/v1/allocation/allocation-runs/2172d92d-17b9-4129-a2a6-5bec9a9488c2/check/
+F2026-10-13 16:30:22,939 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c213c3a4-56f5-44eb-8df3-42aea7856a6b/reject/
+2026-10-13 16:30:23,007 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c81fcefb-4bd0-41fa-ac64-4612f99c3871/check/
+2026-10-13 16:30:23,010 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c81fcefb-4bd0-41fa-ac64-4612f99c3871/reject/
+2026-10-13 16:30:23,076 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c56cefd0-71ba-44fa-84cf-238d254d6d85/check/
+2026-10-13 16:30:23,080 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c56cefd0-71ba-44fa-84cf-238d254d6d85/shariah-sign-off/
+2026-10-13 16:30:23,082 WARNING log Bad Request: /api/v1/allocation/allocation-runs/c56cefd0-71ba-44fa-84cf-238d254d6d85/reject/
+.2026-10-13 16:30:23,147 WARNING log Forbidden: /api/v1/allocation/allocation-runs/246862be-09a4-4c1c-b322-555ef65b4fa3/reject/
+2026-10-13 16:30:23,152 WARNING log Bad Request: /api/v1/allocation/allocation-runs/246862be-09a4-4c1c-b322-555ef65b4fa3/check/
+2026-10-13 16:30:23,155 WARNING log Bad Request: /api/v1/allocation/allocation-runs/246862be-09a4-4c1c-b322-555ef65b4fa3/approve/
+F2026-10-13 16:30:23,233 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b4fda0e4-0b51-4a15-b807-401030caee1a/check/
+2026-10-13 16:30:23,242 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b4fda0e4-0b51-4a15-b807-401030caee1a/shariah-sign-off/
+2026-10-13 16:30:23,245 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b4fda0e4-0b51-4a15-b807-401030caee1a/approve/
+F2026-10-13 16:30:23,303 WARNING log Bad Request: /api/v1/allocation/allocation-runs/d20c60f9-0ff7-493f-9f89-b2eaac9bfefa/check/
+2026-10-13 16:30:23,306 WARNING log Bad Request: /api/v1/allocation/allocation-runs/d20c60f9-0ff7-493f-9f89-b2eaac9bfefa/approve/
+.2026-10-13 16:30:23,362 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b77f8c2a-4b76-4bbb-b655-ff14dfe57efd/check/
+2026-10-13 16:30:23,364 WARNING log Bad Request: /api/v1/allocation/allocation-runs/b77f8c2a-4b76-4bbb-b655-ff14dfe57efd/shariah-sign-off/
+F.2026-10-13 16:30:23,442 WARNING log Bad Request: /api/v1/circles/circle-members/68a3c357-b0be-43d8-9737-b77e2b9c65ee/flag-arrears/
+.2026-10-13 16:30:23,452 WARNING log Bad Request: /api/v1/circles/arrears-records/0920da9b-e1da-428b-97f9-ed8a2d035f04/grant-hardship/
+.2026-10-13 16:30:23,461 WARNING log Forbidden: /api/v1/circles/circle-members/085cf095-ec36-4e87-b483-353795558fb2/flag-arrears/
+..2026-10-13 16:30:23,495 WARNING log Forbidden: /api/v1/circles/arrears-records/9e9fb46e-eafe-4f01-b600-61f599bca2e0/grant-hardship/
+..2026-10-13 16:30:23,611 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+..2026-10-13 16:30:23,787 WARNING log Forbidden: /api/v1/circles/closures/close/
+.2026-10-13 16:30:23,827 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+.2026-10-13 16:30:23,871 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-13 16:30:23,874 WARNING log Bad Request: /api/v1/circles/draws/1b38de42-fa8b-4f82-8884-3809a114cedb/execute/
+2026-10-13 16:30:23,894 WARNING log Bad Request: /api/v1/circles/draws/1b38de42-fa8b-4f82-8884-3809a114cedb/execute/
+.2026-10-13 16:30:23,910 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-13 16:30:23,966 WARNING log Bad Request: /api/v1/circles/draws/commit/
+.2026-10-13 16:30:24,017 WARNING log Bad Request: /api/v1/circles/rules/accept/
+2026-10-13 16:30:24,033 WARNING log Bad Request: /api/v1/circles/rules/accept/
+.2026-10-13 16:30:24,081 WARNING log Bad Request: /api/v1/circles/draws/e651391d-7335-4ad6-ac16-eed363adba0e/execute/
+........2026-10-13 16:30:24,444 WARNING log Forbidden: /api/v1/circles/circle-members/run-draw/82b928b8-abc8-4730-ad0b-028484ba5c14/
+2026-10-13 16:30:24,518 WARNING log Forbidden: /api/v1/circles/payouts/request-payout/82b928b8-abc8-4730-ad0b-028484ba5c14/
+2026-10-13 16:30:24,545 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/82b928b8-abc8-4730-ad0b-028484ba5c14/
+2026-10-13 16:30:24,560 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/82b928b8-abc8-4730-ad0b-028484ba5c14/
+2026-10-13 16:30:24,576 WARNING log Bad Request: /api/v1/circles/circle-members/ffc40eb1-265a-48fa-b31f-41c3e1d9de22/record-contribution/
+2026-10-13 16:30:24,591 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/82b928b8-abc8-4730-ad0b-028484ba5c14/
+2026-10-13 16:30:24,594 WARNING log Forbidden: /api/v1/circles/circle-members/102584ed-6509-4d5e-89ec-f2569544a7cd/verify-kyc/
+2026-10-13 16:30:24,625 WARNING log Forbidden: /api/v1/circles/payouts/290fbe8d-451a-475b-9de4-83f2f61f6198/approve/
+2026-10-13 16:30:24,633 WARNING log Bad Request: /api/v1/circles/payouts/290fbe8d-451a-475b-9de4-83f2f61f6198/settle/
+2026-10-13 16:30:24,666 WARNING log Bad Request: /api/v1/circles/payouts/290fbe8d-451a-475b-9de4-83f2f61f6198/settle/
+2026-10-13 16:30:24,687 WARNING log Bad Request: /api/v1/circles/payouts/290fbe8d-451a-475b-9de4-83f2f61f6198/approve/
+..2026-10-13 16:30:24,735 WARNING log Bad Request: /api/v1/circles/circle-members/run-draw/96d39e89-cec2-403e-b95d-d1b0f117acd9/
+.2026-10-13 16:30:24,836 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-13 16:30:24,882 WARNING log Bad Request: /api/v1/circles/circle-members/accept-rules/
+.2026-10-13 16:30:24,925 WARNING log Forbidden: /api/v1/circles/circle-members/
+..2026-10-13 16:30:24,983 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+..2026-10-13 16:30:25,051 WARNING log Bad Request: /api/v1/circles/circle-members/a2cd34e2-da57-4be3-866d-416d2af3c29c/link-login/
+.2026-10-13 16:30:25,081 WARNING log Bad Request: /api/v1/circles/circle-proposals/1405e158-26fb-4170-a0a9-4221cb59adb0/vote/
+.2026-10-13 16:30:25,098 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+.2026-10-13 16:30:25,115 WARNING log Forbidden: /api/v1/circles/circle-members/cast-vote/
+2026-10-13 16:30:25,119 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-13 16:30:25,258 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/cc50367d-48c0-41d0-9c6c-6fe7611d6df0/
+..2026-10-13 16:30:25,390 WARNING log Forbidden: /api/v1/circles/payouts/ceremony-readiness/9713f2c1-5108-4ef8-9d06-fca3613c502f/
+.2026-10-13 16:30:25,430 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/c44b54f2-ddaa-47ae-8d6e-dbbfccbb2a5a/
+.2026-10-13 16:30:25,491 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/1c31beed-3f97-42fc-b723-e661a4fdcce4/
+.2026-10-13 16:30:25,552 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/15a555a0-d6d3-4688-afeb-6499b0a5b732/
+.2026-10-13 16:30:25,592 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/55dedbb1-f2cb-420e-a38a-e28649fad27d/
+.2026-10-13 16:30:25,619 WARNING log Method Not Allowed: /api/v1/circles/payouts/
+.2026-10-13 16:30:25,684 WARNING log Bad Request: /api/v1/circles/payouts/da11eff0-6faa-4d3a-91d5-1b5d7761965e/approve/
+...2026-10-13 16:30:25,882 WARNING log Bad Request: /api/v1/circles/payouts/63971ec1-995f-49af-b3be-8f98df48ecaf/reject/
+2026-10-13 16:30:25,901 WARNING log Bad Request: /api/v1/circles/payouts/63971ec1-995f-49af-b3be-8f98df48ecaf/approve/
+.2026-10-13 16:30:25,979 WARNING log Bad Request: /api/v1/circles/payouts/b8583d7e-08ef-4f0d-86cb-d4466132a103/approve/
+.2026-10-13 16:30:26,021 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/db5d5475-a4ce-40ab-ba35-6df70f345d05/
+.2026-10-13 16:30:26,115 WARNING log Bad Request: /api/v1/circles/circle-proposals/b101b1d7-60e9-4f6f-bea1-d70c4407c172/close/
+2026-10-13 16:30:26,121 WARNING log Bad Request: /api/v1/circles/circle-proposals/b101b1d7-60e9-4f6f-bea1-d70c4407c172/close/
+.2026-10-13 16:30:26,160 WARNING log Bad Request: /api/v1/circles/circle-proposals/f7818a08-4f97-41b0-a2ef-a88c72a39083/vote/
+...2026-10-13 16:30:26,302 WARNING log Bad Request: /api/v1/circles/circle-proposals/009584d6-59b3-4376-a0d2-e1ebdb9e6a3f/vote/
+..2026-10-13 16:30:26,339 WARNING log Forbidden: /api/v1/circles/circle-proposals/33b97b50-19bc-412c-b0b9-220d1d4cea95/close/
+.2026-10-13 16:30:26,347 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+.....2026-10-13 16:30:27,144 WARNING log Bad Request: /api/v1/accounting/income-expense-events/4a0ce794-8920-4654-ab4e-3f59d6c5f65b/post/
+E.............2026-10-13 16:30:27,466 WARNING log Forbidden: /api/v1/core/audit-log/export/
+.2026-10-13 16:30:27,478 WARNING log Forbidden: /api/v1/core/audit-log/
+....2026-10-13 16:30:27,682 WARNING log Not Found: /api/v1/dashboard/home/
+2026-10-13 16:30:27,684 WARNING log Not Found: /api/v1/dashboard/home/
+..2026-10-13 16:30:28,004 WARNING log Bad Request: /api/v1/allocation/allocation-runs/7ffc7887-d881-4249-80ac-ed1de9b0bfc2/check/
+F2026-10-13 16:30:28,100 WARNING log Bad Request: /api/v1/allocation/allocation-runs/d4fc46be-f70e-4665-bf1e-b79a6fe17ef4/check/
+F2026-10-13 16:30:28,213 WARNING log Bad Request: /api/v1/allocation/allocation-runs/ab74b3e3-f0e1-40ed-bd9f-97f269374fb0/check/
+F2026-10-13 16:30:28,300 WARNING log Bad Request: /api/v1/allocation/allocation-runs/04a23cbc-d294-4bab-80ea-cbeef1b48da1/check/
+F2026-10-13 16:30:28,394 WARNING log Bad Request: /api/v1/allocation/allocation-runs/af2dc73d-a7e1-4a7a-9339-86dd89015f5e/check/
+F2026-10-13 16:30:28,493 WARNING log Bad Request: /api/v1/allocation/allocation-runs/83572535-6bc4-45fb-a0a0-e52de0d76a23/check/
+F2026-10-13 16:30:28,581 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4987a72f-3a44-48a4-b31e-6ba6fb5d1bdd/check/
+F2026-10-13 16:30:28,666 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e9dd7be4-a61b-4cbf-b9b2-1c62e7b6227c/check/
+F2026-10-13 16:30:28,752 WARNING log Bad Request: /api/v1/allocation/allocation-runs/794ecab0-0c50-48f9-b6d4-cf14b876ef81/check/
+F2026-10-13 16:30:29,346 WARNING log Bad Request: /api/v1/accounting/income-expense-events/586fdaff-bccf-4215-962d-8ea255ea87f7/post/
+E2026-10-13 16:30:29,728 WARNING log Bad Request: /api/v1/accounting/income-expense-events/1cdec015-ec5b-42b8-9f0d-dbac13caca06/post/
+E2026-10-13 16:30:30,137 WARNING log Bad Request: /api/v1/accounting/income-expense-events/a69b2517-eff8-423c-bb38-9008b55a4beb/post/
+E2026-10-13 16:30:30,159 WARNING log Bad Request: /api/v1/governance/support-requests/
+.......2026-10-13 16:30:30,471 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 16:30:30,477 WARNING log Forbidden: /api/v1/governance/retention-policies/90204020-78ea-42a6-b814-d412d917f17a/approve/
+2026-10-13 16:30:30,480 WARNING log Bad Request: /api/v1/governance/retention-policies/90204020-78ea-42a6-b814-d412d917f17a/approve/
+.2026-10-13 16:30:30,485 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-13 16:30:30,488 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-13 16:30:30,490 WARNING log Bad Request: /api/v1/governance/retention-policies/
+..2026-10-13 16:30:30,666 WARNING log Bad Request: /api/v1/products/shariah-decisions/
+....2026-10-13 16:30:30,747 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+.....2026-10-13 16:30:30,904 WARNING log Forbidden: /api/v1/governance/support-requests/713e854a-d3c3-4515-bc6b-f5184679031d/assign/
+.2026-10-13 16:30:30,916 WARNING log Bad Request: /api/v1/governance/support-requests/e6ccc41f-0d80-443b-a8f0-6f671490dcc6/resolve/
+....2026-10-13 16:30:30,992 WARNING log Forbidden: /api/v1/governance/support-requests/f7c94f5e-8043-4642-a4bd-21824018f7d8/resolve/
+...2026-10-13 16:30:31,263 WARNING log Bad Request: /api/v1/governance/exceptions/d9321764-c21e-429e-9769-4b0c66deb7ea/set-treatment/
+.2026-10-13 16:30:31,272 WARNING log Bad Request: /api/v1/governance/exceptions/35c753dd-bd03-4d82-beb3-c556250d14c3/start-investigation/
+2026-10-13 16:30:31,283 WARNING log Bad Request: /api/v1/governance/exceptions/35c753dd-bd03-4d82-beb3-c556250d14c3/start-investigation/
+.2026-10-13 16:30:31,290 WARNING log Forbidden: /api/v1/governance/exceptions/61e2af76-68a5-41ca-8998-9db502caeece/start-investigation/
+2026-10-13 16:30:31,292 WARNING log Forbidden: /api/v1/governance/exceptions/61e2af76-68a5-41ca-8998-9db502caeece/set-treatment/
+.2026-10-13 16:30:31,370 WARNING log Bad Request: /api/v1/governance/related-party-transactions/3a42f03d-6be1-41aa-b0d4-7d8eb1df56e0/elevated-approve/
+.2026-10-13 16:30:31,399 WARNING log Bad Request: /api/v1/governance/related-party-transactions/a989b20e-8a98-4cbe-a36c-b51a5a055287/review/
+2026-10-13 16:30:31,401 WARNING log Bad Request: /api/v1/governance/related-party-transactions/a989b20e-8a98-4cbe-a36c-b51a5a055287/review/
+.2026-10-13 16:30:31,422 WARNING log Forbidden: /api/v1/governance/related-party-transactions/ea5f84e7-0ef3-4655-8633-d98012606ad4/elevated-approve/
+.2026-10-13 16:30:31,451 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 16:30:31,460 WARNING log Forbidden: /api/v1/governance/related-party-transactions/f1048e83-3612-49cd-a730-504d493371fd/review/
+...2026-10-13 16:30:31,941 WARNING log Not Found: /api/v1/investments/disclosures/ba3502c2-131d-4a7b-bd8a-759c235d7510/acknowledge/
+2026-10-13 16:30:31,973 WARNING log Bad Request: /api/v1/investments/disclosures/ba3502c2-131d-4a7b-bd8a-759c235d7510/approve/
+..2026-10-13 16:30:32,180 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+2026-10-13 16:30:32,225 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+.2026-10-13 16:30:32,348 WARNING log Bad Request: /api/v1/investments/disclosures/823c3080-de7b-4033-8f3d-ae8525780377/acknowledge/
+2026-10-13 16:30:32,352 WARNING log Bad Request: /api/v1/investments/disclosures/823c3080-de7b-4033-8f3d-ae8525780377/acknowledge/
+2026-10-13 16:30:32,357 WARNING log Bad Request: /api/v1/investments/disclosures/823c3080-de7b-4033-8f3d-ae8525780377/acknowledge/
+2026-10-13 16:30:32,376 WARNING log Bad Request: /api/v1/investments/disclosures/823c3080-de7b-4033-8f3d-ae8525780377/acknowledge/
+.2026-10-13 16:30:32,458 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 16:30:32,460 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 16:30:32,463 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 16:30:32,480 WARNING log Forbidden: /api/v1/investments/disclosures/28094d2b-0f41-49d4-83aa-6232b1cf062b/approve/
+2026-10-13 16:30:32,482 WARNING log Forbidden: /api/v1/investments/disclosures/28094d2b-0f41-49d4-83aa-6232b1cf062b/approve/
+2026-10-13 16:30:32,483 WARNING log Forbidden: /api/v1/investments/disclosures/28094d2b-0f41-49d4-83aa-6232b1cf062b/approve/
+.2026-10-13 16:30:32,605 WARNING log Bad Request: /api/v1/investments/disclosures/f6d09dde-4d9c-4414-8858-e4acbad601c2/acknowledge/
+2026-10-13 16:30:32,609 WARNING log Bad Request: /api/v1/investments/disclosures/67e15e87-897d-4c02-a605-82fc67dc768d/acknowledge/
+.2026-10-13 16:30:32,711 WARNING log Bad Request: /api/v1/investments/capital-accounts/1c546aca-cf79-4079-8e9e-fb0cc8d45673/subscribe/
+.2026-10-13 16:30:32,928 WARNING log Bad Request: /api/v1/investments/capital-accounts/58708fa0-303a-43d6-bfed-e4c070b23f24/subscribe/
+...2026-10-13 16:30:33,458 WARNING log Bad Request: /api/v1/investments/distribution-runs/e364c851-d35b-48e9-9b3c-94a31d2229e2/approve/
+.2026-10-13 16:30:33,589 WARNING log Forbidden: /api/v1/investments/distribution-runs/83b23550-083d-45ad-87a4-fa564d07f03c/approve/
+2026-10-13 16:30:33,590 WARNING log Forbidden: /api/v1/investments/distribution-runs/83b23550-083d-45ad-87a4-fa564d07f03c/approve/
+2026-10-13 16:30:33,592 WARNING log Forbidden: /api/v1/investments/distribution-runs/83b23550-083d-45ad-87a4-fa564d07f03c/approve/
+2026-10-13 16:30:33,593 WARNING log Forbidden: /api/v1/investments/distribution-runs/83b23550-083d-45ad-87a4-fa564d07f03c/approve/
+2026-10-13 16:30:33,596 WARNING log Bad Request: /api/v1/investments/distribution-runs/83b23550-083d-45ad-87a4-fa564d07f03c/approve/
+.2026-10-13 16:30:33,744 WARNING log Bad Request: /api/v1/investments/distribution-runs/efcbdde5-067f-4960-b5d4-3d4c42a103fa/shariah-sign-off/
+2026-10-13 16:30:33,745 WARNING log Forbidden: /api/v1/investments/distribution-runs/efcbdde5-067f-4960-b5d4-3d4c42a103fa/check/
+2026-10-13 16:30:33,762 WARNING log Forbidden: /api/v1/investments/distribution-runs/efcbdde5-067f-4960-b5d4-3d4c42a103fa/shariah-sign-off/
+.......2026-10-13 16:30:34,802 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+...2026-10-13 16:30:35,514 WARNING log Bad Request: /api/v1/investments/distribution-runs/8465d786-0337-47ad-adaf-c7a31270bb9f/approve/
+.2026-10-13 16:30:35,598 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 16:30:35,635 WARNING log Forbidden: /api/v1/investments/distribution-runs/6d1b76ce-242a-44e7-b54b-0fc6b3f0a080/approve/
+2026-10-13 16:30:35,638 WARNING log Bad Request: /api/v1/investments/distribution-runs/6d1b76ce-242a-44e7-b54b-0fc6b3f0a080/reject/
+.2026-10-13 16:30:35,862 WARNING log Bad Request: /api/v1/investments/distribution-runs/4893c201-0fb5-4eb0-9b61-b5b605c5964b/check/
+.2026-10-13 16:30:36,171 WARNING log Not Found: /api/v1/investments/distribution-runs/a8005bfb-59a7-4590-b96d-1083dfee1d4f/
+.2026-10-13 16:30:36,265 WARNING log Not Found: /api/v1/investments/capital-accounts/a2026881-e74e-4c82-9b7f-00ebab4ec9e6/statement/
+.....2026-10-13 16:30:37,149 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+2026-10-13 16:30:37,154 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+...2026-10-13 16:30:37,736 WARNING log Bad Request: /api/v1/investments/distribution-runs/cff7aab4-6f4e-41bb-bf7f-92bdc1eaafb3/approve/
+.2026-10-13 16:30:37,979 WARNING log Bad Request: /api/v1/investments/distribution-runs/5e824ec1-b371-4a99-b4b0-2f503996aa53/approve/
+.2026-10-13 16:30:38,140 WARNING log Bad Request: /api/v1/investments/negligence-cases/7ff0c4b5-e13e-4c87-9e9d-ad94be78b20f/determine/
+2026-10-13 16:30:38,143 WARNING log Bad Request: /api/v1/investments/negligence-cases/7ff0c4b5-e13e-4c87-9e9d-ad94be78b20f/add-note/
+..2026-10-13 16:30:38,433 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+.2026-10-13 16:30:38,588 WARNING log Bad Request: /api/v1/investments/negligence-cases/
+..2026-10-13 16:30:38,857 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 16:30:38,858 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+..2026-10-13 16:30:39,253 WARNING log Forbidden: /api/v1/investments/negligence-cases/5cd784c5-7a7c-4f95-b332-7a78d3046227/determine/
+2026-10-13 16:30:39,257 WARNING log Bad Request: /api/v1/investments/negligence-cases/5cd784c5-7a7c-4f95-b332-7a78d3046227/determine/
+2026-10-13 16:30:39,262 WARNING log Bad Request: /api/v1/investments/negligence-cases/5cd784c5-7a7c-4f95-b332-7a78d3046227/determine/
+2026-10-13 16:30:39,266 WARNING log Bad Request: /api/v1/investments/negligence-cases/5cd784c5-7a7c-4f95-b332-7a78d3046227/determine/
+2026-10-13 16:30:39,270 WARNING log Bad Request: /api/v1/investments/negligence-cases/5cd784c5-7a7c-4f95-b332-7a78d3046227/determine/
+..2026-10-13 16:30:39,800 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+.......2026-10-13 16:30:40,623 WARNING log Bad Request: /api/v1/investments/capital-accounts/4a86d733-ffb4-434f-906f-aec3ae369103/redeem/
+.2026-10-13 16:30:40,778 WARNING log Bad Request: /api/v1/investments/capital-accounts/bb93589d-4bf6-4068-aa7f-3f0c939f0c47/subscribe/
+.2026-10-13 16:30:40,888 WARNING log Bad Request: /api/v1/products/products/e741330c-3604-46bb-820a-17dc363acf40/
+.2026-10-13 16:30:40,972 WARNING log Bad Request: /api/v1/investments/investor-profiles/f61423db-bfca-4058-951a-b3bd6e2ccdee/verify-kyc/
+.2026-10-13 16:30:41,111 WARNING log Bad Request: /api/v1/investments/capital-accounts/3811c8a6-eed8-4eda-b6e0-1abd2f3193d7/redeem/
+.2026-10-13 16:30:41,240 WARNING log Bad Request: /api/v1/investments/capital-accounts/85f5585e-5704-4f67-a27c-c61f83064b00/subscribe/
+.2026-10-13 16:30:41,512 WARNING log Bad Request: /api/v1/investments/capital-accounts/ca74224b-30a8-4941-9dac-0a0c50eadaf5/subscribe/
+.2026-10-13 16:30:41,647 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+.2026-10-13 16:30:41,851 WARNING log Bad Request: /api/v1/investments/redemptions/e38e4dea-033e-45fa-a9e5-2e2cbea20309/approve/
+.2026-10-13 16:30:41,973 WARNING log Bad Request: /api/v1/investments/redemptions/d114f276-31e2-4636-ac90-4296a67954ae/approve/
+2026-10-13 16:30:41,975 WARNING log Bad Request: /api/v1/investments/redemptions/d114f276-31e2-4636-ac90-4296a67954ae/reject/
+.2026-10-13 16:30:42,109 WARNING log Bad Request: /api/v1/investments/redemptions/9f8420e3-67b9-43d7-991b-5adbb997a694/approve/
+.2026-10-13 16:30:42,235 WARNING log Not Found: /api/v1/investments/capital-accounts/6cac63ba-313d-4e74-a144-7f63270ca839/redeem/
+.2026-10-13 16:30:42,327 WARNING log Bad Request: /api/v1/investments/capital-accounts/e8c64a32-f2de-4124-9112-ac856eb6392f/redeem/
+.2026-10-13 16:30:42,435 WARNING log Bad Request: /api/v1/investments/capital-accounts/2ef61680-a3c0-4823-8f05-5ea5eea09205/redeem/
+.2026-10-13 16:30:42,541 WARNING log Bad Request: /api/v1/investments/redemptions/c4b7e2c5-98c6-465b-a82f-2de443f2ce21/reject/
+..2026-10-13 16:30:42,771 WARNING log Forbidden: /api/v1/investments/redemptions/29faaa6c-f654-456c-8514-4bd935f3f541/approve/
+2026-10-13 16:30:42,773 WARNING log Forbidden: /api/v1/investments/redemptions/29faaa6c-f654-456c-8514-4bd935f3f541/approve/
+..2026-10-13 16:30:43,033 WARNING log Bad Request: /api/v1/investments/capital-accounts/293a80c7-649f-4f6a-89ff-c0105424170f/subscribe/
+2026-10-13 16:30:43,053 WARNING log Bad Request: /api/v1/investments/capital-accounts/293a80c7-649f-4f6a-89ff-c0105424170f/subscribe/
+.2026-10-13 16:30:43,139 WARNING log Forbidden: /api/v1/investments/investor-profiles/faeac9b1-8b0c-4b83-a6f6-7905cd21abb7/verify-kyc/
+....2026-10-13 16:30:43,506 ERROR services Could not create notifications for Allocation run awaiting independent check: POOL-L 2026-09-01 to 2026-09-10
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\services.py", line 47, in notify_users
+    notification = Notification.objects.create(
+        tenant=tenant,
+    ...<7 lines>...
+        related_id=str(related[1]) if related else "",
+    )
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+.2026-10-13 16:30:43,612 WARNING log Bad Request: /api/v1/allocation/allocation-runs/0211823b-b821-47f2-99c6-c910f3533acf/check/
+F.2026-10-13 16:30:43,834 WARNING services Email delivery failed for notification 9708d4ef-5335-4499-b9cf-896ddc29f497: smtp down
+...2026-10-13 16:30:44,155 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a422d2cb-cba7-45bc-a0f8-29ae3d2f6550/check/
+F2026-10-13 16:30:44,250 WARNING log Bad Request: /api/v1/allocation/allocation-runs/9b7ca22a-3d29-40a9-8adc-8cf8f3aa313a/check/
+F2026-10-13 16:30:44,346 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4fc02eb4-50ca-449f-8f98-2beadaa3fa34/check/
+F2026-10-13 16:30:44,440 WARNING log Bad Request: /api/v1/allocation/allocation-runs/7005520b-08f6-4d65-87ba-a59e6659f353/check/
+F2026-10-13 16:30:44,526 WARNING log Method Not Allowed: /api/v1/notifications/
+..2026-10-13 16:30:44,628 WARNING log Not Found: /api/v1/notifications/c2b0295a-938e-4528-a7e8-e9f52e36755b/mark-read/
+.2026-10-13 16:30:44,708 WARNING log Bad Request: /api/v1/participants/consents/1204026a-3d10-4634-864f-91e3ffdca780/withdraw/
+..2026-10-13 16:30:44,782 WARNING log Bad Request: /api/v1/participants/consents/
+2026-10-13 16:30:44,795 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-13 16:30:44,803 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 16:30:44,804 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+.2026-10-13 16:30:44,823 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-13 16:30:44,859 WARNING log Bad Request: /api/v1/participants/consents/c3fe0e53-d197-40be-8b74-56c8316b3792/withdraw/
+.2026-10-13 16:30:44,955 WARNING log Bad Request: /api/v1/pools/pools/4b9029c5-ee60-43a6-a9ba-a43801b177ce/open/
+...2026-10-13 16:30:45,097 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+2026-10-13 16:30:45,131 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+2026-10-13 16:30:45,164 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+2026-10-13 16:30:45,200 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+2026-10-13 16:30:45,238 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+2026-10-13 16:30:45,273 WARNING log Bad Request: /api/v1/pools/pools/f8678918-c37e-4a7d-9c8e-af85acfa43b5/open/
+.2026-10-13 16:30:45,291 WARNING log Forbidden: /api/v1/pools/pools/ee52eee8-af33-4f21-90ab-eaa799cc1a7d/open/
+2026-10-13 16:30:45,294 WARNING log Forbidden: /api/v1/pools/pools/ee52eee8-af33-4f21-90ab-eaa799cc1a7d/open/
+2026-10-13 16:30:45,297 WARNING log Forbidden: /api/v1/pools/pools/ee52eee8-af33-4f21-90ab-eaa799cc1a7d/create-version/
+...2026-10-13 16:30:45,503 WARNING log Bad Request: /api/v1/pools/pools/212be60b-79ff-41b0-81d8-67376ea699c5/create-version/
+2026-10-13 16:30:45,515 WARNING log Bad Request: /api/v1/pools/pools/212be60b-79ff-41b0-81d8-67376ea699c5/create-version/
+...2026-10-13 16:30:45,735 WARNING log Bad Request: /api/v1/pools/pools/6852314c-a5e7-45f5-9dae-9a9e65f053a1/open/
+.2026-10-13 16:30:45,765 WARNING log Bad Request: /api/v1/pools/pools/bfb16797-1b23-42f6-bb0e-3a7e4d136531/open/
+.2026-10-13 16:30:45,861 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+.2026-10-13 16:30:45,929 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+2026-10-13 16:30:45,934 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+..2026-10-13 16:30:46,038 WARNING log Bad Request: /api/v1/pools/asset-assignments/b7c60570-6899-40c9-ae54-0f97a18e08fa/transfer/
+2026-10-13 16:30:46,042 WARNING log Bad Request: /api/v1/pools/asset-assignments/b7c60570-6899-40c9-ae54-0f97a18e08fa/transfer/
+.2026-10-13 16:30:46,171 WARNING log Bad Request: /api/v1/pools/daily-closes/2608c1c7-2126-4c55-97e2-4bc5a11c5af4/sign/
+.2026-10-13 16:30:46,213 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+2026-10-13 16:30:46,219 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-13 16:30:46,250 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+.2026-10-13 16:30:46,309 WARNING log Forbidden: /api/v1/pools/daily-closes/8491e873-f9e8-49b1-947d-d89c7430d6a6/sign/
+2026-10-13 16:30:46,326 WARNING log Conflict: /api/v1/pools/daily-closes/8491e873-f9e8-49b1-947d-d89c7430d6a6/sign/
+2026-10-13 16:30:46,331 WARNING log Conflict: /api/v1/pools/daily-closes/prepare/
+.2026-10-13 16:30:46,414 WARNING log Conflict: /api/v1/circles/circle-members/c5aa94df-45cc-4b79-9975-2bebcc628cf3/record-contribution/
+.2026-10-13 16:30:46,436 WARNING log Bad Request: /api/v1/pools/pools/d2243eb7-d622-4b31-8e98-d6999a688099/freeze/
+2026-10-13 16:30:46,447 WARNING log Bad Request: /api/v1/pools/pools/d2243eb7-d622-4b31-8e98-d6999a688099/freeze/
+.2026-10-13 16:30:46,463 WARNING log Bad Request: /api/v1/pools/pools/9297651e-1a80-4ed7-b6e0-4d3423c15db8/archive/
+.2026-10-13 16:30:46,508 WARNING log Conflict: /api/v1/pools/pools/4ff494ef-06f3-478d-a7a3-618b55e0c31a/unfreeze/
+.2026-10-13 16:30:46,533 WARNING log Forbidden: /api/v1/pools/pools/99f5c74a-ec74-420f-a8eb-2c22784e060e/freeze/
+2026-10-13 16:30:46,543 WARNING log Forbidden: /api/v1/pools/pools/99f5c74a-ec74-420f-a8eb-2c22784e060e/unfreeze/
+....2026-10-13 16:30:46,794 WARNING log Bad Request: /api/v1/pools/period-closes/2e630ffa-5413-46ed-8990-f0eb36f1f125/sign-off-role/
+2026-10-13 16:30:46,883 WARNING log Bad Request: /api/v1/allocation/allocation-runs/f05f087b-99f5-4750-bf43-3aae025dd672/check/
+F2026-10-13 16:30:46,934 WARNING log Bad Request: /api/v1/pools/period-closes/
+.2026-10-13 16:30:46,975 WARNING log Method Not Allowed: /api/v1/pools/period-closes/22e7622c-b4b6-4caf-b3c3-157227104d97/
+2026-10-13 16:30:46,976 WARNING log Method Not Allowed: /api/v1/pools/period-closes/22e7622c-b4b6-4caf-b3c3-157227104d97/
+2026-10-13 16:30:46,978 WARNING log Bad Request: /api/v1/pools/period-closes/22e7622c-b4b6-4caf-b3c3-157227104d97/certify/
+.2026-10-13 16:30:47,077 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5bd4d678-9658-478b-899d-da12914f683a/check/
+F2026-10-13 16:30:47,175 WARNING log Bad Request: /api/v1/allocation/allocation-runs/8c211fff-06f3-4720-980c-226df2fa933b/check/
+F2026-10-13 16:30:47,256 WARNING log Forbidden: /api/v1/pools/pools/portfolio-summary/
+..2026-10-13 16:30:47,441 WARNING log Bad Request: /api/v1/allocation/allocation-runs/65c3915b-d833-4239-a834-336045a4b515/check/
+F2026-10-13 16:30:47,527 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+.2026-10-13 16:30:47,651 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-13 16:30:47,746 WARNING log Forbidden: /api/v1/pools/asset-provisions/fe6da67d-f63c-45f5-8059-c62ce655c60c/approve/
+.2026-10-13 16:30:47,783 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+2026-10-13 16:30:47,830 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-13 16:30:47,959 WARNING log Bad Request: /api/v1/pools/asset-provisions/0944d9e4-25b7-4f93-afa8-eb288151a5f1/approve/
+.2026-10-13 16:30:48,010 WARNING log Bad Request: /api/v1/pools/asset-provisions/41dd66c5-b5cf-4559-96b2-cef2775cd55a/reject/
+...2026-10-13 16:30:48,339 WARNING log Bad Request: /api/v1/products/shariah-decisions/56c72ac9-f0d5-415e-beef-9eba9a079c1d/cast-quorum-vote/
+.2026-10-13 16:30:48,377 WARNING log Bad Request: /api/v1/products/shariah-decisions/a547ca51-abf1-4429-b60a-454de6f93a7d/cast-quorum-vote/
+.2026-10-13 16:30:48,395 WARNING log Bad Request: /api/v1/products/shariah-decisions/bb9d7fc8-7d99-4725-b950-56a0f0ffea2a/cast-quorum-vote/
+2026-10-13 16:30:48,399 WARNING log Bad Request: /api/v1/products/shariah-decisions/bb9d7fc8-7d99-4725-b950-56a0f0ffea2a/cast-quorum-vote/
+.2026-10-13 16:30:48,444 WARNING log Bad Request: /api/v1/products/shariah-decisions/c597e6cc-dcb4-4433-95b6-0562f1171326/cast-quorum-vote/
+.2026-10-13 16:30:48,493 WARNING log Not Found: /api/v1/products/contract-templates/00000000-0000-0000-0000-000000000000/clauses-schema/
+...2026-10-13 16:30:48,627 WARNING log Bad Request: /api/v1/products/shariah-decisions/b3b6768e-ad18-48ca-8c8a-9a9fc7892ae4/
+.2026-10-13 16:30:48,645 WARNING log Bad Request: /api/v1/products/shariah-decisions/57ccccb1-68c4-4512-ae26-46019ff418d0/approve/
+.2026-10-13 16:30:48,660 WARNING log Forbidden: /api/v1/products/shariah-decisions/e2695315-831f-4b4f-b11a-f3f10dab4c84/approve/
+.2026-10-13 16:30:48,698 WARNING log Bad Request: /api/v1/products/shariah-decisions/e8d5518a-1738-4147-93f9-25cc46d0a954/
+.2026-10-13 16:30:48,734 WARNING log Not Found: /api/v1/products/shariah-decisions/b271e536-0eca-436d-9f9e-662c3d88f39a/
+.2026-10-13 16:30:48,763 WARNING log Bad Request: /api/v1/products/shariah-decisions/4b82ac15-caa2-49e3-806a-0e046a630c58/
+2026-10-13 16:30:48,767 WARNING log Bad Request: /api/v1/products/shariah-decisions/4b82ac15-caa2-49e3-806a-0e046a630c58/
+..2026-10-13 16:30:48,795 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+.2026-10-13 16:30:48,811 WARNING log Forbidden: /api/v1/products/shariah-decisions/730f3fca-e964-431a-9bc6-e26d9795df07/
+2026-10-13 16:30:48,812 WARNING log Forbidden: /api/v1/products/shariah-decisions/730f3fca-e964-431a-9bc6-e26d9795df07/
+.2026-10-13 16:30:49,091 WARNING log Not Found: /api/v1/products/shariah-decisions/e392e7fe-de9b-4191-9894-6ca07f58de60/
+2026-10-13 16:30:49,095 WARNING log Not Found: /api/v1/products/contract-templates/1b13f941-be96-4101-a809-821aa0f94206/
+2026-10-13 16:30:49,099 WARNING log Not Found: /api/v1/products/products/37ab9be6-4659-4081-9da4-dc780433984c/
+2026-10-13 16:30:49,106 WARNING log Not Found: /api/v1/pools/pools/57492924-842e-42cb-932f-01a50d36f7e8/
+2026-10-13 16:30:49,110 WARNING log Not Found: /api/v1/pools/assets/10ccd34a-6b9b-4525-b8b2-ed6b579a78e8/
+2026-10-13 16:30:49,115 WARNING log Not Found: /api/v1/pools/asset-assignments/c49fd53e-d2c4-4415-9c60-2dd4709191db/
+2026-10-13 16:30:49,125 WARNING log Not Found: /api/v1/pools/asset-provisions/8c1a7373-1547-4bf9-bb33-ccd9ba5518d7/
+2026-10-13 16:30:49,129 WARNING log Not Found: /api/v1/allocation/weightage-bands/86c68fa6-82b8-4c65-972e-b594cd4c62a8/
+2026-10-13 16:30:49,133 WARNING log Not Found: /api/v1/allocation/psr-schedules/c7adad47-430e-4b31-a77a-c7bec06c858e/
+2026-10-13 16:30:49,136 WARNING log Not Found: /api/v1/allocation/allocation-runs/9fcccbeb-fb21-478e-a045-842b02d55ace/
+2026-10-13 16:30:49,141 WARNING log Not Found: /api/v1/accounting/journal-batches/776f1433-3ca4-4fd9-8e60-4107b72e6ff2/
+2026-10-13 16:30:49,146 WARNING log Not Found: /api/v1/accounting/income-expense-events/138cc0b6-4785-495a-81e1-09b740bad650/
+2026-10-13 16:30:49,156 WARNING log Not Found: /api/v1/governance/exceptions/93e3ffaf-5db1-47b5-858e-c87af3e6dbb8/
+2026-10-13 16:30:49,161 WARNING log Not Found: /api/v1/governance/purification-entries/2b642e8a-000f-4218-afc4-6f45dcbc4c1a/
+2026-10-13 16:30:49,166 WARNING log Not Found: /api/v1/governance/related-party-transactions/305783c8-8316-45b8-aaf4-b7c8f7fe7e48/
+2026-10-13 16:30:49,172 WARNING log Not Found: /api/v1/governance/support-requests/a2ae4258-f032-49ad-8b5b-61741aaba636/
+2026-10-13 16:30:49,177 WARNING log Not Found: /api/v1/investments/capital-accounts/53a928a1-1e8f-4039-b97a-ede58e2959af/
+2026-10-13 16:30:49,182 WARNING log Not Found: /api/v1/investments/nav-snapshots/bcfb7026-4e20-4cd5-a512-729ac3332ced/
+2026-10-13 16:30:49,187 WARNING log Not Found: /api/v1/investments/investor-profiles/d4a0b93b-9a42-4707-8cd9-5e97e2e39d5d/
+2026-10-13 16:30:49,191 WARNING log Not Found: /api/v1/investments/impairment-events/5276a84d-c425-4a81-b5c1-6ca2226ec633/
+2026-10-13 16:30:49,195 WARNING log Not Found: /api/v1/investments/subscriptions/142b39fd-c8b0-4df0-b550-4523666317a2/
+2026-10-13 16:30:49,200 WARNING log Not Found: /api/v1/investments/redemptions/02d74424-9ddf-4481-85ab-3c16c8d19bec/
+2026-10-13 16:30:49,206 WARNING log Not Found: /api/v1/circles/circle-members/719dd5be-d39d-4b66-9d7c-af61eed79ffa/
+2026-10-13 16:30:49,233 WARNING log Not Found: /api/v1/circles/contributions/c5c5be67-c9d0-4330-8848-98638739927a/
+2026-10-13 16:30:49,239 WARNING log Not Found: /api/v1/circles/arrears-records/a3aeedf1-32e2-413a-8db1-f391d4fa293a/
+2026-10-13 16:30:49,243 WARNING log Not Found: /api/v1/circles/circle-proposals/daef2c81-f096-40f1-b748-5d6f42b9e96a/
+2026-10-13 16:30:49,246 WARNING log Not Found: /api/v1/circles/rules/cc3b2da4-f0c8-4466-9b36-53849eb4e26c/
+2026-10-13 16:30:49,251 WARNING log Not Found: /api/v1/ai/recommendations/986dae88-4fca-4c4d-bc1a-ee5cbb687fce/
+2026-10-13 16:30:49,256 WARNING log Not Found: /api/v1/governance/config-changes/07b8699b-d4cd-4e0c-9128-19bbeee32671/
+2026-10-13 16:30:49,259 WARNING log Not Found: /api/v1/investments/disclosures/5cced3a0-ed26-4540-ae7d-00b909ecd3c0/
+2026-10-13 16:30:49,265 WARNING log Not Found: /api/v1/circles/draws/4f59d7bb-74be-4a64-a639-64a8acf00bc8/
+2026-10-13 16:30:49,270 WARNING log Not Found: /api/v1/circles/closures/c706394f-ced6-44d0-8158-db91e6f54e9f/
+........2026-10-13 16:30:50,293 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 16:30:50,293 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 16:30:50,294 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 16:30:50,294 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 16:30:50,294 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 16:30:50,295 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 16:30:50,295 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 16:30:50,295 WARNING log Forbidden: /api/v1/pools/daily-balances/
+2026-10-13 16:30:50,296 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 16:30:50,296 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 16:30:50,296 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 16:30:50,297 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 16:30:50,297 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 16:30:50,297 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 16:30:50,298 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 16:30:50,298 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 16:30:50,299 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 16:30:50,299 WARNING log Forbidden: /api/v1/governance/support-requests/
+2026-10-13 16:30:50,299 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 16:30:50,299 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 16:30:50,301 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 16:30:50,302 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 16:30:50,302 WARNING log Forbidden: /api/v1/investments/subscriptions/
+2026-10-13 16:30:50,302 WARNING log Forbidden: /api/v1/investments/redemptions/
+2026-10-13 16:30:50,303 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 16:30:50,303 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-13 16:30:50,304 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-13 16:30:50,304 WARNING log Forbidden: /api/v1/circles/arrears-records/
+2026-10-13 16:30:50,304 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 16:30:50,305 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 16:30:50,305 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 16:30:50,305 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 16:30:50,306 WARNING log Forbidden: /api/v1/investments/disclosures/
+2026-10-13 16:30:50,306 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 16:30:50,306 WARNING log Forbidden: /api/v1/circles/closures/
+.2026-10-13 16:30:50,388 WARNING log Forbidden: /api/v1/pools/pools/
+...2026-10-13 16:30:50,439 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 16:30:50,441 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 16:30:50,441 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 16:30:50,442 WARNING log Bad Request: /api/v1/public/demo-requests/
+.2026-10-13 16:30:50,453 WARNING log Forbidden: /api/v1/demo-requests/
+.2026-10-13 16:30:50,469 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 16:30:50,470 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+...2026-10-13 16:30:50,472 WARNING contract_analyzer Copilot direct analysis call failed: down
+..
+======================================================================
+ERROR: setUpClass (apps.core.test_access_control.AccessControlTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_access_control.py", line 21, in setUpTestData
+    call_command("seed_project_data", tenant_code="ACL-T", allow_non_debug=True, stdout=StringIO())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\base.py", line 464, in execute
+    output = self.handle(*args, **options)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\management\commands\seed_project_data.py", line 797, in handle
+    seed_participant_ledger(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        tenant,
+        ^^^^^^^
+    ...<8 lines>...
+        stdout=self.stdout,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 216, in seed_participant_ledger
+    post_event(INCOME, "Financing Profit", "650000.00", date(2026, 7, 12), "Sukuk coupon periodic rental accrual")
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 202, in post_event
+    call(checker, "post", f"/api/v1/accounting/income-expense-events/{event.id}/post/")
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 70, in call
+    raise RuntimeError(f"Seed call {method.upper()} {url} failed: {response.status_code} {response.data}")
+RuntimeError: Seed call POST /api/v1/accounting/income-expense-events/4a0ce794-8920-4654-ab4e-3f59d6c5f65b/post/ failed: 400 {'error': {'code': 'validation_error', 'message': "Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", 'details': [ErrorDetail(string="Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", code='invalid')]}}
+
+======================================================================
+ERROR: setUpClass (apps.core.test_period_report.PeriodReportTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_period_report.py", line 14, in setUpTestData
+    call_command("seed_project_data", tenant_code="RPT-T", allow_non_debug=True, stdout=StringIO())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\base.py", line 464, in execute
+    output = self.handle(*args, **options)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\management\commands\seed_project_data.py", line 797, in handle
+    seed_participant_ledger(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        tenant,
+        ^^^^^^^
+    ...<8 lines>...
+        stdout=self.stdout,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 216, in seed_participant_ledger
+    post_event(INCOME, "Financing Profit", "650000.00", date(2026, 7, 12), "Sukuk coupon periodic rental accrual")
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 202, in post_event
+    call(checker, "post", f"/api/v1/accounting/income-expense-events/{event.id}/post/")
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 70, in call
+    raise RuntimeError(f"Seed call {method.upper()} {url} failed: {response.status_code} {response.data}")
+RuntimeError: Seed call POST /api/v1/accounting/income-expense-events/586fdaff-bccf-4215-962d-8ea255ea87f7/post/ failed: 400 {'error': {'code': 'validation_error', 'message': "Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", 'details': [ErrorDetail(string="Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", code='invalid')]}}
+
+======================================================================
+ERROR: setUpClass (apps.core.test_seed.SeedProjectDataTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_seed.py", line 21, in setUpTestData
+    call_command("seed_project_data", tenant_code="SEED-TEST", allow_non_debug=True, stdout=StringIO())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\base.py", line 464, in execute
+    output = self.handle(*args, **options)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\management\commands\seed_project_data.py", line 797, in handle
+    seed_participant_ledger(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        tenant,
+        ^^^^^^^
+    ...<8 lines>...
+        stdout=self.stdout,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 216, in seed_participant_ledger
+    post_event(INCOME, "Financing Profit", "650000.00", date(2026, 7, 12), "Sukuk coupon periodic rental accrual")
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 202, in post_event
+    call(checker, "post", f"/api/v1/accounting/income-expense-events/{event.id}/post/")
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 70, in call
+    raise RuntimeError(f"Seed call {method.upper()} {url} failed: {response.status_code} {response.data}")
+RuntimeError: Seed call POST /api/v1/accounting/income-expense-events/1cdec015-ec5b-42b8-9f0d-dbac13caca06/post/ failed: 400 {'error': {'code': 'validation_error', 'message': "Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", 'details': [ErrorDetail(string="Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", code='invalid')]}}
+
+======================================================================
+ERROR: setUpClass (apps.governance.test_audit_fixes.AuditFixTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\governance\test_audit_fixes.py", line 24, in setUpTestData
+    call_command("seed_project_data", tenant_code="FIX-T", allow_non_debug=True, stdout=StringIO())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\talha\AppData\Roaming\Python\Python314\site-packages\django\core\management\base.py", line 464, in execute
+    output = self.handle(*args, **options)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\management\commands\seed_project_data.py", line 797, in handle
+    seed_participant_ledger(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        tenant,
+        ^^^^^^^
+    ...<8 lines>...
+        stdout=self.stdout,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 216, in seed_participant_ledger
+    post_event(INCOME, "Financing Profit", "650000.00", date(2026, 7, 12), "Sukuk coupon periodic rental accrual")
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 202, in post_event
+    call(checker, "post", f"/api/v1/accounting/income-expense-events/{event.id}/post/")
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\participants\seed_ledger.py", line 70, in call
+    raise RuntimeError(f"Seed call {method.upper()} {url} failed: {response.status_code} {response.data}")
+RuntimeError: Seed call POST /api/v1/accounting/income-expense-events/a69b2517-eff8-423c-bb38-9008b55a4beb/post/ failed: 400 {'error': {'code': 'validation_error', 'message': "Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", 'details': [ErrorDetail(string="Cannot post an income/expense event dated 2026-07-12: the day was signed off in the daily close for pool 'POOL-GEN-01'. Back-dated changes require an approved restatement.", code='invalid')]}}
+
+======================================================================
+FAIL: test_loss_run_posts_balanced_journal_without_negative_amounts (apps.allocation.test_financial_core.ApprovalPostingTests.test_loss_run_posts_balanced_journal_without_negative_amounts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 208, in test_loss_run_posts_balanced_journal_without_negative_amounts
+    run_id = self.sign_run(gross="10.00", expenses="40.00")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_second_signed_run_for_same_pool_and_date_is_blocked (apps.allocation.test_financial_core.ApprovalPostingTests.test_second_signed_run_for_same_pool_and_date_is_blocked)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 229, in test_second_signed_run_for_same_pool_and_date_is_blocked
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signing_posts_balanced_journal_with_reserves_and_updates_balances (apps.allocation.test_financial_core.ApprovalPostingTests.test_signing_posts_balanced_journal_with_reserves_and_updates_balances)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 191, in test_signing_posts_balanced_journal_with_reserves_and_updates_balances
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_posted_journal_cannot_be_edited_or_deleted (apps.allocation.test_financial_core.ImmutabilityTests.test_posted_journal_cannot_be_edited_or_deleted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 254, in test_posted_journal_cannot_be_edited_or_deleted
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signed_run_cannot_be_edited_or_deleted (apps.allocation.test_financial_core.ImmutabilityTests.test_signed_run_cannot_be_edited_or_deleted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 238, in test_signed_run_cannot_be_edited_or_deleted
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_restatement_is_still_possible_after_period_lock (apps.allocation.test_financial_core.PeriodLockTests.test_restatement_is_still_possible_after_period_lock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 375, in test_restatement_is_still_possible_after_period_lock
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_approving_rerun_reverses_original_journal_and_reserves (apps.allocation.test_financial_core.RestatementTests.test_approving_rerun_reverses_original_journal_and_reserves)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 292, in test_approving_rerun_reverses_original_journal_and_reserves
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_checker_cannot_initiate_restatement (apps.allocation.test_financial_core.RestatementTests.test_checker_cannot_initiate_restatement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 279, in test_checker_cannot_initiate_restatement
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_original_stays_signed_until_rerun_is_approved (apps.allocation.test_financial_core.RestatementTests.test_original_stays_signed_until_rerun_is_approved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 283, in test_original_stays_signed_until_rerun_is_approved
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_restatement_needs_real_balances_no_silent_fallback (apps.allocation.test_financial_core.RestatementTests.test_restatement_needs_real_balances_no_silent_fallback)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 323, in test_restatement_needs_real_balances_no_silent_fallback
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_zero_gross_income_is_honoured_not_replaced_by_old_value (apps.allocation.test_financial_core.RestatementTests.test_zero_gross_income_is_honoured_not_replaced_by_old_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 317, in test_zero_gross_income_is_honoured_not_replaced_by_old_value
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 152, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_late_posted_event_blocks_approval_of_a_stale_run (apps.allocation.test_income_derivation.ConsumptionTests.test_late_posted_event_blocks_approval_of_a_stale_run)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 149, in test_late_posted_event_blocks_approval_of_a_stale_run
+    self.assertEqual(AllocationRun.objects.get(pk=run_id).status, AllocationRunStatus.CHECKED)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'pending_approval' != AllocationRunStatus.CHECKED
+
+======================================================================
+FAIL: test_restatement_rederives_the_period_and_relinks_events (apps.allocation.test_income_derivation.ConsumptionTests.test_restatement_rederives_the_period_and_relinks_events)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 167, in test_restatement_rederives_the_period_and_relinks_events
+    self.assertEqual(restated.status_code, status.HTTP_201_CREATED, restated.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': 'Only a signed AllocationRun can be restated.', 'details': [ErrorDetail(string='Only a signed AllocationRun can be restated.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signing_consumes_the_events_and_they_cannot_feed_another_run (apps.allocation.test_income_derivation.ConsumptionTests.test_signing_consumes_the_events_and_they_cannot_feed_another_run)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 135, in test_signing_consumes_the_events_and_they_cannot_feed_another_run
+    self.assertEqual(self.submit_and_approve(run_id).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_two_competing_runs_only_the_first_can_be_signed (apps.allocation.test_income_derivation.ConsumptionTests.test_two_competing_runs_only_the_first_can_be_signed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 155, in test_two_competing_runs_only_the_first_can_be_signed
+    self.assertEqual(self.submit_and_approve(first).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_pending_events_block_a_run_but_not_a_simulation (apps.allocation.test_income_derivation.DerivedFromEventsTests.test_pending_events_block_a_run_but_not_a_simulation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 100, in test_pending_events_block_a_run_but_not_a_simulation
+    self.assertEqual(len(simulated.data["warnings"]), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1
+
+======================================================================
+FAIL: test_sealed_hash_covers_the_event_set (apps.allocation.test_income_derivation.DerivedFromEventsTests.test_sealed_hash_covers_the_event_set)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_income_derivation.py", line 85, in test_sealed_hash_covers_the_event_set
+    self.assertEqual(self.submit_and_approve(run_id).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_a_role_that_is_not_in_the_matrix_cannot_release (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_a_role_that_is_not_in_the_matrix_cannot_release)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 53, in test_a_role_that_is_not_in_the_matrix_cannot_release
+    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 403
+
+======================================================================
+FAIL: test_inactive_rules_are_ignored (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_inactive_rules_are_ignored)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 58, in test_inactive_rules_are_ignored
+    self.assertEqual(complete_ceremony(self, self.prepared_run()).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_release_above_the_signatorys_limit_is_refused (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_release_above_the_signatorys_limit_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 39, in test_release_above_the_signatorys_limit_is_refused
+    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 403
+
+======================================================================
+FAIL: test_release_within_the_limit_or_unlimited_succeeds (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_release_within_the_limit_or_unlimited_succeeds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 44, in test_release_within_the_limit_or_unlimited_succeeds
+    self.assertEqual(complete_ceremony(self, self.prepared_run()).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_unlimited_rule_allows_any_amount (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_unlimited_rule_allows_any_amount)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 48, in test_unlimited_rule_allows_any_amount
+    self.assertEqual(complete_ceremony(self, self.prepared_run(gross="99999999.00")).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_without_rules_the_role_permission_alone_decides (apps.allocation.test_matrix_and_chart.ApprovalMatrixEnforcementTests.test_without_rules_the_role_permission_alone_decides)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 33, in test_without_rules_the_role_permission_alone_decides
+    self.assertEqual(complete_ceremony(self, run_id).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_a_pool_mapping_overrides_the_tenant_default (apps.allocation.test_matrix_and_chart.ChartMappingTests.test_a_pool_mapping_overrides_the_tenant_default)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 98, in test_a_pool_mapping_overrides_the_tenant_default
+    batch = JournalBatch.objects.get(allocation_run_id=self.sign_run())
+                                                       ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_a_remap_does_not_rewrite_posted_journals_and_reversals_keep_original_names (apps.allocation.test_matrix_and_chart.ChartMappingTests.test_a_remap_does_not_rewrite_posted_journals_and_reversals_keep_original_names)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 104, in test_a_remap_does_not_rewrite_posted_journals_and_reversals_keep_original_names
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_mapped_accounts_carry_gl_code_and_name (apps.allocation.test_matrix_and_chart.ChartMappingTests.test_mapped_accounts_carry_gl_code_and_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 85, in test_mapped_accounts_carry_gl_code_and_name
+    batch = JournalBatch.objects.get(allocation_run_id=self.sign_run())
+                                                       ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_unmapped_accounts_keep_descriptive_names_and_no_code (apps.allocation.test_matrix_and_chart.ChartMappingTests.test_unmapped_accounts_keep_descriptive_names_and_no_code)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_matrix_and_chart.py", line 78, in test_unmapped_accounts_keep_descriptive_names_and_no_code
+    batch = JournalBatch.objects.get(allocation_run_id=self.sign_run())
+                                                       ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_overlapping_signed_runs_are_blocked (apps.allocation.test_participant_ledger.SignedRunLedgerTests.test_overlapping_signed_runs_are_blocked)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 238, in test_overlapping_signed_runs_are_blocked
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signing_posts_class_level_journal_and_keeps_participant_sub_ledger (apps.allocation.test_participant_ledger.SignedRunLedgerTests.test_signing_posts_class_level_journal_and_keeps_participant_sub_ledger)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 212, in test_signing_posts_class_level_journal_and_keeps_participant_sub_ledger
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_investor_cannot_read_runs_or_other_participants_data (apps.allocation.test_participant_ledger.StatementTests.test_investor_cannot_read_runs_or_other_participants_data)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 287, in test_investor_cannot_read_runs_or_other_participants_data
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_investor_sees_only_their_own_statements (apps.allocation.test_participant_ledger.StatementTests.test_investor_sees_only_their_own_statements)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 274, in test_investor_sees_only_their_own_statements
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_statements_are_issued_per_participant_account (apps.allocation.test_participant_ledger.StatementTests.test_statements_are_issued_per_participant_account)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 259, in test_statements_are_issued_per_participant_account
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_statements_exist_in_db_per_account (apps.allocation.test_participant_ledger.StatementTests.test_statements_exist_in_db_per_account)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 307, in test_statements_exist_in_db_per_account
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_an_investor_gets_tax_support_for_their_own_payments_only (apps.allocation.test_payout_clearing.PayoutClearingTests.test_an_investor_gets_tax_support_for_their_own_payments_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_batch_is_built_from_real_participants_and_persisted (apps.allocation.test_payout_clearing.PayoutClearingTests.test_batch_is_built_from_real_participants_and_persisted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_batch_is_refused_when_the_pack_has_no_withholding_rates (apps.allocation.test_payout_clearing.PayoutClearingTests.test_batch_is_refused_when_the_pack_has_no_withholding_rates)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_full_flow_with_dual_control (apps.allocation.test_payout_clearing.PayoutClearingTests.test_full_flow_with_dual_control)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_investors_cannot_read_batches (apps.allocation.test_payout_clearing.PayoutClearingTests.test_investors_cannot_read_batches)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_liquidity_gate_fails_without_a_configured_balance (apps.allocation.test_payout_clearing.PayoutClearingTests.test_liquidity_gate_fails_without_a_configured_balance)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_maker_cannot_authorize_own_batch (apps.allocation.test_payout_clearing.PayoutClearingTests.test_maker_cannot_authorize_own_batch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_reserve_cap_above_the_rule_pack_ceiling_is_refused (apps.allocation.test_payout_clearing.PayoutClearingTests.test_reserve_cap_above_the_rule_pack_ceiling_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_simulated_rails_are_refused_when_disabled (apps.allocation.test_payout_clearing.PayoutClearingTests.test_simulated_rails_are_refused_when_disabled)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_unknown_run_is_a_400_not_a_crash (apps.allocation.test_payout_clearing.PayoutClearingTests.test_unknown_run_is_a_400_not_a_crash)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_unsigned_runs_have_no_batch (apps.allocation.test_payout_clearing.PayoutClearingTests.test_unsigned_runs_have_no_batch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_withholding_rates_come_from_the_rule_pack (apps.allocation.test_payout_clearing.PayoutClearingTests.test_withholding_rates_come_from_the_rule_pack)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 42, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_a_rejected_run_shows_where_it_stopped (apps.allocation.tests.ApprovalCeremonyApiTests.test_a_rejected_run_shows_where_it_stopped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 208, in test_a_rejected_run_shows_where_it_stopped
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        self.states(url),
+        ^^^^^^^^^^^^^^^^^
+        {"prepared": "completed", "independent_check": "completed", "shariah_review": "rejected", "final_release": "waiting"},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: {'pre[38 chars]k': 'rejected', 'shariah_review': 'waiting', '[21 chars]ing'} != {'pre[38 chars]k': 'completed', 'shariah_review': 'rejected',[23 chars]ing'}
+  {'final_release': 'waiting',
+-  'independent_check': 'rejected',
+?                        ^ ---
+
++  'independent_check': 'completed',
+?                        ^^^^^
+
+   'prepared': 'completed',
+-  'shariah_review': 'waiting'}
+?                     ^^^ ^^^
+
++  'shariah_review': 'rejected'}
+?                     ^^^^^ ^^
+
+
+======================================================================
+FAIL: test_bank_pool_runs_through_all_four_stages_in_order (apps.allocation.tests.ApprovalCeremonyApiTests.test_bank_pool_runs_through_all_four_stages_in_order)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 118, in test_bank_pool_runs_through_all_four_stages_in_order
+    self.assertEqual(checked.status_code, status.HTTP_200_OK, checked.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='1 day(s) with balances have no signed daily close (2026-09-15). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_makers_cannot_reject_and_signed_runs_cannot_be_rejected (apps.allocation.tests.ApprovalCeremonyApiTests.test_makers_cannot_reject_and_signed_runs_cannot_be_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 200, in test_makers_cannot_reject_and_signed_runs_cannot_be_rejected
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        self.post(self.checker, url + "reject/", {"rejection_reason": "x"}).status_code, status.HTTP_400_BAD_REQUEST
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_non_bank_pool_skips_the_shariah_stage (apps.allocation.tests.ApprovalCeremonyApiTests.test_non_bank_pool_skips_the_shariah_stage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 169, in test_non_bank_pool_skips_the_shariah_stage
+    self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': "AllocationRun must be in 'checked' status for final release (current status: 'pending_approval').", 'details': [ErrorDetail(string="AllocationRun must be in 'checked' status for final release (current status: 'pending_approval').", code='invalid')]}}
+
+======================================================================
+FAIL: test_the_shariah_board_can_also_perform_the_shariah_review (apps.allocation.tests.ApprovalCeremonyApiTests.test_the_shariah_board_can_also_perform_the_shariah_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 157, in test_the_shariah_board_can_also_perform_the_shariah_review
+    self.assertEqual(self.post(self.board, url + "shariah-sign-off/", {"note": "ok"}).status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200
+
+======================================================================
+FAIL: test_bundle_contains_only_recorded_evidence (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_bundle_contains_only_recorded_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_input_validation (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_input_validation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_master_seal_covers_the_artifact_hashes (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_master_seal_covers_the_artifact_hashes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_only_oversight_roles_can_compile (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_only_oversight_roles_can_compile)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_period_without_a_signed_run_has_no_allocation_evidence (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_period_without_a_signed_run_has_no_allocation_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_pool_of_another_tenant_is_not_accessible (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_pool_of_another_tenant_is_not_accessible)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_tampered_audit_trail_fails_verification (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_tampered_audit_trail_fails_verification)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_tampered_run_fails_verification (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_tampered_run_fails_verification)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_zip_archive_is_built_from_the_same_evidence (apps.core.test_evidence_and_simulation.EvidenceBundleTests.test_zip_archive_is_built_from_the_same_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\core\test_evidence_and_simulation.py", line 22, in setUp
+    self.run_id = self.sign_run()
+                  ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_each_ceremony_stage_notifies_the_next_owner_only (apps.notifications.tests.ApprovalNudgeTests.test_each_ceremony_stage_notifies_the_next_owner_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\tests.py", line 41, in test_each_ceremony_stage_notifies_the_next_owner_only
+    self.assertTrue(any("final release" in t for t in self.titles(self.signatory)))  # investment pool: no Shariah stage
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_a_change_inside_the_notice_period_is_refused (apps.notifications.tests.EconomicsChangeNoticeTests.test_a_change_inside_the_notice_period_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\tests.py", line 176, in setUp
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_a_change_with_proper_notice_is_approved_simulated_and_announced (apps.notifications.tests.EconomicsChangeNoticeTests.test_a_change_with_proper_notice_is_approved_simulated_and_announced)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\tests.py", line 176, in setUp
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_a_pool_that_is_not_live_yet_is_not_subject_to_notice (apps.notifications.tests.EconomicsChangeNoticeTests.test_a_pool_that_is_not_live_yet_is_not_subject_to_notice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\tests.py", line 176, in setUp
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_weightage_changes_are_covered_too (apps.notifications.tests.EconomicsChangeNoticeTests.test_weightage_changes_are_covered_too)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\tests.py", line 176, in setUp
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_gates_come_from_the_records (apps.pools.test_period_close.PeriodCloseWorkflowTests.test_gates_come_from_the_records)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\pools\test_period_close.py", line 53, in test_gates_come_from_the_records
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_the_same_person_cannot_sign_twice (apps.pools.test_period_close.PeriodCloseWorkflowTests.test_the_same_person_cannot_sign_twice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\pools\test_period_close.py", line 93, in test_the_same_person_cannot_sign_twice
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_three_different_people_in_their_own_roles_then_lock (apps.pools.test_period_close.PeriodCloseWorkflowTests.test_three_different_people_in_their_own_roles_then_lock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\pools\test_period_close.py", line 59, in test_three_different_people_in_their_own_roles_then_lock
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signed_run_gives_real_profit_and_yield (apps.pools.test_portfolio.PortfolioSummaryTests.test_signed_run_gives_real_profit_and_yield)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\pools\test_portfolio.py", line 19, in test_signed_run_gives_real_profit_and_yield
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_participant_ledger.py", line 153, in sign_run
+    self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 200 : {'error': {'code': 'validation_error', 'message': '10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', 'details': [ErrorDetail(string='10 day(s) with balances have no signed daily close (2026-09-01, 2026-09-02, 2026-09-03, 2026-09-04, 2026-09-05 and 5 more). The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run.', code='invalid')]}}
+
+----------------------------------------------------------------------
+Ran 428 tests in 38.625s
+
+FAILED (failures=68, errors=4)
+Destroying test database for alias 'default'...
+Found 456 test(s).
+System check identified no issues (0 silenced).

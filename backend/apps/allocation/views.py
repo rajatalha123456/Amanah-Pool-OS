@@ -26,6 +26,7 @@ from apps.core.audit import log_action
 from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 from apps.notifications import events
 from apps.pools.config_snapshot import assert_rule_pack_unchanged
+from apps.pools.daily_close import assert_days_signed, unsigned_balance_days
 from apps.pools.exception_gate import assert_no_open_serious_exception
 from apps.pools.period_lock import assert_period_open
 
@@ -419,6 +420,11 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                     [f"{totals['pending_count']} pending income/expense event(s) in this period are not included."]
                     if totals["pending_count"]
                     else []
+                )
+                + (
+                    [f"{len(unsigned)} day(s) with balances have no signed daily close yet; the run cannot be checked until they are signed."]
+                    if (unsigned := unsigned_balance_days(data["pool"], data.get("period_start") or data["value_date"], data["value_date"]))
+                    else []
                 ),
                 "distributable": result["distributable"],
                 "total_weighted_funds": result["total_weighted_funds"],
@@ -523,6 +529,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             raise ValidationError(exc.message) from exc
 
         assert_rule_pack_unchanged(run, run.pool)
+        if not run.is_restatement:
+            assert_days_signed(run.pool, run.effective_period_start, run.value_date)
         # The checker verifies exactly what the maker sealed.
         if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
             raise ValidationError(
@@ -630,6 +638,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         previous_status = run.status
         assert_rule_pack_unchanged(run, run.pool)
+        if not run.is_restatement:
+            assert_days_signed(run.pool, run.effective_period_start, run.value_date)
 
         # The checker signs exactly what the maker calculated: re-derive the
         # hash from the stored inputs, rule versions, amounts and lines.

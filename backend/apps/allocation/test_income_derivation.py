@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 
 from apps.accounting.models import IncomeExpenseEvent
@@ -97,7 +98,7 @@ class DerivedFromEventsTests(IncomeDerivationBase):
         self.authenticate(self.maker)
         simulated = self.client.post(reverse("allocation-run-simulate"), self.run_payload(), format="json")
         self.assertEqual(simulated.status_code, status.HTTP_200_OK, simulated.data)
-        self.assertEqual(len(simulated.data["warnings"]), 1)
+        self.assertEqual(len([w for w in simulated.data["warnings"] if "pending income/expense" in w]), 1)
         self.assertEqual(Decimal(simulated.data["gross_income"]), Decimal("1500.00"))
 
     def test_events_outside_the_period_are_ignored(self):
@@ -159,7 +160,14 @@ class ConsumptionTests(IncomeDerivationBase):
         self.standard_events()
         run_id = self.create().data["id"]
         self.submit_and_approve(run_id)
-        self.event("income", "Financing Profit", "200.00", "2026-09-10", "Late accrual")
+        # A signed day refuses a normal post, so the late accrual arrives the way the core system records it: already posted.
+        from apps.accounting.models import IncomeExpenseEvent
+
+        IncomeExpenseEvent.objects.create(
+            tenant=self.tenant, pool=self.pool, event_type="income", category="Financing Profit", amount=Decimal("200.00"),
+            event_date=date(2026, 9, 10), description="Late accrual", created_by=self.maker,
+            status="posted", posted_by=self.checker, posted_at=timezone.now(),
+        )
 
         self.authenticate(self.maker)
         base = reverse("allocation-run-detail", args=[run_id])

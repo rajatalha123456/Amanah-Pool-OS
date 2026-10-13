@@ -67,6 +67,10 @@ class ApprovalCeremonyApiTests(APITestCase):
             tenant=self.tenant, pool=pool, participant_class="retail", value_date=value_date,
             balance_amount=Decimal("1000.00"), status="validated",
         )
+        # The day carries a signed daily close (the real workflow is exercised in pools/test_daily_close.py).
+        from apps.pools.models import DailyClose
+
+        DailyClose.objects.create(tenant=self.tenant, pool=pool, value_date=value_date, status="signed", gates=[])
         WeightageBand.objects.create(
             tenant=self.tenant, pool=pool, participant_class="retail", weightage=Decimal("1.00"),
             effective_from=date(2026, 1, 1), status=WeightageBandStatus.APPROVED,

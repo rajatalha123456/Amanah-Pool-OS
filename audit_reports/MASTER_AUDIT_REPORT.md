@@ -10,7 +10,7 @@ The findings below were written before the fixes. This section records what chan
 | Finding | Status now | Evidence |
 |---|---|---|
 | F-01 (P0) reserve balance writable | **Fixed** | AT after: HTTP 400, balance unchanged; BT `test_reserve_balance_cannot_be_set...` |
-| F-02 pending balances earn profit | **Fixed** (a signed daily close is still not required) | AT test_14 now asserts refusal; BT |
+| F-02 pending balances earn profit | **Fixed**: only validated balances, and a signed daily close for every day with balances before the check and release | AT test_14; BT `test_a_run_cannot_be_checked_while_days_with_balances_are_unsigned` |
 | F-03 super admin sees figures | **Fixed** | BT `test_super_admin_audit_log_hides_the_figures` |
 | F-04 rule pack edited in place | **Fixed**: changes need approval, every content is kept as an immutable revision, runs seal the revision and a stale run is refused | BT `test_a_rule_pack_keeps_its_history...`; AT patch probe |
 | F-05 account dates rewritable | **Fixed** | BT |

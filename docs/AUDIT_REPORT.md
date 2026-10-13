@@ -478,3 +478,6 @@ Still open: signed daily close required before a run, rule pack version history 
 
 ### 2026-10-13 (rule pack versioning, roadmap T-02)
 Rule packs now keep an immutable revision history (`RulePackRevision`, one row per distinct content). Allocation runs and investment distributions seal the pack revision and content hash in their configuration snapshot (so it is part of the run hash). A run calculated under older rules is refused at the independent check and at the release. Closes finding F-04 / FIN-05 and BRD 11 "signed runs reference immutable rule-pack versions". 456 backend tests and 42 audit tests pass. Still open: a signed daily close before a run, GL export status, suspense, pagination, draw-room two-step, integrations.
+
+### 2026-10-13 (signed daily close before a run)
+An allocation run now needs a signed daily close for every day of its period that has validated balances before the independent check and the release (restatements exempt; the simulation warns). Closes F-02 completely. The demo data signs July and August (September stays open on purpose, so its run waits). A late July accrual in the demo is recorded already-posted, because a signed day refuses a normal post. 457 backend tests, 42 audit tests pass.

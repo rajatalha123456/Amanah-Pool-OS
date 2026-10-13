@@ -206,3 +206,31 @@ class AuditFixTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertGreaterEqual(len(r.data), 1)
         self.assertEqual(self.call(self.user("investor_member"), "get", f"/api/v1/products/jurisdiction-rule-packs/{pack.pk}/revisions/").status_code, 403)
+
+    # F-02 (signed daily close) ---------------------------------------------------------------------
+    def test_a_run_cannot_be_checked_while_days_with_balances_are_unsigned(self):
+        from apps.allocation.models import AllocationRun
+        from apps.pools.daily_close import unsigned_balance_days
+        from apps.pools.models import DailyBalance, DailyClose, DailyCloseStatus
+
+        # September of the seeded bank pool has balances and no signed close: its run waits and cannot be checked.
+        run = AllocationRun._base_manager.filter(tenant=self.tenant, status="pending_approval").first()
+        self.assertIsNotNone(run)
+        missing = unsigned_balance_days(run.pool, run.effective_period_start, run.value_date)
+        self.assertTrue(missing, "the seeded September run should have unsigned days")
+        r = self.call(self.user("finance_checker"), "post", f"/api/v1/allocation/allocation-runs/{run.pk}/check/")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("no signed daily close", str(r.data))
+
+        # days without balances (weekends, holidays) need no close: sign every day that has balances and it passes
+        for day in missing:
+            DailyClose._base_manager.update_or_create(
+                tenant=self.tenant, pool=run.pool, value_date=day, defaults={"status": DailyCloseStatus.SIGNED, "gates": []}
+            )
+        self.assertEqual(unsigned_balance_days(run.pool, run.effective_period_start, run.value_date), [])
+        # a day with no balance row at all was never in the list, so it never needed a close
+        self.assertFalse(
+            set(missing) & {d for d in (run.value_date.replace(day=1),) if not DailyBalance._base_manager.filter(pool=run.pool, value_date=d).exists()}
+        )
+        r = self.call(self.user("finance_checker"), "post", f"/api/v1/allocation/allocation-runs/{run.pk}/check/")
+        self.assertEqual(r.status_code, 200, r.data)

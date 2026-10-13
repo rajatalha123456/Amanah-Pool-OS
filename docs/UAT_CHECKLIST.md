@@ -109,6 +109,7 @@ Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Anal
 | M7 | Open the Risk Limit screen | Limits show where they come from (rule pack or "placeholder defaults, not confirmed"); no regulator is named as the source |
 | M8 | Sign in as the Super Admin and open the audit log | Who, what, when are visible; amounts and reasons are not |
 | M9 | Try to change an account's opening date | Refused |
+| M10 | Create a run for a period with a day that has balances but no signed daily close, then try the independent check | Refused, naming the days; after the maker prepares and a different checker signs those days, the check works. A weekend with no balances needs no close |
 
 ## L. Sign-off
 | Function | Name | Date | Passed all steps? | Notes |

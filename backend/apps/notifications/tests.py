@@ -36,6 +36,9 @@ class ApprovalNudgeTests(NotificationBase):
         self.assertEqual(self.inbox(self.signatory), [])  # not yet their turn
         self.assertEqual(self.inbox(self.maker), [])  # nobody nudges the actor
 
+        from apps.allocation.ceremony_helpers import sign_run_days
+
+        sign_run_days(run_id)
         self.authenticate(self.checker)
         self.client.post(base + "check/")
         self.assertTrue(any("final release" in t for t in self.titles(self.signatory)))  # investment pool: no Shariah stage

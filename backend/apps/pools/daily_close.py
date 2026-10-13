@@ -90,3 +90,31 @@ def assert_day_open(pool, day, what="a record"):
             f"Cannot post {what} dated {day}: the day was signed off in the daily close for pool '{pool.code}'. "
             "Back-dated changes require an approved restatement."
         )
+
+
+def unsigned_balance_days(pool, start, end):
+    """
+    Days in start..end that have validated balances but no signed daily close (BRD 6.2: the checker signs the day before
+    the period distribution). Days with no balances (weekends, holidays) need no close: there is nothing to sign.
+    """
+    days = set(
+        DailyBalance._base_manager.filter(
+            pool=pool, value_date__gte=start, value_date__lte=end, status=DailyBalanceStatus.VALIDATED
+        ).values_list("value_date", flat=True)
+    )
+    signed = set(
+        DailyClose._base_manager.filter(
+            pool=pool, value_date__gte=start, value_date__lte=end, status=DailyCloseStatus.SIGNED
+        ).values_list("value_date", flat=True)
+    )
+    return sorted(days - signed)
+
+
+def assert_days_signed(pool, start, end):
+    missing = unsigned_balance_days(pool, start, end)
+    if missing:
+        shown = ", ".join(str(d) for d in missing[:5]) + (f" and {len(missing) - 5} more" if len(missing) > 5 else "")
+        raise ValidationError(
+            f"{len(missing)} day(s) with balances have no signed daily close ({shown}). "
+            "The maker prepares and an independent checker signs each day (Daily Operations > Daily Close) before the run."
+        )
