@@ -475,3 +475,6 @@ A full audit is in `audit_reports/` (start with `MASTER_AUDIT_REPORT.md`). It fo
 - **F-07** hard-coded "SBP statutory" limits and invented filing text -> limits from the rule pack, regulator citations removed.
 - Also: negative weightages refused (DB constraint too), Django admin off outside DEBUG, allocation page pool selector for read-only roles, the reserve-policy screen aligned with the API fields it was already using wrongly.
 Still open: signed daily close required before a run, rule pack version history and run-hash snapshot, GL export status, suspense accounting, pagination, integrations and the human gates. See `audit_reports/IMPLEMENTATION_ROADMAP.md`.
+
+### 2026-10-13 (rule pack versioning, roadmap T-02)
+Rule packs now keep an immutable revision history (`RulePackRevision`, one row per distinct content). Allocation runs and investment distributions seal the pack revision and content hash in their configuration snapshot (so it is part of the run hash). A run calculated under older rules is refused at the independent check and at the release. Closes finding F-04 / FIN-05 and BRD 11 "signed runs reference immutable rule-pack versions". 456 backend tests and 42 audit tests pass. Still open: a signed daily close before a run, GL export status, suspense, pagination, draw-room two-step, integrations.

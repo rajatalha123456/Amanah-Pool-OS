@@ -18,6 +18,7 @@ calculate_distribution() performs no writes. Rules:
 
 import hashlib
 import json
+from apps.pools.config_snapshot import rule_pack_snapshot
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -194,6 +195,7 @@ def calculate_distribution(pool, period_start, period_end, gross_income, direct_
         "total_average_units": investor_units.quantize(UNIT_PLACES, rounding=ROUND_HALF_UP),
         "is_loss": is_loss,
         "config_snapshot": {
+            "rule_pack": rule_pack_snapshot(pool),
             "contract_type": contract_type,
             "psr": {
                 "id": str(psr.id),

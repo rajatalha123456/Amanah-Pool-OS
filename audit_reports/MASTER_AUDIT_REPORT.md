@@ -12,7 +12,7 @@ The findings below were written before the fixes. This section records what chan
 | F-01 (P0) reserve balance writable | **Fixed** | AT after: HTTP 400, balance unchanged; BT `test_reserve_balance_cannot_be_set...` |
 | F-02 pending balances earn profit | **Fixed** (a signed daily close is still not required) | AT test_14 now asserts refusal; BT |
 | F-03 super admin sees figures | **Fixed** | BT `test_super_admin_audit_log_hides_the_figures` |
-| F-04 rule pack edited in place | **Fixed for control and audit**; version history and run-hash snapshot still open | BT; AT patch probe: no change persisted |
+| F-04 rule pack edited in place | **Fixed**: changes need approval, every content is kept as an immutable revision, runs seal the revision and a stale run is refused | BT `test_a_rule_pack_keeps_its_history...`; AT patch probe |
 | F-05 account dates rewritable | **Fixed** | BT |
 | F-06 distribution without Shariah stage | **Fixed** | BT `DistributionCeremonyTests` |
 | F-07 hard-coded "statutory" limits | **Fixed** (limits from the rule pack; defaults labelled unconfirmed; regulator citations removed). The values themselves need Risk & counsel | code + frontend |

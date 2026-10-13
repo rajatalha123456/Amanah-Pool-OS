@@ -62,6 +62,46 @@ def bound_rule_pack(pool):
     )
 
 
+def rule_pack_snapshot(pool):
+    """What a run seals about the rule pack that governed it: identity, revision, content hash and the rules themselves."""
+    from apps.products.models import RulePackRevision
+
+    pack = bound_rule_pack(pool)
+    if pack is None:
+        return None
+    revision = RulePackRevision.record(pack)
+    return {
+        "id": str(pack.id),
+        "code": pack.code,
+        "version": pack.version,
+        "revision": revision.revision,
+        "content_hash": revision.content_hash,
+        "rules_config": pack.rules_config or {},
+    }
+
+
+def assert_rule_pack_unchanged(run, pool):
+    """
+    A run was calculated under a specific rule pack content. If the pack changed since (an approved change in between),
+    the figures no longer reflect the rules in force: the run is refused and must be re-run. Runs created before the
+    snapshot existed carry none and are not checked.
+    """
+    from rest_framework.exceptions import ValidationError
+
+    from apps.products.models import RulePackRevision
+
+    sealed = (run.config_snapshot or {}).get("rule_pack")
+    if not sealed:
+        return
+    pack = bound_rule_pack(pool)
+    current = RulePackRevision.hash_of(RulePackRevision.content_of(pack)) if pack else None
+    if current != sealed.get("content_hash"):
+        raise ValidationError(
+            f"The jurisdiction rule pack changed after this run was calculated (it used revision {sealed.get('revision')} "
+            f"of {sealed.get('code')}). Reject the run and calculate it again under the rules now in force."
+        )
+
+
 def build_pool_snapshot(pool, *, change_rationale="", effective_value_date=None):
     contract = pool.product.contract_template
     decision = contract.shariah_decision

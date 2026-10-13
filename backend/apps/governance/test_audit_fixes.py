@@ -155,3 +155,54 @@ class AuditFixTests(APITestCase):
         ExceptionCase._base_manager.filter(pk=case.pk).update(pool=pool, status="open", severity="high")
         with self.assertRaisesMessage(ValidationError, "still open"):
             assert_no_open_serious_exception(pool, "an allocation run")
+
+    # F-04 (versioning) -----------------------------------------------------------------------------
+    def test_a_rule_pack_keeps_its_history_and_a_run_under_old_rules_is_refused(self):
+        from apps.allocation.models import AllocationRun
+        from apps.pools.config_snapshot import assert_rule_pack_unchanged, bound_rule_pack, rule_pack_snapshot
+        from apps.products.models import RulePackRevision
+        from rest_framework.exceptions import ValidationError
+
+        run = AllocationRun._base_manager.filter(tenant=self.tenant, pool__product__operating_model="bank_pool").first()
+        pool = run.pool
+        pack = bound_rule_pack(pool)
+        first = rule_pack_snapshot(pool)
+        self.assertEqual(first["content_hash"], RulePackRevision.record(pack).content_hash)
+        count = RulePackRevision._base_manager.filter(pack=pack).count()
+
+        # a run seals the pack it used
+        run.config_snapshot = {**(run.config_snapshot or {}), "rule_pack": first}
+        assert_rule_pack_unchanged(run, pool)  # unchanged: fine
+
+        # saving the same content again adds no revision
+        pack.save()
+        self.assertEqual(RulePackRevision._base_manager.filter(pack=pack).count(), count)
+
+        # a changed pack adds a revision and the sealed run is no longer valid
+        pack.rules_config = {**pack.rules_config, "wht_filer_pct": 11}
+        pack.save()
+        self.assertEqual(RulePackRevision._base_manager.filter(pack=pack).count(), count + 1)
+        with self.assertRaisesMessage(ValidationError, "rule pack changed"):
+            assert_rule_pack_unchanged(run, pool)
+
+        # history is immutable
+        old = RulePackRevision._base_manager.filter(pack=pack).order_by("revision").first()
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        with self.assertRaises(DjangoValidationError):
+            old.content = {}
+            old.save()
+        with self.assertRaises(DjangoValidationError):
+            old.delete()
+        old.refresh_from_db()
+        self.assertEqual(old.content["rules_config"]["wht_filer_pct"], first["rules_config"]["wht_filer_pct"])
+
+    def test_the_revision_history_is_readable_through_the_api(self):
+        from apps.products.models import JurisdictionRulePack
+
+        pack = JurisdictionRulePack._base_manager.filter(tenant=self.tenant).first()
+        pack.save()
+        r = self.call(self.user("auditor"), "get", f"/api/v1/products/jurisdiction-rule-packs/{pack.pk}/revisions/")
+        self.assertEqual(r.status_code, 200)
+        self.assertGreaterEqual(len(r.data), 1)
+        self.assertEqual(self.call(self.user("investor_member"), "get", f"/api/v1/products/jurisdiction-rule-packs/{pack.pk}/revisions/").status_code, 403)

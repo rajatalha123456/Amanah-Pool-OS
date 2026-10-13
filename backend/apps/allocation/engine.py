@@ -25,6 +25,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.db.models import Q
 
 from apps.participants.models import ParticipantAccount
+from apps.pools.config_snapshot import rule_pack_snapshot
 from apps.pools.models import DailyBalance, DailyBalanceStatus
 
 from .models import (
@@ -409,6 +410,7 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
             )
             for kind, policy in (("per", per_policy), ("irr", irr_policy))
         },
+        "rule_pack": rule_pack_snapshot(pool),
         "total_daily_funds": str(_round(total_daily_funds)),
         "contract_type": pool.product.contract_template.contract_type,
         "wakalah": (

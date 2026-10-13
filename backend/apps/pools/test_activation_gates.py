@@ -32,6 +32,16 @@ from apps.products.models import (
 from apps.tenants.models import Tenant
 
 
+
+def retire_rule_packs():
+    """A rule pack with a revision history cannot be deleted: deactivate it and free its code instead."""
+    for pack in JurisdictionRulePack.objects.all():
+        pack.is_active, pack.is_default = False, False
+        if len(pack.code) < 40:
+            pack.code += "-x"
+        pack.save()
+
+
 class ActivationBase(APITestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(name="Activation", code="ACTIV", data_residency="PK")
@@ -145,7 +155,7 @@ class ActivationGateTests(ActivationBase):
     def test_each_missing_piece_blocks_on_its_own(self):
         pieces = {
             "psr_approved": lambda: ProfitSharingRatio.objects.filter(pool=self.pool).delete(),
-            "rule_pack": lambda: JurisdictionRulePack.objects.all().delete(),
+            "rule_pack": lambda: retire_rule_packs(),
             "accounting_mapping": lambda: AccountMapping.objects.filter(account_key="rounding_account").delete(),
             "approval_matrix": lambda: ApprovalMatrixRule.objects.all().delete(),
             "contract_approved": lambda: ContractTemplate.objects.update(status=ContractTemplateStatus.DRAFT),
@@ -154,7 +164,7 @@ class ActivationGateTests(ActivationBase):
         for failing_key, break_it in pieces.items():
             ProfitSharingRatio.objects.all().delete()
             WeightageBand.objects.all().delete()
-            JurisdictionRulePack.objects.all().delete()
+            retire_rule_packs()  # a pack with history is never deleted
             AccountMapping.objects.all().delete()
             ApprovalMatrixRule.objects.all().delete()
             ContractTemplate.objects.update(status=ContractTemplateStatus.APPROVED)

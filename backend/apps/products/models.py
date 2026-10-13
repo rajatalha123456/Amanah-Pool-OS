@@ -164,8 +164,70 @@ class JurisdictionRulePack(TenantScopedModel):
         ]
         ordering = ["-effective_date"]
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        RulePackRevision.record(self)
+
     def __str__(self):
         return f"{self.name} v{self.version} ({self.code})"
+
+
+class RulePackRevision(TenantScopedModel):
+    """
+    One immutable row for every distinct content a rule pack has had (BRD 11: a signed run references immutable
+    rule-pack versions). A run seals the hash of the pack it used; this history lets anyone read what that content was.
+    """
+
+    pack = models.ForeignKey(JurisdictionRulePack, on_delete=models.PROTECT, related_name="revisions")
+    revision = models.PositiveIntegerField()
+    content_hash = models.CharField(max_length=64)
+    content = models.JSONField()
+
+    class Meta:
+        ordering = ["-revision"]
+        constraints = [models.UniqueConstraint(fields=["pack", "revision"], name="unique_rulepack_revision")]
+
+    @staticmethod
+    def content_of(pack):
+        effective = pack.effective_date
+        return {
+            "version": pack.version,
+            "effective_date": effective.isoformat() if hasattr(effective, "isoformat") else str(effective),
+            "is_active": bool(pack.is_active),
+            "is_default": bool(pack.is_default),
+            "rules_config": pack.rules_config or {},
+        }
+
+    @staticmethod
+    def hash_of(content):
+        import hashlib
+        import json
+
+        return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+    @classmethod
+    def record(cls, pack):
+        content = cls.content_of(pack)
+        digest = cls.hash_of(content)
+        last = cls._base_manager.filter(pack=pack).order_by("-revision").first()
+        if last is not None and last.content_hash == digest:
+            return last
+        return cls._base_manager.create(
+            tenant_id=pack.tenant_id, pack=pack, revision=(last.revision + 1) if last else 1,
+            content_hash=digest, content=content,
+        )
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError("A rule pack revision is a historical record and cannot be changed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+
+        raise ValidationError("A rule pack revision is a historical record and cannot be deleted.")
 
 
 class QuorumVoteDecision(models.TextChoices):

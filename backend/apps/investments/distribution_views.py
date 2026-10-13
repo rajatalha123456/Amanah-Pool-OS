@@ -14,6 +14,7 @@ from apps.accounts.approval_matrix import assert_may_approve
 from apps.accounts.workflow import validate_maker_checker
 from apps.core.audit import log_action
 from apps.notifications import events
+from apps.pools.config_snapshot import assert_rule_pack_unchanged
 from apps.pools.exception_gate import assert_no_open_serious_exception
 from apps.pools.period_lock import assert_period_open
 
@@ -211,6 +212,7 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
             validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
+        assert_rule_pack_unchanged(run, run.pool)
         if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
             raise ValidationError(
                 "Calculation hash mismatch: the run no longer matches the figures it was sealed with. "
@@ -270,6 +272,7 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
                 "Calculation hash mismatch: the run no longer matches the figures it was sealed with. "
                 "Reject it and re-run the distribution."
             )
+        assert_rule_pack_unchanged(run, run.pool)
         if not run.is_restatement:
             assert_period_open(run.pool, run.period_end, what="a profit distribution", start=run.period_start)
         case_ids = _verify_negligence_state(run)

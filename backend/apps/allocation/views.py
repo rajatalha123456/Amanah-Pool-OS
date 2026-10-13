@@ -25,6 +25,7 @@ from apps.accounting.models import IncomeExpenseEvent
 from apps.core.audit import log_action
 from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 from apps.notifications import events
+from apps.pools.config_snapshot import assert_rule_pack_unchanged
 from apps.pools.exception_gate import assert_no_open_serious_exception
 from apps.pools.period_lock import assert_period_open
 
@@ -521,6 +522,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
 
+        assert_rule_pack_unchanged(run, run.pool)
         # The checker verifies exactly what the maker sealed.
         if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
             raise ValidationError(
@@ -627,6 +629,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             raise ValidationError("The final release cannot be given by the user who did the independent check.")
 
         previous_status = run.status
+        assert_rule_pack_unchanged(run, run.pool)
 
         # The checker signs exactly what the maker calculated: re-derive the
         # hash from the stored inputs, rule versions, amounts and lines.

@@ -84,6 +84,7 @@ from apps.products.models import (
     ContractTemplate,
     JurisdictionRulePack,
     Product,
+    RulePackRevision,
     ShariahDecision,
     ShariahQuorumVote,
 )
@@ -795,13 +796,22 @@ def _build_shariah_audit_finding(tenant, cache):
 
 
 def _build_jurisdiction_rule_pack(tenant, cache):
-    return JurisdictionRulePack.objects.create(
-        tenant=tenant,
-        code=f"JRP-{tenant.code}",
-        name=f"Rule Pack {tenant.code}",
-        version="2026.01",
-        effective_date=_D,
+    return cache.get(
+        "rule_pack",
+        lambda: JurisdictionRulePack.objects.create(
+            tenant=tenant,
+            code=f"JRP-{tenant.code}",
+            name=f"Rule Pack {tenant.code}",
+            version="2026.01",
+            effective_date=_D,
+        ),
     )
+
+
+def _build_rule_pack_revision(tenant, cache):
+    # A revision is written by saving the pack; the builder returns the pack's first one.
+    pack = _build_jurisdiction_rule_pack(tenant, cache)
+    return RulePackRevision._base_manager.filter(pack=pack).order_by("revision").first()
 
 
 # "app_label.ModelName" -> (model_class, builder(tenant, cache) -> instance)
@@ -818,6 +828,7 @@ BUILDERS = {
     "products.ContractTemplate": (ContractTemplate, _build_contract_template),
     "products.Product": (Product, _build_product),
     "products.JurisdictionRulePack": (JurisdictionRulePack, _build_jurisdiction_rule_pack),
+    "products.RulePackRevision": (RulePackRevision, _build_rule_pack_revision),
     "pools.Pool": (Pool, _build_pool),
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),

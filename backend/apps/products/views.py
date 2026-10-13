@@ -375,6 +375,18 @@ class JurisdictionRulePackViewSet(viewsets.ModelViewSet):
         change = submit_change(kind=ConfigChangeKind.RULE_PACK, serializer=serializer, request=request, instance=instance)
         return Response(ConfigChangeRequestSerializer(change).data, status=202)
 
+    @action(detail=True, methods=["get"])
+    def revisions(self, request, pk=None):
+        """The pack's history: every distinct content it has had. Read-only."""
+        from .models import RulePackRevision
+
+        pack = self.get_object()
+        rows = RulePackRevision._base_manager.filter(pack=pack).order_by("-revision")
+        return Response([
+            {"revision": r.revision, "content_hash": r.content_hash, "content": r.content, "created_at": r.created_at}
+            for r in rows
+        ])
+
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         """Making a pack active / the tenant default changes what governs every pool: it is proposed, not applied."""
