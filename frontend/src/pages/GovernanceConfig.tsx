@@ -37,12 +37,23 @@ const APPROVER_ROLES = USER_ROLES.filter(
  * Both are required before a pool can be activated (BR-001); changes are audited and rules are
  * deactivated rather than deleted.
  */
+const KIND_LABEL: Record<string, string> = {
+  approval_matrix: "Approval matrix",
+  account_mapping: "Account mapping",
+  reserve_policy: "Reserve policy (PER / IRR)",
+  rule_pack: "Jurisdiction rule pack",
+}
+
+function show(value: unknown): string {
+  return value !== null && typeof value === "object" ? JSON.stringify(value) : String(value)
+}
+
 export function GovernanceConfig() {
   const { user } = useAuth()
   const role = user?.role ?? ""
   const canEditMatrix = role === "risk_compliance" || role === "platform_super_admin"
   const canEditMapping = role === "finance_maker" || role === "finance_checker" || role === "platform_super_admin"
-  const canDecide = role === "finance_checker" || role === "platform_super_admin"
+  const canDecide = role === "finance_checker" || role === "authorized_signatory"
 
   const [rules, setRules] = useState<ApprovalRule[]>([])
   const [actions, setActions] = useState<Array<{ key: string; label: string }>>([])
@@ -155,7 +166,7 @@ export function GovernanceConfig() {
 
       <Card title="Changes awaiting approval">
         <p className="mb-3 text-xs text-ink-secondary">
-          Matrix and mapping edits are proposals. A different finance checker must approve them before they take effect.
+          Matrix, mapping, reserve policy and rule pack edits are proposals. A different person (a finance checker; for a rule pack also the authorized signatory) must approve them before they take effect.
         </p>
         {changes.filter((c) => c.status === "pending").length === 0 ? (
           <p className="text-sm text-ink-secondary">Nothing pending.</p>
@@ -166,12 +177,12 @@ export function GovernanceConfig() {
               .map((c) => (
                 <div key={c.id} className="rounded-lg border border-white/8 bg-navy-900/50 p-3 text-xs">
                   <p className="font-semibold text-ink-primary">
-                    {c.kind === "approval_matrix" ? "Approval matrix" : "Account mapping"} · {c.operation} · by{" "}
+                    {KIND_LABEL[c.kind] ?? c.kind} · {c.operation} · by{" "}
                     {c.requested_by_name ?? "—"}
                   </p>
                   <p className="mt-1 font-mono text-[11px] text-ink-secondary">
                     {Object.entries(c.payload)
-                      .map(([k, v]) => `${k}: ${c.before[k] !== undefined ? `${c.before[k]} → ` : ""}${v}`)
+                      .map(([k, v]) => `${k}: ${c.before[k] !== undefined ? `${show(c.before[k])} → ` : ""}${show(v)}`)
                       .join(" · ")}
                   </p>
                   <p className="mt-1 text-ink-secondary">Reason: {c.reason}</p>

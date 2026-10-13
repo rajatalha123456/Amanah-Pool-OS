@@ -13,17 +13,16 @@ export async function fetchReservePolicyDetail(id: string): Promise<ReservePolic
   return response.data
 }
 
+/** A reserve change is only PROPOSED (HTTP 202); a different finance checker approves it in Governance Config. */
 export async function createReservePolicy(
-  data: Partial<ReservePolicy>,
-): Promise<ReservePolicy> {
-  const response = await apiClient.post<ReservePolicy>("allocation/reserve-policies/", data)
-  return response.data
+  data: Partial<ReservePolicy> & { change_reason: string },
+): Promise<void> {
+  await apiClient.post("allocation/reserve-policies/", data)
 }
 
 export async function updateReservePolicy(
   id: string,
-  data: Partial<ReservePolicy>,
-): Promise<ReservePolicy> {
-  const response = await apiClient.patch<ReservePolicy>(`allocation/reserve-policies/${id}/`, data)
-  return response.data
+  data: Partial<ReservePolicy> & { change_reason: string },
+): Promise<void> {
+  await apiClient.patch(`allocation/reserve-policies/${id}/`, data)
 }

@@ -33,10 +33,10 @@ export async function fetchApprovalActions(): Promise<Array<{ key: string; label
 
 export interface ConfigChange {
   id: string
-  kind: "approval_matrix" | "account_mapping"
+  kind: "approval_matrix" | "account_mapping" | "reserve_policy" | "rule_pack"
   operation: "create" | "update"
-  payload: Record<string, string | null>
-  before: Record<string, string | null>
+  payload: Record<string, unknown>
+  before: Record<string, unknown>
   reason: string
   status: "pending" | "approved" | "rejected"
   requested_by: string | number | null

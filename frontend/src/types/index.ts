@@ -845,7 +845,7 @@ export interface DistributionRun {
   rounding_residual: string
   total_average_units: string
   is_loss: boolean
-  status: "simulated" | "pending_approval" | "signed" | "rejected" | "reversed"
+  status: "simulated" | "pending_approval" | "checked" | "shariah_review" | "signed" | "rejected" | "reversed"
   calculation_hash: string
   replaces_run: string | null
   is_restatement: boolean
@@ -1573,11 +1573,12 @@ export interface ReservePolicy {
   pool_name?: string
   pool_code?: string
   reserve_type: 'per' | 'irr'
-  regulatory_ceiling_pct: string
-  board_approved_target_pct: string
+  /** % of profit (PER) or of the investors' share (IRR) appropriated each run */
+  rate_percentage: string
+  /** maximum reserve balance as a % of pool funds */
+  cap_percentage: string
+  /** system-controlled: moves only with signed runs */
   current_balance: string
-  effective_from: string
-  effective_to: string | null
   is_active: boolean
   created_at: string
   updated_at: string

@@ -7,6 +7,8 @@ import { useAuth } from "../../api/auth"
 import { extractErrorMessage } from "../../api/errors"
 import {
   approveDistributionRun,
+  checkDistributionRun,
+  shariahSignOffDistributionRun,
   createDistributionRun,
   fetchCapitalAccounts,
   fetchCapitalStatement,
@@ -28,6 +30,8 @@ import type {
 const STATUS_BADGE: Record<string, BadgeVariant> = {
   simulated: "neutral",
   pending_approval: "gold",
+  checked: "gold",
+  shariah_review: "gold",
   signed: "emerald",
   rejected: "neutral",
   reversed: "navy",
@@ -93,14 +97,18 @@ function InvestorStatements({ poolId }: { poolId: string }) {
 /**
  * Mudarabah profit distribution (BRD 6.4 / 7.1): the manager takes its approved PSR share of
  * profit, investors share the rest by time-weighted units, a loss falls on investors only.
- * Maker drafts, an independent checker approves; signed runs are corrected by restatement.
+ * Maker drafts; an independent finance checker checks; the Shariah Secretariat or Board reviews; the authorized
+ * signatory releases (three different people). Signed runs are corrected by restatement.
  */
 export function ProfitDistribution({ poolId }: { poolId: string }) {
   const { user } = useAuth()
   const role = user?.role ?? ""
   const canDraft = role === "pool_manager" || role === "finance_maker"
   const canSubmit = role === "finance_maker"
-  const canDecide = role === "finance_checker"
+  const canCheck = role === "finance_checker"
+  const canShariah = role === "shariah_secretariat" || role === "shariah_board"
+  const canRelease = role === "authorized_signatory"
+  const canReject = canCheck || canShariah || canRelease
 
   const [runs, setRuns] = useState<DistributionRun[]>([])
   const [loading, setLoading] = useState(true)
@@ -254,11 +262,31 @@ export function ProfitDistribution({ poolId }: { poolId: string }) {
                         Submit for checking
                       </Button>
                     )}
-                    {canDecide && run.status === "pending_approval" && (
+                    {canCheck && run.status === "pending_approval" && (
+                      <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => checkDistributionRun(run.id))}>
+                        Independent check
+                      </Button>
+                    )}
+                    {canShariah && run.status === "checked" && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={busy}
+                        onClick={() => {
+                          const note = window.prompt("Shariah review note (what was reviewed)") ?? ""
+                          void act(() => shariahSignOffDistributionRun(run.id, note))
+                        }}
+                      >
+                        Shariah review
+                      </Button>
+                    )}
+                    {canRelease && run.status === "shariah_review" && (
+                      <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => approveDistributionRun(run.id))}>
+                        Release
+                      </Button>
+                    )}
+                    {canReject && ["pending_approval", "checked", "shariah_review"].includes(run.status) && (
                       <>
-                        <Button size="sm" variant="primary" disabled={busy} onClick={() => void act(() => approveDistributionRun(run.id))}>
-                          Approve
-                        </Button>
                         <Button
                           size="sm"
                           variant="secondary"

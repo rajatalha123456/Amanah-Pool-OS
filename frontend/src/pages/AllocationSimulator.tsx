@@ -54,7 +54,7 @@ export function AllocationSimulator() {
       .then((data) => {
         setPools(data)
         if (data.length > 0) {
-          const generalPool = data.find(
+          const generalPool = data.find((p) => ["open", "allocation"].includes(p.status) && p.product_detail?.operating_model === "bank_pool") || data.find(
             (p) =>
               p.name.toLowerCase().includes("general") ||
               p.code.toLowerCase().includes("gen") ||
@@ -277,7 +277,28 @@ export function AllocationSimulator() {
             ) : pools.length === 0 ? (
               <p className="text-sm text-gold-400">No pools available. Create a pool first.</p>
             ) : (
-              <RoleGate roles={["pool_manager", "finance_maker"]} fallback={<p className="text-xs text-ink-secondary">Read-only for your role: runs are prepared by the Pool Manager or the Finance Maker.</p>}>
+              <RoleGate
+                roles={["pool_manager", "finance_maker"]}
+                fallback={
+                  <div className="space-y-3">
+                    <p className="text-xs text-ink-secondary">Read-only for your role: runs are prepared by the Pool Manager or the Finance Maker.</p>
+                    <label className="block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+                      Pool
+                      <select
+                        value={selectedPoolId}
+                        onChange={(e) => setSelectedPoolId(e.target.value)}
+                        className="mt-1.5 block w-full max-w-md rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm normal-case text-ink-primary focus:border-emerald-500 focus:outline-none"
+                      >
+                        {pools.map((pool) => (
+                          <option key={pool.id} value={pool.id}>
+                            {pool.code} — {pool.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                }
+              >
               <form onSubmit={handleSimulate} className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:items-end">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">

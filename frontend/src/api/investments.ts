@@ -154,6 +154,17 @@ export async function submitDistributionRun(id: string): Promise<DistributionRun
   return response.data
 }
 
+export async function checkDistributionRun(id: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/check/`)
+  return response.data
+}
+
+export async function shariahSignOffDistributionRun(id: string, note: string): Promise<DistributionRun> {
+  const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/shariah-sign-off/`, { note })
+  return response.data
+}
+
+/** Final release by the authorized signatory (after the independent check and the Shariah review). */
 export async function approveDistributionRun(id: string): Promise<DistributionRun> {
   const response = await apiClient.post<DistributionRun>(`investments/distribution-runs/${id}/approve/`)
   return response.data

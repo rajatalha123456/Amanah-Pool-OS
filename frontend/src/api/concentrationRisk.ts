@@ -62,6 +62,8 @@ export interface ConcentrationRiskAnalysis {
   groups: GroupRiskItem[]
   sectors: SectorRiskItem[]
   prudential_scorecard: PrudentialScorecardItem[]
+  limits_source?: string
+  limits_pct?: Record<string, number>
   breach_summary: {
     breaches_count: number
     early_warnings_count: number

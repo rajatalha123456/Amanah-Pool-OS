@@ -10,7 +10,6 @@ import { DonutChart, type DonutSlice } from "../components/charts/DonutChart"
 import { RiskGaugeChart, type RiskLimitGauge } from "../components/charts/RiskGaugeChart"
 import { fetchExceptions } from "../api/governance"
 import { fetchPools } from "../api/pools"
-import { fetchReservePolicies } from "../api/reservePolicies"
 import {
   fetchConcentrationRisk,
   submitRemediationPlan,
@@ -22,7 +21,7 @@ import {
   type RemediationSubmissionResult,
 } from "../api/concentrationRisk"
 import { extractErrorMessage } from "../api/errors"
-import type { Pool, ReservePolicy } from "../types"
+import type { Pool } from "../types"
 
 type RiskTab = "obligors" | "sectors" | "prudential" | "stress-test" | "exceptions"
 
@@ -47,7 +46,6 @@ export function RiskLimitDashboard() {
   // Governance & Exceptions State
   const [severityCounts, setSeverityCounts] = useState<SeverityCounts>({ low: 0, medium: 0, high: 0, critical: 0 })
   const [totalExceptions, setTotalExceptions] = useState(0)
-  const [reservePolicies, setReservePolicies] = useState<ReservePolicy[]>([])
 
   // Search & Filter in Obligors Table
   const [obligorSearch, setObligorSearch] = useState("")
@@ -56,7 +54,7 @@ export function RiskLimitDashboard() {
   // Remediation Modal State
   const [remediationTarget, setRemediationTarget] = useState<ObligorRiskItem | SectorRiskItem | null>(null)
   const [remediationType, setRemediationType] = useState<"obligor" | "sector">("obligor")
-  const [actionNote, setActionNote] = useState("Commit secondary market syndication & asset re-allocation to ensure compliance within 90 days.")
+  const [actionNote, setActionNote] = useState("")
   const [isSubmittingRemediation, setIsSubmittingRemediation] = useState(false)
   const [remediationResult, setRemediationResult] = useState<RemediationSubmissionResult | null>(null)
 
@@ -73,12 +71,10 @@ export function RiskLimitDashboard() {
     Promise.all([
       fetchPools().catch(() => [] as Pool[]),
       fetchExceptions({ status: "open" }).catch(() => []),
-      fetchReservePolicies().catch(() => [] as ReservePolicy[]),
       fetchConcentrationRisk(),
     ])
-      .then(([poolsData, openExceptions, policiesData, riskData]) => {
+      .then(([poolsData, openExceptions, riskData]) => {
         setPools(poolsData)
-        setReservePolicies(policiesData)
         setConcentrationData(riskData)
 
         const counts: SeverityCounts = { low: 0, medium: 0, high: 0, critical: 0 }
@@ -147,7 +143,7 @@ export function RiskLimitDashboard() {
         setRemediationResult(res)
       })
       .catch((err) => {
-        alert(extractErrorMessage(err, "Failed to submit SBP remediation plan."))
+        alert(extractErrorMessage(err, "Failed to record the remediation plan."))
       })
       .finally(() => {
         setIsSubmittingRemediation(false)
@@ -173,14 +169,12 @@ export function RiskLimitDashboard() {
     const maxSingleAsset = concentrationData?.obligors?.[0]?.total_exposure || 0
     const singleAssetConcentration = (maxSingleAsset / totalAssetValue) * 100
 
-    const totalReserveBalances = reservePolicies.reduce((sum, r) => sum + Number(r.current_balance || 0), 0)
-    const reserveCushionPct = (totalReserveBalances / totalAssetValue) * 100
 
     return [
       {
-        label: "SBP Single-Obligor Peak Exposure",
+        label: "Single-Obligor Peak Exposure",
         currentValue: Number(singleAssetConcentration.toFixed(1)),
-        thresholdValue: 15.0,
+        thresholdValue: concentrationData?.limits_pct?.single_obligor_private ?? 15.0,
         unit: "%",
         isLowerLimit: false,
       },
@@ -191,30 +185,12 @@ export function RiskLimitDashboard() {
             concentrationData?.sectors.find((s) => s.sector_name.toLowerCase().includes("real estate"))?.portfolio_pct || 0
           ).toFixed(1),
         ),
-        thresholdValue: 15.0,
+        thresholdValue: concentrationData?.limits_pct?.sector_real_estate ?? 15.0,
         unit: "%",
         isLowerLimit: false,
       },
-      {
-        label: "SBP Cash & Sovereign Buffer",
-        currentValue: Number(
-          (
-            concentrationData?.sectors.find((s) => s.sector_name.toLowerCase().includes("sovereign"))?.portfolio_pct || 0
-          ).toFixed(1),
-        ),
-        thresholdValue: 20.0,
-        unit: "%",
-        isLowerLimit: true,
-      },
-      {
-        label: "PER / IRR Reserve Cushion",
-        currentValue: Number(reserveCushionPct.toFixed(1)),
-        thresholdValue: 3.0,
-        unit: "%",
-        isLowerLimit: true,
-      },
     ]
-  }, [concentrationData, reservePolicies])
+  }, [concentrationData])
 
   // Exception Donut Slices
   const severitySlices: DonutSlice[] = useMemo(() => {
@@ -340,7 +316,7 @@ export function RiskLimitDashboard() {
     return (
       <div className="flex items-center justify-center py-24 text-ink-secondary gap-3">
         <Spinner className="h-6 w-6 text-emerald-400" />
-        <span className="text-sm">Calculating SBP Statutory Single-Obligor & Sector Concentration telemetry...</span>
+        <span className="text-sm">Calculating concentration against the configured limits...</span>
       </div>
     )
   }
@@ -353,8 +329,8 @@ export function RiskLimitDashboard() {
       {/* Page Header */}
       <PageHeader
         screenNumber="31"
-        title="SBP Statutory Risk Limit & Concentration Cockpit"
-        subtitle="SBP Prudential Regulations R-1 & R-6, Single Obligor caps, sector thresholds and automated breach remediation"
+        title="Risk Limit & Concentration"
+        subtitle="Exposure against the concentration limits configured in the jurisdiction rule pack, with a remediation worksheet for breaches"
         actions={
           <div className="flex items-center gap-3">
             <select
@@ -388,17 +364,17 @@ export function RiskLimitDashboard() {
         </div>
       )}
 
-      {/* SBP Regulatory Alert Banner if any breaches exist */}
+      {/* Alert banner if any configured limit is breached */}
       {breachesCount > 0 && (
         <div className="rounded-lg border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🚨</span>
             <div>
               <div className="font-bold text-red-300">
-                SBP PR Regulatory Limit Alert: {breachesCount} Statutory Breaches Detected
+                Concentration limit alert: {breachesCount} limit breach(es) detected
               </div>
               <div className="text-xs text-red-200/80 mt-0.5">
-                Certain obligor or sector exposures exceed SBP BPRD statutory limits (15% Single Obligor / 15% Real Estate). A formal remediation filing is required within 90 days.
+                Some obligor or sector exposures are above the limits configured for this pool. Record how each one will be brought back within its limit; Risk & Compliance decides whether any regulatory notification applies.
               </div>
             </div>
           </div>
@@ -437,9 +413,9 @@ export function RiskLimitDashboard() {
           deltaTone="neutral"
         />
         <StatCard
-          label="Active SBP Breaches"
+          label="Active limit breaches"
           value={String(breachesCount)}
-          delta={breachesCount > 0 ? "Requires ALCO filing" : "Fully Compliant"}
+          delta={breachesCount > 0 ? "Needs a decision" : "Fully Compliant"}
           deltaTone={breachesCount > 0 ? "negative" : "positive"}
         />
         <StatCard
@@ -482,7 +458,7 @@ export function RiskLimitDashboard() {
       {/* TAB 1: Single Obligors Table */}
       {activeTab === "obligors" && (
         <Card
-          title="Single Counterparty & Obligor Exposure Matrix (SBP Regulation R-1)"
+          title="Single Counterparty & Obligor Exposure Matrix"
           actions={
             <div className="flex items-center gap-3">
               <input
@@ -506,7 +482,7 @@ export function RiskLimitDashboard() {
           }
         >
           <div className="mb-4 text-xs text-ink-secondary">
-            Statutory Limit: Maximum 15% of Pool Assets to any single private sector corporate obligor; 20% to connected groups; 25% to Sovereign-guaranteed public entities. Exposures exceeding 80% trigger automated Early Warning Indicators (EWI).
+            Limits come from the rule pack ({concentrationData?.limits_source ?? "not loaded"}). Exposures exceeding 80% trigger automated Early Warning Indicators (EWI).
           </div>
           <Table<ObligorRiskItem> columns={obligorColumns} data={filteredObligors} keyField={(row) => row.obligor_name} />
         </Card>
@@ -559,7 +535,7 @@ export function RiskLimitDashboard() {
                           }}
                           className="ml-2 text-red-300 underline hover:text-red-200"
                         >
-                          File SBP Mitigation Plan &rarr;
+                          Record remediation plan &rarr;
                         </button>
                       </span>
                     ) : (
@@ -571,10 +547,10 @@ export function RiskLimitDashboard() {
             </div>
           </Card>
 
-          <Card title="Corporate Group Concentration (PR R-1)">
+          <Card title="Corporate Group Concentration">
             <div className="space-y-4 text-xs">
               <p className="text-ink-muted text-xs">
-                SBP PR Regulation R-1 caps total exposure to any connected corporate group or conglomerate at 20% of pool assets.
+                Exposure to one connected group, against the group limit configured for this pool.
               </p>
               {concentrationData?.groups.map((grp) => (
                 <div key={grp.group_name} className="p-3 rounded bg-white/5 border border-white/5 space-y-1">
@@ -600,16 +576,16 @@ export function RiskLimitDashboard() {
 
       {/* TAB 3: Prudential Scorecard */}
       {activeTab === "prudential" && (
-        <Card title="State Bank of Pakistan (SBP) Prudential Scorecard Matrix">
+        <Card title="Limit Scorecard">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-white/10 text-ink-muted uppercase tracking-wider text-[11px]">
-                  <th className="py-2.5 px-3">SBP Regulation Reference</th>
-                  <th className="py-2.5 px-3">Statutory Description</th>
-                  <th className="py-2.5 px-3">Regulatory Cap</th>
+                  <th className="py-2.5 px-3">Measure</th>
+                  <th className="py-2.5 px-3">Description</th>
+                  <th className="py-2.5 px-3">Configured limit</th>
                   <th className="py-2.5 px-3">Current Utilization</th>
-                  <th className="py-2.5 px-3">Compliance Verdict</th>
+                  <th className="py-2.5 px-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -675,7 +651,7 @@ export function RiskLimitDashboard() {
                 />
                 <div className="flex justify-between text-[10px] text-ink-muted mt-1">
                   <span>-5% Mild Runoff</span>
-                  <span>-20% SBP Baseline Stress</span>
+                  <span>-20% Moderate Stress</span>
                   <span>-40% Severe Liquidity Crisis</span>
                 </div>
               </div>
@@ -713,7 +689,7 @@ export function RiskLimitDashboard() {
                         <th className="py-2 px-3">Pre-Stress %</th>
                         <th className="py-2 px-3">Post-Stress %</th>
                         <th className="py-2 px-3">Variance</th>
-                        <th className="py-2 px-3">Statutory Cap</th>
+                        <th className="py-2 px-3">Configured limit</th>
                         <th className="py-2 px-3">Stressed Status</th>
                       </tr>
                     </thead>
@@ -757,7 +733,7 @@ export function RiskLimitDashboard() {
               <StatCard label="Low" value={String(severityCounts.low)} deltaTone="neutral" />
             </div>
             <p className="mt-4 text-xs text-ink-muted">
-              Regulatory cases classified under SBP BPRD guidelines. Critical concentration breaches automatically prevent end-of-period profit distribution until ALCO sign-off.
+              A high or critical exception that is still open stops the release of a profit run for the pool until it is decided.
             </p>
           </Card>
         </div>
@@ -766,7 +742,7 @@ export function RiskLimitDashboard() {
       {/* Risk Limit Gauges Bottom Row */}
       <RiskGaugeChart gauges={regulatoryGauges} title="Prudential Concentration & Exposure Safeguards" />
 
-      {/* SBP STATUTORY REMEDIATION WIZARD MODAL */}
+      {/* Remediation worksheet modal */}
       {remediationTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="w-full max-w-2xl bg-navy-900 border border-white/15 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -774,7 +750,7 @@ export function RiskLimitDashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">⚖️</span>
                 <h3 className="text-base font-bold text-ink-primary">
-                  SBP Statutory Concentration Breach Remediation
+                  Concentration Breach Remediation
                 </h3>
               </div>
               <button
@@ -792,7 +768,7 @@ export function RiskLimitDashboard() {
                   <div className="p-4 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-emerald-300">
                     <div className="font-bold text-sm">✅ Remediation Plan Registered Successfully!</div>
                     <div className="text-xs mt-1 text-emerald-200/80">
-                      Exception Case <span className="font-mono">{remediationResult.exception_case_id}</span> has been logged in the Governance Queue. ALCO statutory filing memo prepared.
+                      Exception Case <span className="font-mono">{remediationResult.exception_case_id}</span> has been logged in the Governance Queue. A remediation worksheet was prepared.
                     </div>
                   </div>
 
@@ -824,7 +800,7 @@ export function RiskLimitDashboard() {
 
                   <div>
                     <label className="block text-ink-secondary font-medium mb-1">
-                      SBP BPRD Mandatory Remediation Strategy & ALCO Action Note:
+                      Remediation decision (what, who, by when):
                     </label>
                     <textarea
                       rows={4}
@@ -834,12 +810,6 @@ export function RiskLimitDashboard() {
                     />
                   </div>
 
-                  <div className="p-3 bg-navy-950 rounded border border-white/5 space-y-1.5 text-ink-muted">
-                    <div className="font-semibold text-ink-secondary">Mandatory Mitigation Steps:</div>
-                    <div>1. Place excess PKR with consortium partner Islamic banks via secondary syndication.</div>
-                    <div>2. Rebalance asset assignments with Treasury liquid sovereign Sukuk.</div>
-                    <div>3. File Form BPRD-PR1 with State Bank of Pakistan within 7 business days.</div>
-                  </div>
 
                   <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
                     <Button variant="secondary" onClick={() => setRemediationTarget(null)} disabled={isSubmittingRemediation}>

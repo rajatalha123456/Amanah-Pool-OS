@@ -24,7 +24,7 @@ export const navItems: RoleNavItem[] = [
     also: ["/allocation-runs", "/allocation", "/allocation-simulator", "/hiba-simulator", "/mudarib-fee-optimization"],
     roles: [...OPERATIONS, ...GOVERNANCE, "authorized_signatory"],
   },
-  { label: "Investments", labelKey: "nav.investments", path: "/investments", roles: [...OPERATIONS, "shariah_board", "authorized_signatory"] },
+  { label: "Investments", labelKey: "nav.investments", path: "/investments", roles: [...OPERATIONS, "shariah_secretariat", "shariah_board", "authorized_signatory"] },
   {
     label: "Community Circles", labelKey: "nav.communityCircles", path: "/community-circles",
     also: ["/circles", "/draw-room", "/circle-draw", "/rotation-room", "/payout-ceremony", "/payout-release", "/ceremony", "/circle-payout"],

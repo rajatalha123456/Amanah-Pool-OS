@@ -39,6 +39,7 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   // New Rule Pack Modal
   const [showNewPackModal, setShowNewPackModal] = useState(false)
@@ -65,9 +66,10 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
   const [showPolicyModal, setShowPolicyModal] = useState(false)
   const [policyPool, setPolicyPool] = useState("")
   const [reserveType, setReserveType] = useState<"per" | "irr">("per")
-  const [regulatoryCeiling, setRegulatoryCeiling] = useState("2.00")
-  const [boardTarget, setBoardTarget] = useState("1.50")
-  const [policyEffectiveFrom, setPolicyEffectiveFrom] = useState("2026-01-01")
+  const [policyRate, setPolicyRate] = useState("2.00")
+  const [policyCap, setPolicyCap] = useState("5.00")
+  const [policyReason, setPolicyReason] = useState("")
+  const [packReason, setPackReason] = useState("")
 
   const loadData = async () => {
     setLoading(true)
@@ -98,9 +100,12 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
   }, [])
 
   const handleActivatePack = async (packId: string, setAsDefault: boolean) => {
+    const reason = window.prompt("Reason for this change (needed for the approval)")
+    if (!reason) return
     setActionLoading(true)
     try {
-      await activateJurisdictionRulePack(packId, setAsDefault)
+      await activateJurisdictionRulePack(packId, setAsDefault, reason)
+      setNotice("Activation proposed. A different finance checker or the authorized signatory approves it in Governance Config.")
       await loadData()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -130,7 +135,9 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
         description: packDescription,
         rules_config: config,
         is_active: true,
+        change_reason: packReason,
       })
+      setNotice("Rule pack proposed. It takes effect only after a different finance checker or the authorized signatory approves it in Governance Config.")
       setShowNewPackModal(false)
       setPackCode("")
       setPackName("")
@@ -150,10 +157,12 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
       await createReservePolicy({
         pool: policyPool,
         reserve_type: reserveType,
-        regulatory_ceiling_pct: regulatoryCeiling,
-        board_approved_target_pct: boardTarget,
-        effective_from: policyEffectiveFrom,
+        rate_percentage: policyRate,
+        cap_percentage: policyCap,
+        is_active: true,
+        change_reason: policyReason,
       })
+      setNotice("Reserve policy proposed. A different finance checker approves it in Governance Config; the balance only moves with signed runs.")
       setShowPolicyModal(false)
       await loadData()
     } catch (err) {
@@ -168,8 +177,8 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
       header: "Pool",
       accessor: (p) => (
         <div>
-          <p className="font-semibold text-sm text-ink-primary">{p.pool_name || p.pool}</p>
-          <span className="text-xs text-ink-secondary">{p.pool_code}</span>
+          <p className="font-semibold text-sm text-ink-primary">{pools.find((x) => x.id === p.pool)?.name || p.pool}</p>
+          <span className="text-xs text-ink-secondary">{pools.find((x) => x.id === p.pool)?.code}</span>
         </div>
       ),
     },
@@ -182,20 +191,16 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
       ),
     },
     {
-      header: "Regulatory Ceiling",
-      accessor: (p) => `${p.regulatory_ceiling_pct}% max`,
+      header: "Rate",
+      accessor: (p) => `${p.rate_percentage}% per run`,
     },
     {
-      header: "Board Target",
-      accessor: (p) => `${p.board_approved_target_pct}%`,
+      header: "Balance cap",
+      accessor: (p) => `${p.cap_percentage}% of pool funds`,
     },
     {
       header: "Current Balance",
       accessor: (p) => `PKR ${Number(p.current_balance).toLocaleString()}`,
-    },
-    {
-      header: "Effective From",
-      accessor: (p) => p.effective_from,
     },
     {
       header: "Status",
@@ -231,6 +236,9 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
         />
       )}
 
+      {notice && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 text-sm text-emerald-300">{notice}</div>
+      )}
       {error && (
         <div className="rounded border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
           {error}
@@ -458,12 +466,23 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold uppercase text-ink-muted">Reason for the change *</label>
+              <input
+                type="text"
+                value={packReason}
+                onChange={(e) => setPackReason(e.target.value)}
+                required
+                className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary"
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-3">
               <Button type="button" variant="secondary" onClick={() => setShowNewPackModal(false)}>
                 Cancel
               </Button>
               <Button type="submit" variant="primary" disabled={actionLoading}>
-                {actionLoading ? <Spinner className="h-4 w-4" /> : "Save Rule Pack"}
+                {actionLoading ? <Spinner className="h-4 w-4" /> : "Propose rule pack"}
               </Button>
             </div>
           </form>
@@ -508,23 +527,23 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase text-ink-muted">Regulatory Ceiling % *</label>
+                <label className="block text-xs font-semibold uppercase text-ink-muted">Rate % per run *</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={regulatoryCeiling}
-                  onChange={(e) => setRegulatoryCeiling(e.target.value)}
+                  value={policyRate}
+                  onChange={(e) => setPolicyRate(e.target.value)}
                   required
                   className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase text-ink-muted">Board Approved Target % *</label>
+                <label className="block text-xs font-semibold uppercase text-ink-muted">Balance cap % of pool funds *</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={boardTarget}
-                  onChange={(e) => setBoardTarget(e.target.value)}
+                  value={policyCap}
+                  onChange={(e) => setPolicyCap(e.target.value)}
                   required
                   className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary"
                 />
@@ -532,11 +551,11 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-ink-muted">Effective From *</label>
+              <label className="block text-xs font-semibold uppercase text-ink-muted">Reason for the change *</label>
               <input
-                type="date"
-                value={policyEffectiveFrom}
-                onChange={(e) => setPolicyEffectiveFrom(e.target.value)}
+                type="text"
+                value={policyReason}
+                onChange={(e) => setPolicyReason(e.target.value)}
                 required
                 className="mt-1 w-full rounded border border-navy-700 bg-navy-900 px-3 py-2 text-sm text-ink-primary"
               />
@@ -547,7 +566,7 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
                 Cancel
               </Button>
               <Button type="submit" variant="primary" disabled={actionLoading}>
-                {actionLoading ? <Spinner className="h-4 w-4" /> : "Save Policy"}
+                {actionLoading ? <Spinner className="h-4 w-4" /> : "Propose policy"}
               </Button>
             </div>
           </form>
