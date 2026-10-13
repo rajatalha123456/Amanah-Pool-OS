@@ -464,3 +464,14 @@ Pool identity and participation terms, ruling scope and supersession, related-pa
 - Decisions that were waiting on the owner were taken and recorded in `docs/DECISIONS.md`, with the people who must still confirm the tax, Zakat, retention and ceiling values.
 - **Performance defect found by benchmark and fixed**: the allocation engine built an account and participant object for every balance row (3x model instances); loading accounts once and reading balances as tuples made it about 4x faster and cut peak memory from 57 MB to 9 MB, with identical results. New command `benchmark_allocation`.
 - Dependency vulnerabilities (PyJWT, requests, source-map-js) removed. Backup and restore-check scripts, a readiness endpoint, three draft retention policies, and a role-by-role user acceptance checklist (`docs/UAT_CHECKLIST.md`) added.
+
+### 2026-10-13 (independent BRD audit and fixes)
+A full audit is in `audit_reports/` (start with `MASTER_AUDIT_REPORT.md`). It found one P0 and eleven P1 findings. Fixed in this round (each has a regression test; 454 backend tests and 42 audit tests pass):
+- **F-01 (P0)** reserve balance writable by one person -> read-only; reserve policy changes are proposals approved by a different finance checker.
+- **F-04** rule pack edited in place -> proposals approved by a finance checker or the authorized signatory (versioning still open).
+- **F-02** unvalidated balances earned profit -> only validated balances; a run refuses while any are pending.
+- **F-03** super admin saw financial figures in the audit log -> withheld. **F-05** account dates rewritable -> locked after creation.
+- **F-06** investment distributions had no Shariah stage -> same 4-stage ceremony as bank pools. **F-08** no row lock on release -> added. **F-09** the Shariah requirement is now fixed on each run. **F-11** an open serious exception now blocks release.
+- **F-07** hard-coded "SBP statutory" limits and invented filing text -> limits from the rule pack, regulator citations removed.
+- Also: negative weightages refused (DB constraint too), Django admin off outside DEBUG, allocation page pool selector for read-only roles, the reserve-policy screen aligned with the API fields it was already using wrongly.
+Still open: signed daily close required before a run, rule pack version history and run-hash snapshot, GL export status, suspense accounting, pagination, integrations and the human gates. See `audit_reports/IMPLEMENTATION_ROADMAP.md`.

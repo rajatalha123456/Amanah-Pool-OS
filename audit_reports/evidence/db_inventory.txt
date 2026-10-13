@@ -1,0 +1,19 @@
+models: 70; TenantScopedModel: 63; with a tenant FK but not scoped: ['ApprovalMatrixRule', 'AuditLog', 'LegalEntity', 'User']
+unique/check constraints: 28; explicit indexes: 2
+check constraints: ['Contribution.contribution_amount_positive']
+float or low-precision numeric fields: []
+CASCADE DailyBalance.pool -> Pool
+CASCADE AllocationRun.pool -> Pool
+CASCADE AllocationLine.allocation_run -> AllocationRun
+CASCADE DepositorStatement.allocation_run -> AllocationRun
+CASCADE JournalBatch.pool -> Pool
+CASCADE IncomeExpenseEvent.pool -> Pool
+CASCADE ExceptionCase.pool -> Pool
+CASCADE PurificationEntry.pool -> Pool
+CASCADE CapitalAccount.pool -> Pool
+CASCADE Subscription.capital_account -> CapitalAccount
+CASCADE Redemption.capital_account -> CapitalAccount
+CASCADE InvestmentDistributionRun.pool -> Pool
+CASCADE Contribution.member -> CircleMember
+CASCADE Payout.member -> CircleMember
+CASCADE Payout.pool -> Pool

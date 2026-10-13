@@ -1,0 +1,170 @@
+Creating test database for alias 'default' ('test_amanah_pool_os')...
+Found 3 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: corsheaders, messages, rest_framework, rest_framework_simplejwt, staticfiles
+  Apply all migrations: accounting, accounts, admin, ai_agents, allocation, auth, circles, contenttypes, core, governance, investments, notifications, participants, pools, products, sessions, tenants, token_blacklist
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying tenants.0001_initial... OK
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0001_initial... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying accounts.0001_initial... OK
+  Applying products.0001_initial... OK
+  Applying pools.0001_initial... OK
+  Applying pools.0002_asset_assetassignment_and_more... OK
+  Applying pools.0003_balanceimportbatch_dailybalance... OK
+  Applying pools.0004_pool_pending_approval... OK
+  Applying pools.0005_periodclosechecklist... OK
+  Applying participants.0001_initial... OK
+  Applying pools.0006_dailybalance_account_and_more... OK
+  Applying allocation.0001_initial... OK
+  Applying allocation.0002_allocationrun_allocationline... OK
+  Applying allocation.0003_allocationrun_checked_at_allocationrun_checked_by_and_more... OK
+  Applying allocation.0004_depositorstatement... OK
+  Applying allocation.0005_allocationrun_shariah_review_note_and_more... OK
+  Applying allocation.0006_allocationrun_is_restatement_and_more... OK
+  Applying allocation.0007_allocationrun_config_snapshot_and_more... OK
+  Applying allocation.0008_allocationline_account_allocationrun_period_start_and_more... OK
+  Applying allocation.0009_payoutbatchrecord... OK
+  Applying investments.0001_initial... OK
+  Applying investments.0002_navsnapshot... OK
+  Applying investments.0003_investorprofile... OK
+  Applying investments.0004_impairmentevent... OK
+  Applying investments.0005_capitalaccount_participant_investmentdistributionrun_and_more... OK
+  Applying accounting.0001_initial... OK
+  Applying accounting.0002_incomeexpenseevent... OK
+  Applying accounting.0003_reconciliationbatch_reconciliationitem... OK
+  Applying accounting.0004_alter_journalbatch_allocation_run... OK
+  Applying accounting.0005_incomeexpenseevent_bank_absorbed_amount_and_more... OK
+  Applying accounting.0006_journalbatch_reverses_batch_and_more... OK
+  Applying accounting.0007_journalbatch_investment_run... OK
+  Applying accounting.0008_incomeexpenseevent_allocation_run... OK
+  Applying accounting.0009_journalentry_account_key_journalentry_gl_code_and_more... OK
+  Applying accounts.0002_user_preferred_language... OK
+  Applying accounts.0003_alter_user_role... OK
+  Applying accounts.0004_approvalmatrixrule... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying ai_agents.0001_initial... OK
+  Applying ai_agents.0002_seed_ai_model_registry... OK
+  Applying ai_agents.0003_ai_recommendation... OK
+  Applying allocation.0010_allocationrun_released_at_allocationrun_released_by_and_more... OK
+  Applying allocation.0011_profitsharingratio_wakalah_fee_pct... OK
+  Applying products.0002_shariahdecision_approved_at_and_more... OK
+  Applying products.0003_jurisdictionrulepack... OK
+  Applying products.0004_shariahquorumvote... OK
+  Applying pools.0007_pool_rule_pack... OK
+  Applying pools.0008_asset_eligibility... OK
+  Applying pools.0009_asset_provisions... OK
+  Applying circles.0001_initial... OK
+  Applying circles.0002_arrearsrecord... OK
+  Applying circles.0003_circleproposal_circlevote... OK
+  Applying circles.0004_payout_biometric_auth_ref_payout_ceremony_hash_and_more... OK
+  Applying circles.0005_circlemember_bank_name_circlemember_iban_and_more... OK
+  Applying circles.0006_circlemember_email... OK
+  Applying circles.0007_rules_draws_closure... OK
+  Applying circles.0008_vote_evidence... OK
+  Applying circles.0009_contribution_integrity... OK
+  Applying circles.0010_circlemember_user... OK
+  Applying circles.0011_rules_first_due_date... OK
+  Applying core.0001_initial... OK
+  Applying core.0002_auditlog... OK
+  Applying core.0003_auditlog_entry_hash_auditlog_prev_hash_and_more... OK
+  Applying governance.0001_initial... OK
+  Applying governance.0002_purificationentry... OK
+  Applying governance.0003_alter_exceptioncase_source_module... OK
+  Applying governance.0004_relatedpartytransaction... OK
+  Applying governance.0005_exceptioncase_investigation_notes_and_more... OK
+  Applying governance.0006_supportrequest... OK
+  Applying governance.0007_shariahauditplan_shariahauditfinding... OK
+  Applying governance.0008_purificationentry_income_event... OK
+  Applying governance.0009_config_change_request... OK
+  Applying governance.0010_retention_policy... OK
+  Applying governance.0011_support_request_raised_by... OK
+  Applying governance.0012_shariah_register_and_rpt... OK
+  Applying investments.0006_capitalaccount_is_managing_partner_negligencecase... OK
+  Applying investments.0007_redemption_workflow... OK
+  Applying investments.0008_disclosures... OK
+  Applying investments.0009_disclosure_review... OK
+  Applying investments.0010_participation_and_identity... OK
+  Applying notifications.0001_initial... OK
+  Applying participants.0002_participant_email... OK
+  Applying participants.0003_consent... OK
+  Applying tenants.0002_demo_request... OK
+  Applying pools.0010_pool_freeze... OK
+  Applying pools.0011_daily_close... OK
+  Applying pools.0012_participation_and_identity... OK
+  Applying products.0005_asset_eligibility... OK
+  Applying products.0006_redemption_workflow... OK
+  Applying products.0007_participation_and_identity... OK
+  Applying products.0008_shariah_register_and_rpt... OK
+  Applying sessions.0001_initial... OK
+  Applying token_blacklist.0001_initial... OK
+  Applying token_blacklist.0002_outstandingtoken_jti_hex... OK
+  Applying token_blacklist.0003_auto_20171017_2007... OK
+  Applying token_blacklist.0004_auto_20171017_2013... OK
+  Applying token_blacklist.0005_remove_outstandingtoken_jti... OK
+  Applying token_blacklist.0006_auto_20171017_2113... OK
+  Applying token_blacklist.0007_auto_20171017_2214... OK
+  Applying token_blacklist.0008_migrate_to_bigautofield... OK
+  Applying token_blacklist.0010_fix_migrate_to_bigautofield... OK
+  Applying token_blacklist.0011_linearizes_history... OK
+  Applying token_blacklist.0012_alter_outstandingtoken_user... OK
+  Applying token_blacklist.0013_alter_blacklistedtoken_options_and_more...test_approved_psr_cannot_be_edited_through_django_admin (audit_tests.test_audit_integrity.AdminBypassTests.test_approved_psr_cannot_be_edited_through_django_admin) ... FAIL
+test_reserve_policy_change_needs_an_independent_approval (audit_tests.test_audit_integrity.AdminBypassTests.test_reserve_policy_change_needs_an_independent_approval)
+BRD 5 (Reserves: approval, release, disclosure) and BR-003: one person must not change reserve economics. ... FAIL
+test_signed_run_cannot_be_hard_deleted_through_django_admin (audit_tests.test_audit_integrity.AdminBypassTests.test_signed_run_cannot_be_hard_deleted_through_django_admin) ... ok
+
+======================================================================
+FAIL: test_approved_psr_cannot_be_edited_through_django_admin (audit_tests.test_audit_integrity.AdminBypassTests.test_approved_psr_cannot_be_edited_through_django_admin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\audit_reports\audit_tests\test_audit_integrity.py", line 89, in test_approved_psr_cannot_be_edited_through_django_admin
+    self.assertFalse(editable, "an approved PSR is editable in the Django admin")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : an approved PSR is editable in the Django admin
+
+======================================================================
+FAIL: test_reserve_policy_change_needs_an_independent_approval (audit_tests.test_audit_integrity.AdminBypassTests.test_reserve_policy_change_needs_an_independent_approval)
+BRD 5 (Reserves: approval, release, disclosure) and BR-003: one person must not change reserve economics.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\audit_reports\audit_tests\test_audit_integrity.py", line 75, in test_reserve_policy_change_needs_an_independent_approval
+    self.assertEqual(before, after, f"reserve policy changed immediately by one person: {before} -> {after}")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (Decimal('1.50'), Decimal('5.00'), Decimal('871335.74')) != (Decimal('4.00'), Decimal('5.00'), Decimal('1.00'))
+
+First differing element 0:
+Decimal('1.50')
+Decimal('4.00')
+
+- (Decimal('1.50'), Decimal('5.00'), Decimal('871335.74'))
+?           ^ ^                               -- --- ^^
+
++ (Decimal('4.00'), Decimal('5.00'), Decimal('1.00'))
+?           ^ ^                                 ^^
+ : reserve policy changed immediately by one person: (Decimal('1.50'), Decimal('5.00'), Decimal('871335.74')) -> (Decimal('4.00'), Decimal('5.00'), Decimal('1.00'))
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.028s
+
+FAILED (failures=2)
+Destroying test database for alias 'default' ('test_amanah_pool_os')...
+ OK
+System check identified no issues (0 silenced).
+EXIT 1

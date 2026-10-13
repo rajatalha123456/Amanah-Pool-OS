@@ -1,0 +1,1 @@
+pool_manager PATCH rate 4.00, current_balance 1.00 -> HTTP 400; before (Decimal('1.00'), Decimal('2.00'), Decimal('1270525.00')); after (Decimal('1.00'), Decimal('2.00'), Decimal('1270525.00'))

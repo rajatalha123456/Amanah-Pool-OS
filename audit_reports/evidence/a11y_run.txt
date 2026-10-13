@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 e2e\zz_audit_a11y_probe.spec.ts:8:1 › accessibility probe (pool manager) (31.7s)
+
+  1 passed (32.9s)

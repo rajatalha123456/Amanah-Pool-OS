@@ -1,0 +1,3 @@
+seeded super admin is_staff=False is_superuser=False
+used a Django superuser (created for the test) because the seeded admin is not staff
+POST delete_selected -> 404; run still exists: True; lines 12 -> 12

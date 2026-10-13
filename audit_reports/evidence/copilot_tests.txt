@@ -1,0 +1,5 @@
+ok      test_fallback.py::test_no_evidence_returns_fixed_fallback
+ok      test_tenant_isolation.py::test_candidate_documents_are_scoped_to_tenant
+
+2 passed, 0 failed
+EXIT 0

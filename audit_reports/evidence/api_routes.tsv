@@ -1,0 +1,302 @@
+route	methods	view	permission_classes
+api/v1/		APIRootView	IsAuthenticated
+api/v1/accounting/		APIRootView	IsAuthenticated
+api/v1/accounting/account-mappings/	GET,POST	AccountMappingViewSet	IsAuthenticated
+api/v1/accounting/account-mappings/(?P<pk>[/.]+)/	GET,PUT,PATCH	AccountMappingViewSet	IsAuthenticated
+api/v1/accounting/account-mappings/catalog/	GET	AccountMappingViewSet	IsAuthenticated
+api/v1/accounting/approval-matrix/	GET,POST	ApprovalMatrixViewSet	IsAuthenticated
+api/v1/accounting/approval-matrix/(?P<pk>[/.]+)/	GET,PUT,PATCH	ApprovalMatrixViewSet	IsAuthenticated
+api/v1/accounting/approval-matrix/actions/	GET	ApprovalMatrixViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/	GET,POST	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/(?P<pk>[/.]+)/post/	POST	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/(?P<pk>[/.]+)/quarantine-to-charity/	POST	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/(?P<pk>[/.]+)/reclassify/	POST	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/pool-summary/	GET	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/income-expense-events/scan-overhead-leakage/	POST	IncomeExpenseEventViewSet	IsAuthenticated
+api/v1/accounting/journal-batches/	GET	JournalBatchViewSet	IsAuthenticated
+api/v1/accounting/journal-batches/(?P<pk>[/.]+)/	GET	JournalBatchViewSet	IsAuthenticated
+api/v1/accounting/journal-batches/gl-export/		gl_export	IsAuthenticated,_HasAnyRole
+api/v1/accounting/reconciliation-batches/	GET,POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliation-batches/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliation-batches/(?P<pk>[/.]+)/auto-match/	POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliation-batches/(?P<pk>[/.]+)/clear-variance/	POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliations/	GET,POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliations/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliations/(?P<pk>[/.]+)/auto-match/	POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/accounting/reconciliations/(?P<pk>[/.]+)/clear-variance/	POST	ReconciliationBatchViewSet	IsAuthenticated
+api/v1/ai/		APIRootView	IsAuthenticated
+api/v1/ai/audit-sampling/analyze/		run_audit_sampling	IsAuthenticated,_HasAnyRole
+api/v1/ai/circles/<uuid:pool_id>/predict-hardship/		predict_circle_hardship	IsAuthenticated,_HasAnyRole
+api/v1/ai/contract-analyzer/analyze/		analyze_contract	IsAuthenticated,_HasAnyRole
+api/v1/ai/fraud-collusion/detect/		detect_collusion_network	IsAuthenticated,_HasAnyRole
+api/v1/ai/models/	GET	AIModelRegistryViewSet	IsAuthenticated
+api/v1/ai/models/(?P<pk>[/.]+)/	GET,PUT,PATCH	AIModelRegistryViewSet	IsAuthenticated
+api/v1/ai/recommendations/	GET	AIRecommendationViewSet	IsAuthenticated
+api/v1/ai/recommendations/(?P<pk>[/.]+)/	GET	AIRecommendationViewSet	IsAuthenticated
+api/v1/ai/recommendations/(?P<pk>[/.]+)/dispose/	POST	AIRecommendationViewSet	IsAuthenticated
+api/v1/ai/recommendations/metrics/	GET	AIRecommendationViewSet	IsAuthenticated
+api/v1/ai/shariah-copilot/ask/		ask	IsAuthenticated,_HasAnyRole
+api/v1/ai/shariah-copilot/documents/		list_documents	IsAuthenticated,_HasAnyRole
+api/v1/ai/shariah-copilot/documents/upload/		upload_document	IsAuthenticated,_HasAnyRole
+api/v1/ai/shariah-copilot/review/<str:evidence_pack_id>/		review	IsAuthenticated,IsShariahBoard
+api/v1/allocation/		APIRootView	IsAuthenticated
+api/v1/allocation/allocation-runs/	GET,POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/	GET	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/apply-hiba/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/approve/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/check/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/generate-statements/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/reject/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/restate/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/shariah-sign-off/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/simulate-hiba/	POST,GET	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/statements/	GET	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/(?P<pk>[/.]+)/submit-for-checking/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/my-statements/	GET	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/allocation-runs/simulate/	POST	AllocationRunViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/	GET	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/authorize/	POST	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/batch-detail/	GET	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/dispatch-simulate/	POST	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/download-iso-pacs008/	GET	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/post-contra-gl/	POST	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/payout-clearing/verify-gates/	POST	PayoutClearingViewSet	IsAuthenticated
+api/v1/allocation/psr-schedules/	GET,POST	PSRViewSet	IsAuthenticated
+api/v1/allocation/psr-schedules/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	PSRViewSet	IsAuthenticated
+api/v1/allocation/psr-schedules/(?P<pk>[/.]+)/approve/	POST	PSRViewSet	IsAuthenticated
+api/v1/allocation/reserve-policies/	GET,POST	ReservePolicyViewSet	IsAuthenticated
+api/v1/allocation/reserve-policies/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ReservePolicyViewSet	IsAuthenticated
+api/v1/allocation/weightage-bands/	GET,POST	WeightageBandViewSet	IsAuthenticated
+api/v1/allocation/weightage-bands/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	WeightageBandViewSet	IsAuthenticated
+api/v1/allocation/weightage-bands/(?P<pk>[/.]+)/approve/	POST	WeightageBandViewSet	IsAuthenticated
+api/v1/auth/		APIRootView	IsAuthenticated
+api/v1/auth/login/		LoginView	AllowAny
+api/v1/auth/logout/		TokenBlacklistView	
+api/v1/auth/me/		MeView	IsAuthenticated
+api/v1/auth/mfa/setup/		MfaSetupView	AllowAny
+api/v1/auth/mfa/verify/		MfaVerifyView	AllowAny
+api/v1/auth/refresh/		TokenRefreshView	
+api/v1/auth/users/	GET,POST	UserManagementViewSet	IsAuthenticated
+api/v1/auth/users/(?P<pk>[/.]+)/	GET,PUT,PATCH	UserManagementViewSet	IsAuthenticated
+api/v1/banking/settle/		process_banking_settlement	IsAuthenticated,_HasAnyRole
+api/v1/circles/		APIRootView	IsAuthenticated
+api/v1/circles/arrears-records/	GET	ArrearsRecordViewSet	IsAuthenticated
+api/v1/circles/arrears-records/(?P<pk>[/.]+)/	GET	ArrearsRecordViewSet	IsAuthenticated
+api/v1/circles/arrears-records/(?P<pk>[/.]+)/grant-hardship/	POST	ArrearsRecordViewSet	IsAuthenticated
+api/v1/circles/circle-members/	GET,POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/(?P<pk>[/.]+)/	GET,PUT,PATCH	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/(?P<pk>[/.]+)/flag-arrears/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/(?P<pk>[/.]+)/link-login/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/(?P<pk>[/.]+)/record-contribution/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/(?P<pk>[/.]+)/verify-kyc/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/accept-rules/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/cast-vote/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/draw-room-status/(?P<pool_id>[/.]+)/	GET	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/execute-provably-fair-draw/(?P<pool_id>[/.]+)/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/my-circles/	GET	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/my-proposals/	GET	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/run-draw/(?P<pool_id>[/.]+)/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-members/swap-turns/(?P<pool_id>[/.]+)/	POST	CircleMemberViewSet	IsAuthenticated
+api/v1/circles/circle-proposals/	GET,POST	CircleProposalViewSet	IsAuthenticated
+api/v1/circles/circle-proposals/(?P<pk>[/.]+)/	GET	CircleProposalViewSet	IsAuthenticated
+api/v1/circles/circle-proposals/(?P<pk>[/.]+)/close/	POST	CircleProposalViewSet	IsAuthenticated
+api/v1/circles/circle-proposals/(?P<pk>[/.]+)/vote/	POST	CircleProposalViewSet	IsAuthenticated
+api/v1/circles/closures/	GET	CircleClosureViewSet	IsAuthenticated
+api/v1/circles/closures/(?P<pk>[/.]+)/	GET	CircleClosureViewSet	IsAuthenticated
+api/v1/circles/closures/close/	POST	CircleClosureViewSet	IsAuthenticated
+api/v1/circles/closures/prepare/	POST	CircleClosureViewSet	IsAuthenticated
+api/v1/circles/closures/preview/	GET	CircleClosureViewSet	IsAuthenticated
+api/v1/circles/contributions/	GET	ContributionViewSet	IsAuthenticated
+api/v1/circles/contributions/(?P<pk>[/.]+)/	GET	ContributionViewSet	IsAuthenticated
+api/v1/circles/draws/	GET	CircleDrawViewSet	IsAuthenticated
+api/v1/circles/draws/(?P<pk>[/.]+)/	GET	CircleDrawViewSet	IsAuthenticated
+api/v1/circles/draws/(?P<pk>[/.]+)/execute/	POST	CircleDrawViewSet	IsAuthenticated
+api/v1/circles/draws/(?P<pk>[/.]+)/verify/	GET	CircleDrawViewSet	IsAuthenticated
+api/v1/circles/draws/commit/	POST	CircleDrawViewSet	IsAuthenticated
+api/v1/circles/payouts/	GET	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/(?P<pk>[/.]+)/	GET	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/(?P<pk>[/.]+)/approve/	POST	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/(?P<pk>[/.]+)/receipt/	GET	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/(?P<pk>[/.]+)/reject/	POST	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/(?P<pk>[/.]+)/settle/	POST	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/ceremony-readiness/(?P<pool_id>[/.]+)/	GET	PayoutViewSet	IsAuthenticated
+api/v1/circles/payouts/request-payout/(?P<pool_id>[/.]+)/	POST	PayoutViewSet	IsAuthenticated
+api/v1/circles/rules/	GET	CircleRulesViewSet	IsAuthenticated
+api/v1/circles/rules/(?P<pk>[/.]+)/	GET	CircleRulesViewSet	IsAuthenticated
+api/v1/circles/rules/accept/	POST	CircleRulesViewSet	IsAuthenticated
+api/v1/circles/rules/publish/	POST	CircleRulesViewSet	IsAuthenticated
+api/v1/circles/rules/summary/	GET	CircleRulesViewSet	IsAuthenticated
+api/v1/core/audit-log/	GET	AuditLogViewSet	IsAuthenticated,_HasAnyRole
+api/v1/core/audit-log/(?P<pk>[/.]+)/	GET	AuditLogViewSet	IsAuthenticated,_HasAnyRole
+api/v1/core/audit-log/export/		audit_log_export	IsAuthenticated,_HasAnyRole
+api/v1/core/audit-log/simulate-tamper/	POST	AuditLogViewSet	IsAuthenticated,_HasAnyRole
+api/v1/core/audit-log/verify-merkle/	GET,POST	AuditLogViewSet	IsAuthenticated,_HasAnyRole
+api/v1/core/evidence-bundle/compile/		compile_evidence_bundle	IsAuthenticated,_HasAnyRole
+api/v1/core/evidence-bundle/download/		download_evidence_bundle_zip	IsAuthenticated,_HasAnyRole
+api/v1/core/period-report/		period_report	IsAuthenticated,_HasAnyRole
+api/v1/dashboard/home/		home_dashboard_view	IsAuthenticated
+api/v1/demo-requests/	GET	DemoRequestViewSet	IsAuthenticated,_HasAnyRole
+api/v1/demo-requests/(?P<pk>[/.]+)/	GET	DemoRequestViewSet	IsAuthenticated,_HasAnyRole
+api/v1/demo-requests/(?P<pk>[/.]+)/mark-handled/	POST	DemoRequestViewSet	IsAuthenticated,_HasAnyRole
+api/v1/governance/		APIRootView	IsAuthenticated
+api/v1/governance/config-changes/	GET	ConfigChangeRequestViewSet	IsAuthenticated
+api/v1/governance/config-changes/(?P<pk>[/.]+)/	GET	ConfigChangeRequestViewSet	IsAuthenticated
+api/v1/governance/config-changes/(?P<pk>[/.]+)/approve/	POST	ConfigChangeRequestViewSet	IsAuthenticated
+api/v1/governance/config-changes/(?P<pk>[/.]+)/reject/	POST	ConfigChangeRequestViewSet	IsAuthenticated
+api/v1/governance/exceptions/	GET,POST	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/exceptions/(?P<pk>[/.]+)/	GET,PUT,PATCH	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/exceptions/(?P<pk>[/.]+)/dismiss/	POST	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/exceptions/(?P<pk>[/.]+)/resolve/	POST	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/exceptions/(?P<pk>[/.]+)/set-treatment/	POST	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/exceptions/(?P<pk>[/.]+)/start-investigation/	POST	ExceptionCaseViewSet	IsAuthenticated
+api/v1/governance/purification-entries/	GET,POST	PurificationEntryViewSet	IsAuthenticated
+api/v1/governance/purification-entries/(?P<pk>[/.]+)/	GET	PurificationEntryViewSet	IsAuthenticated
+api/v1/governance/purification-entries/(?P<pk>[/.]+)/approve/	POST	PurificationEntryViewSet	IsAuthenticated
+api/v1/governance/purification-entries/(?P<pk>[/.]+)/mark-distributed/	POST	PurificationEntryViewSet	IsAuthenticated
+api/v1/governance/related-party-transactions/	GET,POST	RelatedPartyTransactionViewSet	IsAuthenticated
+api/v1/governance/related-party-transactions/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	RelatedPartyTransactionViewSet	IsAuthenticated
+api/v1/governance/related-party-transactions/(?P<pk>[/.]+)/elevated-approve/	POST	RelatedPartyTransactionViewSet	IsAuthenticated
+api/v1/governance/related-party-transactions/(?P<pk>[/.]+)/review/	POST	RelatedPartyTransactionViewSet	IsAuthenticated
+api/v1/governance/retention-policies/	GET,POST	RetentionPolicyViewSet	IsAuthenticated
+api/v1/governance/retention-policies/(?P<pk>[/.]+)/approve/	POST	RetentionPolicyViewSet	IsAuthenticated
+api/v1/governance/retention-policies/preview/	GET	RetentionPolicyViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-findings/	GET,POST	ShariahAuditFindingViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-findings/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ShariahAuditFindingViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-plans/	GET,POST	ShariahAuditPlanViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-plans/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ShariahAuditPlanViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-plans/(?P<pk>[/.]+)/approve/	POST	ShariahAuditPlanViewSet	IsAuthenticated
+api/v1/governance/shariah-audit-plans/annual-report/	GET	ShariahAuditPlanViewSet	IsAuthenticated
+api/v1/governance/shariah-dashboard/		shariah_dashboard	IsAuthenticated,_HasAnyRole
+api/v1/governance/support-requests/	GET,POST	SupportRequestViewSet	IsAuthenticated
+api/v1/governance/support-requests/(?P<pk>[/.]+)/	GET	SupportRequestViewSet	IsAuthenticated
+api/v1/governance/support-requests/(?P<pk>[/.]+)/assign/	POST	SupportRequestViewSet	IsAuthenticated
+api/v1/governance/support-requests/(?P<pk>[/.]+)/resolve/	POST	SupportRequestViewSet	IsAuthenticated
+api/v1/health/		health_check	AllowAny
+api/v1/health/ready/		readiness_check	AllowAny
+api/v1/investments/		APIRootView	IsAuthenticated
+api/v1/investments/capital-accounts/	GET,POST	CapitalAccountViewSet	IsAuthenticated
+api/v1/investments/capital-accounts/(?P<pk>[/.]+)/	GET,PUT,PATCH	CapitalAccountViewSet	IsAuthenticated
+api/v1/investments/capital-accounts/(?P<pk>[/.]+)/redeem/	POST	CapitalAccountViewSet	IsAuthenticated
+api/v1/investments/capital-accounts/(?P<pk>[/.]+)/statement/	GET	CapitalAccountViewSet	IsAuthenticated
+api/v1/investments/capital-accounts/(?P<pk>[/.]+)/subscribe/	POST	CapitalAccountViewSet	IsAuthenticated
+api/v1/investments/disclosures/	GET	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/(?P<pk>[/.]+)/	GET	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/(?P<pk>[/.]+)/acknowledge/	POST	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/(?P<pk>[/.]+)/approve/	POST	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/preview/	GET	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/publish/	POST	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/disclosures/subscription-status/	GET	PoolDisclosureViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/	GET,POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/(?P<pk>[/.]+)/	GET	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/(?P<pk>[/.]+)/approve/	POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/(?P<pk>[/.]+)/reject/	POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/(?P<pk>[/.]+)/restate/	POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/(?P<pk>[/.]+)/submit-for-checking/	POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/distribution-runs/simulate/	POST	DistributionRunViewSet	IsAuthenticated
+api/v1/investments/impairment-events/	GET,POST	ImpairmentEventViewSet	IsAuthenticated
+api/v1/investments/impairment-events/(?P<pk>[/.]+)/	GET	ImpairmentEventViewSet	IsAuthenticated
+api/v1/investments/impairment-events/(?P<pk>[/.]+)/approve/	POST	ImpairmentEventViewSet	IsAuthenticated
+api/v1/investments/investor-profiles/	GET,POST	InvestorProfileViewSet	IsAuthenticated
+api/v1/investments/investor-profiles/(?P<pk>[/.]+)/	GET,PUT,PATCH	InvestorProfileViewSet	IsAuthenticated
+api/v1/investments/investor-profiles/(?P<pk>[/.]+)/verify-kyc/	POST	InvestorProfileViewSet	IsAuthenticated
+api/v1/investments/nav-snapshots/	GET,POST	NAVSnapshotViewSet	IsAuthenticated
+api/v1/investments/nav-snapshots/(?P<pk>[/.]+)/	GET	NAVSnapshotViewSet	IsAuthenticated
+api/v1/investments/nav-snapshots/(?P<pk>[/.]+)/publish/	POST	NAVSnapshotViewSet	IsAuthenticated
+api/v1/investments/nav-snapshots/latest/	GET	NAVSnapshotViewSet	IsAuthenticated
+api/v1/investments/negligence-cases/	GET,POST	NegligenceCaseViewSet	IsAuthenticated
+api/v1/investments/negligence-cases/(?P<pk>[/.]+)/	GET	NegligenceCaseViewSet	IsAuthenticated
+api/v1/investments/negligence-cases/(?P<pk>[/.]+)/add-note/	POST	NegligenceCaseViewSet	IsAuthenticated
+api/v1/investments/negligence-cases/(?P<pk>[/.]+)/determine/	POST	NegligenceCaseViewSet	IsAuthenticated
+api/v1/investments/redemptions/	GET	RedemptionViewSet	IsAuthenticated
+api/v1/investments/redemptions/(?P<pk>[/.]+)/	GET	RedemptionViewSet	IsAuthenticated
+api/v1/investments/redemptions/(?P<pk>[/.]+)/approve/	POST	RedemptionViewSet	IsAuthenticated
+api/v1/investments/redemptions/(?P<pk>[/.]+)/reject/	POST	RedemptionViewSet	IsAuthenticated
+api/v1/investments/subscriptions/	GET	SubscriptionViewSet	IsAuthenticated
+api/v1/investments/subscriptions/(?P<pk>[/.]+)/	GET	SubscriptionViewSet	IsAuthenticated
+api/v1/legal-entities/	GET,POST	LegalEntityViewSet	IsAuthenticated
+api/v1/legal-entities/(?P<pk>[/.]+)/	GET,PUT,PATCH	LegalEntityViewSet	IsAuthenticated
+api/v1/notifications/	GET	NotificationViewSet	IsAuthenticated
+api/v1/notifications/(?P<pk>[/.]+)/	GET	NotificationViewSet	IsAuthenticated
+api/v1/notifications/(?P<pk>[/.]+)/mark-read/	POST	NotificationViewSet	IsAuthenticated
+api/v1/notifications/mark-all-read/	POST	NotificationViewSet	IsAuthenticated
+api/v1/notifications/unread-count/	GET	NotificationViewSet	IsAuthenticated
+api/v1/participants/		APIRootView	IsAuthenticated
+api/v1/participants/accounts/	GET,POST	ParticipantAccountViewSet	IsAuthenticated
+api/v1/participants/accounts/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ParticipantAccountViewSet	IsAuthenticated
+api/v1/participants/accounts/(?P<pk>[/.]+)/close/	POST	ParticipantAccountViewSet	IsAuthenticated
+api/v1/participants/consents/	GET,POST	ConsentViewSet	IsAuthenticated
+api/v1/participants/consents/(?P<pk>[/.]+)/withdraw/	POST	ConsentViewSet	IsAuthenticated
+api/v1/participants/consents/mine/	GET	ConsentViewSet	IsAuthenticated
+api/v1/participants/consents/my-data/	GET	ConsentViewSet	IsAuthenticated
+api/v1/participants/my-tax-support/		my_tax_support	IsAuthenticated,_HasAnyRole
+api/v1/participants/participants/	GET,POST	ParticipantViewSet	IsAuthenticated
+api/v1/participants/participants/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ParticipantViewSet	IsAuthenticated
+api/v1/participants/participants/(?P<pk>[/.]+)/reject-kyc/	POST	ParticipantViewSet	IsAuthenticated
+api/v1/participants/participants/(?P<pk>[/.]+)/verify-kyc/	POST	ParticipantViewSet	IsAuthenticated
+api/v1/pools/		APIRootView	IsAuthenticated
+api/v1/pools/asset-assignments/	GET,POST	AssetAssignmentViewSet	IsAuthenticated
+api/v1/pools/asset-assignments/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	AssetAssignmentViewSet	IsAuthenticated
+api/v1/pools/asset-assignments/(?P<pk>[/.]+)/transfer/	POST	AssetAssignmentViewSet	IsAuthenticated
+api/v1/pools/asset-assignments/(?P<pk>[/.]+)/unassign/	POST	AssetAssignmentViewSet	IsAuthenticated
+api/v1/pools/asset-provisions/	GET,POST	AssetProvisionEntryViewSet	IsAuthenticated
+api/v1/pools/asset-provisions/(?P<pk>[/.]+)/	GET	AssetProvisionEntryViewSet	IsAuthenticated
+api/v1/pools/asset-provisions/(?P<pk>[/.]+)/approve/	POST	AssetProvisionEntryViewSet	IsAuthenticated
+api/v1/pools/asset-provisions/(?P<pk>[/.]+)/reject/	POST	AssetProvisionEntryViewSet	IsAuthenticated
+api/v1/pools/asset-provisions/position/	GET	AssetProvisionEntryViewSet	IsAuthenticated
+api/v1/pools/assets/	GET,POST	AssetViewSet	IsAuthenticated
+api/v1/pools/assets/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	AssetViewSet	IsAuthenticated
+api/v1/pools/assets/concentration-risk/	GET	AssetViewSet	IsAuthenticated
+api/v1/pools/assets/remediation-plan/	POST	AssetViewSet	IsAuthenticated
+api/v1/pools/assets/stress-test/	POST	AssetViewSet	IsAuthenticated
+api/v1/pools/balance-imports/	GET,POST	BalanceImportViewSet	IsAuthenticated
+api/v1/pools/balance-imports/cbs-sftp-daemon/	POST	BalanceImportViewSet	IsAuthenticated
+api/v1/pools/daily-balances/	GET	DailyBalanceViewSet	IsAuthenticated
+api/v1/pools/daily-closes/	GET	DailyCloseViewSet	IsAuthenticated
+api/v1/pools/daily-closes/(?P<pk>[/.]+)/	GET	DailyCloseViewSet	IsAuthenticated
+api/v1/pools/daily-closes/(?P<pk>[/.]+)/sign/	POST	DailyCloseViewSet	IsAuthenticated
+api/v1/pools/daily-closes/prepare/	POST	DailyCloseViewSet	IsAuthenticated
+api/v1/pools/period-closes/	GET,POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/	GET	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/auto-verify-gates/	POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/certify/	POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/filing-package/	GET	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/lock-ceremony/	POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/lock/	POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/period-closes/(?P<pk>[/.]+)/sign-off-role/	POST	PeriodCloseChecklistViewSet	IsAuthenticated
+api/v1/pools/pools/	GET,POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/activation-readiness/	GET	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/approve/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/archive/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/close/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/compare-versions/	GET	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/create-version/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/freeze/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/liquidity-forecast/	GET	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/open/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/submit-for-approval/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/unfreeze/	POST	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/(?P<pk>[/.]+)/versions/	GET	PoolViewSet	IsAuthenticated
+api/v1/pools/pools/portfolio-summary/	GET	PoolViewSet	IsAuthenticated
+api/v1/products/		APIRootView	IsAuthenticated
+api/v1/products/contract-templates/	GET,POST	ContractTemplateViewSet	IsAuthenticated
+api/v1/products/contract-templates/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ContractTemplateViewSet	IsAuthenticated
+api/v1/products/contract-templates/(?P<pk>[/.]+)/approve/	POST	ContractTemplateViewSet	IsAuthenticated
+api/v1/products/contract-templates/(?P<pk>[/.]+)/clauses-schema/	GET	ContractTemplateViewSet	IsAuthenticated
+api/v1/products/jurisdiction-rule-packs/	GET,POST	JurisdictionRulePackViewSet	IsAuthenticated
+api/v1/products/jurisdiction-rule-packs/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	JurisdictionRulePackViewSet	IsAuthenticated
+api/v1/products/jurisdiction-rule-packs/(?P<pk>[/.]+)/activate/	POST	JurisdictionRulePackViewSet	IsAuthenticated
+api/v1/products/products/	GET,POST	ProductViewSet	IsAuthenticated
+api/v1/products/products/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ProductViewSet	IsAuthenticated
+api/v1/products/products/(?P<pk>[/.]+)/approve/	POST	ProductViewSet	IsAuthenticated
+api/v1/products/products/(?P<pk>[/.]+)/submit-for-review/	POST	ProductViewSet	IsAuthenticated
+api/v1/products/shariah-decisions/	GET,POST	ShariahDecisionViewSet	IsAuthenticated
+api/v1/products/shariah-decisions/(?P<pk>[/.]+)/	GET,PUT,PATCH,DELETE	ShariahDecisionViewSet	IsAuthenticated
+api/v1/products/shariah-decisions/(?P<pk>[/.]+)/approve/	POST	ShariahDecisionViewSet	IsAuthenticated
+api/v1/products/shariah-decisions/(?P<pk>[/.]+)/cast-quorum-vote/	POST	ShariahDecisionViewSet	IsAuthenticated
+api/v1/public/demo-requests/		submit_demo_request	AllowAny
+api/v1/tenants/	GET,POST	TenantViewSet	IsAuthenticated
+api/v1/tenants/(?P<pk>[/.]+)/	GET,PUT,PATCH	TenantViewSet	IsAuthenticated
+api/v1/tenants/(?P<pk>[/.]+)/reactivate/	POST	TenantViewSet	IsAuthenticated
+api/v1/tenants/(?P<pk>[/.]+)/suspend/	POST	TenantViewSet	IsAuthenticated

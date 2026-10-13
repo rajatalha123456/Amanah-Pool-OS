@@ -103,3 +103,10 @@ cd ../frontend && npx tsc -b --noEmit && npm run build
 AUTH_THROTTLE_RATE=1000/min python manage.py runserver   # for the browser tests only
 npm run e2e                                              # needs the dev server, a seeded dev database
 ```
+
+## 6b. Upgrading an existing database (2026-10-13 audit fixes)
+- Run `python manage.py migrate` (adds the Shariah-review flag on allocation runs, the Shariah and release fields on distribution runs, a positive-weightage constraint and two change-request kinds).
+- **Approval matrix**: the rule `distribution_approve` must name the **authorized signatory** (Governance Config, proposed by Risk & Compliance, approved by a different finance checker), because investment distributions are now released by the signatory after an independent check and a Shariah review.
+- **Rule packs and reserve policies** can no longer be edited directly; changes are proposals approved under `/governance/config-changes/`. Reserve balances are system-controlled: a migrated pool with an opening reserve balance needs an approved opening journal first (not built).
+- **Concentration limits**: set `concentration_limits_pct` (and optionally `concentration_cure_days`) in the rule pack; otherwise the Risk screen shows placeholder defaults and says so.
+- **Django admin** is off unless `ENABLE_DJANGO_ADMIN=True` (or DEBUG).

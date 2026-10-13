@@ -1,0 +1,6 @@
+Runtime check 2026-10-13 against the demo server (synthetic data), user role platform_super_admin, tenant NOVU-DEMO.
+GET /api/v1/core/audit-log/?search=AllocationRun -> 200, 64 rows. Sample `changes` fields returned to the super admin:
+  Payout payout_approved {"amount": "50000.00", ...}
+  Payout payout_requested {"amount": "50000.00", "member": "MEM-002", ...}
+  InvestmentDistributionRun create {"manager_share": "690000.00", "investor_share": "2070000.00", ...}
+BRD section 3: Platform Super Admin "Cannot view tenant financial data by default".

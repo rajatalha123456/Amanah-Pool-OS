@@ -1,0 +1,1079 @@
+Creating test database for alias 'default' ('test_amanah_pool_os')...
+Found 6 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: corsheaders, messages, rest_framework, rest_framework_simplejwt, staticfiles
+  Apply all migrations: accounting, accounts, admin, ai_agents, allocation, auth, circles, contenttypes, core, governance, investments, notifications, participants, pools, products, sessions, tenants, token_blacklist
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying tenants.0001_initial... OK
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0001_initial... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying accounts.0001_initial... OK
+  Applying products.0001_initial... OK
+  Applying pools.0001_initial... OK
+  Applying pools.0002_asset_assetassignment_and_more... OK
+  Applying pools.0003_balanceimportbatch_dailybalance... OK
+  Applying pools.0004_pool_pending_approval... OK
+  Applying pools.0005_periodclosechecklist... OK
+  Applying participants.0001_initial... OK
+  Applying pools.0006_dailybalance_account_and_more... OK
+  Applying allocation.0001_initial... OK
+  Applying allocation.0002_allocationrun_allocationline... OK
+  Applying allocation.0003_allocationrun_checked_at_allocationrun_checked_by_and_more... OK
+  Applying allocation.0004_depositorstatement... OK
+  Applying allocation.0005_allocationrun_shariah_review_note_and_more... OK
+  Applying allocation.0006_allocationrun_is_restatement_and_more... OK
+  Applying allocation.0007_allocationrun_config_snapshot_and_more... OK
+  Applying allocation.0008_allocationline_account_allocationrun_period_start_and_more... OK
+  Applying allocation.0009_payoutbatchrecord... OK
+  Applying investments.0001_initial... OK
+  Applying investments.0002_navsnapshot... OK
+  Applying investments.0003_investorprofile... OK
+  Applying investments.0004_impairmentevent... OK
+  Applying investments.0005_capitalaccount_participant_investmentdistributionrun_and_more... OK
+  Applying accounting.0001_initial... OK
+  Applying accounting.0002_incomeexpenseevent... OK
+  Applying accounting.0003_reconciliationbatch_reconciliationitem... OK
+  Applying accounting.0004_alter_journalbatch_allocation_run... OK
+  Applying accounting.0005_incomeexpenseevent_bank_absorbed_amount_and_more... OK
+  Applying accounting.0006_journalbatch_reverses_batch_and_more... OK
+  Applying accounting.0007_journalbatch_investment_run... OK
+  Applying accounting.0008_incomeexpenseevent_allocation_run... OK
+  Applying accounting.0009_journalentry_account_key_journalentry_gl_code_and_more... OK
+  Applying accounts.0002_user_preferred_language... OK
+  Applying accounts.0003_alter_user_role... OK
+  Applying accounts.0004_approvalmatrixrule... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying ai_agents.0001_initial... OK
+  Applying ai_agents.0002_seed_ai_model_registry... OK
+  Applying ai_agents.0003_ai_recommendation... OK
+  Applying allocation.0010_allocationrun_released_at_allocationrun_released_by_and_more... OK
+  Applying allocation.0011_profitsharingratio_wakalah_fee_pct... OK
+  Applying products.0002_shariahdecision_approved_at_and_more... OK
+  Applying products.0003_jurisdictionrulepack... OK
+  Applying products.0004_shariahquorumvote... OK
+  Applying pools.0007_pool_rule_pack... OK
+  Applying pools.0008_asset_eligibility... OK
+  Applying pools.0009_asset_provisions... OK
+  Applying circles.0001_initial... OK
+  Applying circles.0002_arrearsrecord... OK
+  Applying circles.0003_circleproposal_circlevote... OK
+  Applying circles.0004_payout_biometric_auth_ref_payout_ceremony_hash_and_more... OK
+  Applying circles.0005_circlemember_bank_name_circlemember_iban_and_more... OK
+  Applying circles.0006_circlemember_email... OK
+  Applying circles.0007_rules_draws_closure... OK
+  Applying circles.0008_vote_evidence... OK
+  Applying circles.0009_contribution_integrity... OK
+  Applying circles.0010_circlemember_user... OK
+  Applying circles.0011_rules_first_due_date... OK
+  Applying core.0001_initial... OK
+  Applying core.0002_auditlog... OK
+  Applying core.0003_auditlog_entry_hash_auditlog_prev_hash_and_more... OK
+  Applying governance.0001_initial... OK
+  Applying governance.0002_purificationentry... OK
+  Applying governance.0003_alter_exceptioncase_source_module... OK
+  Applying governance.0004_relatedpartytransaction... OK
+  Applying governance.0005_exceptioncase_investigation_notes_and_more... OK
+  Applying governance.0006_supportrequest... OK
+  Applying governance.0007_shariahauditplan_shariahauditfinding... OK
+  Applying governance.0008_purificationentry_income_event... OK
+  Applying governance.0009_config_change_request... OK
+  Applying governance.0010_retention_policy... OK
+  Applying governance.0011_support_request_raised_by... OK
+  Applying governance.0012_shariah_register_and_rpt... OK
+  Applying investments.0006_capitalaccount_is_managing_partner_negligencecase... OK
+  Applying investments.0007_redemption_workflow... OK
+  Applying investments.0008_disclosures... OK
+  Applying investments.0009_disclosure_review... OK
+  Applying investments.0010_participation_and_identity... OK
+  Applying notifications.0001_initial... OK
+  Applying participants.0002_participant_email... OK
+  Applying participants.0003_consent... OK
+  Applying tenants.0002_demo_request... OK
+  Applying pools.0010_pool_freeze... OK
+  Applying pools.0011_daily_close... OK
+  Applying pools.0012_participation_and_identity... OK
+  Applying products.0005_asset_eligibility... OK
+  Applying products.0006_redemption_workflow... OK
+  Applying products.0007_participation_and_identity... OK
+  Applying products.0008_shariah_register_and_rpt... OK
+  Applying sessions.0001_initial... OK
+  Applying token_blacklist.0001_initial... OK
+  Applying token_blacklist.0002_outstandingtoken_jti_hex... OK
+  Applying token_blacklist.0003_auto_20171017_2007... OK
+  Applying token_blacklist.0004_auto_20171017_2013... OK
+  Applying token_blacklist.0005_remove_outstandingtoken_jti... OK
+  Applying token_blacklist.0006_auto_20171017_2113... OK
+  Applying token_blacklist.0007_auto_20171017_2214... OK
+  Applying token_blacklist.0008_migrate_to_bigautofield... OK
+  Applying token_blacklist.0010_fix_migrate_to_bigautofield... OK
+  Applying token_blacklist.0011_linearizes_history... OK
+  Applying token_blacklist.0012_alter_outstandingtoken_user... OK
+  Applying token_blacklist.0013_alter_blacklistedtoken_options_and_more...test_authentication_failures (audit_tests.test_audit_security.AuditSecurityTests.test_authentication_failures) ... 2026-10-13 14:41:11,200 WARNING log Unauthorized: /api/v1/pools/pools/
+2026-10-13 14:41:11,461 WARNING log Unauthorized: /api/v1/pools/pools/
+2026-10-13 14:41:11,483 WARNING log Forbidden: /api/v1/pools/pools/
+ok
+test_cross_tenant_reads_and_writes_are_denied (audit_tests.test_audit_security.AuditSecurityTests.test_cross_tenant_reads_and_writes_are_denied) ... 2026-10-13 14:41:11,629 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:41:12,066 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:12,133 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:12,150 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:12,169 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:12,263 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:12,281 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:12,303 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:12,363 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:12,408 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:12,430 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:12,541 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:12,554 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:12,587 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:12,602 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:12,613 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:12,651 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:12,724 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:12,741 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:12,790 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:12,886 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:12,901 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:12,917 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:12,933 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:12,951 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:12,970 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:12,988 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:13,053 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:13,244 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:13,394 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:13,413 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:13,520 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:13,791 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:41:13,810 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:41:13,826 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:41:13,940 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:41:14,245 WARNING log Method Not Allowed: /api/v1/public/demo-requests/
+2026-10-13 14:41:14,287 WARNING log Not Found: /api/v1/pools/pools/2b4dd595-9377-4978-99bf-193b0cf077b5/
+2026-10-13 14:41:14,305 WARNING log Not Found: /api/v1/pools/pools/2b4dd595-9377-4978-99bf-193b0cf077b5/
+2026-10-13 14:41:14,321 WARNING log Not Found: /api/v1/pools/pools/c8262058-4f93-4b8c-8fe5-52f640758e55/
+2026-10-13 14:41:14,340 WARNING log Not Found: /api/v1/pools/pools/c8262058-4f93-4b8c-8fe5-52f640758e55/
+2026-10-13 14:41:14,360 WARNING log Not Found: /api/v1/pools/pools/80aea395-5574-490e-a0d5-71af707410e4/
+2026-10-13 14:41:14,383 WARNING log Not Found: /api/v1/pools/pools/80aea395-5574-490e-a0d5-71af707410e4/
+2026-10-13 14:41:14,402 WARNING log Not Found: /api/v1/participants/participants/5c2daa94-17cc-461b-8659-b708c8d6a1c0/
+2026-10-13 14:41:14,422 WARNING log Not Found: /api/v1/participants/participants/5c2daa94-17cc-461b-8659-b708c8d6a1c0/
+2026-10-13 14:41:14,442 WARNING log Not Found: /api/v1/participants/participants/a3dbf9b6-ec7d-45be-8b37-4438560b671a/
+2026-10-13 14:41:14,465 WARNING log Not Found: /api/v1/participants/participants/a3dbf9b6-ec7d-45be-8b37-4438560b671a/
+2026-10-13 14:41:14,486 WARNING log Not Found: /api/v1/participants/participants/8d42f4db-5797-471f-997a-3063ced8f64d/
+2026-10-13 14:41:14,508 WARNING log Not Found: /api/v1/participants/participants/8d42f4db-5797-471f-997a-3063ced8f64d/
+2026-10-13 14:41:14,531 WARNING log Not Found: /api/v1/allocation/allocation-runs/53454a0e-c4fd-4fe2-8f3e-cc6ea93f013e/
+2026-10-13 14:41:14,553 WARNING log Method Not Allowed: /api/v1/allocation/allocation-runs/53454a0e-c4fd-4fe2-8f3e-cc6ea93f013e/
+2026-10-13 14:41:14,577 WARNING log Not Found: /api/v1/allocation/allocation-runs/576e35fc-0054-4719-986e-1946051393f7/
+2026-10-13 14:41:14,595 WARNING log Method Not Allowed: /api/v1/allocation/allocation-runs/576e35fc-0054-4719-986e-1946051393f7/
+2026-10-13 14:41:14,613 WARNING log Not Found: /api/v1/allocation/allocation-runs/09f83372-b458-4428-91b4-eadba73e1158/
+2026-10-13 14:41:14,632 WARNING log Method Not Allowed: /api/v1/allocation/allocation-runs/09f83372-b458-4428-91b4-eadba73e1158/
+2026-10-13 14:41:14,668 WARNING log Not Found: /api/v1/accounting/journal-batches/7f34e9a8-6121-4ede-a905-7e2ab0a317be/
+2026-10-13 14:41:14,684 WARNING log Method Not Allowed: /api/v1/accounting/journal-batches/7f34e9a8-6121-4ede-a905-7e2ab0a317be/
+2026-10-13 14:41:14,705 WARNING log Not Found: /api/v1/accounting/journal-batches/f853b397-2ee0-4f95-95af-bf3f41b4447f/
+2026-10-13 14:41:14,726 WARNING log Method Not Allowed: /api/v1/accounting/journal-batches/f853b397-2ee0-4f95-95af-bf3f41b4447f/
+2026-10-13 14:41:14,747 WARNING log Not Found: /api/v1/accounting/journal-batches/b4207704-214b-41af-a3eb-48ad78af6a1e/
+2026-10-13 14:41:14,768 WARNING log Method Not Allowed: /api/v1/accounting/journal-batches/b4207704-214b-41af-a3eb-48ad78af6a1e/
+ok
+test_investor_cannot_read_other_peoples_investment_records (audit_tests.test_audit_security.AuditSecurityTests.test_investor_cannot_read_other_peoples_investment_records)
+IDOR: an investor lists investment records; every row must belong to their own participant. ... 2026-10-13 14:41:15,000 WARNING log Not Found: /api/v1/investments/capital-accounts/32bb0bc2-9f13-4e23-abba-cd8469c337a7/
+2026-10-13 14:41:15,019 WARNING log Not Found: /api/v1/investments/capital-accounts/1d32e18b-bf93-4c27-85a0-72690e6917dc/
+ok
+test_mass_assignment_role_escalation (audit_tests.test_audit_security.AuditSecurityTests.test_mass_assignment_role_escalation)
+A user changing their own role through the profile endpoint must not succeed. ... ok
+test_role_matrix_and_scopes (audit_tests.test_audit_security.AuditSecurityTests.test_role_matrix_and_scopes) ... 2026-10-13 14:41:15,246 WARNING log Forbidden: /api/v1/
+2026-10-13 14:41:15,394 WARNING log Forbidden: /api/v1/
+2026-10-13 14:41:15,408 WARNING log Method Not Allowed: /api/v1/
+2026-10-13 14:41:15,425 WARNING log Forbidden: /api/v1/
+2026-10-13 14:41:15,442 WARNING log Forbidden: /api/v1/
+2026-10-13 14:41:15,457 WARNING log Forbidden: /api/v1/accounting/
+2026-10-13 14:41:15,629 WARNING log Forbidden: /api/v1/accounting/
+2026-10-13 14:41:15,646 WARNING log Method Not Allowed: /api/v1/accounting/
+2026-10-13 14:41:15,663 WARNING log Forbidden: /api/v1/accounting/
+2026-10-13 14:41:15,681 WARNING log Forbidden: /api/v1/accounting/
+2026-10-13 14:41:15,696 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,712 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,822 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,843 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,884 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,928 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,943 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,960 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:15,980 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 14:41:16,000 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,016 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,084 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,099 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,131 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,176 WARNING log Forbidden: /api/v1/accounting/account-mappings/catalog/
+2026-10-13 14:41:16,195 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,211 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,290 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,343 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,378 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,394 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,410 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,425 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 14:41:16,441 WARNING log Forbidden: /api/v1/accounting/approval-matrix/actions/
+2026-10-13 14:41:16,457 WARNING log Forbidden: /api/v1/accounting/approval-matrix/actions/
+2026-10-13 14:41:16,547 WARNING log Forbidden: /api/v1/accounting/approval-matrix/actions/
+2026-10-13 14:41:16,588 WARNING log Forbidden: /api/v1/accounting/approval-matrix/actions/
+2026-10-13 14:41:16,618 WARNING log Forbidden: /api/v1/accounting/approval-matrix/actions/
+2026-10-13 14:41:16,634 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 14:41:17,607 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 14:41:17,623 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 14:41:17,638 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 14:41:17,654 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 14:41:17,670 WARNING log Forbidden: /api/v1/accounting/income-expense-events/pool-summary/
+2026-10-13 14:41:17,935 WARNING log Forbidden: /api/v1/accounting/income-expense-events/pool-summary/
+2026-10-13 14:41:17,951 WARNING log Forbidden: /api/v1/accounting/income-expense-events/scan-overhead-leakage/
+2026-10-13 14:41:17,966 WARNING log Forbidden: /api/v1/accounting/income-expense-events/scan-overhead-leakage/
+2026-10-13 14:41:17,981 WARNING log Forbidden: /api/v1/accounting/income-expense-events/scan-overhead-leakage/
+2026-10-13 14:41:17,997 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 14:41:18,324 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 14:41:18,368 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,385 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,399 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,417 WARNING log Not Found: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,434 WARNING log Not Found: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,457 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,474 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,491 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,509 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,526 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,540 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,554 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,571 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,586 WARNING log Forbidden: /api/v1/accounting/journal-batches/gl-export/
+2026-10-13 14:41:18,602 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/
+2026-10-13 14:41:18,866 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/
+2026-10-13 14:41:18,885 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/
+2026-10-13 14:41:18,905 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/
+2026-10-13 14:41:18,920 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/
+2026-10-13 14:41:18,941 WARNING log Forbidden: /api/v1/accounting/reconciliations/
+2026-10-13 14:41:19,224 WARNING log Forbidden: /api/v1/accounting/reconciliations/
+2026-10-13 14:41:19,243 WARNING log Forbidden: /api/v1/accounting/reconciliations/
+2026-10-13 14:41:19,260 WARNING log Forbidden: /api/v1/accounting/reconciliations/
+2026-10-13 14:41:19,280 WARNING log Forbidden: /api/v1/accounting/reconciliations/
+2026-10-13 14:41:19,297 WARNING log Forbidden: /api/v1/ai/
+2026-10-13 14:41:19,466 WARNING log Forbidden: /api/v1/ai/
+2026-10-13 14:41:19,483 WARNING log Method Not Allowed: /api/v1/ai/
+2026-10-13 14:41:19,499 WARNING log Forbidden: /api/v1/ai/
+2026-10-13 14:41:19,516 WARNING log Forbidden: /api/v1/ai/
+2026-10-13 14:41:19,533 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,548 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,564 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,580 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,597 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,612 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,725 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,789 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,852 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,868 WARNING log Forbidden: /api/v1/ai/audit-sampling/analyze/
+2026-10-13 14:41:19,884 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,901 WARNING log Method Not Allowed: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,919 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,936 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,952 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,969 WARNING log Method Not Allowed: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:19,985 WARNING log Method Not Allowed: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,002 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,017 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,031 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,047 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,062 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,079 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,094 WARNING log Forbidden: /api/v1/ai/contract-analyzer/analyze/
+2026-10-13 14:41:20,109 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,138 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,156 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,172 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,188 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,204 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,220 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,266 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,317 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,372 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,391 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 14:41:20,411 WARNING log Forbidden: /api/v1/ai/models/
+2026-10-13 14:41:20,606 WARNING log Forbidden: /api/v1/ai/models/
+2026-10-13 14:41:20,623 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 14:41:20,696 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 14:41:20,711 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 14:41:20,836 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 14:41:20,879 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 14:41:20,895 WARNING log Forbidden: /api/v1/ai/recommendations/metrics/
+2026-10-13 14:41:20,954 WARNING log Forbidden: /api/v1/ai/recommendations/metrics/
+2026-10-13 14:41:20,971 WARNING log Forbidden: /api/v1/ai/recommendations/metrics/
+2026-10-13 14:41:21,044 WARNING log Forbidden: /api/v1/ai/recommendations/metrics/
+2026-10-13 14:41:21,083 WARNING log Forbidden: /api/v1/ai/recommendations/metrics/
+2026-10-13 14:41:21,100 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,116 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,131 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,146 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,160 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,177 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,193 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,210 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,225 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,241 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,256 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,272 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,289 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,304 WARNING log Forbidden: /api/v1/ai/shariah-copilot/ask/
+2026-10-13 14:41:21,320 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:25,433 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:25,455 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:25,473 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:25,488 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:29,593 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:33,682 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,768 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,789 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,808 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,824 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,849 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,864 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,880 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/
+2026-10-13 14:41:37,895 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,910 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,924 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,939 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,954 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,968 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:37,984 WARNING log Method Not Allowed: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,001 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,018 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,034 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,049 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,073 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,089 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,109 WARNING log Forbidden: /api/v1/ai/shariah-copilot/documents/upload/
+2026-10-13 14:41:38,129 WARNING log Forbidden: /api/v1/allocation/
+2026-10-13 14:41:38,308 WARNING log Forbidden: /api/v1/allocation/
+2026-10-13 14:41:38,323 WARNING log Method Not Allowed: /api/v1/allocation/
+2026-10-13 14:41:38,339 WARNING log Forbidden: /api/v1/allocation/
+2026-10-13 14:41:38,355 WARNING log Forbidden: /api/v1/allocation/
+2026-10-13 14:41:38,372 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:41:41,207 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:41:41,226 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:41:41,241 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:41:41,258 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:41:41,274 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,290 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,306 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,323 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,348 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,366 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,383 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,400 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,417 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,433 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+2026-10-13 14:41:41,475 WARNING log Forbidden: /api/v1/allocation/allocation-runs/simulate/
+2026-10-13 14:41:41,492 WARNING log Forbidden: /api/v1/allocation/allocation-runs/simulate/
+2026-10-13 14:41:41,509 WARNING log Forbidden: /api/v1/allocation/allocation-runs/simulate/
+2026-10-13 14:41:41,528 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,546 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,717 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,732 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,782 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,828 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+2026-10-13 14:41:41,844 WARNING log Forbidden: /api/v1/allocation/payout-clearing/authorize/
+2026-10-13 14:41:41,860 WARNING log Forbidden: /api/v1/allocation/payout-clearing/authorize/
+2026-10-13 14:41:41,877 WARNING log Forbidden: /api/v1/allocation/payout-clearing/authorize/
+2026-10-13 14:41:41,895 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:41,911 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:41,927 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:41,962 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:41,982 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:41,999 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,015 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,030 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,051 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,069 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,085 WARNING log Forbidden: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 14:41:42,100 WARNING log Forbidden: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 14:41:42,117 WARNING log Forbidden: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 14:41:42,132 WARNING log Forbidden: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 14:41:42,148 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,162 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,179 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,198 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,214 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,231 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,249 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,264 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,282 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,302 WARNING log Bad Request: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,318 WARNING log Forbidden: /api/v1/allocation/payout-clearing/download-iso-pacs008/
+2026-10-13 14:41:42,335 WARNING log Forbidden: /api/v1/allocation/payout-clearing/post-contra-gl/
+2026-10-13 14:41:42,349 WARNING log Forbidden: /api/v1/allocation/payout-clearing/post-contra-gl/
+2026-10-13 14:41:42,364 WARNING log Forbidden: /api/v1/allocation/payout-clearing/post-contra-gl/
+2026-10-13 14:41:42,380 WARNING log Forbidden: /api/v1/allocation/payout-clearing/verify-gates/
+2026-10-13 14:41:42,395 WARNING log Forbidden: /api/v1/allocation/payout-clearing/verify-gates/
+2026-10-13 14:41:42,411 WARNING log Forbidden: /api/v1/allocation/payout-clearing/verify-gates/
+2026-10-13 14:41:42,427 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 14:41:42,642 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 14:41:42,662 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 14:41:42,683 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 14:41:42,699 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 14:41:42,720 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+2026-10-13 14:41:42,930 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+2026-10-13 14:41:42,946 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+2026-10-13 14:41:42,959 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+2026-10-13 14:41:42,974 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+2026-10-13 14:41:42,991 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 14:41:43,215 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 14:41:43,231 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 14:41:43,246 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 14:41:43,263 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 14:41:43,461 WARNING log Forbidden: /api/v1/auth/
+2026-10-13 14:41:43,476 WARNING log Method Not Allowed: /api/v1/auth/
+2026-10-13 14:41:43,490 WARNING log Forbidden: /api/v1/auth/
+2026-10-13 14:41:43,513 WARNING log Method Not Allowed: /api/v1/auth/
+2026-10-13 14:41:43,529 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,543 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,559 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,573 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,584 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,598 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,611 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,625 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,638 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,651 WARNING log Method Not Allowed: /api/v1/auth/login/
+2026-10-13 14:41:43,665 WARNING log Forbidden: /api/v1/auth/login/
+2026-10-13 14:41:43,683 WARNING log Bad Request: /api/v1/auth/login/
+2026-10-13 14:41:43,694 WARNING log Forbidden: /api/v1/auth/login/
+2026-10-13 14:41:43,709 WARNING log Bad Request: /api/v1/auth/login/
+2026-10-13 14:41:43,721 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,733 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,745 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,756 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,768 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,783 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,795 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,807 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,819 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,832 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,847 WARNING log Method Not Allowed: /api/v1/auth/logout/
+2026-10-13 14:41:43,868 WARNING log Bad Request: /api/v1/auth/logout/
+2026-10-13 14:41:43,883 WARNING log Bad Request: /api/v1/auth/logout/
+2026-10-13 14:41:43,896 WARNING log Bad Request: /api/v1/auth/logout/
+2026-10-13 14:41:44,093 WARNING log Method Not Allowed: /api/v1/auth/me/
+2026-10-13 14:41:44,108 WARNING log Method Not Allowed: /api/v1/auth/me/
+2026-10-13 14:41:44,122 WARNING log Method Not Allowed: /api/v1/auth/me/
+2026-10-13 14:41:44,138 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,151 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,165 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,180 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,196 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,209 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,221 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,235 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,248 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,261 WARNING log Method Not Allowed: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,275 WARNING log Forbidden: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,289 WARNING log Bad Request: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,301 WARNING log Forbidden: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,316 WARNING log Bad Request: /api/v1/auth/mfa/setup/
+2026-10-13 14:41:44,330 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,344 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,357 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,371 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,386 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,399 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,413 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,427 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,441 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,453 WARNING log Method Not Allowed: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,467 WARNING log Forbidden: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,482 WARNING log Bad Request: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,497 WARNING log Forbidden: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,512 WARNING log Bad Request: /api/v1/auth/mfa/verify/
+2026-10-13 14:41:44,523 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,535 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,548 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,558 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,568 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,580 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,591 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,603 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,614 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,625 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,636 WARNING log Method Not Allowed: /api/v1/auth/refresh/
+2026-10-13 14:41:44,649 WARNING log Bad Request: /api/v1/auth/refresh/
+2026-10-13 14:41:44,660 WARNING log Bad Request: /api/v1/auth/refresh/
+2026-10-13 14:41:44,670 WARNING log Bad Request: /api/v1/auth/refresh/
+2026-10-13 14:41:45,131 WARNING log Forbidden: /api/v1/auth/users/
+2026-10-13 14:41:45,145 WARNING log Forbidden: /api/v1/auth/users/
+2026-10-13 14:41:45,159 WARNING log Forbidden: /api/v1/auth/users/
+2026-10-13 14:41:45,174 WARNING log Bad Request: /api/v1/auth/users/
+2026-10-13 14:41:45,191 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,208 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,224 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,239 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,255 WARNING log Method Not Allowed: /api/v1/banking/settle/
+2026-10-13 14:41:45,270 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,289 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,304 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,319 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,334 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,350 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,365 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,381 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,395 WARNING log Forbidden: /api/v1/banking/settle/
+2026-10-13 14:41:45,411 WARNING log Forbidden: /api/v1/circles/
+2026-10-13 14:41:45,569 WARNING log Forbidden: /api/v1/circles/
+2026-10-13 14:41:45,586 WARNING log Method Not Allowed: /api/v1/circles/
+2026-10-13 14:41:45,601 WARNING log Forbidden: /api/v1/circles/
+2026-10-13 14:41:45,617 WARNING log Forbidden: /api/v1/circles/
+2026-10-13 14:41:45,635 WARNING log Forbidden: /api/v1/circles/arrears-records/
+2026-10-13 14:41:45,820 WARNING log Forbidden: /api/v1/circles/arrears-records/
+2026-10-13 14:41:45,836 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:45,853 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,017 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,067 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,088 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,111 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,134 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 14:41:46,152 WARNING log Forbidden: /api/v1/circles/circle-members/accept-rules/
+2026-10-13 14:41:46,171 WARNING log Bad Request: /api/v1/circles/circle-members/accept-rules/
+2026-10-13 14:41:46,191 WARNING log Forbidden: /api/v1/circles/circle-members/accept-rules/
+2026-10-13 14:41:46,211 WARNING log Forbidden: /api/v1/circles/circle-members/cast-vote/
+2026-10-13 14:41:46,234 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+2026-10-13 14:41:46,252 WARNING log Forbidden: /api/v1/circles/circle-members/cast-vote/
+2026-10-13 14:41:46,269 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,286 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,305 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,321 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,338 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,355 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,372 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,388 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,403 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,417 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+2026-10-13 14:41:46,450 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,466 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,482 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,498 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,513 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,528 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,544 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,557 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,573 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,590 WARNING log Forbidden: /api/v1/circles/circle-members/my-proposals/
+2026-10-13 14:41:46,624 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,640 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,841 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,887 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,904 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,920 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,936 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 14:41:46,952 WARNING log Forbidden: /api/v1/circles/closures/
+2026-10-13 14:41:46,969 WARNING log Forbidden: /api/v1/circles/closures/
+2026-10-13 14:41:47,099 WARNING log Forbidden: /api/v1/circles/closures/
+2026-10-13 14:41:47,132 WARNING log Forbidden: /api/v1/circles/closures/
+2026-10-13 14:41:47,151 WARNING log Forbidden: /api/v1/circles/closures/close/
+2026-10-13 14:41:47,171 WARNING log Forbidden: /api/v1/circles/closures/close/
+2026-10-13 14:41:47,190 WARNING log Forbidden: /api/v1/circles/closures/close/
+2026-10-13 14:41:47,208 WARNING log Forbidden: /api/v1/circles/closures/prepare/
+2026-10-13 14:41:47,232 WARNING log Forbidden: /api/v1/circles/closures/prepare/
+2026-10-13 14:41:47,255 WARNING log Forbidden: /api/v1/circles/closures/prepare/
+2026-10-13 14:41:47,277 WARNING log Forbidden: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,295 WARNING log Forbidden: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,312 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,330 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,347 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,362 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,378 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,393 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,409 WARNING log Forbidden: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,427 WARNING log Bad Request: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,445 WARNING log Forbidden: /api/v1/circles/closures/preview/
+2026-10-13 14:41:47,461 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-13 14:41:47,845 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-13 14:41:47,861 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 14:41:47,878 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 14:41:48,029 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 14:41:48,067 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 14:41:48,084 WARNING log Forbidden: /api/v1/circles/draws/commit/
+2026-10-13 14:41:48,100 WARNING log Forbidden: /api/v1/circles/draws/commit/
+2026-10-13 14:41:48,117 WARNING log Forbidden: /api/v1/circles/draws/commit/
+2026-10-13 14:41:48,132 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-13 14:41:48,397 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-13 14:41:48,417 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 14:41:48,434 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 14:41:48,572 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 14:41:48,608 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 14:41:48,625 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 14:41:48,639 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 14:41:48,657 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 14:41:48,674 WARNING log Forbidden: /api/v1/circles/rules/publish/
+2026-10-13 14:41:48,691 WARNING log Forbidden: /api/v1/circles/rules/publish/
+2026-10-13 14:41:48,708 WARNING log Forbidden: /api/v1/circles/rules/publish/
+2026-10-13 14:41:48,725 WARNING log Forbidden: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,741 WARNING log Forbidden: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,756 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,771 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,787 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,806 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,823 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,838 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,854 WARNING log Forbidden: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,871 WARNING log Bad Request: /api/v1/circles/rules/summary/
+2026-10-13 14:41:48,887 WARNING log Forbidden: /api/v1/circles/rules/summary/
+2026-10-13 14:41:49,005 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,020 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,036 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,054 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,071 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,088 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,214 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,336 WARNING log Forbidden: /api/v1/core/audit-log/
+2026-10-13 14:41:49,379 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,395 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,410 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,431 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,449 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,466 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,520 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,567 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,585 WARNING log Method Not Allowed: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,600 WARNING log Forbidden: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,615 WARNING log Method Not Allowed: /api/v1/core/audit-log/export/
+2026-10-13 14:41:49,659 WARNING log Forbidden: /api/v1/core/audit-log/simulate-tamper/
+2026-10-13 14:41:49,734 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,749 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,763 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,780 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,796 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,811 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,861 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,911 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:49,961 WARNING log Forbidden: /api/v1/core/audit-log/verify-merkle/
+2026-10-13 14:41:50,009 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,025 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,042 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,058 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,074 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,088 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,105 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,122 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,137 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,150 WARNING log Method Not Allowed: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,166 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,183 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,199 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,215 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 14:41:50,234 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,252 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,270 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,288 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,306 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,323 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,339 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,354 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,370 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,388 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,406 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,423 WARNING log Bad Request: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,438 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,452 WARNING log Forbidden: /api/v1/core/evidence-bundle/download/
+2026-10-13 14:41:50,467 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,485 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,498 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,513 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,530 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,547 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,564 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,582 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,599 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,620 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 14:41:50,640 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,659 WARNING log Method Not Allowed: /api/v1/core/period-report/
+2026-10-13 14:41:50,676 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,694 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 14:41:50,713 WARNING log Forbidden: /api/v1/dashboard/home/
+2026-10-13 14:41:51,029 WARNING log Forbidden: /api/v1/dashboard/home/
+2026-10-13 14:41:51,044 WARNING log Method Not Allowed: /api/v1/dashboard/home/
+2026-10-13 14:41:51,060 WARNING log Forbidden: /api/v1/dashboard/home/
+2026-10-13 14:41:51,075 WARNING log Forbidden: /api/v1/dashboard/home/
+2026-10-13 14:41:51,114 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,131 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,148 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,164 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,180 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,197 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,214 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,230 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,246 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,261 WARNING log Forbidden: /api/v1/demo-requests/
+2026-10-13 14:41:51,276 WARNING log Forbidden: /api/v1/governance/
+2026-10-13 14:41:51,444 WARNING log Forbidden: /api/v1/governance/
+2026-10-13 14:41:51,461 WARNING log Method Not Allowed: /api/v1/governance/
+2026-10-13 14:41:51,479 WARNING log Forbidden: /api/v1/governance/
+2026-10-13 14:41:51,495 WARNING log Forbidden: /api/v1/governance/
+2026-10-13 14:41:51,511 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 14:41:51,525 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 14:41:51,604 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 14:41:51,662 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 14:41:51,708 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 14:41:51,729 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 14:41:51,944 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 14:41:51,959 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 14:41:51,974 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 14:41:51,990 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 14:41:52,008 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 14:41:52,202 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 14:41:52,219 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 14:41:52,234 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 14:41:52,251 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 14:41:52,268 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 14:41:52,472 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 14:41:52,490 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 14:41:52,507 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 14:41:52,521 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 14:41:52,538 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,555 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,585 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,603 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,618 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,634 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,706 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,723 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,738 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,754 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 14:41:52,771 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,789 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,829 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,849 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,867 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,886 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,963 WARNING log Forbidden: /api/v1/governance/retention-policies/preview/
+2026-10-13 14:41:52,979 WARNING log Forbidden: /api/v1/governance/shariah-audit-findings/
+2026-10-13 14:41:53,171 WARNING log Forbidden: /api/v1/governance/shariah-audit-findings/
+2026-10-13 14:41:53,192 WARNING log Bad Request: /api/v1/governance/shariah-audit-findings/
+2026-10-13 14:41:53,211 WARNING log Forbidden: /api/v1/governance/shariah-audit-findings/
+2026-10-13 14:41:53,226 WARNING log Forbidden: /api/v1/governance/shariah-audit-findings/
+2026-10-13 14:41:53,242 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/
+2026-10-13 14:41:53,485 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/
+2026-10-13 14:41:53,502 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/
+2026-10-13 14:41:53,525 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/
+2026-10-13 14:41:53,543 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/
+2026-10-13 14:41:53,560 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,577 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,596 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,800 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,818 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,929 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,980 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+2026-10-13 14:41:53,997 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,096 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,114 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,284 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,301 WARNING log Method Not Allowed: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,318 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,334 WARNING log Forbidden: /api/v1/governance/shariah-dashboard/
+2026-10-13 14:41:54,352 WARNING log Forbidden: /api/v1/governance/support-requests/
+2026-10-13 14:41:54,562 WARNING log Bad Request: /api/v1/governance/support-requests/
+2026-10-13 14:41:54,580 WARNING log Bad Request: /api/v1/governance/support-requests/
+2026-10-13 14:41:54,595 WARNING log Forbidden: /api/v1/governance/support-requests/
+2026-10-13 14:41:54,741 WARNING log Forbidden: /api/v1/health/
+2026-10-13 14:41:54,755 WARNING log Method Not Allowed: /api/v1/health/
+2026-10-13 14:41:54,769 WARNING log Forbidden: /api/v1/health/
+2026-10-13 14:41:54,784 WARNING log Method Not Allowed: /api/v1/health/
+2026-10-13 14:41:54,930 WARNING log Forbidden: /api/v1/health/ready/
+2026-10-13 14:41:54,942 WARNING log Method Not Allowed: /api/v1/health/ready/
+2026-10-13 14:41:54,955 WARNING log Forbidden: /api/v1/health/ready/
+2026-10-13 14:41:54,970 WARNING log Method Not Allowed: /api/v1/health/ready/
+2026-10-13 14:41:54,987 WARNING log Forbidden: /api/v1/investments/
+2026-10-13 14:41:55,155 WARNING log Forbidden: /api/v1/investments/
+2026-10-13 14:41:55,175 WARNING log Method Not Allowed: /api/v1/investments/
+2026-10-13 14:41:55,192 WARNING log Forbidden: /api/v1/investments/
+2026-10-13 14:41:55,214 WARNING log Forbidden: /api/v1/investments/
+2026-10-13 14:41:55,230 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 14:41:55,450 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 14:41:55,466 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 14:41:55,483 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 14:41:55,499 WARNING log Forbidden: /api/v1/investments/disclosures/
+2026-10-13 14:41:55,722 WARNING log Forbidden: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,737 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,753 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,771 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,788 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,804 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,821 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,837 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,853 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,869 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,887 WARNING log Bad Request: /api/v1/investments/disclosures/preview/
+2026-10-13 14:41:55,902 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 14:41:55,916 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 14:41:55,931 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 14:41:55,947 WARNING log Forbidden: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:55,964 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:55,984 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,000 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,017 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,036 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,059 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,078 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,094 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,114 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,131 WARNING log Bad Request: /api/v1/investments/disclosures/subscription-status/
+2026-10-13 14:41:56,148 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 14:41:56,593 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 14:41:56,615 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 14:41:56,639 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 14:41:56,660 WARNING log Forbidden: /api/v1/investments/distribution-runs/simulate/
+2026-10-13 14:41:56,681 WARNING log Forbidden: /api/v1/investments/distribution-runs/simulate/
+2026-10-13 14:41:56,703 WARNING log Forbidden: /api/v1/investments/distribution-runs/simulate/
+2026-10-13 14:41:56,730 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 14:41:57,086 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 14:41:57,110 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 14:41:57,138 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 14:41:57,171 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 14:41:57,200 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 14:41:57,554 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 14:41:57,579 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 14:41:57,599 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 14:41:57,618 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 14:41:57,635 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 14:41:57,864 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 14:41:57,879 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 14:41:57,896 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 14:41:57,912 WARNING log Forbidden: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:57,929 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:57,944 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:57,961 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:57,978 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:57,995 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,013 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,032 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,041 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,054 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,069 WARNING log Bad Request: /api/v1/investments/nav-snapshots/latest/
+2026-10-13 14:41:58,086 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,101 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,272 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,322 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,345 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,365 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,386 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 14:41:58,405 WARNING log Forbidden: /api/v1/investments/redemptions/
+2026-10-13 14:41:58,664 WARNING log Forbidden: /api/v1/investments/subscriptions/
+2026-10-13 14:41:59,090 WARNING log Forbidden: /api/v1/legal-entities/
+2026-10-13 14:41:59,103 WARNING log Forbidden: /api/v1/legal-entities/
+2026-10-13 14:41:59,120 WARNING log Forbidden: /api/v1/legal-entities/
+2026-10-13 14:41:59,139 WARNING log Bad Request: /api/v1/legal-entities/
+2026-10-13 14:41:59,735 WARNING log Forbidden: /api/v1/participants/
+2026-10-13 14:41:59,888 WARNING log Forbidden: /api/v1/participants/
+2026-10-13 14:41:59,903 WARNING log Method Not Allowed: /api/v1/participants/
+2026-10-13 14:41:59,919 WARNING log Forbidden: /api/v1/participants/
+2026-10-13 14:41:59,936 WARNING log Forbidden: /api/v1/participants/
+2026-10-13 14:41:59,949 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:41:59,966 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,071 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,086 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,129 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,172 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,190 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,208 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,229 WARNING log Forbidden: /api/v1/participants/accounts/
+2026-10-13 14:42:00,248 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,267 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,361 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,378 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,426 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,472 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,493 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,513 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,532 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 14:42:00,552 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,569 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,587 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,603 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,620 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,635 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,652 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,668 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,681 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,699 WARNING log Forbidden: /api/v1/participants/consents/mine/
+2026-10-13 14:42:00,732 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,754 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,771 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,787 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,802 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,821 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,837 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,852 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,869 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,884 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+2026-10-13 14:42:00,950 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:00,969 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:00,985 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,000 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,015 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,029 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,044 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,060 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,080 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,097 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,146 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,163 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,180 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+2026-10-13 14:42:01,199 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,221 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,315 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,334 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,373 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,414 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,432 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,450 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,472 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:01,492 WARNING log Forbidden: /api/v1/pools/
+2026-10-13 14:42:01,673 WARNING log Forbidden: /api/v1/pools/
+2026-10-13 14:42:01,688 WARNING log Method Not Allowed: /api/v1/pools/
+2026-10-13 14:42:01,705 WARNING log Forbidden: /api/v1/pools/
+2026-10-13 14:42:01,721 WARNING log Forbidden: /api/v1/pools/
+2026-10-13 14:42:01,738 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 14:42:01,959 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 14:42:01,976 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 14:42:01,993 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 14:42:02,010 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 14:42:02,026 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,040 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,206 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,243 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,259 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,276 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,293 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 14:42:02,309 WARNING log Forbidden: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,324 WARNING log Forbidden: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,343 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,362 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,380 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,398 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,416 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,435 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,450 WARNING log Forbidden: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,468 WARNING log Bad Request: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,484 WARNING log Forbidden: /api/v1/pools/asset-provisions/position/
+2026-10-13 14:42:02,501 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 14:42:02,707 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 14:42:02,723 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 14:42:02,740 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 14:42:02,757 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 14:42:02,774 WARNING log Forbidden: /api/v1/pools/assets/concentration-risk/
+2026-10-13 14:42:02,987 WARNING log Forbidden: /api/v1/pools/assets/concentration-risk/
+2026-10-13 14:42:03,004 WARNING log Forbidden: /api/v1/pools/assets/remediation-plan/
+2026-10-13 14:42:03,024 WARNING log Forbidden: /api/v1/pools/assets/remediation-plan/
+2026-10-13 14:42:03,042 WARNING log Forbidden: /api/v1/pools/assets/remediation-plan/
+2026-10-13 14:42:03,057 WARNING log Forbidden: /api/v1/pools/assets/stress-test/
+2026-10-13 14:42:03,075 WARNING log Forbidden: /api/v1/pools/assets/stress-test/
+2026-10-13 14:42:03,091 WARNING log Forbidden: /api/v1/pools/assets/stress-test/
+2026-10-13 14:42:03,107 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 14:42:03,311 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 14:42:03,326 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 14:42:03,339 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 14:42:03,375 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 14:42:03,393 WARNING log Forbidden: /api/v1/pools/balance-imports/cbs-sftp-daemon/
+2026-10-13 14:42:03,409 WARNING log Forbidden: /api/v1/pools/balance-imports/cbs-sftp-daemon/
+2026-10-13 14:42:03,425 WARNING log Forbidden: /api/v1/pools/balance-imports/cbs-sftp-daemon/
+2026-10-13 14:42:03,440 WARNING log Forbidden: /api/v1/pools/daily-balances/
+2026-10-13 14:42:06,055 WARNING log Forbidden: /api/v1/pools/daily-balances/
+2026-10-13 14:42:06,071 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,087 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,174 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,190 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,230 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,269 WARNING log Forbidden: /api/v1/pools/daily-closes/
+2026-10-13 14:42:06,283 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+2026-10-13 14:42:06,299 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+2026-10-13 14:42:06,316 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+2026-10-13 14:42:06,333 WARNING log Forbidden: /api/v1/pools/period-closes/
+2026-10-13 14:42:06,576 WARNING log Forbidden: /api/v1/pools/period-closes/
+2026-10-13 14:42:06,592 WARNING log Forbidden: /api/v1/pools/period-closes/
+2026-10-13 14:42:06,607 WARNING log Forbidden: /api/v1/pools/period-closes/
+2026-10-13 14:42:06,623 WARNING log Forbidden: /api/v1/pools/period-closes/
+2026-10-13 14:42:06,638 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:07,085 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:07,101 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:07,117 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:07,133 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:07,148 WARNING log Forbidden: /api/v1/pools/pools/portfolio-summary/
+2026-10-13 14:42:07,618 WARNING log Forbidden: /api/v1/pools/pools/portfolio-summary/
+2026-10-13 14:42:07,634 WARNING log Forbidden: /api/v1/products/
+2026-10-13 14:42:07,797 WARNING log Forbidden: /api/v1/products/
+2026-10-13 14:42:07,812 WARNING log Method Not Allowed: /api/v1/products/
+2026-10-13 14:42:07,830 WARNING log Forbidden: /api/v1/products/
+2026-10-13 14:42:07,846 WARNING log Forbidden: /api/v1/products/
+2026-10-13 14:42:07,861 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 14:42:08,134 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 14:42:08,150 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 14:42:08,166 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 14:42:08,181 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 14:42:08,398 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/
+2026-10-13 14:42:08,414 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/
+2026-10-13 14:42:08,431 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/
+2026-10-13 14:42:08,449 WARNING log Bad Request: /api/v1/products/jurisdiction-rule-packs/
+2026-10-13 14:42:08,465 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 14:42:08,769 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 14:42:08,787 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 14:42:08,802 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 14:42:08,820 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 14:42:08,836 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 14:42:09,585 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 14:42:09,602 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 14:42:09,620 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 14:42:09,636 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 14:42:09,647 WARNING log Method Not Allowed: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,658 WARNING log Method Not Allowed: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,671 WARNING log Method Not Allowed: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,683 WARNING log Method Not Allowed: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,696 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,708 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,721 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,736 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,750 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,765 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,780 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,796 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,809 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:09,826 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 14:42:10,112 WARNING log Forbidden: /api/v1/tenants/
+2026-10-13 14:42:10,129 WARNING log Forbidden: /api/v1/tenants/
+2026-10-13 14:42:10,147 WARNING log Forbidden: /api/v1/tenants/
+2026-10-13 14:42:10,165 WARNING log Bad Request: /api/v1/tenants/
+ok
+test_superadmin_reads_no_financial_data (audit_tests.test_audit_security.AuditSecurityTests.test_superadmin_reads_no_financial_data) ... 2026-10-13 14:42:10,293 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 14:42:10,308 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 14:42:10,324 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 14:42:10,339 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 14:42:10,356 WARNING log Forbidden: /api/v1/circles/circle-members/
+ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 64.307s
+
+OK
+Destroying test database for alias 'default' ('test_amanah_pool_os')...
+ OK
+System check identified no issues (0 silenced).
+EXIT 0

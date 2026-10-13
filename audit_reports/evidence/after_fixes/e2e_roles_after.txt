@@ -1,0 +1,49 @@
+
+> frontend@0.0.0 e2e:roles
+> playwright test --config=playwright.roles.config.ts
+
+
+Running 13 tests using 1 worker
+
+  ok  1 e2e\role-sweep.spec.ts:15:3 › role sweep: superadmin opens every screen in its menu without refused calls (18.1s)
+  x   2 e2e\role-sweep.spec.ts:15:3 › role sweep: poolmanager opens every screen in its menu without refused calls (52.0s)
+  ok  3 e2e\role-sweep.spec.ts:15:3 › role sweep: maker opens every screen in its menu without refused calls (46.6s)
+  ok  4 e2e\role-sweep.spec.ts:15:3 › role sweep: checker opens every screen in its menu without refused calls (49.6s)
+  ok  5 e2e\role-sweep.spec.ts:15:3 › role sweep: risk opens every screen in its menu without refused calls (55.1s)
+  ok  6 e2e\role-sweep.spec.ts:15:3 › role sweep: secretariat opens every screen in its menu without refused calls (28.6s)
+  ok  7 e2e\role-sweep.spec.ts:15:3 › role sweep: board opens every screen in its menu without refused calls (31.9s)
+  ok  8 e2e\role-sweep.spec.ts:15:3 › role sweep: auditor opens every screen in its menu without refused calls (49.2s)
+  ok  9 e2e\role-sweep.spec.ts:15:3 › role sweep: pm opens every screen in its menu without refused calls (14.1s)
+  ok 10 e2e\role-sweep.spec.ts:15:3 › role sweep: signatory opens every screen in its menu without refused calls (19.9s)
+  ok 11 e2e\role-sweep.spec.ts:15:3 › role sweep: investor opens every screen in its menu without refused calls (7.2s)
+  ok 12 e2e\role-sweep.spec.ts:15:3 › role sweep: member opens every screen in its menu without refused calls (6.7s)
+  ok 13 e2e\role-sweep.spec.ts:15:3 › role sweep: mudarabah.investor@novulabsdemo.test opens every screen in its menu without refused calls (6.1s)
+
+
+  1) e2e\role-sweep.spec.ts:15:3 › role sweep: poolmanager opens every screen in its menu without refused calls 
+
+    Error: browserContext.close: ENOENT: no such file or directory, open 'D:\Projects\Pool Management\pool management system\frontend\test-results\.playwright-artifacts-0\traces\abec675744d52338646c-98cc3a1099f3f1555e9e-recording2.trace'
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\role-sweep-role-sweep-pool-126b8--menu-without-refused-calls\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\role-sweep-role-sweep-pool-126b8--menu-without-refused-calls\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\role-sweep-role-sweep-pool-126b8--menu-without-refused-calls\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\role-sweep-role-sweep-pool-126b8--menu-without-refused-calls\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    e2e\role-sweep.spec.ts:15:3 › role sweep: poolmanager opens every screen in its menu without refused calls 
+  12 passed (6.5m)
+npm notice
+npm notice New major version of npm available! 11.16.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+EXIT 1

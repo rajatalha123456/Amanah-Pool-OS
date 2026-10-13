@@ -1,0 +1,10 @@
+pools/pools/ n=20 median=0.386786 p95=0.490425 max=0.493161
+participants/participants/ n=20 median=0.303836 p95=0.428287 max=0.431732
+allocation/allocation-runs/ n=20 median=0.636830 p95=0.825768 max=0.948823
+accounting/journal-batches/ n=20 median=0.324754 p95=0.472210 max=0.472658
+dashboard/home/ n=20 median=0.355401 p95=0.444278 max=0.450912
+circles/circle-members/ n=20 median=0.325369 p95=0.426644 max=0.429505
+governance/exception-cases/ n=20 median=0.325270 p95=0.427548 max=0.428634
+notifications/ n=20 median=0.308579 p95=0.388133 max=0.520891
+core/audit-log/ n=20 median=0.291668 p95=0.419477 max=0.423226
+pools/daily-balances/ n=20 median=0.622346 p95=0.809363 max=1.120007

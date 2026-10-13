@@ -1,0 +1,783 @@
+Creating test database for alias 'default'...
+2026-10-13 15:20:44,259 WARNING log Forbidden: /api/v1/accounting/income-expense-events/d8c2c3fe-68ae-4d1b-a0d3-acc3fbe64801/post/
+2026-10-13 15:20:44,318 WARNING log Bad Request: /api/v1/accounting/income-expense-events/d8c2c3fe-68ae-4d1b-a0d3-acc3fbe64801/post/
+..2026-10-13 15:20:44,428 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+...2026-10-13 15:20:44,693 ERROR services Reconciliation check failed for JournalBatch 76d4da4f-4bdd-47d2-aebc-cc0a1a74114c
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\accounting\services.py", line 186, in create_journal_from_allocation
+    check_reconciliation(batch)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: test
+...2026-10-13 15:20:44,840 WARNING log Bad Request: /api/v1/auth/me/
+...2026-10-13 15:20:45,364 WARNING log Unauthorized: /api/v1/core/audit-log/
+.2026-10-13 15:20:45,408 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+...2026-10-13 15:20:45,507 WARNING log Forbidden: /api/v1/core/audit-log/
+...2026-10-13 15:20:45,938 ERROR log Service Unavailable: /api/v1/ai/contract-analyzer/analyze/
+...2026-10-13 15:20:46,070 WARNING log Bad Request: /api/v1/ai/recommendations/c704115c-4249-461f-a3c7-e546f76455da/dispose/
+2026-10-13 15:20:46,084 WARNING log Bad Request: /api/v1/ai/recommendations/c704115c-4249-461f-a3c7-e546f76455da/dispose/
+2026-10-13 15:20:46,136 WARNING log Bad Request: /api/v1/ai/recommendations/c704115c-4249-461f-a3c7-e546f76455da/dispose/
+.2026-10-13 15:20:46,182 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 15:20:46,188 WARNING log Forbidden: /api/v1/ai/recommendations/e3e6d71c-0763-4d54-9516-d17c46f33c44/dispose/
+....2026-10-13 15:20:46,545 WARNING log Forbidden: /api/v1/ai/models/1/
+.2026-10-13 15:20:46,636 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/ask/
+...2026-10-13 15:20:47,057 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:47,121 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:47,176 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:47,232 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+FEEE2026-10-13 15:20:47,671 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:47,771 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:47,844 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,007 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:20:48,061 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-13 15:20:48,113 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:20:48,175 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,468 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,530 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,584 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,633 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:48,687 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:20:49,925 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e361fed8-b419-4c22-b6f3-60d37dc43d04/approve/
+..2026-10-13 15:20:52,913 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:20:54,173 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a90d47b8-921d-4bca-9bc8-6372b41b13aa/approve/
+...2026-10-13 15:20:56,265 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+...2026-10-13 15:20:58,251 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:20:58,596 WARNING log Bad Request: /api/v1/accounting/income-expense-events/d7476372-2d32-4a9a-a5bb-ea3015154bbe/post/
+.2026-10-13 15:20:58,728 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+.2026-10-13 15:20:58,927 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/5d03dd4d-ed7c-467d-a95a-3875a08cd59d/
+2026-10-13 15:20:58,934 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/5d03dd4d-ed7c-467d-a95a-3875a08cd59d/
+..2026-10-13 15:20:59,945 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:21:00,076 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+2026-10-13 15:21:00,093 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+..2026-10-13 15:21:01,616 WARNING log Forbidden: /api/v1/allocation/allocation-runs/233022f1-d296-4e96-b357-16cb89e020d2/approve/
+...2026-10-13 15:21:03,205 WARNING log Forbidden: /api/v1/allocation/allocation-runs/5b6cce43-7a0a-496b-bf0a-4e57cf6ec37d/approve/
+........2026-10-13 15:21:08,605 WARNING log Bad Request: /api/v1/governance/config-changes/a87a2a0a-be7a-4dad-bf46-76400a052219/approve/
+.2026-10-13 15:21:08,762 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:08,769 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+.2026-10-13 15:21:08,899 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-13 15:21:08,978 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+2026-10-13 15:21:08,985 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+.2026-10-13 15:21:09,199 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:09,213 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:09,288 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:09,296 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:09,300 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-13 15:21:09,305 WARNING log Method Not Allowed: /api/v1/accounting/approval-matrix/f228f7a6-7a3b-444f-9a23-2c1abeaf80c5/
+.2026-10-13 15:21:09,472 WARNING log Forbidden: /api/v1/governance/config-changes/f96c9f1c-39f5-4184-bf99-1f56f77d8a7a/approve/
+2026-10-13 15:21:09,481 WARNING log Forbidden: /api/v1/governance/config-changes/f96c9f1c-39f5-4184-bf99-1f56f77d8a7a/approve/
+2026-10-13 15:21:09,498 WARNING log Bad Request: /api/v1/governance/config-changes/f96c9f1c-39f5-4184-bf99-1f56f77d8a7a/reject/
+2026-10-13 15:21:09,548 WARNING log Bad Request: /api/v1/governance/config-changes/f96c9f1c-39f5-4184-bf99-1f56f77d8a7a/approve/
+.2026-10-13 15:21:09,739 WARNING log Bad Request: /api/v1/governance/config-changes/ab147e40-c2c0-4cfc-aeda-0b228ef406fa/approve/
+2026-10-13 15:21:09,759 WARNING log Bad Request: /api/v1/accounting/approval-matrix/303397a8-901e-4eb3-b788-a30bccd3d5fc/
+......2026-10-13 15:21:11,009 WARNING log Bad Request: /api/v1/participants/participants/
+2026-10-13 15:21:11,033 WARNING log Bad Request: /api/v1/participants/accounts/
+..2026-10-13 15:21:11,328 WARNING log Forbidden: /api/v1/participants/participants/879b0814-b674-457f-be62-3a07fe76279c/verify-kyc/
+.......2026-10-13 15:21:13,351 WARNING log Bad Request: /api/v1/allocation/allocation-runs/8a7a20f5-95bc-4199-8d46-67856145e4df/approve/
+..2026-10-13 15:21:14,178 WARNING log Bad Request: /api/v1/allocation/allocation-runs/2854dfa8-fbff-4a19-bf77-2a1f2e1effe0/check/
+.2026-10-13 15:21:14,890 WARNING log Not Found: /api/v1/allocation/allocation-runs/e2436892-4080-4c81-b4f1-4215ed000a06/
+2026-10-13 15:21:14,898 WARNING log Not Found: /api/v1/allocation/allocation-runs/e2436892-4080-4c81-b4f1-4215ed000a06/statements/
+2026-10-13 15:21:14,904 WARNING log Forbidden: /api/v1/participants/participants/
+..2026-10-13 15:21:15,504 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+...2026-10-13 15:21:17,511 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+..2026-10-13 15:21:18,545 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+.2026-10-13 15:21:19,080 WARNING log Forbidden: /api/v1/allocation/payout-clearing/authorize/
+2026-10-13 15:21:19,095 WARNING log Bad Request: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 15:21:19,124 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-13 15:21:19,152 WARNING log Bad Request: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 15:21:19,207 WARNING log Bad Request: /api/v1/allocation/payout-clearing/post-contra-gl/
+.2026-10-13 15:21:19,730 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+..2026-10-13 15:21:20,816 WARNING log Bad Request: /api/v1/allocation/payout-clearing/authorize/
+.2026-10-13 15:21:21,322 WARNING log Bad Request: /api/v1/allocation/reserve-policies/
+2026-10-13 15:21:21,340 WARNING log Bad Request: /api/v1/allocation/reserve-policies/
+F2026-10-13 15:21:21,792 WARNING log Conflict: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-13 15:21:21,799 WARNING log Conflict: /api/v1/banking/settle/
+2026-10-13 15:21:21,807 WARNING log Conflict: /api/v1/pools/balance-imports/cbs-sftp-daemon/
+.2026-10-13 15:21:22,312 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+.2026-10-13 15:21:23,034 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+...2026-10-13 15:21:23,931 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+....2026-10-13 15:21:24,801 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:24,853 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:24,900 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:24,947 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:24,996 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:25,046 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F2026-10-13 15:21:25,104 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+F.2026-10-13 15:21:25,274 WARNING log Bad Request: /api/v1/circles/circle-members/b58abe95-dfe1-4584-bb97-b222985b0134/flag-arrears/
+.2026-10-13 15:21:25,302 WARNING log Bad Request: /api/v1/circles/arrears-records/64c22dc4-78d0-459d-a8a3-5d9d02821d5c/grant-hardship/
+.2026-10-13 15:21:25,326 WARNING log Forbidden: /api/v1/circles/circle-members/a72eb42f-6b47-46e3-8777-f378aff32a08/flag-arrears/
+..2026-10-13 15:21:25,433 WARNING log Forbidden: /api/v1/circles/arrears-records/1c4caf0b-583d-4b50-9b56-28124ff7a075/grant-hardship/
+..2026-10-13 15:21:25,721 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+..2026-10-13 15:21:26,206 WARNING log Forbidden: /api/v1/circles/closures/close/
+.2026-10-13 15:21:26,348 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+.2026-10-13 15:21:26,525 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-13 15:21:26,536 WARNING log Bad Request: /api/v1/circles/draws/3077cc34-0043-48b3-ae26-1d750ac8fb32/execute/
+2026-10-13 15:21:26,601 WARNING log Bad Request: /api/v1/circles/draws/3077cc34-0043-48b3-ae26-1d750ac8fb32/execute/
+.2026-10-13 15:21:26,655 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-13 15:21:26,830 WARNING log Bad Request: /api/v1/circles/draws/commit/
+.2026-10-13 15:21:26,974 WARNING log Bad Request: /api/v1/circles/rules/accept/
+2026-10-13 15:21:27,025 WARNING log Bad Request: /api/v1/circles/rules/accept/
+.2026-10-13 15:21:27,188 WARNING log Bad Request: /api/v1/circles/draws/dfc38d3a-ead4-4cbe-9880-1f3b3506f12b/execute/
+........2026-10-13 15:21:28,054 WARNING log Forbidden: /api/v1/circles/circle-members/run-draw/a15dfed7-193e-417b-a205-45610c80b122/
+2026-10-13 15:21:28,287 WARNING log Forbidden: /api/v1/circles/payouts/request-payout/a15dfed7-193e-417b-a205-45610c80b122/
+2026-10-13 15:21:28,359 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/a15dfed7-193e-417b-a205-45610c80b122/
+2026-10-13 15:21:28,409 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/a15dfed7-193e-417b-a205-45610c80b122/
+2026-10-13 15:21:28,461 WARNING log Bad Request: /api/v1/circles/circle-members/2bcf3a16-0c95-4a88-bb92-0726a947bdf5/record-contribution/
+2026-10-13 15:21:28,512 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/a15dfed7-193e-417b-a205-45610c80b122/
+2026-10-13 15:21:28,520 WARNING log Forbidden: /api/v1/circles/circle-members/4cc2e5ba-815b-4903-b70c-67e055e5715c/verify-kyc/
+2026-10-13 15:21:28,619 WARNING log Forbidden: /api/v1/circles/payouts/591a07dd-3f43-4afd-8fc4-8597854a589e/approve/
+2026-10-13 15:21:28,641 WARNING log Bad Request: /api/v1/circles/payouts/591a07dd-3f43-4afd-8fc4-8597854a589e/settle/
+2026-10-13 15:21:28,766 WARNING log Bad Request: /api/v1/circles/payouts/591a07dd-3f43-4afd-8fc4-8597854a589e/settle/
+2026-10-13 15:21:28,864 WARNING log Bad Request: /api/v1/circles/payouts/591a07dd-3f43-4afd-8fc4-8597854a589e/approve/
+..2026-10-13 15:21:29,049 WARNING log Bad Request: /api/v1/circles/circle-members/run-draw/dc38084c-e7f6-448c-b930-06ffe2e2578d/
+.2026-10-13 15:21:29,351 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-13 15:21:29,515 WARNING log Bad Request: /api/v1/circles/circle-members/accept-rules/
+.2026-10-13 15:21:29,683 WARNING log Forbidden: /api/v1/circles/circle-members/
+..2026-10-13 15:21:29,955 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+..2026-10-13 15:21:30,142 WARNING log Bad Request: /api/v1/circles/circle-members/e421b082-d884-469c-b2f0-550204fc4f5f/link-login/
+.2026-10-13 15:21:30,238 WARNING log Bad Request: /api/v1/circles/circle-proposals/4048bd7f-3aa2-4c30-870a-371410bface9/vote/
+.2026-10-13 15:21:30,322 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+.2026-10-13 15:21:30,385 WARNING log Forbidden: /api/v1/circles/circle-members/cast-vote/
+2026-10-13 15:21:30,399 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-13 15:21:30,743 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/297eb981-d6cc-481c-9b20-9fedad56ca6a/
+..2026-10-13 15:21:31,183 WARNING log Forbidden: /api/v1/circles/payouts/ceremony-readiness/d3c01dbc-1445-42bb-883d-414f09e7fbbd/
+.2026-10-13 15:21:31,361 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/3b4ef9eb-382b-471c-9d5e-58b7c918c293/
+.2026-10-13 15:21:31,525 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/61e8aade-2b7b-4184-83bb-6071eb7fd9d6/
+.2026-10-13 15:21:31,696 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/72e6c18a-6b07-4e35-87f0-f1934753ee3a/
+.2026-10-13 15:21:31,846 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/569d0d17-f28b-4d2b-a5c4-5fc5f41b3538/
+.2026-10-13 15:21:31,965 WARNING log Method Not Allowed: /api/v1/circles/payouts/
+.2026-10-13 15:21:32,179 WARNING log Bad Request: /api/v1/circles/payouts/7f9715d4-4d1a-4363-8713-c9b343e2d156/approve/
+...2026-10-13 15:21:32,907 WARNING log Bad Request: /api/v1/circles/payouts/215a4011-8342-4fa0-9229-be7336e2342c/reject/
+2026-10-13 15:21:32,980 WARNING log Bad Request: /api/v1/circles/payouts/215a4011-8342-4fa0-9229-be7336e2342c/approve/
+.2026-10-13 15:21:33,243 WARNING log Bad Request: /api/v1/circles/payouts/89ff1737-32c9-4147-93bd-9dac0236d20b/approve/
+.2026-10-13 15:21:33,376 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/ceb1f9a4-f934-44c6-a364-b157c949e722/
+.2026-10-13 15:21:33,567 WARNING log Bad Request: /api/v1/circles/circle-proposals/06c83450-7a47-45a3-ae92-e2f6624629ae/close/
+2026-10-13 15:21:33,588 WARNING log Bad Request: /api/v1/circles/circle-proposals/06c83450-7a47-45a3-ae92-e2f6624629ae/close/
+.2026-10-13 15:21:33,703 WARNING log Bad Request: /api/v1/circles/circle-proposals/b8e5c66b-7573-4e9d-a81a-057f713a644b/vote/
+...2026-10-13 15:21:34,275 WARNING log Bad Request: /api/v1/circles/circle-proposals/2d71e653-867b-41d4-b839-40535615dd42/vote/
+..2026-10-13 15:21:34,394 WARNING log Forbidden: /api/v1/circles/circle-proposals/16e55444-4e1d-43ba-abc3-cc2e2e9caf56/close/
+.2026-10-13 15:21:34,435 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+.....2026-10-13 15:21:41,572 WARNING log Bad Request: /api/v1/allocation/psr-schedules/04d8ed60-0afb-4067-bf72-d168aad9b0a8/
+2026-10-13 15:21:41,608 WARNING log Bad Request: /api/v1/allocation/weightage-bands/23bbae8e-f14b-4347-84a1-f9ffde1fd1ba/
+2026-10-13 15:21:41,631 WARNING log Method Not Allowed: /api/v1/allocation/psr-schedules/04d8ed60-0afb-4067-bf72-d168aad9b0a8/
+2026-10-13 15:21:41,662 WARNING log Bad Request: /api/v1/products/contract-templates/027c3ec5-eee3-44af-858d-cd77a160eacd/
+2026-10-13 15:21:41,700 WARNING log Bad Request: /api/v1/products/shariah-decisions/3b4e18de-8cf5-4820-9131-4fe319f3c1d0/
+2026-10-13 15:21:41,728 WARNING log Bad Request: /api/v1/products/shariah-decisions/3b4e18de-8cf5-4820-9131-4fe319f3c1d0/
+.2026-10-13 15:21:41,936 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 15:21:41,962 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 15:21:41,985 WARNING log Forbidden: /api/v1/ai/recommendations/00000000-0000-0000-0000-000000000000/dispose/
+.2026-10-13 15:21:42,193 WARNING log Forbidden: /api/v1/allocation/psr-schedules/04d8ed60-0afb-4067-bf72-d168aad9b0a8/
+2026-10-13 15:21:42,218 WARNING log Forbidden: /api/v1/allocation/weightage-bands/23bbae8e-f14b-4347-84a1-f9ffde1fd1ba/
+2026-10-13 15:21:42,238 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/135629e4-8c09-4b24-9966-4b75b0dc7a11/
+2026-10-13 15:21:42,256 WARNING log Forbidden: /api/v1/circles/circle-members/132c649a-698f-456a-af0b-c6c4918e50a9/
+2026-10-13 15:21:42,274 WARNING log Forbidden: /api/v1/circles/circle-members/swap-turns/aeebe12b-5507-4af8-ab87-d93393acf039/
+2026-10-13 15:21:42,299 WARNING log Forbidden: /api/v1/circles/circle-proposals/432b2af3-d4c6-4879-93da-675133cf7817/vote/
+2026-10-13 15:21:42,320 WARNING log Forbidden: /api/v1/governance/related-party-transactions/cc7dc838-7ed9-47e3-9466-b93cb47602de/
+2026-10-13 15:21:42,339 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/aa6a36a8-d6d1-40fd-b289-8e4e9bc47464/approve/
+2026-10-13 15:21:42,362 WARNING log Forbidden: /api/v1/pools/pools/13777035-3698-4ee5-bc7f-c0f5a11f1fa3/
+2026-10-13 15:21:42,384 WARNING log Forbidden: /api/v1/pools/assets/171a777b-07fd-4441-8d45-d4c52b5bbfe7/
+2026-10-13 15:21:42,404 WARNING log Forbidden: /api/v1/pools/asset-assignments/6fe93ebf-392a-478b-bcd2-db2b009492ec/transfer/
+2026-10-13 15:21:42,432 WARNING log Forbidden: /api/v1/pools/period-closes/40bcb5ad-02ff-48da-b3e4-d8fd8e817012/lock/
+2026-10-13 15:21:42,451 WARNING log Forbidden: /api/v1/products/products/372bf5a8-081a-46c0-a50c-9f1b538c4fea/
+2026-10-13 15:21:42,471 WARNING log Forbidden: /api/v1/products/contract-templates/027c3ec5-eee3-44af-858d-cd77a160eacd/
+2026-10-13 15:21:42,497 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-13 15:21:42,519 WARNING log Forbidden: /api/v1/auth/users/
+2026-10-13 15:21:42,541 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 15:21:42,572 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-13 15:21:42,596 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-13 15:21:42,616 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 15:21:42,637 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 15:21:42,657 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 15:21:42,677 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 15:21:42,698 WARNING log Forbidden: /api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/resolve/
+2026-10-13 15:21:42,717 WARNING log Forbidden: /api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/assign/
+2026-10-13 15:21:42,736 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 15:21:42,758 WARNING log Forbidden: /api/v1/tenants/
+..2026-10-13 15:21:43,338 WARNING log Bad Request: /api/v1/accounting/income-expense-events/538d7186-4d79-4546-9748-0ef29c1b429f/reclassify/
+.2026-10-13 15:21:43,482 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 15:21:43,505 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-13 15:21:43,527 WARNING log Forbidden: /api/v1/circles/rules/accept/
+.2026-10-13 15:21:43,754 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 15:21:43,781 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 15:21:43,807 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-13 15:21:43,833 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 15:21:43,857 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 15:21:43,885 WARNING log Forbidden: /api/v1/circles/circle-members/
+..2026-10-13 15:21:44,231 WARNING log Forbidden: /api/v1/investments/capital-accounts/4389b343-9de4-4a7b-a24a-a4dc9778f547/
+2026-10-13 15:21:44,272 WARNING log Bad Request: /api/v1/investments/capital-accounts/4389b343-9de4-4a7b-a24a-a4dc9778f547/
+2026-10-13 15:21:44,299 WARNING log Forbidden: /api/v1/circles/circle-members/132c649a-698f-456a-af0b-c6c4918e50a9/
+..............2026-10-13 15:21:45,487 WARNING log Forbidden: /api/v1/core/audit-log/export/
+.2026-10-13 15:21:45,541 WARNING log Forbidden: /api/v1/core/audit-log/
+....2026-10-13 15:21:46,339 WARNING log Not Found: /api/v1/dashboard/home/
+2026-10-13 15:21:46,348 WARNING log Not Found: /api/v1/dashboard/home/
+...2026-10-13 15:21:47,838 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+2026-10-13 15:21:47,848 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+..2026-10-13 15:21:49,071 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-13 15:21:49,076 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+..2026-10-13 15:21:50,552 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+.....2026-10-13 15:21:59,205 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-13 15:21:59,215 WARNING log Bad Request: /api/v1/core/period-report/
+.2026-10-13 15:21:59,354 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-13 15:21:59,363 WARNING log Forbidden: /api/v1/core/period-report/
+........2026-10-13 15:22:07,248 WARNING log Bad Request: /api/v1/governance/support-requests/
+.......2026-10-13 15:22:07,787 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-13 15:22:07,813 WARNING log Forbidden: /api/v1/governance/retention-policies/6b7ce664-d592-401f-8227-7d9a88ea2827/approve/
+2026-10-13 15:22:07,828 WARNING log Bad Request: /api/v1/governance/retention-policies/6b7ce664-d592-401f-8227-7d9a88ea2827/approve/
+.2026-10-13 15:22:07,846 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-13 15:22:07,853 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-13 15:22:07,861 WARNING log Bad Request: /api/v1/governance/retention-policies/
+..2026-10-13 15:22:08,039 WARNING log Bad Request: /api/v1/products/shariah-decisions/
+....2026-10-13 15:22:08,260 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+.....2026-10-13 15:22:08,699 WARNING log Forbidden: /api/v1/governance/support-requests/32d73889-ec0c-414b-8d94-89c866440155/assign/
+.2026-10-13 15:22:08,744 WARNING log Bad Request: /api/v1/governance/support-requests/5d7fb576-c94a-4a38-9ac8-29fe93278253/resolve/
+....2026-10-13 15:22:08,979 WARNING log Forbidden: /api/v1/governance/support-requests/53c8ae41-241d-40aa-9093-517901f8f08e/resolve/
+...2026-10-13 15:22:09,288 WARNING log Bad Request: /api/v1/governance/exceptions/57a3b918-bf87-4007-802f-3a6f488498df/set-treatment/
+.2026-10-13 15:22:09,311 WARNING log Bad Request: /api/v1/governance/exceptions/bff85f7a-f2c5-4588-80e1-8ae75f8ab836/start-investigation/
+2026-10-13 15:22:09,341 WARNING log Bad Request: /api/v1/governance/exceptions/bff85f7a-f2c5-4588-80e1-8ae75f8ab836/start-investigation/
+.2026-10-13 15:22:09,359 WARNING log Forbidden: /api/v1/governance/exceptions/ccbb1404-8b92-4e9a-9867-cdaae5705fa8/start-investigation/
+2026-10-13 15:22:09,365 WARNING log Forbidden: /api/v1/governance/exceptions/ccbb1404-8b92-4e9a-9867-cdaae5705fa8/set-treatment/
+.2026-10-13 15:22:09,705 WARNING log Bad Request: /api/v1/governance/related-party-transactions/bce5a5ec-eafa-4de5-b282-6f06e86674a6/elevated-approve/
+.2026-10-13 15:22:09,781 WARNING log Bad Request: /api/v1/governance/related-party-transactions/e01a6f35-74f6-40b8-a5fb-be31721742b8/review/
+2026-10-13 15:22:09,790 WARNING log Bad Request: /api/v1/governance/related-party-transactions/e01a6f35-74f6-40b8-a5fb-be31721742b8/review/
+.2026-10-13 15:22:09,851 WARNING log Forbidden: /api/v1/governance/related-party-transactions/7f2640be-cb8a-4061-a277-8adab4fe1e2a/elevated-approve/
+.2026-10-13 15:22:09,945 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 15:22:09,972 WARNING log Forbidden: /api/v1/governance/related-party-transactions/220a8cf7-471d-4e15-8e4d-3a26f9101c44/review/
+...2026-10-13 15:22:11,463 WARNING log Not Found: /api/v1/investments/disclosures/ca79a492-7c4e-4c68-bb19-11e2a22f3827/acknowledge/
+2026-10-13 15:22:11,577 WARNING log Bad Request: /api/v1/investments/disclosures/ca79a492-7c4e-4c68-bb19-11e2a22f3827/approve/
+..2026-10-13 15:22:12,270 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+2026-10-13 15:22:12,400 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+.2026-10-13 15:22:12,836 WARNING log Bad Request: /api/v1/investments/disclosures/b08951d0-8a35-414f-ac46-b3730504e327/acknowledge/
+2026-10-13 15:22:12,852 WARNING log Bad Request: /api/v1/investments/disclosures/b08951d0-8a35-414f-ac46-b3730504e327/acknowledge/
+2026-10-13 15:22:12,868 WARNING log Bad Request: /api/v1/investments/disclosures/b08951d0-8a35-414f-ac46-b3730504e327/acknowledge/
+2026-10-13 15:22:12,930 WARNING log Bad Request: /api/v1/investments/disclosures/b08951d0-8a35-414f-ac46-b3730504e327/acknowledge/
+.2026-10-13 15:22:13,201 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 15:22:13,206 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 15:22:13,212 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-13 15:22:13,273 WARNING log Forbidden: /api/v1/investments/disclosures/ece59c3f-36e9-4701-ad80-3586aec60caa/approve/
+2026-10-13 15:22:13,278 WARNING log Forbidden: /api/v1/investments/disclosures/ece59c3f-36e9-4701-ad80-3586aec60caa/approve/
+2026-10-13 15:22:13,284 WARNING log Forbidden: /api/v1/investments/disclosures/ece59c3f-36e9-4701-ad80-3586aec60caa/approve/
+.2026-10-13 15:22:13,711 WARNING log Bad Request: /api/v1/investments/disclosures/4a959f48-4153-4680-afc0-5d6b8eb38a4f/acknowledge/
+2026-10-13 15:22:13,732 WARNING log Bad Request: /api/v1/investments/disclosures/bfea21aa-df3e-48da-8a53-eedf9b311aff/acknowledge/
+.2026-10-13 15:22:14,124 WARNING log Bad Request: /api/v1/investments/capital-accounts/13fa7758-92b6-49df-b5d0-2871fe5ae33e/subscribe/
+.2026-10-13 15:22:14,680 WARNING log Bad Request: /api/v1/investments/capital-accounts/aa630aeb-be7a-4bb0-a10e-771a9aec9553/subscribe/
+.........2026-10-13 15:22:18,244 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+...2026-10-13 15:22:20,058 WARNING log Bad Request: /api/v1/investments/distribution-runs/8b262182-dbee-4140-a021-7645e08122a2/approve/
+.2026-10-13 15:22:20,383 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-13 15:22:20,496 WARNING log Forbidden: /api/v1/investments/distribution-runs/659de8f3-3d37-44ff-b225-3655237f50f2/approve/
+2026-10-13 15:22:20,505 WARNING log Bad Request: /api/v1/investments/distribution-runs/659de8f3-3d37-44ff-b225-3655237f50f2/reject/
+.2026-10-13 15:22:21,175 WARNING log Bad Request: /api/v1/investments/distribution-runs/0f3118d6-d691-42a3-a849-c135b57a95b8/approve/
+.2026-10-13 15:22:21,820 WARNING log Not Found: /api/v1/investments/distribution-runs/04466aad-8b4a-46c3-9e64-5af7e2d044dd/
+.2026-10-13 15:22:22,115 WARNING log Not Found: /api/v1/investments/capital-accounts/e51899f2-bfe8-4138-b156-4777daba92d8/statement/
+.....2026-10-13 15:22:24,672 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+2026-10-13 15:22:24,692 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+...2026-10-13 15:22:26,347 WARNING log Bad Request: /api/v1/investments/distribution-runs/66c0f4bb-760f-4b4f-b12a-f89b0cc705e3/approve/
+.2026-10-13 15:22:27,093 WARNING log Bad Request: /api/v1/investments/distribution-runs/273d0266-7bc0-40e0-a77e-a7d7f978e45d/approve/
+.2026-10-13 15:22:27,579 WARNING log Bad Request: /api/v1/investments/negligence-cases/d95bba93-34ab-4fff-b26f-b631ed2ccb21/determine/
+2026-10-13 15:22:27,598 WARNING log Bad Request: /api/v1/investments/negligence-cases/d95bba93-34ab-4fff-b26f-b631ed2ccb21/add-note/
+..2026-10-13 15:22:28,542 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+.2026-10-13 15:22:29,061 WARNING log Bad Request: /api/v1/investments/negligence-cases/
+..2026-10-13 15:22:30,113 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-13 15:22:30,119 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+..2026-10-13 15:22:31,540 WARNING log Forbidden: /api/v1/investments/negligence-cases/9a162f49-51ea-4c90-91b9-716e91526121/determine/
+2026-10-13 15:22:31,553 WARNING log Bad Request: /api/v1/investments/negligence-cases/9a162f49-51ea-4c90-91b9-716e91526121/determine/
+2026-10-13 15:22:31,567 WARNING log Bad Request: /api/v1/investments/negligence-cases/9a162f49-51ea-4c90-91b9-716e91526121/determine/
+2026-10-13 15:22:31,580 WARNING log Bad Request: /api/v1/investments/negligence-cases/9a162f49-51ea-4c90-91b9-716e91526121/determine/
+2026-10-13 15:22:31,594 WARNING log Bad Request: /api/v1/investments/negligence-cases/9a162f49-51ea-4c90-91b9-716e91526121/determine/
+..2026-10-13 15:22:32,979 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+.......2026-10-13 15:22:35,410 WARNING log Bad Request: /api/v1/investments/capital-accounts/1f47ae97-1b5e-4463-91f7-cc2819503df0/redeem/
+.2026-10-13 15:22:35,907 WARNING log Bad Request: /api/v1/investments/capital-accounts/18feea4b-537c-49d1-b926-19aafa062f44/subscribe/
+.2026-10-13 15:22:36,278 WARNING log Bad Request: /api/v1/products/products/ecb9756f-c065-45ed-b673-ae0dcf470faf/
+.2026-10-13 15:22:36,552 WARNING log Bad Request: /api/v1/investments/investor-profiles/86587fab-48dc-452a-9e0c-d43b6f45cc4a/verify-kyc/
+.2026-10-13 15:22:37,058 WARNING log Bad Request: /api/v1/investments/capital-accounts/17a8d952-5163-452f-90e2-73f1b69d87c1/redeem/
+.2026-10-13 15:22:37,472 WARNING log Bad Request: /api/v1/investments/capital-accounts/dbb32512-abe6-41c7-9f34-2eac65f1a7b1/subscribe/
+.2026-10-13 15:22:38,082 WARNING log Bad Request: /api/v1/investments/capital-accounts/f28f2bec-dc37-4530-a27d-1cea040ace4a/subscribe/
+.2026-10-13 15:22:38,572 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+.2026-10-13 15:22:39,087 WARNING log Bad Request: /api/v1/investments/redemptions/26376b86-88ed-4b6e-9b6f-c82e796dd9f6/approve/
+.2026-10-13 15:22:39,523 WARNING log Bad Request: /api/v1/investments/redemptions/c56fb500-0a6e-4efe-a5ec-be3c3d64f258/approve/
+2026-10-13 15:22:39,532 WARNING log Bad Request: /api/v1/investments/redemptions/c56fb500-0a6e-4efe-a5ec-be3c3d64f258/reject/
+.2026-10-13 15:22:39,984 WARNING log Bad Request: /api/v1/investments/redemptions/4df08033-a7b4-405c-b79a-63dd70fe0222/approve/
+.2026-10-13 15:22:40,406 WARNING log Not Found: /api/v1/investments/capital-accounts/e8010aa1-9738-4759-9b7c-e2b87b2f6222/redeem/
+.2026-10-13 15:22:40,692 WARNING log Bad Request: /api/v1/investments/capital-accounts/df1414fc-ae36-4d85-b173-8ee0e78b06c6/redeem/
+.2026-10-13 15:22:41,053 WARNING log Bad Request: /api/v1/investments/capital-accounts/9e6ade52-d1e0-4f6f-93c8-0f8307ba8d78/redeem/
+.2026-10-13 15:22:41,399 WARNING log Bad Request: /api/v1/investments/redemptions/4eb782ae-157b-4d47-92ba-ad5288a067cd/reject/
+..2026-10-13 15:22:42,196 WARNING log Forbidden: /api/v1/investments/redemptions/57e2668b-bd3c-4f4b-92ce-3b9871de4478/approve/
+2026-10-13 15:22:42,202 WARNING log Forbidden: /api/v1/investments/redemptions/57e2668b-bd3c-4f4b-92ce-3b9871de4478/approve/
+..2026-10-13 15:22:42,830 WARNING log Bad Request: /api/v1/investments/capital-accounts/41a4ff00-e0e4-4959-9d16-776c2934a16f/subscribe/
+2026-10-13 15:22:42,885 WARNING log Bad Request: /api/v1/investments/capital-accounts/41a4ff00-e0e4-4959-9d16-776c2934a16f/subscribe/
+.2026-10-13 15:22:43,117 WARNING log Forbidden: /api/v1/investments/investor-profiles/3b7eb687-ef18-45ce-ab47-0b2e4d62953c/verify-kyc/
+....2026-10-13 15:22:44,198 ERROR services Could not create notifications for Allocation run awaiting independent check: POOL-L 2026-09-01 to 2026-09-10
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\services.py", line 47, in notify_users
+    notification = Notification.objects.create(
+        tenant=tenant,
+    ...<7 lines>...
+        related_id=str(related[1]) if related else "",
+    )
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+...2026-10-13 15:22:45,306 WARNING services Email delivery failed for notification 2b96ed48-ff36-413b-927e-f5d0b1b961ab: smtp down
+...2026-10-13 15:22:46,600 WARNING log Bad Request: /api/v1/allocation/psr-schedules/90551d51-c613-4360-8d1c-e3ef0832f95c/approve/
+...2026-10-13 15:22:48,152 WARNING log Bad Request: /api/v1/allocation/weightage-bands/0af49923-12f1-4e92-8c3c-fe744067d07f/approve/
+.2026-10-13 15:22:48,402 WARNING log Method Not Allowed: /api/v1/notifications/
+..2026-10-13 15:22:48,729 WARNING log Not Found: /api/v1/notifications/50554bfa-fcf5-4853-9b75-32f44816d6ca/mark-read/
+.2026-10-13 15:22:48,941 WARNING log Bad Request: /api/v1/participants/consents/62de6b9e-d5c0-4eb9-969e-6e28cd01aeae/withdraw/
+..2026-10-13 15:22:49,079 WARNING log Bad Request: /api/v1/participants/consents/
+2026-10-13 15:22:49,113 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-13 15:22:49,139 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-13 15:22:49,144 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+.2026-10-13 15:22:49,206 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-13 15:22:49,297 WARNING log Bad Request: /api/v1/participants/consents/45095193-a871-4909-bac0-75cf8ae95b67/withdraw/
+.2026-10-13 15:22:49,516 WARNING log Bad Request: /api/v1/pools/pools/072c21cf-7196-49cd-a408-5898c5531b4b/open/
+...2026-10-13 15:22:49,955 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+2026-10-13 15:22:50,069 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+2026-10-13 15:22:50,171 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+2026-10-13 15:22:50,269 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+2026-10-13 15:22:50,374 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+2026-10-13 15:22:50,481 WARNING log Bad Request: /api/v1/pools/pools/c4ae6e22-f7b7-4c47-be56-1b90d6fd6249/open/
+.2026-10-13 15:22:50,531 WARNING log Forbidden: /api/v1/pools/pools/fb337031-f01f-4956-91d9-01e193dcea5c/open/
+2026-10-13 15:22:50,537 WARNING log Forbidden: /api/v1/pools/pools/fb337031-f01f-4956-91d9-01e193dcea5c/open/
+2026-10-13 15:22:50,542 WARNING log Forbidden: /api/v1/pools/pools/fb337031-f01f-4956-91d9-01e193dcea5c/create-version/
+...2026-10-13 15:22:51,218 WARNING log Bad Request: /api/v1/pools/pools/4dc8aa5d-2e5d-4822-8f75-0478061c67ca/create-version/
+2026-10-13 15:22:51,261 WARNING log Bad Request: /api/v1/pools/pools/4dc8aa5d-2e5d-4822-8f75-0478061c67ca/create-version/
+...2026-10-13 15:22:51,854 WARNING log Bad Request: /api/v1/pools/pools/020e629c-f57b-4702-8452-e162d0460cda/open/
+.2026-10-13 15:22:51,944 WARNING log Bad Request: /api/v1/pools/pools/dbc96e73-0cb7-43a9-8c61-a98d719fca91/open/
+.2026-10-13 15:22:52,186 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+.2026-10-13 15:22:52,341 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+2026-10-13 15:22:52,358 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+..2026-10-13 15:22:52,683 WARNING log Bad Request: /api/v1/pools/asset-assignments/b82f8c0a-8119-4495-8309-cf978cb4dc9f/transfer/
+2026-10-13 15:22:52,696 WARNING log Bad Request: /api/v1/pools/asset-assignments/b82f8c0a-8119-4495-8309-cf978cb4dc9f/transfer/
+.2026-10-13 15:22:53,148 WARNING log Bad Request: /api/v1/pools/daily-closes/a8411ed5-af20-430f-aa38-ada4d7e619ec/sign/
+.2026-10-13 15:22:53,274 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+2026-10-13 15:22:53,289 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-13 15:22:53,391 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+.2026-10-13 15:22:53,552 WARNING log Forbidden: /api/v1/pools/daily-closes/85d6bfd5-b02d-4798-b175-0f0af99629de/sign/
+2026-10-13 15:22:53,599 WARNING log Conflict: /api/v1/pools/daily-closes/85d6bfd5-b02d-4798-b175-0f0af99629de/sign/
+2026-10-13 15:22:53,617 WARNING log Conflict: /api/v1/pools/daily-closes/prepare/
+.2026-10-13 15:22:53,816 WARNING log Conflict: /api/v1/circles/circle-members/53652f11-5f6a-4e48-8edf-b2df75039996/record-contribution/
+.2026-10-13 15:22:53,861 WARNING log Bad Request: /api/v1/pools/pools/3281a2bf-e64e-4067-8086-83a84a573b6a/freeze/
+2026-10-13 15:22:53,895 WARNING log Bad Request: /api/v1/pools/pools/3281a2bf-e64e-4067-8086-83a84a573b6a/freeze/
+.2026-10-13 15:22:53,947 WARNING log Bad Request: /api/v1/pools/pools/eca974b8-36e2-4ba1-ae2a-cecf991984fc/archive/
+.2026-10-13 15:22:54,093 WARNING log Conflict: /api/v1/pools/pools/bf1e4047-f939-4722-ac21-7082493c5a7d/unfreeze/
+.2026-10-13 15:22:54,197 WARNING log Forbidden: /api/v1/pools/pools/2b717425-299b-4925-8c9f-13dea4fbc989/freeze/
+2026-10-13 15:22:54,232 WARNING log Forbidden: /api/v1/pools/pools/2b717425-299b-4925-8c9f-13dea4fbc989/unfreeze/
+....2026-10-13 15:22:54,786 WARNING log Bad Request: /api/v1/pools/period-closes/e523df10-a5d1-486a-b832-d29c0b00ebad/sign-off-role/
+.2026-10-13 15:22:55,484 WARNING log Bad Request: /api/v1/pools/period-closes/
+.2026-10-13 15:22:55,607 WARNING log Method Not Allowed: /api/v1/pools/period-closes/242202c2-f74a-49f0-b784-0fde4d05d92f/
+2026-10-13 15:22:55,612 WARNING log Method Not Allowed: /api/v1/pools/period-closes/242202c2-f74a-49f0-b784-0fde4d05d92f/
+2026-10-13 15:22:55,617 WARNING log Bad Request: /api/v1/pools/period-closes/242202c2-f74a-49f0-b784-0fde4d05d92f/certify/
+.2026-10-13 15:22:56,317 WARNING log Bad Request: /api/v1/pools/period-closes/d92cd1b1-1b39-4575-88f4-52bdf878a0a1/sign-off-role/
+.2026-10-13 15:22:56,929 WARNING log Forbidden: /api/v1/pools/period-closes/8ac497c4-2f98-4568-a68a-acd69075527a/sign-off-role/
+2026-10-13 15:22:56,967 WARNING log Bad Request: /api/v1/pools/period-closes/8ac497c4-2f98-4568-a68a-acd69075527a/sign-off-role/
+2026-10-13 15:22:57,052 WARNING log Bad Request: /api/v1/pools/period-closes/8ac497c4-2f98-4568-a68a-acd69075527a/sign-off-role/
+2026-10-13 15:22:57,111 WARNING log Bad Request: /api/v1/pools/period-closes/8ac497c4-2f98-4568-a68a-acd69075527a/lock-ceremony/
+2026-10-13 15:22:57,169 WARNING log Forbidden: /api/v1/pools/period-closes/8ac497c4-2f98-4568-a68a-acd69075527a/lock-ceremony/
+2026-10-13 15:22:57,284 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-13 15:22:57,466 WARNING log Forbidden: /api/v1/pools/pools/portfolio-summary/
+...2026-10-13 15:22:58,358 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+.2026-10-13 15:22:58,664 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-13 15:22:59,034 WARNING log Forbidden: /api/v1/pools/asset-provisions/63ec6367-3952-4d98-88ad-b479476361bc/approve/
+.2026-10-13 15:22:59,167 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+2026-10-13 15:22:59,326 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-13 15:22:59,773 WARNING log Bad Request: /api/v1/pools/asset-provisions/a5a2ec59-5169-44f3-a422-6699d8657335/approve/
+.2026-10-13 15:22:59,974 WARNING log Bad Request: /api/v1/pools/asset-provisions/2aa005b9-e102-426a-8026-6e4a7ae82e86/reject/
+...2026-10-13 15:23:00,850 WARNING log Bad Request: /api/v1/products/shariah-decisions/c0d169ff-5a90-4eed-85af-feeb7611f769/cast-quorum-vote/
+.2026-10-13 15:23:00,965 WARNING log Bad Request: /api/v1/products/shariah-decisions/e43a2e74-e132-404b-861d-96228952ab25/cast-quorum-vote/
+.2026-10-13 15:23:01,043 WARNING log Bad Request: /api/v1/products/shariah-decisions/c14fdef8-89fd-4c98-ab91-a114eae35115/cast-quorum-vote/
+2026-10-13 15:23:01,060 WARNING log Bad Request: /api/v1/products/shariah-decisions/c14fdef8-89fd-4c98-ab91-a114eae35115/cast-quorum-vote/
+.2026-10-13 15:23:01,242 WARNING log Bad Request: /api/v1/products/shariah-decisions/31d738d1-281b-4f11-ac58-bc67e448f843/cast-quorum-vote/
+.2026-10-13 15:23:01,474 WARNING log Not Found: /api/v1/products/contract-templates/00000000-0000-0000-0000-000000000000/clauses-schema/
+...2026-10-13 15:23:01,822 WARNING log Bad Request: /api/v1/products/shariah-decisions/cfb9f7ed-ee53-4b8e-a02b-98a4802369fc/
+.2026-10-13 15:23:01,892 WARNING log Bad Request: /api/v1/products/shariah-decisions/0210b1d9-f8f7-4293-8164-12cd88c8b4fb/approve/
+.2026-10-13 15:23:01,951 WARNING log Forbidden: /api/v1/products/shariah-decisions/69053369-1206-46e5-a56b-efd4b99f283c/approve/
+.2026-10-13 15:23:02,110 WARNING log Bad Request: /api/v1/products/shariah-decisions/f48ff2d6-075b-4121-8999-3220a4e11dc4/
+.2026-10-13 15:23:02,202 WARNING log Not Found: /api/v1/products/shariah-decisions/846f2c47-2912-4be4-894a-472d01414eb5/
+.2026-10-13 15:23:02,302 WARNING log Bad Request: /api/v1/products/shariah-decisions/22e36fd0-d083-4028-86f6-87bb08cefd04/
+2026-10-13 15:23:02,319 WARNING log Bad Request: /api/v1/products/shariah-decisions/22e36fd0-d083-4028-86f6-87bb08cefd04/
+..2026-10-13 15:23:02,419 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+.2026-10-13 15:23:02,466 WARNING log Forbidden: /api/v1/products/shariah-decisions/00501481-9d86-45f2-bd80-127316817f7c/
+2026-10-13 15:23:02,471 WARNING log Forbidden: /api/v1/products/shariah-decisions/00501481-9d86-45f2-bd80-127316817f7c/
+.2026-10-13 15:23:03,102 WARNING log Not Found: /api/v1/products/shariah-decisions/be281223-b419-42da-877c-4ec4528d2458/
+2026-10-13 15:23:03,115 WARNING log Not Found: /api/v1/products/contract-templates/1ee41d23-d39e-4f86-abfa-8c7f46ef42cc/
+2026-10-13 15:23:03,129 WARNING log Not Found: /api/v1/products/products/261cc74c-3e0e-40ce-8f1e-811a525aef0f/
+2026-10-13 15:23:03,147 WARNING log Not Found: /api/v1/pools/pools/05b02c94-eb90-4898-9618-8805447bcd5d/
+2026-10-13 15:23:03,162 WARNING log Not Found: /api/v1/pools/assets/3110f0e3-58e4-4e0b-93b4-6ae8930d481b/
+2026-10-13 15:23:03,181 WARNING log Not Found: /api/v1/pools/asset-assignments/ac162ee3-98bf-405d-93da-103c406cd771/
+2026-10-13 15:23:03,213 WARNING log Not Found: /api/v1/pools/asset-provisions/f95ce11a-b9aa-4673-bf45-73fd67df3142/
+2026-10-13 15:23:03,225 WARNING log Not Found: /api/v1/allocation/weightage-bands/fd10a52f-d175-40a6-9843-fa247a7df29f/
+2026-10-13 15:23:03,238 WARNING log Not Found: /api/v1/allocation/psr-schedules/6e08659d-a43e-4249-94b4-509c8ec77982/
+2026-10-13 15:23:03,248 WARNING log Not Found: /api/v1/allocation/allocation-runs/5e712954-2d4e-4fac-a0a3-a72844be1155/
+2026-10-13 15:23:03,268 WARNING log Not Found: /api/v1/accounting/journal-batches/0b58b059-3143-4616-8073-8535f3522cbd/
+2026-10-13 15:23:03,286 WARNING log Not Found: /api/v1/accounting/income-expense-events/5218eb47-a896-4ce6-bab5-e7d34b6fceed/
+2026-10-13 15:23:03,300 WARNING log Not Found: /api/v1/governance/exceptions/4ffa81f4-c6ab-48f3-94b5-0567b42b08c3/
+2026-10-13 15:23:03,316 WARNING log Not Found: /api/v1/governance/purification-entries/369eab5d-e26c-4c76-a09a-2848972d8383/
+2026-10-13 15:23:03,333 WARNING log Not Found: /api/v1/governance/related-party-transactions/7d941cf5-226d-4701-b539-0da89b5ff4d2/
+2026-10-13 15:23:03,353 WARNING log Not Found: /api/v1/governance/support-requests/95b01958-b87e-427d-97bb-74ec96aee126/
+2026-10-13 15:23:03,370 WARNING log Not Found: /api/v1/investments/capital-accounts/d5b0206e-506e-4d7f-84cc-2106274f9e7d/
+2026-10-13 15:23:03,389 WARNING log Not Found: /api/v1/investments/nav-snapshots/a6d914e0-79a9-47fc-9a30-f41f4a265b00/
+2026-10-13 15:23:03,406 WARNING log Not Found: /api/v1/investments/investor-profiles/b4f72936-7f48-4ee5-b7f5-25a9e5934411/
+2026-10-13 15:23:03,421 WARNING log Not Found: /api/v1/investments/impairment-events/d7529a22-7b49-4616-a67c-46b5183690ef/
+2026-10-13 15:23:03,437 WARNING log Not Found: /api/v1/investments/subscriptions/d9a88dd6-263f-42c4-8109-7bfd1abc2699/
+2026-10-13 15:23:03,454 WARNING log Not Found: /api/v1/investments/redemptions/15f4e855-f427-46e5-8288-401ef5150163/
+2026-10-13 15:23:03,466 WARNING log Not Found: /api/v1/circles/circle-members/f7136489-3def-49be-a4f9-7d4b145eeb2d/
+2026-10-13 15:23:03,481 WARNING log Not Found: /api/v1/circles/contributions/9b0065f1-7dc5-4d79-95ce-00c734d0e262/
+2026-10-13 15:23:03,495 WARNING log Not Found: /api/v1/circles/arrears-records/6f24fdd8-1478-49c8-919e-9820c2682c33/
+2026-10-13 15:23:03,508 WARNING log Not Found: /api/v1/circles/circle-proposals/d8b39b47-9cef-4c49-b287-71da6e1ef191/
+2026-10-13 15:23:03,517 WARNING log Not Found: /api/v1/circles/rules/46610b18-436b-4be1-ae16-9cc6e3556f99/
+2026-10-13 15:23:03,536 WARNING log Not Found: /api/v1/ai/recommendations/c246fd1c-8a94-43eb-a7b5-f12b4e6b975a/
+2026-10-13 15:23:03,555 WARNING log Not Found: /api/v1/governance/config-changes/c6de1b11-ca42-4668-a768-b884b78d2e94/
+2026-10-13 15:23:03,565 WARNING log Not Found: /api/v1/investments/disclosures/219107bd-c1f4-41a7-8f40-fd0db718afe0/
+2026-10-13 15:23:03,583 WARNING log Not Found: /api/v1/circles/draws/9cc9b318-7847-49fb-8da2-66c136a399ed/
+2026-10-13 15:23:03,599 WARNING log Not Found: /api/v1/circles/closures/701b4fc4-5fc8-4e22-ac4d-233119b22df2/
+........2026-10-13 15:23:06,090 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-13 15:23:06,091 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-13 15:23:06,093 WARNING log Forbidden: /api/v1/products/products/
+2026-10-13 15:23:06,094 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-13 15:23:06,096 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-13 15:23:06,098 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-13 15:23:06,099 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-13 15:23:06,100 WARNING log Forbidden: /api/v1/pools/daily-balances/
+2026-10-13 15:23:06,102 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-13 15:23:06,103 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-13 15:23:06,105 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-13 15:23:06,106 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-13 15:23:06,107 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-13 15:23:06,109 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-13 15:23:06,110 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-13 15:23:06,111 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-13 15:23:06,113 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-13 15:23:06,114 WARNING log Forbidden: /api/v1/governance/support-requests/
+2026-10-13 15:23:06,116 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-13 15:23:06,117 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-13 15:23:06,118 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-13 15:23:06,131 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-13 15:23:06,133 WARNING log Forbidden: /api/v1/investments/subscriptions/
+2026-10-13 15:23:06,134 WARNING log Forbidden: /api/v1/investments/redemptions/
+2026-10-13 15:23:06,136 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-13 15:23:06,138 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-13 15:23:06,140 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-13 15:23:06,141 WARNING log Forbidden: /api/v1/circles/arrears-records/
+2026-10-13 15:23:06,143 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-13 15:23:06,144 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-13 15:23:06,146 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-13 15:23:06,148 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-13 15:23:06,149 WARNING log Forbidden: /api/v1/investments/disclosures/
+2026-10-13 15:23:06,150 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-13 15:23:06,152 WARNING log Forbidden: /api/v1/circles/closures/
+.2026-10-13 15:23:06,352 WARNING log Forbidden: /api/v1/pools/pools/
+...2026-10-13 15:23:06,438 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 15:23:06,442 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 15:23:06,445 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-13 15:23:06,449 WARNING log Bad Request: /api/v1/public/demo-requests/
+.2026-10-13 15:23:06,482 WARNING log Forbidden: /api/v1/demo-requests/
+.2026-10-13 15:23:06,538 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-13 15:23:06,541 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+...2026-10-13 15:23:06,547 WARNING contract_analyzer Copilot direct analysis call failed: down
+..
+======================================================================
+ERROR: test_components_always_tie_out_to_distributable (apps.allocation.test_financial_core.EngineTieOutTests.test_components_always_tie_out_to_distributable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 158, in test_components_always_tie_out_to_distributable
+    result = calculate_allocation(self.pool, VALUE_DATE, Decimal(gross), Decimal("0.00"))
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\engine.py", line 208, in calculate_allocation
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: 2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.
+
+======================================================================
+ERROR: test_loss_has_no_reserves_or_mudarib_share (apps.allocation.test_financial_core.EngineTieOutTests.test_loss_has_no_reserves_or_mudarib_share)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 177, in test_loss_has_no_reserves_or_mudarib_share
+    result = calculate_allocation(self.pool, VALUE_DATE, Decimal("10.00"), Decimal("40.00"))
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\engine.py", line 208, in calculate_allocation
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: 2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.
+
+======================================================================
+ERROR: test_reserve_cap_limits_appropriation (apps.allocation.test_financial_core.EngineTieOutTests.test_reserve_cap_limits_appropriation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 173, in test_reserve_cap_limits_appropriation
+    result = calculate_allocation(self.pool, VALUE_DATE, Decimal("1000.00"), Decimal("0.00"))
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\engine.py", line 208, in calculate_allocation
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: 2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.
+
+======================================================================
+FAIL: test_loss_run_posts_balanced_journal_without_negative_amounts (apps.allocation.test_financial_core.ApprovalPostingTests.test_loss_run_posts_balanced_journal_without_negative_amounts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 207, in test_loss_run_posts_balanced_journal_without_negative_amounts
+    run_id = self.sign_run(gross="10.00", expenses="40.00")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_second_signed_run_for_same_pool_and_date_is_blocked (apps.allocation.test_financial_core.ApprovalPostingTests.test_second_signed_run_for_same_pool_and_date_is_blocked)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 228, in test_second_signed_run_for_same_pool_and_date_is_blocked
+    self.sign_run()
+    ~~~~~~~~~~~~~^^
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signing_posts_balanced_journal_with_reserves_and_updates_balances (apps.allocation.test_financial_core.ApprovalPostingTests.test_signing_posts_balanced_journal_with_reserves_and_updates_balances)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 190, in test_signing_posts_balanced_journal_with_reserves_and_updates_balances
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_tampered_run_cannot_be_approved (apps.allocation.test_financial_core.ApprovalPostingTests.test_tampered_run_cannot_be_approved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 217, in test_tampered_run_cannot_be_approved
+    run_id = self.create_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_posted_journal_cannot_be_edited_or_deleted (apps.allocation.test_financial_core.ImmutabilityTests.test_posted_journal_cannot_be_edited_or_deleted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 253, in test_posted_journal_cannot_be_edited_or_deleted
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_signed_run_cannot_be_edited_or_deleted (apps.allocation.test_financial_core.ImmutabilityTests.test_signed_run_cannot_be_edited_or_deleted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 237, in test_signed_run_cannot_be_edited_or_deleted
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_stored_hash_matches_recomputation (apps.allocation.test_financial_core.ImmutabilityTests.test_stored_hash_matches_recomputation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 265, in test_stored_hash_matches_recomputation
+    run_id = self.create_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_restatement_is_still_possible_after_period_lock (apps.allocation.test_financial_core.PeriodLockTests.test_restatement_is_still_possible_after_period_lock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 374, in test_restatement_is_still_possible_after_period_lock
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_approving_rerun_reverses_original_journal_and_reserves (apps.allocation.test_financial_core.RestatementTests.test_approving_rerun_reverses_original_journal_and_reserves)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 291, in test_approving_rerun_reverses_original_journal_and_reserves
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_checker_cannot_initiate_restatement (apps.allocation.test_financial_core.RestatementTests.test_checker_cannot_initiate_restatement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 278, in test_checker_cannot_initiate_restatement
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_original_stays_signed_until_rerun_is_approved (apps.allocation.test_financial_core.RestatementTests.test_original_stays_signed_until_rerun_is_approved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 282, in test_original_stays_signed_until_rerun_is_approved
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_restatement_needs_real_balances_no_silent_fallback (apps.allocation.test_financial_core.RestatementTests.test_restatement_needs_real_balances_no_silent_fallback)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 322, in test_restatement_needs_real_balances_no_silent_fallback
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_zero_gross_income_is_honoured_not_replaced_by_old_value (apps.allocation.test_financial_core.RestatementTests.test_zero_gross_income_is_honoured_not_replaced_by_old_value)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 316, in test_zero_gross_income_is_honoured_not_replaced_by_old_value
+    run_id = self.sign_run()
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 148, in sign_run
+    run_id = self.create_run(**kwargs)
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_financial_core.py", line 133, in create_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='2 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_reserve_cap_above_the_rule_pack_ceiling_is_refused (apps.allocation.test_payout_clearing.PayoutClearingTests.test_reserve_cap_above_the_rule_pack_ceiling_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\test_payout_clearing.py", line 155, in test_reserve_cap_above_the_rule_pack_ceiling_is_refused
+    self.assertLess(self.client.post(url, {**body, "cap_percentage": "2.00"}, format="json").status_code, 400)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 not less than 400
+
+======================================================================
+FAIL: test_a_rejected_run_shows_where_it_stopped (apps.allocation.tests.ApprovalCeremonyApiTests.test_a_rejected_run_shows_where_it_stopped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 205, in test_a_rejected_run_shows_where_it_stopped
+    url = self._prepared_run("bank_pool", "STOP")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_bank_pool_runs_through_all_four_stages_in_order (apps.allocation.tests.ApprovalCeremonyApiTests.test_bank_pool_runs_through_all_four_stages_in_order)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 104, in test_bank_pool_runs_through_all_four_stages_in_order
+    url = self._prepared_run("bank_pool", "BANK")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_each_stage_owner_can_reject_with_a_reason (apps.allocation.tests.ApprovalCeremonyApiTests.test_each_stage_owner_can_reject_with_a_reason)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 181, in test_each_stage_owner_can_reject_with_a_reason
+    url = self._prepared_run("bank_pool", f"REJ-{stage}")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_makers_cannot_reject_and_signed_runs_cannot_be_rejected (apps.allocation.tests.ApprovalCeremonyApiTests.test_makers_cannot_reject_and_signed_runs_cannot_be_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 194, in test_makers_cannot_reject_and_signed_runs_cannot_be_rejected
+    url = self._prepared_run("investment_pool", "INV-3")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_non_bank_pool_skips_the_shariah_stage (apps.allocation.tests.ApprovalCeremonyApiTests.test_non_bank_pool_skips_the_shariah_stage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 161, in test_non_bank_pool_skips_the_shariah_stage
+    url = self._prepared_run("investment_pool", "INV")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_release_cannot_be_given_by_the_independent_checker_even_if_the_role_changed (apps.allocation.tests.ApprovalCeremonyApiTests.test_release_cannot_be_given_by_the_independent_checker_even_if_the_role_changed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 173, in test_release_cannot_be_given_by_the_independent_checker_even_if_the_role_changed
+    url = self._prepared_run("investment_pool", "INV-2")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+======================================================================
+FAIL: test_the_shariah_board_can_also_perform_the_shariah_review (apps.allocation.tests.ApprovalCeremonyApiTests.test_the_shariah_board_can_also_perform_the_shariah_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 155, in test_the_shariah_board_can_also_perform_the_shariah_review
+    url = self._prepared_run("bank_pool", "BANK-B")
+  File "D:\Projects\Pool Management\pool management system\backend\apps\allocation\tests.py", line 90, in _prepared_run
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 201 : {'error': {'code': 'validation_error', 'message': '1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', 'details': [ErrorDetail(string='1 balance row(s) in this period are still pending validation. Validate or reject them (Daily Operations) before calculating the allocation.', code='invalid')]}}
+
+----------------------------------------------------------------------
+Ran 444 tests in 142.834s
+
+FAILED (failures=21, errors=3)
+Destroying test database for alias 'default'...
+Found 444 test(s).
+System check identified no issues (0 silenced).

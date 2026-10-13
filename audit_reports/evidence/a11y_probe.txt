@@ -1,0 +1,8 @@
+/	{"controls":0,"unlabeled":0,"buttons":6,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/products-pools	{"controls":0,"unlabeled":0,"buttons":6,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/daily-operations	{"controls":0,"unlabeled":0,"buttons":14,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/allocation-engine	{"controls":5,"unlabeled":3,"buttons":11,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/shariah-governance	{"controls":0,"unlabeled":0,"buttons":13,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/community-circles	{"controls":1,"unlabeled":1,"buttons":23,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/finance-ledger	{"controls":1,"unlabeled":1,"buttons":9,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}
+/risk-compliance	{"controls":0,"unlabeled":0,"buttons":14,"unnamedButtons":0,"imgsWithoutAlt":0,"lang":"en"}

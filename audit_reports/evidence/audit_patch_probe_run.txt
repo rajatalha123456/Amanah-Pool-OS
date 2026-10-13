@@ -1,0 +1,181 @@
+Creating test database for alias 'default'...
+2026-10-13 14:27:43,759 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,773 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,814 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,828 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,841 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,857 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,870 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,883 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,897 WARNING log Forbidden: /api/v1/allocation/reserve-policies/9b26915a-20d3-47d6-a61e-9089c9af2d24/
+2026-10-13 14:27:43,913 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:43,926 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:43,945 WARNING log Bad Request: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:43,958 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:43,972 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:43,986 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:44,001 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:44,013 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:44,025 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:44,037 WARNING log Forbidden: /api/v1/allocation/psr-schedules/3d1ad366-1a32-40d0-8740-0b01734aed8c/
+2026-10-13 14:27:44,052 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,065 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,086 WARNING log Bad Request: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,098 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,116 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,127 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,141 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,154 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,202 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,216 WARNING log Forbidden: /api/v1/allocation/weightage-bands/82d4d225-9fe7-4afd-9640-e0f566b412f9/
+2026-10-13 14:27:44,232 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,245 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,297 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,310 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,322 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,334 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,347 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,359 WARNING log Forbidden: /api/v1/investments/capital-accounts/30dba453-7472-45fa-b9d2-cf17a625e9c3/
+2026-10-13 14:27:44,379 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,392 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,450 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,463 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,476 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,490 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,501 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,516 WARNING log Forbidden: /api/v1/participants/accounts/bae0f8ce-0ddb-4582-afb2-5c41092cc657/
+2026-10-13 14:27:44,531 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,544 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,561 WARNING log Bad Request: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,578 WARNING log Bad Request: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,590 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,604 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,617 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,630 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,642 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,655 WARNING log Forbidden: /api/v1/pools/assets/10302b09-3caa-4323-a012-f1ef34607c5a/
+2026-10-13 14:27:44,670 WARNING log Forbidden: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,682 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,695 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,710 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,724 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,737 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,754 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,770 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,787 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,804 WARNING log Method Not Allowed: /api/v1/pools/asset-assignments/15e9415c-397d-4f3a-91cb-37596189deb2/
+2026-10-13 14:27:44,829 WARNING log Forbidden: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,849 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,865 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,884 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,902 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,917 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,932 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,948 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,968 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:44,993 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/330da9d4-5b22-48e0-a410-b2fc5c4d4156/
+2026-10-13 14:27:45,023 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,041 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,143 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,180 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,195 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,203 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,216 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,225 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,237 WARNING log Forbidden: /api/v1/circles/circle-members/363afcaf-00a3-4d7b-9442-946ae2827604/
+2026-10-13 14:27:45,257 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,273 WARNING log Bad Request: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,288 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,302 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,310 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,318 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,347 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,367 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,381 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,407 WARNING log Forbidden: /api/v1/products/products/12f9e7cc-add0-4974-a7ce-896e6d6940b0/
+2026-10-13 14:27:45,426 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,437 WARNING log Bad Request: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,446 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,453 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,466 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,473 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,478 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,485 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,492 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,498 WARNING log Forbidden: /api/v1/products/contract-templates/115691b8-1cae-4b4c-b8a6-c0cf67683e0c/
+2026-10-13 14:27:45,510 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,522 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,533 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,541 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,549 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,556 WARNING log Bad Request: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,564 WARNING log Bad Request: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,571 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,576 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,582 WARNING log Forbidden: /api/v1/products/shariah-decisions/452953bc-db28-4435-bdfe-4a6d4dc46cd6/
+2026-10-13 14:27:45,591 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,602 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,608 WARNING log Bad Request: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,619 WARNING log Bad Request: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,624 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,630 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,635 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,641 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,653 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,659 WARNING log Forbidden: /api/v1/governance/related-party-transactions/bcdbfec9-087b-4642-b9ac-246f016b4b81/
+2026-10-13 14:27:45,668 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,673 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,679 WARNING log Bad Request: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,685 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,691 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,700 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,705 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,716 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,723 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,729 WARNING log Forbidden: /api/v1/pools/pools/e1708c32-2343-4d0b-9dbe-02fbfdbd7e10/
+2026-10-13 14:27:45,746 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,751 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,758 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,772 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,777 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,783 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,798 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,808 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/0a58a6f7-b747-4573-a7f6-b2a50c509bd4/
+2026-10-13 14:27:45,831 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,836 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,842 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,848 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,853 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,859 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,872 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+2026-10-13 14:27:45,876 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5fa9c938-ffd0-4d5d-a5a3-0ca60923887b/
+F
+======================================================================
+FAIL: test_patch_probe (audit_tests.test_audit_patch_probe.PatchProbe.test_patch_probe)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\audit_reports\audit_tests\test_audit_patch_probe.py", line 87, in test_patch_probe
+    self.assertEqual(changed, [], "\n".join(changed))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ["pool_manager changed allocation.ReserveP[1556 chars]00)"] != []
+
+First list contains 7 additional elements.
+First extra element 0:
+"pool_manager changed allocation.ReservePolicy.current_balance ({'is_active': True}) 871335.74 -> 1.00 via PATCH /allocation/reserve-policies/ (HTTP 200)"
+
+Diff is 1719 characters long. Set self.maxDiff to None to see it. : pool_manager changed allocation.ReservePolicy.current_balance ({'is_active': True}) 871335.74 -> 1.00 via PATCH /allocation/reserve-policies/ (HTTP 200)
+pool_manager changed participants.ParticipantAccount.opened_date ({}) 2026-01-01 -> 2020-01-01 via PATCH /participants/accounts/ (HTTP 200)
+finance_maker changed participants.ParticipantAccount.opened_date ({}) 2026-01-01 -> 2020-01-01 via PATCH /participants/accounts/ (HTTP 200)
+platform_super_admin changed products.JurisdictionRulePack.version ({}) 2025.01 -> tampered via PATCH /products/jurisdiction-rule-packs/ (HTTP 200)
+risk_compliance changed products.JurisdictionRulePack.version ({}) 2025.01 -> tampered via PATCH /products/jurisdiction-rule-packs/ (HTTP 200)
+platform_super_admin changed products.JurisdictionRulePack.rules_config ({}) {'wht_filer_pct': 15.0, 'irr_ceiling_pct': 10.0, 'per_ceiling_pct': 5.0, 'wht_non_filer_pct': 30.0, 'notice_period_days': 15, 'zakat_deduction_pct': 0, 'mudarib_share_cap_pct': 30.0, 'purification_interval': 'quarterly'} -> {'wht_filer_pct': 0, 'wht_non_filer_pct': 0, 'max_mudarib_share_pct': 99} via PATCH /products/jurisdiction-rule-packs/ (HTTP 200)
+risk_compliance changed products.JurisdictionRulePack.rules_config ({}) {'wht_filer_pct': 15.0, 'irr_ceiling_pct': 10.0, 'per_ceiling_pct': 5.0, 'wht_non_filer_pct': 30.0, 'notice_period_days': 15, 'zakat_deduction_pct': 0, 'mudarib_share_cap_pct': 30.0, 'purification_interval': 'quarterly'} -> {'wht_filer_pct': 0, 'wht_non_filer_pct': 0, 'max_mudarib_share_pct': 99} via PATCH /products/jurisdiction-rule-packs/ (HTTP 200)
+
+----------------------------------------------------------------------
+Ran 1 test in 7.076s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+Found 1 test(s).
+System check identified no issues (0 silenced).
+EXIT 1
