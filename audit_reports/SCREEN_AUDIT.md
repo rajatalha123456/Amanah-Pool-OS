@@ -121,3 +121,10 @@ No BRD screen is entirely absent. 47 of 58 render without permission errors and 
 1. Header badges "LIVE CONTROLS" (pulsing green dot) and "AI COPILOT" appear on every page whatever the state (`components/PageHeaderBadges.tsx`). The modal behind them reads real data. The pulse suggests a live status that is not measured. P3.
 2. Demo users carry realistic personal names (for example the checker shown as "Amina Malik (Demo Checker)"). They are synthetic, but they read as real people. P3.
 3. Form labels are not linked to their inputs on several screens (accessibility probe). P2.
+
+## Update after the fixes (2026-10-13)
+Re-checked by the browser suites (smoke 30/30, role sweep 13/13) and `tsc`:
+- **SCR-F6, SCR-P10** (rule pack and reserve screens): changes are now proposals approved in Governance Config; the reserve form uses the real API fields. Status: RENDERS.
+- **SCR-P8** (weightage): negative values refused. **SCR-O5, SCR-O6** (allocation): read-only roles pick the pool; the failing ceremony test passes. **SCR-S6, SCR-S7** (risk limits): limits come from the rule pack and the screen says where they come from; regulator claims removed. Status: RENDERS.
+- **SCR-O7** (approval ceremony) now also covers investment distributions (Distribution tab).
+- **Still a defect: SCR-C4** (draw room commits and reveals in one request; invented default swap reason). Not yet fixed (roadmap T-31).

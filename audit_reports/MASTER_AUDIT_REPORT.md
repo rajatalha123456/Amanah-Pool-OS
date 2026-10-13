@@ -4,6 +4,29 @@ Audit date: 2026-10-13. Source of truth: `docs/NovuLabs_Islamic_Pool_Management_
 "...BRD(2).docx", does not exist; this is the only BRD in the repository). Scope: source code as committed on branch `master`
 (HEAD `017bf28`) plus this audit's tests. No application source file was modified. All data used was synthetic.
 
+## 0. Status after the fixes (2026-10-13, commits 8d32641, 53aaf8a)
+The findings below were written before the fixes. This section records what changed. Evidence: `evidence/after_fixes/`, and the regression tests in `backend/apps/governance/test_audit_fixes.py`, `backend/apps/investments/test_distribution.py` (`DistributionCeremonyTests`).
+
+| Finding | Status now | Evidence |
+|---|---|---|
+| F-01 (P0) reserve balance writable | **Fixed** | AT after: HTTP 400, balance unchanged; BT `test_reserve_balance_cannot_be_set...` |
+| F-02 pending balances earn profit | **Fixed** (a signed daily close is still not required) | AT test_14 now asserts refusal; BT |
+| F-03 super admin sees figures | **Fixed** | BT `test_super_admin_audit_log_hides_the_figures` |
+| F-04 rule pack edited in place | **Fixed for control and audit**; version history and run-hash snapshot still open | BT; AT patch probe: no change persisted |
+| F-05 account dates rewritable | **Fixed** | BT |
+| F-06 distribution without Shariah stage | **Fixed** | BT `DistributionCeremonyTests` |
+| F-07 hard-coded "statutory" limits | **Fixed** (limits from the rule pack; defaults labelled unconfirmed; regulator citations removed). The values themselves need Risk & counsel | code + frontend |
+| F-08 no lock on distribution release | **Fixed** (no concurrent-request test yet) | code, BT `test_a_second_release...` |
+| F-09 Shariah flag flips a run in progress | **Fixed** for new runs; older runs keep the live rule | BT |
+| F-10 allocation page wrong pool | **Fixed** | E2E smoke 30/30 |
+| F-11 open exception does not block release | **Fixed** | BT |
+| F-12 Django admin | **Fixed** (off outside DEBUG) | AT |
+| FIN-02 negative weightage | **Fixed** | AT test_16 |
+
+Test results after the fixes: backend 454/454, audit tests 42/42, browser smoke 30/30 and role sweep 13/13 (one earlier fail was caused by running two Playwright jobs at once), `tsc` clean.
+Requirement rows: PASS 88 of 184 applicable (48%), see the matrix.
+**Readiness after the fixes: still NOT READY for real customer money**, for the reasons that are not code: no live integrations, no backup/restore or HA evidence, no external penetration test, no Shariah UAT or parallel run, open sign-offs. The code-level P0/P1 findings are closed. Remaining code work: roadmap T-02 (rule pack versioning), signed daily close, pagination, GL export status, suspense.
+
 ## 1. Architecture map
 ```
 Browser (React 19 + Vite + TS, role-based nav, i18n en/ur)
@@ -121,7 +144,7 @@ Product: Wakalah circle model, circle guarantees and payment mandates, super adm
 AI: Contract-analyzer provenance/validation records, drift and bias metrics, Urdu/Arabic disclosure generation, fraud graph.
 
 ## 7. Production readiness
-**NOT READY** for production, and **not yet a pilot candidate** for real customer money.
+**NOT READY** for production. (Before the fixes it was also not a pilot candidate; the code-level blockers are now closed. See section 0.)
 
 Basis: one P0 and eleven P1 findings. The P0 and the eight code-level P1s (F-02 to F-09, F-11) are fixable in roughly 20-30 developer-days
 and should be fixed before any pilot. Even then, a pilot needs the human gates (Shariah Board sign-off of configuration, tax/Zakat/retention professional sign-off, UAT, parallel run)

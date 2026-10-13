@@ -95,7 +95,20 @@ Demo logins (password `Amanah@2026!`, domain `@novulabsdemo.test`): `superadmin`
 | J7 | Withdraw a consent; download my data | Withdrawn consents stay in the history; the file holds only your data |
 
 ## K. Menu by role (expected)
-Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Analytics. Pool Manager: all operations areas, Reports and read-only Governance Config. Finance Maker / Checker: operations, ledger, Governance Config (Checker also Reports). Secretariat: Command Center, Products & Pools, Allocation, Circles, Shariah Governance, AI & Analytics. Board: as Secretariat plus Investments and Reports. Risk: everything except Administration. Signatory: Command Center, Products & Pools, Allocation, Investments, Shariah Governance, Finance & Ledger, Daily Operations (Period Close only). Auditor: read-only everywhere except Administration. Investor / Member: My Portal only.
+Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Analytics. Pool Manager: all operations areas, Reports and read-only Governance Config. Finance Maker / Checker: operations, ledger, Governance Config (Checker also Reports). Secretariat: Command Center, Products & Pools, Allocation, Circles, Shariah Governance, AI & Analytics. Board: as Secretariat plus Investments and Reports. Risk: everything except Administration. Secretariat also sees Investments (the Shariah review of distributions). Signatory: Command Center, Products & Pools, Allocation, Investments, Shariah Governance, Finance & Ledger, Daily Operations (Period Close only). Auditor: read-only everywhere except Administration. Investor / Member: My Portal only.
+
+## M. Added after the 2026-10-13 audit
+| # | Step | Expected |
+|---|---|---|
+| M1 | Pool manager proposes a change to a reserve rate or cap (with a reason) | "Proposed"; nothing changes yet; the change appears in Governance Config |
+| M2 | The same pool manager tries to approve it | Refused; a different finance checker approves, and only then the rate changes |
+| M3 | Try to set a reserve balance through the screen or the API | Not possible; the balance only changes with signed runs |
+| M4 | Risk proposes a change to a rule pack (WHT rates, Mudarib cap); then a finance checker or the authorized signatory approves | Rule pack unchanged until approved; both steps are in the audit trail |
+| M5 | Prepare a distribution for an investment pool, submit; finance checker checks; Secretariat or Board reviews; signatory releases | Each step by a different person; the signatory cannot release before the review; a second release is refused |
+| M6 | Leave a high-severity exception open on a pool, then try to release a run | Refused until the exception is decided |
+| M7 | Open the Risk Limit screen | Limits show where they come from (rule pack or "placeholder defaults, not confirmed"); no regulator is named as the source |
+| M8 | Sign in as the Super Admin and open the audit log | Who, what, when are visible; amounts and reasons are not |
+| M9 | Try to change an account's opening date | Refused |
 
 ## L. Sign-off
 | Function | Name | Date | Passed all steps? | Notes |

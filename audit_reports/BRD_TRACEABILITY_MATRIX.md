@@ -30,13 +30,13 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-011 | 2 | Out of scope list (fatwa without human, capital guarantee, crypto, Takaful, Sukuk, GL replacement, abusive collection) | - | - | - | - | NOT APPLICABLE | - |
 | R-012 | 3 | Super Admin: tenant provisioning | `tenants/views.py` | Administration | `Tenant` | BT tenants.*; AT role matrix | PASS | - |
 | R-013 | 3 | Super Admin: feature flags, encryption keys | AI model toggle only | - | - | - | MISSING | P2 |
-| R-014 | 3 | Super Admin cannot view tenant financial data by default | `ADMIN_ALLOWED` includes `core/audit-log/` (`accounts/investor_scope.py`) | Security & Audit Log tab | `AuditLog.changes` holds amounts | RT `evidence/superadmin_audit_log_exposure.txt` (amounts returned); AT test_superadmin_reads_no_financial_data (pools/runs blocked) | FAIL | P1 |
+| R-014 | 3 | Super Admin cannot view tenant financial data by default | `ADMIN_ALLOWED` includes `core/audit-log/` (`accounts/investor_scope.py`) | Security & Audit Log tab | `AuditLog.changes` holds amounts | RT `evidence/superadmin_audit_log_exposure.txt` (amounts returned); AT test_superadmin_reads_no_financial_data (pools/runs blocked); after fix F-03: AT test_super_admin_audit_log_hides_the_figures (BT governance.test_audit_fixes) | PASS | - |
 | R-015 | 3 | Product Manager drafts; cannot approve own configuration | `products/views.py` | Products & Pools | `Product.status` | BT products.tests, core.test_access_control | PASS | - |
 | R-016 | 3 | Pool Manager creates pools, assigns assets, proposes allocations; cannot approve runs or Shariah exceptions | `allocation/views.py:343-369` | Allocation Engine | - | AT role matrix; BT access control | PASS | - |
 | R-017 | 3 | Finance Maker/Checker; no change to signed Shariah parameters | PSR/decisions immutable | - | - | BT access control; AT patch probe (PSR, decisions unchanged) | PASS | - |
 | R-018 | 3 | Shariah Secretariat: no final ruling unless delegated | quorum: drafter cannot vote | Shariah Governance | `ShariahDecision` | BT products.test_quorum | PASS | - |
-| R-019 | 3 | Shariah Board: no silent retrospective parameter change | rule pack editable in place (see R-020) | - | `JurisdictionRulePack.rules_config` | AT patch probe | PARTIAL | P1 |
-| R-020 | 3 | Risk & Compliance: no profit manipulation | Risk can PATCH rule pack (WHT, Mudarib cap, PER/IRR ceilings) in place, alone | Jurisdiction & Rule Packs | `JurisdictionRulePack` | AT `evidence/patch_probe_changes.txt` | FAIL | P1 |
+| R-019 | 3 | Shariah Board: no silent retrospective parameter change | rule pack editable in place (see R-020) | - | `JurisdictionRulePack.rules_config` | AT patch probe; after fix F-04: rule pack changes are proposals (BT test_rule_pack_change_is_only_proposed_until_approved) | PASS | - |
+| R-020 | 3 | Risk & Compliance: no profit manipulation | Risk can PATCH rule pack (WHT, Mudarib cap, PER/IRR ceilings) in place, alone | Jurisdiction & Rule Packs | `JurisdictionRulePack` | AT `evidence/patch_probe_changes.txt`; after fix F-04 (BT governance.test_audit_fixes); AT patch probe: no change persists | PASS | - |
 | R-021 | 3 | Auditor: read-only, sampling, reperformance; no operational posting | auditor POST passes only on sampling / evidence / findings / own requests | Reports | - | AT `evidence/role_matrix_violations.txt` (reviewed: none is a posting) | PASS | - |
 | R-022 | 3 | Investor/member: only own data and authorized pool information | `accounts/investor_scope.py` allow-list | My Portal | - | AT test_investor_cannot_read_other_peoples_investment_records; BT StatementTests | PASS | - |
 
@@ -50,7 +50,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-026 | 4 | Capital & membership: opening, KYC/KYB, subscriptions, redemptions, contributions, nominees, member limits | participants, investments, circles | Participants, Investments | - | BT redemptions, participation terms | PARTIAL (no KYB; nominee is text) | P2 |
 | R-027 | 4 | Asset assignment: one pool; transfer with effective date, valuation, approval | `pools/asset_rules.py` | Assets tab, transfer modal | `AssetAssignment` | BT pools.test_asset_rules | PARTIAL (no valuation/approval on transfer; no ring-fencing) | P2 |
 | R-028 | 4 | Income & expense: accruals, realization, direct expenses, provisions, write-offs, reversals, non-permissible income | `allocation/income.py`, provisions | Income & Expense workbench | `IncomeExpenseEvent` | BT test_income_derivation (17), test_provisions | PARTIAL (no accrual vs realization distinction; keyword classification) | P2 |
-| R-029 | 4 | Profit allocation: daily averages, weightages, PSR, Mudarib, Wakalah fee, Hiba, PER/IRR, rounding | `engine.py` | Allocation Engine | `AllocationRun` | AT test_audit_financial (27 pass); see FIN-01 | PARTIAL (unvalidated balances allocated) | P1 |
+| R-029 | 4 | Profit allocation: daily averages, weightages, PSR, Mudarib, Wakalah fee, Hiba, PER/IRR, rounding | `engine.py` | Allocation Engine | `AllocationRun` | AT test_audit_financial (27 pass); see FIN-01; after fix F-02: pending balances refused (AT test_14, BT test_pending_balances_block_a_run) | PASS | - |
 | R-030 | 4 | Loss & impairment: waterfall, negligence cases, provisions, write-offs, recoveries | `investments/negligence.py`, provisions | Investments, Risk | - | BT NegligenceWorkflowTests (11), provisions | PASS | - |
 | R-031 | 4 | Community circle: schedules, ballots/rotation, guarantees, late payments, hardship, payout, dissolution | `circles/*` | Community Circles | - | BT circles (60+) | PARTIAL (guarantees missing) | P2 |
 | R-032 | 4 | Shariah governance: register, policy mapping, pre-launch, exceptions, review and audit | `products/shariah.py`, `governance/*` | Shariah Governance | - | BT register, quorum, audit report | PARTIAL (policy mapping, exception SLA missing) | P2 |
@@ -66,10 +66,10 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-037 | 5 | Identity: code, entity, branch, model, currency, timezone, calendar, start/end | `pools/serializers.py:55-64` | New Pool Wizard | `Pool` | E2E "new pool wizard has six steps..." | PASS | - |
 | R-038 | 5 | Contract: type/version, Rab-ul-Maal, Mudarib/partner/agent, PSR, Wakalah fee, loss basis | template + PSR; parties not modelled as entities | wizard step 2 | `ContractTemplate`, `ProfitSharingRatio` | BT wakalah tests | PARTIAL | P2 |
 | R-039 | 5 | Participation: classes, minimums, tenure, withdrawal, notice, caps, eligibility, KYC tier | `investments/participation.py` | product modal | `Product` fields | BT test_participation_terms (8) | PASS | - |
-| R-040 | 5 | Weightages: tiers, tenor bands, class, effective dates, maximum change, approval | `WeightageBandSerializer` | Weightage section | `WeightageBand` (no min/max constraint) | AT test_16 FAIL (negative weightage accepted); no max-change rule | PARTIAL | P2 |
-| R-041 | 5 | Assets: eligible contracts/sectors, concentration, liquidity buffer, valuation, transfer, ring-fencing | `concentration_engine.py` hard-codes limits labelled "SBP statutory" | Risk dashboard | - | ST | PARTIAL (limits not configurable; see SEC/F-07) | P1 |
+| R-040 | 5 | Weightages: tiers, tenor bands, class, effective dates, maximum change, approval | `WeightageBandSerializer` | Weightage section | `WeightageBand` (no min/max constraint) | AT test_16 FAIL (negative weightage accepted); no max-change rule; after fix FIN-02: weightage > 0 in serializer and DB (AT test_16). The BRD 'maximum change' rule is still not built | PASS | - |
+| R-041 | 5 | Assets: eligible contracts/sectors, concentration, liquidity buffer, valuation, transfer, ring-fencing | `concentration_engine.py` hard-codes limits labelled "SBP statutory" | Risk dashboard | - | ST; after fix F-07: limits configurable; sector and obligor data are still inferred | PARTIAL | P2 |
 | R-042 | 5 | Income/expense taxonomy, provisioning, write-off, reversal, purification | `accounting/models.py:112-198` | workbench | - | BT income derivation | PARTIAL (keyword classification) | P2 |
-| R-043 | 5 | Reserves: availability, basis, cap, ownership, **approval**, release, disclosure | `ReservePolicyViewSet` create/update by Pool Manager alone, no audit log, balance writable (`allocation/views.py:1019-1032`) | Rule Packs page | `ReservePolicy.current_balance` | AT `evidence/reserve_policy_change.txt` (871,335.74 -> 1.00, HTTP 200) | FAIL | P0 |
+| R-043 | 5 | Reserves: availability, basis, cap, ownership, **approval**, release, disclosure | `ReservePolicyViewSet` create/update by Pool Manager alone, no audit log, balance writable (`allocation/views.py:1019-1032`) | Rule Packs page | `ReservePolicy.current_balance` | AT `evidence/reserve_policy_change.txt` (871,335.74 -> 1.00, HTTP 200); after fix F-01: balance read-only, changes need a different checker (BT test_reserve_balance_cannot_be_set...; AT reserve test) | PASS | - |
 | R-044 | 5 | Governance: decision, quorum, maker-checker, exception SLA, audit frequency, disclosure pack | quorum, plans; no SLA | Shariah Governance | - | BT test_quorum, audit plan | PARTIAL | P2 |
 | R-045 | 5 | Accounting: chart mapping, accrual policy, rounding, posting calendar, close, restatement | mapping + close + restatement | Governance Config | `AccountMapping` | BT matrix_and_chart, period close | PARTIAL (no accrual policy / posting calendar) | P2 |
 | R-046 | 5 | AI policy: models allowed, thresholds, human gates, prohibited actions, retention | registry + kill switch; threshold fixed 0.8 in code | Model Governance | `AIModelRegistry` | BT recommendations | PARTIAL | P2 |
@@ -90,14 +90,14 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-056 | 6.2.3 | Daily funds and weighted balances by product/class | engine | - | - | AT 07, 09 | PASS | - |
 | R-057 | 6.2.4 | Reconcile assets, sources, pool equity, suspense | `accounting/reconciliation.py` | Reconciliation Center | - | BT ReconciliationTests | PARTIAL (no suspense, no live feed) | P2 |
 | R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; no recommendation record) | Anomaly queue | - | none direct | PARTIAL | P2 |
-| R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL | FAIL | P1 |
-| R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe | PARTIAL | P1 |
+| R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run | PARTIAL | P2 |
+| R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack | PARTIAL | P2 |
 | R-061 | 6.3.2 | Gross income and permitted direct expenses | `allocation/income.py` | - | - | BT DerivedFromEventsTests | PASS | - |
 | R-062 | 6.3.3 | Distributable profit and reserve appropriation | engine 296-338 | - | - | AT 13; BT reserves | PASS | - |
 | R-063 | 6.3.4 | Weightages and weighted participation | engine | - | - | AT 02, 09 | PASS | - |
 | R-064 | 6.3.5 | Allocate; Mudarib share or Wakalah fee; rounding | engine | - | - | AT 10, 17; BT wakalah | PASS | - |
 | R-065 | 6.3.6 | Tolerance, fairness, negative-yield, prior-period tests | residual tolerance; loss path; prior-period only post-signing | - | - | AT 04 | PARTIAL | P2 |
-| R-066 | 6.3.7 | Finance checker **and Shariah reviewer** approve; post journals; issue statements | bank pool: 4-stage ceremony; **investment distributions signed by one finance checker, no Shariah stage** (`investments/distribution_views.py:195-262`); bank-pool Shariah stage switchable by env flag (`allocation/models.py:230-245`) | Ceremony | - | BT DistributionWorkflowTests (checker alone signs); BT ceremony tests | FAIL | P1 |
+| R-066 | 6.3.7 | Finance checker **and Shariah reviewer** approve; post journals; issue statements | bank pool: 4-stage ceremony; **investment distributions signed by one finance checker, no Shariah stage** (`investments/distribution_views.py:195-262`); bank-pool Shariah stage switchable by env flag (`allocation/models.py:230-245`) | Ceremony | - | BT DistributionWorkflowTests (checker alone signs); BT ceremony tests; after fix F-06: 4-stage ceremony for distributions (BT DistributionCeremonyTests, 3) | PASS | - |
 | R-067 | 6.4.1 | KYC, suitability, disclosures; signs contract | no e-signature | onboarding tab | - | BT disclosures | PARTIAL | P2 |
 | R-068 | 6.4.2 | Subscription received; units / capital account created | `investments/views.py` | Subscription tab | - | BT CapitalJournalTests | PASS | - |
 | R-069 | 6.4.3 | Capital deployed only to eligible assets | `asset_rules.assert_asset_eligible` | Assign modal | - | BT AssetRuleTests | PASS | - |
@@ -145,7 +145,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-101 | 8 | Purification: identify, prevent distribution, approve charity, retain proof | `PurificationEntry` | Purification ledger | - | BT non_permissible test | PASS | - |
 | R-102 | 8 | Related parties: disclose, price-test, conflict declaration, elevated approval | `governance/views.py` | Related-party review | - | BT RelatedPartyTransactionApiTests (4) | PASS | - |
 | R-103 | 8 | Shariah audit: plan, samples, findings, responses, remediation, annual report | `governance/audit_report.py` | Shariah audit plan | - | BT test_shariah_register_and_report | PASS | - |
-| R-104 | 8 | Change governance: impact, regression simulation, approvals, notification, effective dating | PSR/weightage yes; reserve policy and rule pack no | - | - | BT EconomicsChangeNoticeTests; AT patch probe | FAIL (for reserves and rule packs) | P1 |
+| R-104 | 8 | Change governance: impact, regression simulation, approvals, notification, effective dating | PSR/weightage yes; reserve policy and rule pack no | - | - | BT EconomicsChangeNoticeTests; AT patch probe; after fix F-01/F-04: reserve and rule pack changes need approval and are audited | PASS | - |
 
 ## Section 9: AI
 
@@ -188,10 +188,10 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 |---|---|---|---|---|---|---|---|---|
 | R-130 | 11 | Core entities (Foundation ... Assurance & AI) | most present; `Member` = `CircleMember`; no `Payment`, `EvidenceObject`, `ModelVersion` as such | - | migrations | - | PARTIAL | P3 |
 | R-131 | 11 | One effective asset assignment unless sharing approved | `asset_rules.py` (application level) | - | no DB constraint | BT AssetRuleTests | PASS | - |
-| R-132 | 11 | Signed run references immutable pool, contract, rate, balance, rule-pack versions | rule pack edited in place keeps its version; balances not versioned | - | `JurisdictionRulePack` | AT patch probe | FAIL | P1 |
+| R-132 | 11 | Signed run references immutable pool, contract, rate, balance, rule-pack versions | rule pack edited in place keeps its version; balances not versioned | - | `JurisdictionRulePack` | AT patch probe; after fix F-04: pack edits are controlled, but the pack is still edited in place and not versioned | PARTIAL | P2 |
 | R-133 | 11 | PSR totals equal the configured whole | `ProfitSharingRatio.clean` | - | no DB check | AT test_15 | PASS | - |
 | R-134 | 11 | No physical deletion after posting | model guards + PROTECT FKs | - | PROTECT | BT ImmutabilityTests; AT admin bulk delete refused | PASS | - |
-| R-135 | 11 | Every override: reason, evidence, maker, checker, timestamp | income override sealed with reason; reserve balance / account dates / rule pack changed with no reason or checker | - | - | AT patch probe | FAIL | P1 |
+| R-135 | 11 | Every override: reason, evidence, maker, checker, timestamp | income override sealed with reason; reserve balance / account dates / rule pack changed with no reason or checker | - | - | AT patch probe; after fixes F-01, F-04, F-05: AT patch probe shows no uncontrolled change | PASS | - |
 
 ## Section 12: integrations and API
 
@@ -216,7 +216,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-147 | 13 | Pool manager: asset mix, income, expenses, daily funds, weightages, pending, close readiness | PARTIAL | P3 | E2E role dashboards |
 | R-148 | 13 | Finance: reconciliations, journals, provisions, suspense, residuals, close, restatements | PARTIAL (no suspense) | P3 | E2E |
 | R-149 | 13 | Shariah: approval queue, exceptions, purification, contract coverage, review plan, finding age | PARTIAL | P3 | E2E |
-| R-150 | 13 | Risk: concentration, liquidity, AML/KYC, related parties, limits, breaches | PARTIAL (limits hard-coded) | P1 | ST `concentration_engine.py:21-27` |
+| R-150 | 13 | Risk: concentration, liquidity, AML/KYC, related parties, limits, breaches; after fix F-07: limits come from the rule pack; defaults are labelled unconfirmed | PARTIAL | P2 | ST `concentration_engine.py:21-27` |
 | R-151 | 13 | Investor: balance, profit, methodology, transactions, disclosures, tax/Zakat, disputes | PASS | - | E2E investor tests |
 | R-152 | 13 | Member: contribution status, schedule, ledger, vote/consent, receipts, hardship | PASS | - | E2E member test |
 | R-153 | 13 | Auditor/regulator: signed runs, versions, reperformance inputs, exceptions, samples, exports | PASS | - | E2E auditor test |
@@ -241,7 +241,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 |---|---|---|---|---|
 | R-163 | BR-001 activation gates | PASS | - | BT pools.test_activation_gates (12) |
 | R-164 | BR-002 no overlapping weightages / PSR | PASS (application level, no DB constraint) | P3 | BT overlap tests |
-| R-165 | BR-003 economics change -> simulation + notification | FAIL (reserve policy and rule pack bypass it) | P1 | BT EconomicsChangeNoticeTests; AT patch probe |
+| R-165 | BR-003 economics change -> simulation + notification; after fix F-01/F-04 | PASS | - | BT EconomicsChangeNoticeTests; AT patch probe |
 | R-166 | BR-004 signed run immutable; reversal + linked rerun | PASS | - | BT ImmutabilityTests, RestatementTests |
 | R-167 | BR-005 non-permissible income excluded and routed | PASS | - | BT test_income_derivation |
 | R-168 | BR-006 Musharakah loss by capital ratio unless liability | PASS | - | BT NegligenceWorkflowTests |
@@ -269,18 +269,19 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-185 | 18 | AI validation, red-team, fallback, monitoring | PARTIAL (fallback only) | P2 | copilot tests |
 | R-186 | 19 | Implementation decisions recorded | PASS (documented, sign-offs pending) | P2 | `docs/DECISIONS.md` |
 
-## Totals (R-001..R-186)
+## Totals (R-001..R-186), after the 2026-10-13 fixes
 
 | Status | Count |
 |---|---|
-| PASS | 78 |
-| PARTIAL | 70 |
-| FAIL | 9 |
+| PASS | 88 |
+| PARTIAL | 69 |
+| FAIL | 0 |
 | MISSING | 9 |
 | BLOCKED | 8 |
 | NOT TESTED | 10 |
 | NOT APPLICABLE | 2 |
 | **Total** | **186** |
 
-Counted by script from the rows above (first status word in each row). Applicable requirements: 184.
-The 58 screens of BRD section 15 are counted separately in `SCREEN_AUDIT.md`.
+Counted by script from the rows above. Before the fixes the counts were PASS 78, PARTIAL 70, FAIL 9, MISSING 9, BLOCKED 8, NOT TESTED 10, NOT APPLICABLE 2.
+Rows changed by the fixes carry an "after fix" note in their evidence cell. Applicable requirements: 184.
+The 58 screens of BRD section 15 are counted in `SCREEN_AUDIT.md`.
