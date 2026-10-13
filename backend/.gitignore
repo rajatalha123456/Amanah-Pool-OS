@@ -29,3 +29,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# run outputs
+logs/
+*.out
+role-sweep-report.txt
+role-sweep-run.log

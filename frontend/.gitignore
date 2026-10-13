@@ -27,3 +27,9 @@ dist-ssr
 *.sw?
 test-results/
 playwright-report/
+
+# run outputs
+*.out
+role-sweep-report.txt
+role-sweep-run.log
+test-results/
