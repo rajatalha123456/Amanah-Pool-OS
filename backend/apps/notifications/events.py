@@ -72,6 +72,23 @@ def distribution_submitted(run, actor):
     )
 
 
+def distribution_checked(run, actor):
+    notify_roles(
+        run.tenant, ["shariah_secretariat", "shariah_board"], category=C.APPROVAL_REQUIRED, exclude=actor,
+        title=f"Profit distribution awaiting Shariah review: {run.pool.code} {run.period_start} to {run.period_end}",
+        body="The independent check is complete.", link="/investments", related=("InvestmentDistributionRun", run.id),
+    )
+
+
+def distribution_shariah_reviewed(run, actor):
+    notify_roles(
+        run.tenant, ["authorized_signatory"], category=C.APPROVAL_REQUIRED, exclude=actor,
+        title=f"Profit distribution awaiting final release: {run.pool.code} {run.period_start} to {run.period_end}",
+        body="Independent check and Shariah review are complete.", link="/investments",
+        related=("InvestmentDistributionRun", run.id),
+    )
+
+
 def distribution_decided(run, actor, approved, reason=""):
     notify_users(
         run.tenant, [run.created_by], category=C.APPROVAL_OUTCOME, exclude=actor,
@@ -195,8 +212,9 @@ def negligence_determined(case, actor):
 
 # ---- governance configuration changes (maker-checker) -----------------------------------------
 def config_change_submitted(change, actor):
+    approvers = ["finance_checker", "authorized_signatory"] if change.kind == "rule_pack" else ["finance_checker"]
     notify_roles(
-        change.tenant, ["finance_checker"], category=C.APPROVAL_REQUIRED, exclude=actor,
+        change.tenant, approvers, category=C.APPROVAL_REQUIRED, exclude=actor,
         title=f"Configuration change awaiting approval: {change.get_kind_display()}",
         body=f"{change.get_operation_display()} proposed. Reason: {change.reason}", link="/governance-config",
         related=("ConfigChangeRequest", change.id),

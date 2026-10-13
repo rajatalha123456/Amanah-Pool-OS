@@ -267,6 +267,9 @@ class UnitMovement(TenantScopedModel):
 class DistributionRunStatus(models.TextChoices):
     SIMULATED = "simulated", "Simulated"
     PENDING_APPROVAL = "pending_approval", "Pending Approval"
+    # Same ceremony as a bank-pool run (BRD 6.3): independent check -> Shariah review -> release by the signatory.
+    CHECKED = "checked", "Independent Check Complete"
+    SHARIAH_REVIEW = "shariah_review", "Shariah Review Complete"
     SIGNED = "signed", "Signed"
     REJECTED = "rejected", "Rejected"
     REVERSED = "reversed", "Reversed"
@@ -312,6 +315,15 @@ class InvestmentDistributionRun(TenantScopedModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     checked_at = models.DateTimeField(null=True, blank=True)
+    shariah_signed_off_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    shariah_signed_off_at = models.DateTimeField(null=True, blank=True)
+    shariah_review_note = models.TextField(null=True, blank=True)
+    released_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    released_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(null=True, blank=True)
 
     _SIGNED_MUTABLE_FIELDS = frozenset({"status", "restatement_reason", "updated_at"})

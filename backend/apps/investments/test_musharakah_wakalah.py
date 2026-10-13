@@ -17,6 +17,7 @@ from .models import (
     NegligenceCase,
     NegligenceCaseStatus,
 )
+from .ceremony_helpers import release_distribution
 from .test_distribution import END, START, MudarabahBase
 
 
@@ -232,8 +233,7 @@ class NegligenceWorkflowTests(MusharakahBase):
         self.assertEqual(Decimal(restated.data["manager_share"]), Decimal("-220.00"))
         new_base = reverse("distribution-run-detail", args=[restated.data["id"]])
         self.client.post(new_base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        self.assertEqual(self.client.post(new_base + "approve/").status_code, status.HTTP_200_OK)
+        self.assertEqual(release_distribution(self, new_base).status_code, status.HTTP_200_OK)
         self.assertEqual(str(NegligenceCase.objects.get(pk=case_id).applied_run_id), str(restated.data["id"]))
         self.assertEqual(InvestmentDistributionRun.objects.get(pk=run_id).status, DistributionRunStatus.REVERSED)
 
@@ -249,8 +249,7 @@ class NegligenceWorkflowTests(MusharakahBase):
         self.authenticate(self.maker)
         self.client.post(base + "submit-for-checking/")
         self.raise_case()
-        self.authenticate(self.checker)
-        response = self.client.post(base + "approve/")
+        response = release_distribution(self, base)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("frozen", str(response.data).lower())
 
@@ -263,8 +262,7 @@ class NegligenceWorkflowTests(MusharakahBase):
         base = reverse("distribution-run-detail", args=[run_id])
         self.authenticate(self.maker)
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        response = self.client.post(base + "approve/")
+        response = release_distribution(self, base)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("negligence determinations", str(response.data).lower())
 

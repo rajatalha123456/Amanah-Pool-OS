@@ -1,13 +1,14 @@
 """
-SBP Statutory Single-Obligor & Sector Concentration Risk Engine (BRD Module 12 / Screen 31 - Risk Limit Dashboard)
+Single-obligor and sector concentration (BRD 5 "Assets: concentration", BRD 13 risk dashboard, Risk Limit Dashboard screen).
 
-Implements State Bank of Pakistan (SBP) Prudential Regulations:
-- Regulation R-1: Limit on Exposure to a Single Person / Obligor (Fund-based & Non-fund based) <= 15% of Capital/Pool
-- Regulation R-1: Limit on Exposure to a Group of Connected Borrowers <= 20%
-- Regulation R-6: Exposure to Economic Sectors (Real Estate, Power/Energy, Textiles, Fertilizer, etc.) <= 15% - 25%
-- SBP BPRD & AAOIFI FAS-30: Mandatory Shariah Ring-Fencing (0% prohibited sectors)
-- Automated Early Warning Indicator (EWI) trigger when exposure reaches >= 80% of limit
-- Breach Detection (>= 100%) with automated ExceptionCase logging and remediation proposal
+The limits are CONFIGURATION: they are read from the jurisdiction rule pack bound to the pool
+(`rules_config["concentration_limits_pct"]`). Where the pack does not define a limit, the placeholder defaults below are
+used and the result says so (`limits_source`). The placeholders are NOT a statement of any regulator's rule and have not
+been confirmed by Risk & Compliance or counsel; the percentages are measured against the pool's own earmarked assets,
+not against bank capital. Whoever configures the pack must set the limits that apply to them.
+
+- An early-warning indicator is raised when an exposure reaches 80% of its limit.
+- A breach (above 100%) raises an ExceptionCase for review.
 """
 
 from decimal import Decimal
@@ -18,14 +19,36 @@ from apps.pools.models import Asset, AssetAssignment, Pool
 from apps.core.exceptions_helper import create_exception_case
 from apps.core.audit import log_action
 
-# SBP Statutory PR Limits Defaults
-SBP_SINGLE_OBLIGOR_PRIVATE_LIMIT_PCT = Decimal("15.0")
-SBP_SINGLE_OBLIGOR_SOVEREIGN_LIMIT_PCT = Decimal("25.0")
-SBP_GROUP_OBLIGOR_LIMIT_PCT = Decimal("20.0")
-SBP_REAL_ESTATE_SECTOR_LIMIT_PCT = Decimal("15.0")
-SBP_POWER_ENERGY_SECTOR_LIMIT_PCT = Decimal("30.0")
-SBP_GENERAL_SECTOR_LIMIT_PCT = Decimal("20.0")
+# Placeholder defaults used only where the rule pack sets no limit. Not a regulatory statement (see the module docstring).
+DEFAULT_LIMITS_PCT = {
+    "single_obligor_private": Decimal("15.0"),
+    "single_obligor_sovereign": Decimal("25.0"),
+    "group_private": Decimal("20.0"),
+    "group_sovereign": Decimal("45.0"),
+    "sector_real_estate": Decimal("15.0"),
+    "sector_power_energy": Decimal("30.0"),
+    "sector_sovereign": Decimal("40.0"),
+    "sector_general": Decimal("20.0"),
+    "top5_obligors": Decimal("50.0"),
+    "related_party": Decimal("5.0"),
+}
 EARLY_WARNING_THRESHOLD_PCT = Decimal("80.0")
+
+
+def resolve_limits(pool: Optional[Pool]):
+    """(limits, source): the pool's rule-pack limits, falling back to the placeholder defaults per key."""
+    limits, configured = dict(DEFAULT_LIMITS_PCT), False
+    if pool is not None:
+        from apps.pools.config_snapshot import bound_rule_pack
+
+        pack = bound_rule_pack(pool)
+        custom = ((pack.rules_config or {}).get("concentration_limits_pct") or {}) if pack else {}
+        for key, value in custom.items():
+            if key in limits:
+                limits[key], configured = Decimal(str(value)), True
+        if configured:
+            return limits, f"rule pack {pack.code} (keys not set there use placeholder defaults)"
+    return limits, "placeholder defaults - not set in the rule pack and not confirmed by a regulatory source"
 
 # Assets carry no obligor, group, sector or rating fields yet. Until they do, the obligor is the asset's own
 # recorded description, the sector is a keyword inference that is labelled as such, and no credit rating is
@@ -57,22 +80,23 @@ def _infer_asset_metadata(asset: Asset) -> Dict[str, Any]:
     }
 
 
-def get_sector_limit_pct(sector: str) -> Decimal:
-    """Returns statutory SBP limit for a given economic sector."""
+def get_sector_limit_pct(sector: str, limits=None) -> Decimal:
+    """The configured limit for an economic sector."""
+    limits = limits or DEFAULT_LIMITS_PCT
     s = sector.lower()
     if "real estate" in s or "construction" in s or "property" in s:
-        return SBP_REAL_ESTATE_SECTOR_LIMIT_PCT
+        return limits["sector_real_estate"]
     if "power" in s or "energy" in s or "utilities" in s:
-        return SBP_POWER_ENERGY_SECTOR_LIMIT_PCT
+        return limits["sector_power_energy"]
     if "sovereign" in s or "public sector" in s:
-        return Decimal("40.0")  # SBP sovereign exposure carveout
-    return SBP_GENERAL_SECTOR_LIMIT_PCT
+        return limits["sector_sovereign"]
+    return limits["sector_general"]
 
 
 def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, Any]:
     """
     Analyzes asset exposures for single obligor limits, group obligor limits,
-    and economic sector concentration under SBP PR R-1 & R-6.
+    and economic sector concentration against the configured limits.
     """
     if pool:
         active_assignments = AssetAssignment.objects.filter(pool=pool, unassigned_date__isnull=True).select_related("asset")
@@ -107,6 +131,8 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
     groups_map: Dict[str, Dict[str, Any]] = {}
     sectors_map: Dict[str, Dict[str, Any]] = {}
 
+    limits, limits_source = resolve_limits(pool)
+
     for asset in assets:
         meta = _infer_asset_metadata(asset)
         amount = Decimal(asset.face_value or 0)
@@ -116,7 +142,7 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
 
         # 1. Obligor Aggregation
         if obligor_name not in obligors_map:
-            limit_pct = SBP_SINGLE_OBLIGOR_SOVEREIGN_LIMIT_PCT if meta["is_sovereign"] else SBP_SINGLE_OBLIGOR_PRIVATE_LIMIT_PCT
+            limit_pct = limits["single_obligor_sovereign"] if meta["is_sovereign"] else limits["single_obligor_private"]
             obligors_map[obligor_name] = {
                 "obligor_name": obligor_name,
                 "obligor_group": group_name,
@@ -142,7 +168,7 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
                 "total_exposure": Decimal("0.00"),
                 "obligor_count": 0,
                 "obligor_names": set(),
-                "sbp_limit_pct": SBP_GROUP_OBLIGOR_LIMIT_PCT if not meta["is_sovereign"] else Decimal("45.0"),
+                "sbp_limit_pct": limits["group_private"] if not meta["is_sovereign"] else limits["group_sovereign"],
             }
         groups_map[group_name]["total_exposure"] += amount
         groups_map[group_name]["obligor_names"].add(obligor_name)
@@ -153,7 +179,7 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
                 "sector_name": sector_name,
                 "total_exposure": Decimal("0.00"),
                 "assets_count": 0,
-                "sbp_limit_pct": get_sector_limit_pct(sector_name),
+                "sbp_limit_pct": get_sector_limit_pct(sector_name, limits),
             }
         sectors_map[sector_name]["total_exposure"] += amount
         sectors_map[sector_name]["assets_count"] += 1
@@ -259,56 +285,35 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
         })
     sectors_list.sort(key=lambda x: x["total_exposure"], reverse=True)
 
-    # SBP Prudential Regulations Scorecard Matrix
+    # Scorecard against the configured limits (rule pack, else placeholder defaults - see resolve_limits()).
     real_estate_pct = next((s["portfolio_pct"] for s in sectors_list if "real estate" in s["sector_name"].lower()), 0.0)
     top5_obligors_pct = sum(o["portfolio_pct"] for o in obligors_list[:5])
     related_party_pct = sum(o["portfolio_pct"] for o in obligors_list if o["is_related_party"])
+    private_max = max((o["portfolio_pct"] for o in obligors_list if not o["is_sovereign"]), default=0.0)
+    group_max = groups_list[0]["portfolio_pct"] if groups_list else 0.0
+
+    def _row(label, description, limit, value, warn_at_80=True):
+        limit_f = float(limit)
+        status = "breach" if value > limit_f else ("warning" if warn_at_80 and value >= 0.8 * limit_f else "compliant")
+        return {
+            "regulation": label,
+            "description": description,
+            "statutory_limit": f"{limit_f:.1f}%",
+            "current_value": f"{value:.1f}%",
+            "passed": value <= limit_f,
+            "status": status,
+        }
 
     scorecard = [
-        {
-            "regulation": "SBP PR R-1 (Single Obligor - Private)",
-            "description": "Exposure to any single private sector corporate entity",
-            "statutory_limit": "15.0%",
-            "current_value": f"{max((o['portfolio_pct'] for o in obligors_list if not o['is_sovereign']), default=0.0):.1f}%",
-            "passed": max((o["portfolio_pct"] for o in obligors_list if not o["is_sovereign"]), default=0.0) <= 15.0,
-            "status": "breach" if max((o["portfolio_pct"] for o in obligors_list if not o["is_sovereign"]), default=0.0) > 15.0 else ("warning" if max((o["portfolio_pct"] for o in obligors_list if not o["is_sovereign"]), default=0.0) >= 12.0 else "compliant"),
-        },
-        {
-            "regulation": "SBP PR R-1 (Group Obligor Limit)",
-            "description": "Exposure to a related business conglomerate or family group",
-            "statutory_limit": "20.0%",
-            "current_value": f"{groups_list[0]['portfolio_pct'] if groups_list else 0.0:.1f}%",
-            "passed": (groups_list[0]["portfolio_pct"] if groups_list else 0.0) <= 20.0,
-            "status": "breach" if (groups_list[0]["portfolio_pct"] if groups_list else 0.0) > 20.0 else "compliant",
-        },
-        {
-            "regulation": "SBP PR R-6 (Real Estate Sector Cap)",
-            "description": "Funded exposure to commercial property, REITs and land development",
-            "statutory_limit": "15.0%",
-            "current_value": f"{real_estate_pct:.1f}%",
-            "passed": real_estate_pct <= 15.0,
-            "status": "breach" if real_estate_pct > 15.0 else ("warning" if real_estate_pct >= 12.0 else "compliant"),
-        },
-        {
-            "regulation": "SBP Top-5 Counterparty Concentration",
-            "description": "Cumulative concentration in top 5 largest obligors",
-            "statutory_limit": "50.0%",
-            "current_value": f"{top5_obligors_pct:.1f}%",
-            "passed": top5_obligors_pct <= 50.0,
-            "status": "compliant" if top5_obligors_pct <= 50.0 else "warning",
-        },
-        {
-            "regulation": "SBP Related-Party & Insider Exposure",
-            "description": "Financing to directors, shareholders and associated companies",
-            "statutory_limit": "5.0%",
-            "current_value": f"{related_party_pct:.1f}%",
-            "passed": related_party_pct <= 5.0,
-            "status": "compliant" if related_party_pct <= 5.0 else "breach",
-        },
+        _row("Single obligor (private)", "Exposure to any single private-sector obligor", limits["single_obligor_private"], private_max),
+        _row("Group of connected obligors", "Exposure to one related group", limits["group_private"], group_max, warn_at_80=False),
+        _row("Real estate sector", "Exposure to property-related assets (sector inferred from the asset description)", limits["sector_real_estate"], real_estate_pct),
+        _row("Top-5 obligors", "Cumulative concentration in the 5 largest obligors", limits["top5_obligors"], top5_obligors_pct, warn_at_80=False),
+        _row("Related-party exposure", "Exposure flagged as related party (no asset is flagged yet: the field is not recorded)", limits["related_party"], related_party_pct, warn_at_80=False),
         {
             "regulation": "Prohibited-sector screen",
             "description": "Not assessed: assets carry no recorded activity / sector classification yet",
-            "statutory_limit": "0.0%",
+            "statutory_limit": "n/a",
             "current_value": "not assessed",
             "passed": None,
             "status": "not_assessed",
@@ -333,6 +338,8 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
             "highest_sector_utilization": float(sectors_list[0]["utilization_pct"]) if sectors_list else 0.0,
         },
         "as_of_timestamp": timezone.now().isoformat(),
+        "limits_source": limits_source,
+        "limits_pct": {key: float(value) for key, value in limits.items()},
         "basis_note": (
             "Limits are applied to the pool's own asset total using the configured thresholds in this module. "
             "They are indicative and must be confirmed by Risk & Compliance against the applicable prudential "
@@ -348,34 +355,42 @@ def generate_remediation_proposal(
     excess_amount: Any,
     pool: Optional[Pool] = None,
 ) -> Dict[str, Any]:
-    """Generates an institutional SBP BPRD remediation memo and action steps."""
+    """
+    A neutral remediation worksheet for a concentration breach. It states the numbers and asks for a decision; it cites no
+    regulator, form or filing deadline. A cure period appears only if the rule pack sets `concentration_cure_days`.
+    """
     current_exposure = Decimal(str(current_exposure or 0))
     excess_amount = Decimal(str(excess_amount or 0))
-    now_str = timezone.now().strftime("%Y-%m-%d")
-    deadline_str = (timezone.now() + timezone.timedelta(days=90)).strftime("%Y-%m-%d")
+    now = timezone.now()
+    now_str = now.strftime("%Y-%m-%d")
+    cure_days = None
+    if pool is not None:
+        from apps.pools.config_snapshot import bound_rule_pack
+
+        pack = bound_rule_pack(pool)
+        cure_days = ((pack.rules_config or {}).get("concentration_cure_days") if pack else None)
+    deadline_str = (now + timezone.timedelta(days=int(cure_days))).strftime("%Y-%m-%d") if cure_days else None
 
     recommended_sell_down = (excess_amount * Decimal("1.10")).quantize(Decimal("0.01"))
+    deadline_line = f"**Cure deadline (rule pack):** {deadline_str}" if deadline_str else "**Cure deadline:** not set in the rule pack"
 
-    memo_text = f"""# SBP BPRD STATUTORY CONCENTRATION BREACH REMEDIATION PLAN
-**Notice Date:** {now_str} | **Statutory Cure Deadline:** {deadline_str} (90 Days SBP Window)
-**Target Classification:** {target_type.upper()} - {target_name}
-**Pool:** {pool.name if pool else 'Consolidated Bank Mudaraba Pool'}
+    memo_text = f"""# CONCENTRATION BREACH - REMEDIATION WORKSHEET
+**Date:** {now_str} | {deadline_line}
+**Target:** {target_type.upper()} - {target_name}
+**Pool:** {pool.name if pool else 'Consolidated (all pools)'}
 
 ---
 
-### 1. REGULATORY BREACH NOTIFICATION
-In compliance with SBP Prudential Regulation R-1 / R-6 and BPRD Circular No. 04 of 2015, the Bank has identified an exposure variance exceeding statutory limits:
-- **Total Outstanding Exposure:** PKR {current_exposure:,.2f}
-- **Statutory Excess Exposure:** PKR {excess_amount:,.2f}
-- **Recommended Sell-Down with Liquidity Buffer:** PKR {recommended_sell_down:,.2f}
+### 1. What was found
+The exposure is above the limit configured for this pool:
+- **Total outstanding exposure:** PKR {current_exposure:,.2f}
+- **Amount above the limit:** PKR {excess_amount:,.2f}
+- **Reduction that would leave a 10% margin:** PKR {recommended_sell_down:,.2f}
 
-### 2. ACTIONABLE MITIGATION ROADMAP
-1. **Secondary Syndication / Sukuk Participation:** Place PKR {excess_amount:,.2f} with consortium partner Islamic Banks within 45 days.
-2. **Inter-Pool Asset Swap:** Reallocate non-concentrated GOP Sovereign Sukuk assets to bring net risk-weighted asset ratio into compliance.
-3. **Mudarib Buffer Allocation:** Lock 100 bps from Mudarib profit reserves as interim credit provision until sell-down completes.
-
-### 3. EXECUTIVE SIGN-OFF & SBP BPRD NOTIFICATION
-This remediation plan is hereby submitted to the ALCO, Risk Management Committee (RMC), and Resident Shariah Board Member for formal ratification.
+### 2. Decision needed (Risk & Compliance with the pool manager)
+Record which of these will be done, by whom and by when: reduce the exposure, reallocate to other eligible assets, or
+document why the limit is being waived. Any filing to a regulator is for Risk & Compliance to determine; this worksheet
+does not assume one.
 """
 
     return {
@@ -387,10 +402,9 @@ This remediation plan is hereby submitted to the ALCO, Risk Management Committee
         "statutory_deadline": deadline_str,
         "official_memo": memo_text.strip(),
         "action_steps": [
-            f"Execute secondary market sell-down of PKR {excess_amount:,.2f} to syndicate members.",
-            "Issue bilateral swap request with Conservative Treasury Liquidity Pool.",
-            "File Form BPRD-PR1 with State Bank of Pakistan Off-site Supervision Department within 7 working days.",
-            "Record mitigation covenant in Asset Registry ring-fencing ledger.",
+            f"Decide how to bring the exposure down by at least PKR {excess_amount:,.2f}.",
+            "Name the owner and the date for each step.",
+            "Confirm with Risk & Compliance whether any regulatory notification applies.",
         ],
     }
 
@@ -413,14 +427,14 @@ def commit_breach_remediation_case(
     excess_amount = Decimal(str(excess_amount or 0))
     plan = generate_remediation_proposal(target_name, target_type, current_exposure, excess_amount, pool)
 
-    title = f"SBP Concentration Breach: {target_type.upper()} '{target_name}' Exceeds Statutory Cap"
+    title = f"Concentration limit breach: {target_type.upper()} '{target_name}'"
     description = (
-        f"Automated risk detection identified statutory limit breach under SBP PR R-1/R-6.\n"
+        f"Automated check found an exposure above the configured concentration limit.\n"
         f"Target: {target_name} ({target_type})\n"
         f"Current Exposure: PKR {current_exposure:,.2f}\n"
         f"Excess Amount: PKR {excess_amount:,.2f}\n"
         f"Remediation Plan: {action_note}\n\n"
-        f"Statutory Cure Deadline: {plan['statutory_deadline']}"
+        f"Cure deadline: {plan['statutory_deadline'] or 'not set in the rule pack'}"
     )
 
     case = create_exception_case(
@@ -445,7 +459,7 @@ def commit_breach_remediation_case(
             "excess_amount": str(excess_amount),
             "remediation_status": "filed_with_risk_committee",
         },
-        reason=f"SBP Statutory Concentration Remediation Plan initiated for {target_name}",
+        reason=f"Concentration remediation worksheet opened for {target_name}",
     )
 
     return {

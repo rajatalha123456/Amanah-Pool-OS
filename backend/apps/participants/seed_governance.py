@@ -34,7 +34,7 @@ GL_CHART = {
 MATRIX = [
     # (action, role, max_amount)
     ("allocation_release", UserRole.AUTHORIZED_SIGNATORY, Decimal("100000000.00")),
-    ("distribution_approve", UserRole.FINANCE_CHECKER, Decimal("50000000.00")),
+    ("distribution_approve", UserRole.AUTHORIZED_SIGNATORY, Decimal("50000000.00")),
     ("payout_approve", UserRole.FINANCE_CHECKER, Decimal("10000000.00")),
 ]
 

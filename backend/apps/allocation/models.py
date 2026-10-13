@@ -29,6 +29,11 @@ class WeightageBand(TenantScopedModel):
         max_length=20, choices=WeightageBandStatus.choices, default=WeightageBandStatus.DRAFT
     )
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(weightage__gt=0), name="weightage_band_positive"),
+        ]
+
     def __str__(self):
         return f"{self.pool.name} - {self.participant_class} ({self.weightage})"
 
@@ -226,6 +231,17 @@ class AllocationRun(TenantScopedModel):
     def effective_period_start(self):
         return self.period_start or self.value_date
 
+    # Fixed when the run is created, so changing the setting later cannot remove a stage from a run in progress.
+    # NULL only on runs that predate this field; those keep the live rule.
+    shariah_review_enforced = models.BooleanField(null=True, blank=True, default=None)
+
+    @staticmethod
+    def shariah_review_rule_for(pool) -> bool:
+        return (
+            pool.product.operating_model == "bank_pool"
+            and settings.ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL
+        )
+
     @property
     def shariah_review_required(self) -> bool:
         """
@@ -239,10 +255,9 @@ class AllocationRun(TenantScopedModel):
         time it's checked.
         """
 
-        return (
-            self.pool.product.operating_model == "bank_pool"
-            and settings.ALLOCATION_SHARIAH_REVIEW_REQUIRED_FOR_BANK_POOL
-        )
+        if self.shariah_review_enforced is not None:
+            return self.shariah_review_enforced
+        return self.shariah_review_rule_for(self.pool)
 
 
 class AllocationLine(TenantScopedModel):

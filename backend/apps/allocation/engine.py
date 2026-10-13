@@ -57,13 +57,15 @@ def _load_entities(pool, start, end):
     {key: {"account", "participant_class", "series": {date: Decimal}}}.
     """
 
+    # Only validated balances earn profit (BRD 6.2: balances are validated before the distribution). A pending row is
+    # an unchecked number; calculate_allocation() refuses to run while any exist inside the period.
     rows = (
         DailyBalance.objects.filter(
             pool=pool,
             value_date__gte=start - timedelta(days=CARRY_FORWARD_DAYS),
             value_date__lte=end,
+            status=DailyBalanceStatus.VALIDATED,
         )
-        .exclude(status=DailyBalanceStatus.REJECTED)
         .values_list("account_id", "participant_class", "value_date", "balance_amount")
         .iterator(chunk_size=20000)
     )
@@ -199,6 +201,14 @@ def calculate_allocation(pool, value_date, gross_income, direct_expenses, period
         raise ValueError(f"An allocation period cannot exceed {MAX_PERIOD_DAYS} days.")
     day_count = Decimal(len(days))
 
+    pending = DailyBalance.objects.filter(
+        pool=pool, value_date__gte=period_start, value_date__lte=value_date, status=DailyBalanceStatus.PENDING
+    ).count()
+    if pending:
+        raise ValueError(
+            f"{pending} balance row(s) in this period are still pending validation. Validate or reject them "
+            "(Daily Operations) before calculating the allocation."
+        )
     entities = _load_entities(pool, period_start, value_date)
     if not entities:
         raise ValueError(

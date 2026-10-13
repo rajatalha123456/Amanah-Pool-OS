@@ -837,10 +837,10 @@ class ConfigChangeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixi
 
     def get_permissions(self):
         if self.action in ("approve", "reject"):
-            return [IsAuthenticated(), HasAnyRole(["finance_checker"])()]
+            return [IsAuthenticated(), HasAnyRole(["finance_checker", "authorized_signatory"])()]
         return [IsAuthenticated(), HasAnyRole(
             ["risk_compliance", "finance_checker", "finance_maker", "pool_manager",
-             "auditor", "shariah_board"]
+             "auditor", "shariah_board", "authorized_signatory"]
         )()]
 
     @action(detail=True, methods=["post"])

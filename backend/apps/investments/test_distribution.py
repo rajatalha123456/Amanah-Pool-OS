@@ -16,6 +16,7 @@ from apps.pools.models import PeriodCloseChecklist, Pool
 from apps.products.models import ContractTemplate, Product
 from apps.tenants.models import Tenant
 
+from .ceremony_helpers import release_distribution
 from .distribution import calculate_distribution
 from .models import (
     CapitalAccount,
@@ -56,6 +57,7 @@ class MudarabahBase(APITestCase):
         self.maker = self._user("maker", UserRole.FINANCE_MAKER)
         self.checker = self._user("checker", UserRole.FINANCE_CHECKER)
         self.shariah = self._user("board", UserRole.SHARIAH_BOARD)
+        self.signatory = self._user("signatory", UserRole.AUTHORIZED_SIGNATORY)
         self.inv_a = self._user("inva", UserRole.INVESTOR_MEMBER)
         self.inv_b = self._user("invb", UserRole.INVESTOR_MEMBER)
 
@@ -152,8 +154,7 @@ class MudarabahBase(APITestCase):
         self.authenticate(self.maker)
         base = reverse("distribution-run-detail", args=[run_id])
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        response = self.client.post(base + "approve/")
+        response = release_distribution(self, base)
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         return run_id
 
@@ -309,8 +310,8 @@ class DistributionWorkflowTests(MudarabahBase):
         base = reverse("distribution-run-detail", args=[tampered_id])
         self.authenticate(self.maker)
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+        # the independent check re-derives the hash, so a tampered run never reaches the Shariah review
+        self.assertEqual(release_distribution(self, base).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_overlapping_signed_distributions_are_blocked(self):
         self.sign()
@@ -318,8 +319,7 @@ class DistributionWorkflowTests(MudarabahBase):
         base = reverse("distribution-run-detail", args=[run_id])
         self.authenticate(self.maker)
         self.client.post(base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(release_distribution(self, base).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_closed_period_blocks_new_distribution_but_restatement_still_works(self):
         run_id = self.sign()
@@ -338,8 +338,7 @@ class DistributionWorkflowTests(MudarabahBase):
 
         new_base = reverse("distribution-run-detail", args=[restated.data["id"]])
         self.client.post(new_base + "submit-for-checking/")
-        self.authenticate(self.checker)
-        approved = self.client.post(new_base + "approve/")
+        approved = release_distribution(self, new_base)
         self.assertEqual(approved.status_code, status.HTTP_200_OK, approved.data)
 
         self.assertEqual(InvestmentDistributionRun.objects.get(pk=run_id).status, DistributionRunStatus.REVERSED)
@@ -390,3 +389,49 @@ class InvestorSelfServiceTests(MudarabahBase):
         self.authenticate(self.maker)
         response = self.client.get(reverse("capital-account-statement", args=[self.acc_a.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class DistributionCeremonyTests(MudarabahBase):
+    """BRD 6.3: finance checker and Shariah reviewer approve; release by someone who is neither maker nor checker."""
+
+    def _submitted(self):
+        run_id = self.create_run().data["id"]
+        base = reverse("distribution-run-detail", args=[run_id])
+        self.authenticate(self.maker)
+        self.client.post(base + "submit-for-checking/")
+        return run_id, base
+
+    def test_one_person_cannot_release_a_distribution(self):
+        _, base = self._submitted()
+        for user in (self.checker, self.shariah, self.maker, self.pm):
+            self.authenticate(user)
+            self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_403_FORBIDDEN, user.role)
+        self.authenticate(self.signatory)
+        # even the right role cannot skip the earlier stages
+        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_stages_must_run_in_order_with_the_right_roles(self):
+        _, base = self._submitted()
+        self.authenticate(self.shariah)
+        self.assertEqual(self.client.post(base + "shariah-sign-off/", {}, format="json").status_code, status.HTTP_400_BAD_REQUEST)
+        self.authenticate(self.signatory)
+        self.assertEqual(self.client.post(base + "check/").status_code, status.HTTP_403_FORBIDDEN)
+        self.authenticate(self.checker)
+        self.assertEqual(self.client.post(base + "check/").status_code, status.HTTP_200_OK)
+        self.authenticate(self.checker)
+        self.assertEqual(self.client.post(base + "shariah-sign-off/", {}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+        self.authenticate(self.shariah)
+        self.assertEqual(self.client.post(base + "shariah-sign-off/", {"note": "ok"}, format="json").status_code, status.HTTP_200_OK)
+        self.authenticate(self.signatory)
+        released = self.client.post(base + "approve/")
+        self.assertEqual(released.status_code, status.HTTP_200_OK, released.data)
+        self.assertEqual(released.data["status"], "signed")
+        self.assertEqual(str(released.data["released_by"]), str(self.signatory.id))
+        self.assertEqual(str(released.data["shariah_signed_off_by"]), str(self.shariah.id))
+
+    def test_a_second_release_of_the_same_run_is_refused(self):
+        _, base = self._submitted()
+        self.assertEqual(release_distribution(self, base).status_code, status.HTTP_200_OK)
+        self.authenticate(self.signatory)
+        self.assertEqual(self.client.post(base + "approve/").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(JournalBatch.objects.filter(investment_run_id=base.rstrip("/").split("/")[-1]).count(), 1)

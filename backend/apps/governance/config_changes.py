@@ -19,6 +19,10 @@ from .models import ConfigChangeKind, ConfigChangeOperation, ConfigChangeRequest
 APPROVER_ROLES = {
     ConfigChangeKind.APPROVAL_MATRIX: ["finance_checker"],
     ConfigChangeKind.ACCOUNT_MAPPING: ["finance_checker"],
+    # Reserve rate/cap and tax/limit values change what participants receive: a finance checker approves a reserve
+    # change; a rule pack (tax rates, Mudarib cap, reserve ceilings) needs the finance checker or the authorized signatory.
+    ConfigChangeKind.RESERVE_POLICY: ["finance_checker"],
+    ConfigChangeKind.RULE_PACK: ["finance_checker", "authorized_signatory"],
 }
 
 
@@ -29,6 +33,16 @@ def _binding(kind):
         from apps.accounts.serializers import ApprovalMatrixRuleSerializer
 
         return ApprovalMatrixRule, ApprovalMatrixRuleSerializer
+    if kind == ConfigChangeKind.RESERVE_POLICY:
+        from apps.allocation.models import ReservePolicy
+        from apps.allocation.serializers import ReservePolicySerializer
+
+        return ReservePolicy, ReservePolicySerializer
+    if kind == ConfigChangeKind.RULE_PACK:
+        from apps.products.models import JurisdictionRulePack
+        from apps.products.serializers import JurisdictionRulePackSerializer
+
+        return JurisdictionRulePack, JurisdictionRulePackSerializer
     from apps.accounting.models import AccountMapping
     from apps.accounting.serializers import AccountMappingSerializer
 
@@ -40,17 +54,23 @@ def _writable(serializer):
 
 
 def _plain(value):
-    return None if value is None else str(value)
+    # JSON structures (a rule pack's rules) are kept as they are so that they can be re-validated and compared.
+    if value is None or isinstance(value, (dict, list)):
+        return value
+    return str(value)
 
 
-def submit_change(*, kind, serializer, request, instance=None):
+def submit_change(*, kind, serializer, request, instance=None, data=None):
     """Called by a configuration endpoint after its serializer validated the proposal."""
-    reason = str(request.data.get("change_reason") or "").strip()
+    data = request.data if data is None else data
+    reason = str(data.get("change_reason") or "").strip()
     if not reason:
         raise ValidationError({"change_reason": ["Explain why this change is needed."]})
 
     fields = _writable(serializer)
-    payload = {name: _plain(request.data[name]) for name in fields if name in request.data}
+    payload = {name: _plain(data[name]) for name in fields if name in data}
+    if not payload:
+        raise ValidationError("Nothing to change: none of the submitted fields can be edited here.")
     if instance is None:
         operation, target_id, before = ConfigChangeOperation.CREATE, "", {}
     else:

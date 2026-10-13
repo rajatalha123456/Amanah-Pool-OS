@@ -2,11 +2,11 @@
 URL configuration for the amanah_pool_os project.
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/v1/", include("apps.core.urls")),
     path("api/v1/auth/", include("apps.accounts.urls")),
     path("api/v1/products/", include("apps.products.urls")),
@@ -21,3 +21,8 @@ urlpatterns = [
     path("api/v1/circles/", include("apps.circles.urls")),
     path("api/v1/", include("apps.tenants.urls")),
 ]
+
+# The Django admin edits tables directly, bypassing the maker-checker rules of the API. It is a development tool only:
+# it is mounted when DEBUG is on, or when ENABLE_DJANGO_ADMIN is set explicitly.
+if settings.DEBUG or getattr(settings, "ENABLE_DJANGO_ADMIN", False):
+    urlpatterns.insert(0, path("admin/", admin.site.urls))

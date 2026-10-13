@@ -323,6 +323,8 @@ class ShariahAuditFinding(TenantScopedModel):
 class ConfigChangeKind(models.TextChoices):
     APPROVAL_MATRIX = "approval_matrix", "Approval matrix rule"
     ACCOUNT_MAPPING = "account_mapping", "Account mapping"
+    RESERVE_POLICY = "reserve_policy", "Reserve policy (PER / IRR)"
+    RULE_PACK = "rule_pack", "Jurisdiction rule pack"
 
 
 class ConfigChangeOperation(models.TextChoices):

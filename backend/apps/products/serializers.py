@@ -244,3 +244,21 @@ class JurisdictionRulePackSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "tenant", "created_at", "updated_at")
+
+    # Only one rule pack is the tenant's default: when a change that makes another pack the default is applied, the
+    # flag is taken away from the previous one in the same step.
+    def _single_default(self, instance):
+        if instance.is_default:
+            JurisdictionRulePack._base_manager.filter(tenant_id=instance.tenant_id).exclude(pk=instance.pk).update(
+                is_default=False
+            )
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        self._single_default(instance)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        self._single_default(instance)
+        return instance

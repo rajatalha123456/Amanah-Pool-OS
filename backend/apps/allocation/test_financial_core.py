@@ -86,6 +86,7 @@ class FinancialCoreTestBase(APITestCase):
                 participant_class=participant_class,
                 value_date=VALUE_DATE,
                 balance_amount=Decimal(balance),
+                status="validated",
             )
             WeightageBand.objects.create(
                 tenant=self.tenant,

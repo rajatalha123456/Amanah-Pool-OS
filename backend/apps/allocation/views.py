@@ -25,6 +25,7 @@ from apps.accounting.models import IncomeExpenseEvent
 from apps.core.audit import log_action
 from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES, EditableWhileDraftMixin
 from apps.notifications import events
+from apps.pools.exception_gate import assert_no_open_serious_exception
 from apps.pools.period_lock import assert_period_open
 
 from .economics_change import announce, band_impact, check_notice_period, psr_impact
@@ -82,6 +83,7 @@ def _persist_run(*, user, pool, value_date, gross_income, direct_expenses, resul
             config_snapshot=result["config_snapshot"],
             status=AllocationRunStatus.SIMULATED,
             created_by=user,
+            shariah_review_enforced=AllocationRun.shariah_review_rule_for(pool),
             **extra,
         )
 
@@ -614,6 +616,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             )
 
         assert_may_approve(request.user, run.tenant_id, "allocation_release", run.distributable_amount)
+        assert_no_open_serious_exception(run.pool, "an allocation run")
 
         # Four eyes on the release: the signatory is neither the maker nor the independent checker.
         try:
@@ -1028,8 +1031,30 @@ class ReservePolicyViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(pool_id=pool_id)
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant)
+    # Maker-checker (BRD 5: reserves need approval; BRD 11: every override needs maker and checker): these endpoints only
+    # PROPOSE a change (HTTP 202). A different finance checker approves it under /governance/config-changes/.
+    def create(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(kind=ConfigChangeKind.RESERVE_POLICY, serializer=serializer, request=request)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    def update(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(
+            kind=ConfigChangeKind.RESERVE_POLICY, serializer=serializer, request=request, instance=instance
+        )
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
 
 
 class PayoutClearingViewSet(viewsets.ViewSet):

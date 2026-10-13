@@ -351,25 +351,46 @@ class JurisdictionRulePackViewSet(viewsets.ModelViewSet):
         # Rule packs are configuration, not financial data: the platform administrator who provisions them may read them.
         return [IsAuthenticated(), HasAnyRole(STAFF_ROLES + ["platform_super_admin"])()]
 
-    def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant)
+    # Maker-checker: tax rates, the Mudarib cap and reserve ceilings decide what participants receive, so a change is only
+    # PROPOSED here (HTTP 202); a different finance checker or the authorized signatory approves it under
+    # /governance/config-changes/ and every step is audited (BRD 8 change governance, BRD 11 overrides).
+    def create(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(kind=ConfigChangeKind.RULE_PACK, serializer=serializer, request=request)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
+
+    def update(self, request, *args, **kwargs):
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(kind=ConfigChangeKind.RULE_PACK, serializer=serializer, request=request, instance=instance)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
+        """Making a pack active / the tenant default changes what governs every pool: it is proposed, not applied."""
+        from apps.governance.config_changes import submit_change
+        from apps.governance.models import ConfigChangeKind
+        from apps.governance.views import ConfigChangeRequestSerializer
+
         pack = self.get_object()
-        is_default = request.data.get("is_default", False)
-        if is_default:
-            JurisdictionRulePack.objects.filter(tenant=pack.tenant).update(is_default=False)
-            pack.is_default = True
-        pack.is_active = True
-        pack.save()
-        log_action(
-            tenant=pack.tenant,
-            actor=request.user,
-            action="activate_rule_pack",
-            model_name="JurisdictionRulePack",
-            object_id=str(pack.id),
-            changes={"is_active": True, "is_default": pack.is_default},
-            request=request,
+        data = {
+            "is_active": True,
+            "is_default": bool(request.data.get("is_default", False)),
+            "change_reason": request.data.get("change_reason"),
+        }
+        serializer = self.get_serializer(pack, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        change = submit_change(
+            kind=ConfigChangeKind.RULE_PACK, serializer=serializer, request=request, instance=pack, data=data
         )
-        return Response(self.get_serializer(pack).data)
+        return Response(ConfigChangeRequestSerializer(change).data, status=202)

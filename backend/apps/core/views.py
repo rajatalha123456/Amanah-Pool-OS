@@ -135,8 +135,8 @@ def audit_log_export(request):
                 entry.action,
                 entry.model_name,
                 entry.object_id,
-                entry.changes,
-                entry.reason or "",
+                "[withheld]" if request.user.role == "platform_super_admin" else entry.changes,
+                "" if request.user.role == "platform_super_admin" else (entry.reason or ""),
                 entry.ip_address or "",
             ]
         )

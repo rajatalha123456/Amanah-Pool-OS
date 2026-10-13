@@ -33,6 +33,12 @@ class WeightageBandSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "tenant", "status", "created_at", "updated_at")
 
+    def validate_weightage(self, value):
+        # A weightage multiplies the balance; zero or negative would remove or reverse a class's share of the profit.
+        if value <= 0:
+            raise serializers.ValidationError("The weightage must be greater than zero.")
+        return value
+
     def validate(self, attrs):
         pool = attrs.get("pool", getattr(self.instance, "pool", None))
         participant_class = attrs.get(
@@ -313,7 +319,9 @@ class ReservePolicySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "tenant", "created_at", "updated_at")
+        # The balance is system-controlled: it moves only when a signed run appropriates to the reserve or a
+        # reversal takes it back (allocation/reserves.py). No API caller may set it.
+        read_only_fields = ("id", "tenant", "current_balance", "created_at", "updated_at")
 
     def validate(self, attrs):
         """The rule pack's PER/IRR ceiling (a % of pool funds) limits the policy's balance cap."""

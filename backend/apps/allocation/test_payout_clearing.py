@@ -150,9 +150,11 @@ class PayoutClearingTests(ParticipantLedgerTestBase):
     def test_reserve_cap_above_the_rule_pack_ceiling_is_refused(self):
         self.authenticate(self.pool_manager)
         url = reverse("reserve-policy-list")
-        body = {"pool": str(self.pool.id), "reserve_type": "per", "rate_percentage": "1.00", "is_active": False}
+        body = {"pool": str(self.pool.id), "reserve_type": "per", "rate_percentage": "1.00", "is_active": False,
+                "change_reason": "Reserve policy for the pool"}
         self.assertEqual(self.client.post(url, {**body, "cap_percentage": "5.00"}, format="json").status_code, 400)
-        self.assertLess(self.client.post(url, {**body, "cap_percentage": "2.00"}, format="json").status_code, 400)
+        # Within the ceiling the change is only proposed (202); a different finance checker applies it.
+        self.assertEqual(self.client.post(url, {**body, "cap_percentage": "2.00"}, format="json").status_code, 202)
 
     @override_settings(ALLOW_SIMULATED_INTEGRATIONS=False)
     def test_simulated_rails_are_refused_when_disabled(self):

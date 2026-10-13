@@ -65,7 +65,7 @@ class ApprovalCeremonyApiTests(APITestCase):
         value_date = date(2026, 9, 15)
         DailyBalance.objects.create(
             tenant=self.tenant, pool=pool, participant_class="retail", value_date=value_date,
-            balance_amount=Decimal("1000.00"),
+            balance_amount=Decimal("1000.00"), status="validated",
         )
         WeightageBand.objects.create(
             tenant=self.tenant, pool=pool, participant_class="retail", weightage=Decimal("1.00"),

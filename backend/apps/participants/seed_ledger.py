@@ -228,7 +228,7 @@ def seed_participant_ledger(
     # July 2026: signed, then a restatement rerun left awaiting approval (Restatement Wizard demo).
     july = create_run(date(2026, 7, 1), date(2026, 7, 31))
     submit(july)
-    sign(july, "Certified conforming to AAOIFI FAS-30 and SBP IBD Circular 03/2012.")
+    sign(july, "Certified for the demo data set (synthetic; not a real certification).")
     # A July accrual posted after the run was signed: the restatement re-derives the period (1,037,500).
     post_event(INCOME, "Financing Profit", "12500.00", date(2026, 7, 31), "Late CBS asset accrual adjustment")
     call(
@@ -239,7 +239,7 @@ def seed_participant_ledger(
     # August 2026: signed, statements issued.
     august = create_run(date(2026, 8, 1), date(2026, 8, 31))
     submit(august)
-    sign(august, "Certified conforming to AAOIFI FAS-30 and SBP IBD Circular 03/2012.")
+    sign(august, "Certified for the demo data set (synthetic; not a real certification).")
     call(maker, "post", f"{base_url}{august}/generate-statements/")
 
     # September 2026: awaiting the Shariah Board / Finance Checker.
@@ -295,5 +295,10 @@ def seed_mudarabah_distribution(tenant, pool, capital_account, *, maker, checker
         return data["id"]
 
     august = draft("2026-08-01", "2026-08-31", "2750000.00", "130000.00")
-    call(checker, "post", f"{base}{august}/approve/")
+    # The full ceremony: independent check, Shariah review, release by the authorized signatory.
+    secretariat = User.objects.filter(tenant=tenant, role=UserRole.SHARIAH_SECRETARIAT).order_by("email").first()
+    signatory = User.objects.filter(tenant=tenant, role=UserRole.AUTHORIZED_SIGNATORY).order_by("email").first()
+    call(checker, "post", f"{base}{august}/check/")
+    call(secretariat, "post", f"{base}{august}/shariah-sign-off/", {"note": "Reviewed for the demo data."})
+    call(signatory, "post", f"{base}{august}/approve/")
     draft("2026-09-01", "2026-09-30", "2900000.00", "140000.00")

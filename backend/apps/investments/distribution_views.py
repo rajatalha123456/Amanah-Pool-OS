@@ -9,11 +9,12 @@ from rest_framework.response import Response
 
 from apps.accounting.models import JournalBatch
 from apps.accounting.services import create_journal_from_distribution, create_reversal_journal
-from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker
+from apps.accounts.permissions import HasAnyRole, IsAuthorizedSignatory, IsFinanceChecker, IsFinanceMaker
 from apps.accounts.approval_matrix import assert_may_approve
 from apps.accounts.workflow import validate_maker_checker
 from apps.core.audit import log_action
 from apps.notifications import events
+from apps.pools.exception_gate import assert_no_open_serious_exception
 from apps.pools.period_lock import assert_period_open
 
 from .distribution import calculate_distribution, compute_run_hash
@@ -131,8 +132,17 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
             return [IsAuthenticated(), HasAnyRole(["pool_manager", "finance_maker"])()]
         if self.action == "submit_for_checking":
             return [IsAuthenticated(), IsFinanceMaker()]
-        if self.action in ("approve", "reject"):
+        if self.action == "check":
             return [IsAuthenticated(), IsFinanceChecker()]
+        if self.action == "shariah_sign_off":
+            # A review, not a ruling (BRD 3): the Secretariat or the Board. Final authority is the signatory's.
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat", "shariah_board"])()]
+        if self.action == "approve":
+            return [IsAuthenticated(), IsAuthorizedSignatory()]
+        if self.action == "reject":
+            return [IsAuthenticated(), HasAnyRole(
+                ["finance_checker", "shariah_secretariat", "shariah_board", "authorized_signatory"]
+            )()]
         return [IsAuthenticated()]
 
     def _calculate(self, request):
@@ -192,15 +202,68 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
         return Response(self.get_serializer(run).data)
 
     @action(detail=True, methods=["post"])
-    def approve(self, request, pk=None):
+    def check(self, request, pk=None):
+        """Independent check by a finance checker who did not prepare the run."""
         run = self.get_object()
         if run.status != DistributionRunStatus.PENDING_APPROVAL:
-            raise ValidationError(f"Only a pending run can be approved (current status: '{run.status}').")
-        assert_may_approve(request.user, run.tenant_id, "distribution_approve", run.distributable_amount)
+            raise ValidationError(f"Only a pending run can be checked (current status: '{run.status}').")
         try:
             validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
+        if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
+            raise ValidationError(
+                "Calculation hash mismatch: the run no longer matches the figures it was sealed with. "
+                "Reject it and re-run the distribution."
+            )
+        run.status = DistributionRunStatus.CHECKED
+        run.checked_by = request.user
+        run.checked_at = timezone.now()
+        run.save(update_fields=["status", "checked_by", "checked_at", "updated_at"])
+        log_action(
+            tenant=run.tenant, actor=request.user, action="independent_check", model_name="InvestmentDistributionRun",
+            object_id=str(run.id), reason=request.data.get("note"), request=request,
+        )
+        events.distribution_checked(run, request.user)
+        return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"], url_path="shariah-sign-off")
+    def shariah_sign_off(self, request, pk=None):
+        run = self.get_object()
+        if run.status != DistributionRunStatus.CHECKED:
+            raise ValidationError(
+                f"The run must have its independent check before the Shariah review (current status: '{run.status}')."
+            )
+        run.status = DistributionRunStatus.SHARIAH_REVIEW
+        run.shariah_signed_off_by = request.user
+        run.shariah_signed_off_at = timezone.now()
+        run.shariah_review_note = request.data.get("note")
+        run.save(update_fields=[
+            "status", "shariah_signed_off_by", "shariah_signed_off_at", "shariah_review_note", "updated_at",
+        ])
+        log_action(
+            tenant=run.tenant, actor=request.user, action="shariah_sign_off", model_name="InvestmentDistributionRun",
+            object_id=str(run.id), reason=run.shariah_review_note, request=request,
+        )
+        events.distribution_shariah_reviewed(run, request.user)
+        return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """Final release by the authorized signatory, who is neither the maker nor the independent checker."""
+        run = self.get_object()
+        if run.status != DistributionRunStatus.SHARIAH_REVIEW:
+            raise ValidationError(
+                f"Final release needs the independent check and the Shariah review first (current status: '{run.status}')."
+            )
+        assert_may_approve(request.user, run.tenant_id, "distribution_approve", run.distributable_amount)
+        assert_no_open_serious_exception(run.pool, "a profit distribution")
+        try:
+            validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message) from exc
+        if run.checked_by_id == request.user.id:
+            raise ValidationError("The final release cannot be given by the user who did the independent check.")
 
         if not run.calculation_hash or compute_run_hash(run) != run.calculation_hash:
             raise ValidationError(
@@ -213,6 +276,10 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
 
         try:
             with transaction.atomic():
+                # Re-read under a row lock: a concurrent second release must not pass the status check as well.
+                locked = InvestmentDistributionRun.objects.select_for_update().get(pk=run.pk)
+                if locked.status != DistributionRunStatus.SHARIAH_REVIEW:
+                    raise ValidationError("This run was already released or changed by another request.")
                 reversal = None
                 if run.is_restatement:
                     old = InvestmentDistributionRun.objects.select_for_update().get(pk=run.replaces_run_id)
@@ -240,9 +307,9 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
                 run.status = DistributionRunStatus.SIGNED
                 if case_ids:
                     NegligenceCase._base_manager.filter(tenant_id=run.tenant_id, id__in=case_ids).update(applied_run=run)
-                run.checked_by = request.user
-                run.checked_at = timezone.now()
-                run.save(update_fields=["status", "checked_by", "checked_at", "updated_at"])
+                run.released_by = request.user
+                run.released_at = timezone.now()
+                run.save(update_fields=["status", "released_by", "released_at", "updated_at"])
                 batch = create_journal_from_distribution(run, posted_by=request.user)
         except (ValueError, DjangoValidationError) as exc:
             raise ValidationError(getattr(exc, "message", None) or str(exc)) from exc
@@ -263,8 +330,10 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         run = self.get_object()
-        if run.status != DistributionRunStatus.PENDING_APPROVAL:
-            raise ValidationError(f"Only a pending run can be rejected (current status: '{run.status}').")
+        if run.status not in (
+            DistributionRunStatus.PENDING_APPROVAL, DistributionRunStatus.CHECKED, DistributionRunStatus.SHARIAH_REVIEW
+        ):
+            raise ValidationError(f"Only a run in the approval ceremony can be rejected (current status: '{run.status}').")
         reason = (request.data.get("rejection_reason") or "").strip()
         if not reason:
             raise ValidationError({"rejection_reason": ["This field is required."]})
@@ -288,7 +357,10 @@ class DistributionRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
             raise ValidationError("Only a signed run can be restated.")
         if InvestmentDistributionRun.objects.filter(
             replaces_run=old,
-            status__in=[DistributionRunStatus.SIMULATED, DistributionRunStatus.PENDING_APPROVAL],
+            status__in=[
+                DistributionRunStatus.SIMULATED, DistributionRunStatus.PENDING_APPROVAL,
+                DistributionRunStatus.CHECKED, DistributionRunStatus.SHARIAH_REVIEW,
+            ],
         ).exists():
             raise ValidationError("A restatement of this run is already awaiting approval.")
 

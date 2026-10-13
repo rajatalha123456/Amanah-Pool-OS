@@ -72,7 +72,23 @@ class ParticipantAccountSerializer(serializers.ModelSerializer):
         self.fields["participant"] = serializers.PrimaryKeyRelatedField(queryset=Participant.objects.all())
         self.fields["pool"] = serializers.PrimaryKeyRelatedField(queryset=Pool.objects.all())
 
+    # Who holds the account, in which pool, under which number and from/until when decides who earns profit on which
+    # days (the engine zeroes balances outside the dates). They are set when the account is opened; ending an account
+    # goes through the close action. Editing them afterwards would silently rewrite past allocations.
+    LOCKED_AFTER_CREATE = ("participant", "pool", "account_number", "opened_date", "closed_date")
+
     def validate(self, attrs):
+        if self.instance is not None:
+            changed = [
+                name for name in self.LOCKED_AFTER_CREATE
+                if name in attrs and str(getattr(self.instance, name if name not in ("participant", "pool") else name + "_id")) != str(
+                    attrs[name].pk if hasattr(attrs[name], "pk") else attrs[name]
+                )
+            ]
+            if changed:
+                raise serializers.ValidationError(
+                    {name: "This cannot be changed once the account exists; close the account and open a new one." for name in changed}
+                )
         opened = attrs.get("opened_date", getattr(self.instance, "opened_date", None))
         closed = attrs.get("closed_date", getattr(self.instance, "closed_date", None))
         if opened and closed and closed < opened:
