@@ -90,8 +90,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-056 | 6.2.3 | Daily funds and weighted balances by product/class | engine | - | - | AT 07, 09 | PASS | - |
 | R-057 | 6.2.4 | Reconcile assets, sources, pool equity, suspense | `accounting/reconciliation.py` | Reconciliation Center | - | BT ReconciliationTests | PARTIAL (no suspense, no live feed) | P2 |
 | R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; no recommendation record) | Anomaly queue | - | none direct | PARTIAL | P2 |
-| R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run | PARTIAL | P2 |
-| R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack | PARTIAL | P2 |
+| R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run; after T-02/daily close: signed close required before check and release (BT) | PASS | - |
+| R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack; after rule pack revisions: run seals the pack revision and hash (BT) | PASS | - |
 | R-061 | 6.3.2 | Gross income and permitted direct expenses | `allocation/income.py` | - | - | BT DerivedFromEventsTests | PASS | - |
 | R-062 | 6.3.3 | Distributable profit and reserve appropriation | engine 296-338 | - | - | AT 13; BT reserves | PASS | - |
 | R-063 | 6.3.4 | Weightages and weighted participation | engine | - | - | AT 02, 09 | PASS | - |
@@ -188,7 +188,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 |---|---|---|---|---|---|---|---|---|
 | R-130 | 11 | Core entities (Foundation ... Assurance & AI) | most present; `Member` = `CircleMember`; no `Payment`, `EvidenceObject`, `ModelVersion` as such | - | migrations | - | PARTIAL | P3 |
 | R-131 | 11 | One effective asset assignment unless sharing approved | `asset_rules.py` (application level) | - | no DB constraint | BT AssetRuleTests | PASS | - |
-| R-132 | 11 | Signed run references immutable pool, contract, rate, balance, rule-pack versions | rule pack edited in place keeps its version; balances not versioned | - | `JurisdictionRulePack` | AT patch probe; after fix F-04: pack edits are controlled, but the pack is still edited in place and not versioned | PARTIAL | P2 |
+| R-132 | 11 | Signed run references immutable pool, contract, rate, balance, rule-pack versions | rule pack edited in place keeps its version; balances not versioned | - | `JurisdictionRulePack` | AT patch probe; after fix F-04: pack edits are controlled, but the pack is still edited in place and not versioned; after rule pack revisions: signed run seals pack revision; history immutable (BT) | PASS | - |
 | R-133 | 11 | PSR totals equal the configured whole | `ProfitSharingRatio.clean` | - | no DB check | AT test_15 | PASS | - |
 | R-134 | 11 | No physical deletion after posting | model guards + PROTECT FKs | - | PROTECT | BT ImmutabilityTests; AT admin bulk delete refused | PASS | - |
 | R-135 | 11 | Every override: reason, evidence, maker, checker, timestamp | income override sealed with reason; reserve balance / account dates / rule pack changed with no reason or checker | - | - | AT patch probe; after fixes F-01, F-04, F-05: AT patch probe shows no uncontrolled change | PASS | - |
@@ -269,12 +269,12 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-185 | 18 | AI validation, red-team, fallback, monitoring | PARTIAL (fallback only) | P2 | copilot tests |
 | R-186 | 19 | Implementation decisions recorded | PASS (documented, sign-offs pending) | P2 | `docs/DECISIONS.md` |
 
-## Totals (R-001..R-186), after the 2026-10-13 fixes
+## Totals (R-001..R-186), after the fixes through 2026-10-13
 
 | Status | Count |
 |---|---|
-| PASS | 88 |
-| PARTIAL | 69 |
+| PASS | 91 |
+| PARTIAL | 66 |
 | FAIL | 0 |
 | MISSING | 9 |
 | BLOCKED | 8 |
@@ -282,6 +282,4 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | NOT APPLICABLE | 2 |
 | **Total** | **186** |
 
-Counted by script from the rows above. Before the fixes the counts were PASS 78, PARTIAL 70, FAIL 9, MISSING 9, BLOCKED 8, NOT TESTED 10, NOT APPLICABLE 2.
-Rows changed by the fixes carry an "after fix" note in their evidence cell. Applicable requirements: 184.
-The 58 screens of BRD section 15 are counted in `SCREEN_AUDIT.md`.
+Counted by script. Before any fix: PASS 78, PARTIAL 70, FAIL 9, MISSING 9, BLOCKED 8, NOT TESTED 10, NOT APPLICABLE 2.
