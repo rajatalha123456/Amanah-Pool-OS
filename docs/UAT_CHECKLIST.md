@@ -110,6 +110,9 @@ Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Anal
 | M8 | Sign in as the Super Admin and open the audit log | Who, what, when are visible; amounts and reasons are not |
 | M9 | Try to change an account's opening date | Refused |
 | M10 | Create a run for a period with a day that has balances but no signed daily close, then try the independent check | Refused, naming the days; after the maker prepares and a different checker signs those days, the check works. A weekend with no balances needs no close |
+| M11 | Finance maker: Finance & Ledger > GL Hand-over, generate an export; try again | The first file holds every posted batch not sent yet; the second attempt is refused (nothing new to send) |
+| M12 | Finance checker records the GL's answer with its reference (or rejects with a reason) | Recorded with the checker's name; the maker cannot do it; after a rejection the batches can be sent again; the downloaded file is identical to what was sent |
+| M13 | Open the trial balance, then pick an earlier "as of" date | Debits equal credits; the totals change with the date |
 
 ## L. Sign-off
 | Function | Name | Date | Passed all steps? | Notes |

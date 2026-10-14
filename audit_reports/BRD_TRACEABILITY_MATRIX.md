@@ -198,7 +198,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Status | Sev | Evidence |
 |---|---|---|---|---|---|
 | R-136 | 12 | Core banking / LOS / LMS (REST, events, SFTP) | MISSING (simulated `cbs_daemon.py`, refused in production) | P1 | BT core.test_evidence_and_simulation |
-| R-137 | 12 | ERP / GL: chart mapping, journal batches, posting status, trial balance | PARTIAL (CSV export only; no posting status, no trial balance) | P2 | `accounting/views.py:290-315` |
+| R-137 | 12 | ERP / GL: chart mapping, journal batches, posting status, trial balance | PARTIAL: controlled hand-over with stored file, no duplicate send, the GL's posting status recorded by a different checker, trial balance (BT accounting.test_gl_handover, 6; E2E GL hand-over). No live ERP connection: the file is handed over and the answer recorded by people | P2 | `apps/accounting/gl_handover.py` |
 | R-138 | 12 | KYC / KYB / AML (API, webhook) | MISSING | P1 | ST |
 | R-139 | 12 | Banking / payment rails | MISSING (simulated) | P1 | ST |
 | R-140 | 12 | Market / valuation data | MISSING | P3 | ST |

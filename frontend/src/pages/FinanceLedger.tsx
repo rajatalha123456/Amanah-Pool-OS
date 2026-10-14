@@ -2,19 +2,27 @@ import { useState } from "react"
 import { PageHeader } from "../components/PageHeader"
 import { JournalBatchReview } from "./JournalBatchReview"
 import { IncomeExpenseWorkbench } from "./IncomeExpenseWorkbench"
+import { GLHandover } from "../components/finance/GLHandover"
 
-type Tab = "journal-batches" | "income-expense"
+type Tab = "journal-batches" | "income-expense" | "gl-handover"
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "journal-batches", label: "Journal Batches" },
   { key: "income-expense", label: "Income & Expense" },
+  { key: "gl-handover", label: "GL Hand-over & Trial Balance" },
 ]
 
 export function FinanceLedger() {
   const [activeTab, setActiveTab] = useState<Tab>("journal-batches")
 
   const activeMeta =
-    activeTab === "income-expense"
+    activeTab === "gl-handover"
+      ? {
+          num: "15",
+          title: "GL Hand-over & Trial Balance",
+          sub: "Journals sent to the enterprise general ledger, the GL's answer, and the trial balance",
+        }
+      : activeTab === "income-expense"
       ? {
           num: "10",
           title: "Income & Expense Workbench",
@@ -53,6 +61,7 @@ export function FinanceLedger() {
 
       {activeTab === "journal-batches" && <JournalBatchReview hideHeader />}
       {activeTab === "income-expense" && <IncomeExpenseWorkbench />}
+      {activeTab === "gl-handover" && <GLHandover />}
     </div>
   )
 }

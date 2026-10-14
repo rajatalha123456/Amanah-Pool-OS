@@ -352,3 +352,33 @@ test("each audience gets its own dashboard on the home screen", async ({ page })
     await page.evaluate(() => localStorage.clear())
   }
 })
+
+test("journals go to the GL once: the maker generates, a different checker records the GL's answer", async ({ page }) => {
+  await login(page, "maker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "GL Hand-over & Trial Balance" }).click()
+  await expect(page.getByRole("heading", { name: "Trial balance", exact: true })).toBeVisible()
+  await expect(page.getByText(/Total \(balanced\)/)).toBeVisible()
+  const generate = page.getByRole("button", { name: "Generate export" })
+  if (await generate.isEnabled()) {
+    await generate.click()
+    await expect(page.getByText("Export generated.")).toBeVisible()
+  }
+  // Everything has now been sent once: the button refuses a second file.
+  await expect(page.getByText("Every posted batch has been sent.")).toBeVisible()
+  await expect(generate).toBeDisabled()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "checker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "GL Hand-over & Trial Balance" }).click()
+  await expect(page.getByRole("button", { name: "Generate export" })).toHaveCount(0)
+  await expect(page.getByText(/Awaiting GL answer|Posted in GL/).first()).toBeVisible() // the list has loaded
+  const confirm = page.getByRole("button", { name: "Confirm posted" }).first()
+  if (await confirm.count()) {
+    page.once("dialog", (d) => void d.accept("ERP-JV-E2E-0001"))
+    await confirm.click()
+    await expect(page.getByText("Recorded as posted in the GL.")).toBeVisible()
+  }
+  await expect(page.getByText("Posted in GL").first()).toBeVisible()
+})

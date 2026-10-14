@@ -307,3 +307,49 @@ class AccountMapping(TenantScopedModel):
     def __str__(self):
         scope = self.pool.code if self.pool_id else "tenant default"
         return f"{self.account_key} -> {self.gl_code} {self.gl_name} ({scope})"
+
+
+class GLExportStatus(models.TextChoices):
+    GENERATED = "generated", "Generated (awaiting the GL's answer)"
+    CONFIRMED = "confirmed", "Confirmed posted in the enterprise GL"
+    REJECTED = "rejected", "Rejected by the GL (batches free to export again)"
+
+
+class GLExport(TenantScopedModel):
+    """
+    One hand-over of journal batches to the enterprise general ledger (BRD 10 / 12: "journal batches, posting status").
+    The file is stored with its hash, so what was sent can be downloaded again and proved. A batch belongs to at most one
+    export that is generated or confirmed: it cannot be sent twice unless the GL rejected the export it was in.
+    """
+
+    pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="gl_exports")
+    date_from = models.DateField(null=True, blank=True)
+    date_to = models.DateField(null=True, blank=True)
+    batches = models.ManyToManyField(JournalBatch, related_name="gl_exports")
+    row_count = models.PositiveIntegerField()
+    total_debit = models.DecimalField(max_digits=18, decimal_places=2)
+    total_credit = models.DecimalField(max_digits=18, decimal_places=2)
+    content = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    status = models.CharField(max_length=10, choices=GLExportStatus.choices, default=GLExportStatus.GENERATED)
+    exported_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    gl_reference = models.CharField(max_length=100, blank=True, default="")
+    decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True, default="")
+
+    _DECISION_FIELDS = frozenset({"status", "gl_reference", "decided_by", "decided_at", "decision_note", "updated_at"})
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        # The file and its figures never change once generated; only the GL's answer is recorded afterwards.
+        if not self._state.adding:
+            fields = kwargs.get("update_fields")
+            if fields is None or not set(fields) <= self._DECISION_FIELDS:
+                raise ValidationError("A GL export file is immutable; only the GL's answer can be recorded.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("A GL export is a record of what was sent and cannot be deleted.")

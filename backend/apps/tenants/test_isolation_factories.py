@@ -814,6 +814,20 @@ def _build_rule_pack_revision(tenant, cache):
     return RulePackRevision._base_manager.filter(pack=pack).order_by("revision").first()
 
 
+def _gl_export_model():
+    from apps.accounting.models import GLExport
+
+    return GLExport
+
+
+def _build_gl_export(tenant, cache):
+    from apps.accounting.models import GLExport
+
+    return GLExport.objects.create(
+        tenant=tenant, pool=cache.pool(), row_count=0, total_debit=0, total_credit=0, content="", content_hash="0" * 64,
+    )
+
+
 # "app_label.ModelName" -> (model_class, builder(tenant, cache) -> instance)
 BUILDERS = {
     "core.TenantIsolationTestRecord": (TenantIsolationTestRecord, _build_tenant_isolation_test_record),
@@ -829,6 +843,7 @@ BUILDERS = {
     "products.Product": (Product, _build_product),
     "products.JurisdictionRulePack": (JurisdictionRulePack, _build_jurisdiction_rule_pack),
     "products.RulePackRevision": (RulePackRevision, _build_rule_pack_revision),
+    "accounting.GLExport": (_gl_export_model(), _build_gl_export),
     "pools.Pool": (Pool, _build_pool),
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),

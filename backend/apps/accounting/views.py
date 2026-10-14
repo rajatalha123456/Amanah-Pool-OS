@@ -4,7 +4,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -21,6 +21,7 @@ from apps.pools.period_lock import assert_period_open
 from .chart import ACCOUNTS, REQUIRED_BY_MODEL
 from .exports import generate_gl_csv
 from .models import (
+    GLExport,
     CostClassification,
     IncomeExpenseEvent,
     IncomeExpenseEventStatus,
@@ -468,3 +469,101 @@ class AccountMappingViewSet(
                 for key, name in ACCOUNTS.items()
             ]
         )
+
+
+GL_READ_ROLES = ["finance_maker", "finance_checker", "authorized_signatory", "risk_compliance", "auditor", "pool_manager"]
+
+
+class GLExportSerializer(serializers.ModelSerializer):
+    pool_code = serializers.CharField(source="pool.code", read_only=True)
+    exported_by_name = serializers.CharField(source="exported_by.full_name", read_only=True, default=None)
+    decided_by_name = serializers.CharField(source="decided_by.full_name", read_only=True, default=None)
+    batch_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GLExport
+        fields = (
+            "id", "pool", "pool_code", "date_from", "date_to", "row_count", "total_debit", "total_credit",
+            "content_hash", "status", "exported_by", "exported_by_name", "gl_reference", "decided_by",
+            "decided_by_name", "decided_at", "decision_note", "batch_count", "created_at",
+        )
+        read_only_fields = fields
+
+    def get_batch_count(self, obj):
+        return obj.batches.count()
+
+
+class GLExportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """
+    Controlled hand-over to the enterprise GL. A finance maker generates an export of the batches not yet sent; a
+    different finance checker records the GL's answer (confirmed with its reference, or rejected with a reason).
+    """
+
+    serializer_class = GLExportSerializer
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        queryset = GLExport.objects.select_related("pool", "exported_by", "decided_by")
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(pool_id=pool_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsAuthenticated(), IsFinanceMaker()]
+        if self.action in ("confirm", "reject"):
+            return [IsAuthenticated(), IsFinanceChecker()]
+        return [IsAuthenticated(), HasAnyRole(GL_READ_ROLES)()]
+
+    def create(self, request, *args, **kwargs):
+        from .gl_handover import create_export
+
+        pool = get_object_or_404(Pool, id=request.data.get("pool"))
+        export = create_export(
+            pool=pool, date_from=request.data.get("date_from") or None, date_to=request.data.get("date_to") or None,
+            user=request.user, request=request,
+        )
+        return Response(self.get_serializer(export).data, status=201)
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        export = self.get_object()
+        log_action(
+            tenant=export.tenant, actor=request.user, action="gl_export_downloaded", model_name="GLExport",
+            object_id=str(export.id), request=request,
+        )
+        response = HttpResponse(export.content, content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="gl_export_{export.pool.code}_{export.id}.csv"'
+        response["X-Content-SHA256"] = export.content_hash
+        return response
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        from .gl_handover import confirm_export
+
+        return Response(self.get_serializer(confirm_export(self.get_object(), request.user, request.data.get("gl_reference"), request)).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .gl_handover import reject_export
+
+        return Response(self.get_serializer(reject_export(self.get_object(), request.user, request.data.get("reason"), request)).data)
+
+    @action(detail=False, methods=["get"], url_path="pending-batches")
+    def pending(self, request):
+        """How many posted batches of the pool have not been sent to the GL yet."""
+        from .gl_handover import pending_batches
+
+        pool = get_object_or_404(Pool, id=request.query_params.get("pool"))
+        return Response({"pool": pool.code, "pending_batches": pending_batches(pool).count()})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, HasAnyRole(GL_READ_ROLES)])
+def trial_balance_view(request):
+    """Trial balance of a pool's posted journals up to `as_of` (default: everything)."""
+    from .gl_handover import trial_balance
+
+    pool = get_object_or_404(Pool, id=request.query_params.get("pool"))
+    return Response(trial_balance(pool, request.query_params.get("as_of") or None))

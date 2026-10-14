@@ -17,15 +17,39 @@ GL_CSV_COLUMNS = [
 ]
 
 
+def write_gl_csv(pool, batches):
+    """CSV text and the number of data rows for the given batches (in the order given)."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(GL_CSV_COLUMNS)
+    rows = 0
+    for batch in batches:
+        posted_by_email = batch.posted_by.email if batch.posted_by else ""
+        for entry in batch.entries.all():
+            writer.writerow(
+                [
+                    batch.batch_date,
+                    str(batch.id),
+                    str(batch.allocation_run_id),
+                    entry.gl_code,
+                    entry.account_name,
+                    entry.entry_type,
+                    entry.amount,
+                    pool.code,
+                    posted_by_email,
+                    batch.created_at,
+                ]
+            )
+            rows += 1
+    return buffer.getvalue(), rows
+
+
 def generate_gl_csv(pool, date_from=None, date_to=None):
     """
-    Flattens JournalBatch + nested JournalEntry records for a pool into a
-    standard GL export CSV string. Only "posted" batches are included.
-    Rows are sorted by batch_date (oldest first).
+    Preview of the GL file for a pool: every "posted" batch in the range, oldest first. It records nothing; the
+    controlled hand-over (stored file, no batch sent twice, the GL's answer) is apps/accounting/gl_handover.py.
 
-    TenantScopedManager on JournalBatch.objects already restricts results
-    to the current tenant context, so no explicit tenant filter is needed
-    here.
+    TenantScopedManager on JournalBatch.objects already restricts results to the current tenant context.
     """
 
     batches = (
@@ -40,26 +64,4 @@ def generate_gl_csv(pool, date_from=None, date_to=None):
     if date_to:
         batches = batches.filter(batch_date__lte=date_to)
 
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(GL_CSV_COLUMNS)
-
-    for batch in batches:
-        posted_by_email = batch.posted_by.email if batch.posted_by else ""
-        for entry in batch.entries.all():
-            writer.writerow(
-                [
-                    batch.batch_date,
-                    str(batch.id),
-                    str(batch.allocation_run_id),
-                    entry.gl_code,
-                entry.account_name,
-                    entry.entry_type,
-                    entry.amount,
-                    pool.code,
-                    posted_by_email,
-                    batch.created_at,
-                ]
-            )
-
-    return buffer.getvalue()
+    return write_gl_csv(pool, batches)[0]

@@ -178,7 +178,7 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
               onClick={handleExportCsv}
               disabled={batches.length === 0}
             >
-              EXPORT (CSV)
+              EXPORT THIS PAGE (CSV)
             </Button>
           }
         />
@@ -239,7 +239,7 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
               onClick={handleExportCsv}
               disabled={batches.length === 0}
             >
-              EXPORT (CSV)
+              EXPORT THIS PAGE (CSV)
             </Button>
           </div>
         )}
