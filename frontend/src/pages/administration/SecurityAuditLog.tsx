@@ -8,6 +8,8 @@ import { Table, type TableColumn } from "../../components/Table"
 import { PageHeader } from "../../components/PageHeader"
 import { Modal } from "../../components/Modal"
 import { fetchAuditLogs, exportAuditLogsCsv } from "../../api/auditLog"
+import { DEFAULT_PAGE_SIZE } from "../../api/pagination"
+import { Pager } from "../../components/Pager"
 import { fetchMerkleVerification } from "../../api/merkleAudit"
 import { extractErrorMessage } from "../../api/errors"
 import type { AuditLogEntry, BadgeVariant } from "../../types"
@@ -35,6 +37,8 @@ interface SecurityAuditLogProps {
 
 export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [exporting, setExporting] = useState(false)
@@ -47,16 +51,21 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
 
-  const loadLogs = async () => {
+  const loadLogs = async (toPage = 1) => {
     setLoading(true)
     setError("")
     try {
-      const data = await fetchAuditLogs({
-        model_name: modelFilter || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-      })
-      setLogs(data)
+      const data = await fetchAuditLogs(
+        {
+          model_name: modelFilter || undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        },
+        toPage,
+      )
+      setLogs(data.results)
+      setCount(data.count)
+      setPage(toPage)
     } catch (err) {
       setError(extractErrorMessage(err, "Failed to load audit logs."))
     } finally {
@@ -340,11 +349,14 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
             No audit records found matching the active criteria.
           </p>
         ) : (
-          <Table
-            columns={columns}
-            data={filteredLogs}
-            keyField={(log) => log.id}
-          />
+          <>
+            <Table
+              columns={columns}
+              data={filteredLogs}
+              keyField={(log) => log.id}
+            />
+            <Pager page={page} pageSize={DEFAULT_PAGE_SIZE} count={count} onChange={(p) => void loadLogs(p)} disabled={loading} />
+          </>
         )}
       </Card>
 

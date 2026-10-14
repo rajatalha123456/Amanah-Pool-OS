@@ -51,13 +51,13 @@ class AuditLogApiTests(APITestCase):
         self.client.force_authenticate(user=self.auditor)
         response = self.client.get(reverse("audit-log-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data["results"]), 2)
 
     def test_auditor_list_is_tenant_scoped(self):
         self.client.force_authenticate(user=self.auditor)
         response = self.client.get(reverse("audit-log-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        object_ids = {row["object_id"] for row in response.data}
+        object_ids = {row["object_id"] for row in response.data["results"]}
         self.assertEqual(object_ids, {"pool-1", "member-1"})
 
     def test_non_auditor_forbidden(self):
@@ -69,16 +69,16 @@ class AuditLogApiTests(APITestCase):
         self.client.force_authenticate(user=self.auditor)
         response = self.client.get(reverse("audit-log-list"), {"model_name": "Pool"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["model_name"], "Pool")
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["model_name"], "Pool")
 
     def test_super_admin_can_filter_by_tenant_across_tenants(self):
         self.client.force_authenticate(user=self.super_admin)
         self.client.defaults["HTTP_X_TENANT_CODE"] = self.other_tenant.code
         response = self.client.get(reverse("audit-log-list"), {"tenant": str(self.other_tenant.id)})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["object_id"], "pool-2")
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["object_id"], "pool-2")
 
     def test_export_returns_csv(self):
         self.client.force_authenticate(user=self.auditor)
@@ -110,3 +110,18 @@ class AuditLogApiTests(APITestCase):
         self.client.get(reverse("audit-log-export"))
         after_count = AuditLog.objects.filter(tenant=self.tenant).count()
         self.assertEqual(before_count, after_count)
+
+    # BRD 14 scale: the growing lists are paged (default 50, at most 500 per page).
+    def test_the_audit_log_is_paged_and_the_page_size_is_capped(self):
+        for i in range(60):
+            log_action(tenant=self.tenant, actor=self.pool_manager, action="probe", model_name="Probe", object_id=str(i))
+        self.client.force_authenticate(user=self.auditor)
+        first = self.client.get(reverse("audit-log-list"))
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(first.data["results"]), 50)
+        self.assertEqual(first.data["count"], 62)
+        self.assertIsNotNone(first.data["next"])
+        second = self.client.get(reverse("audit-log-list"), {"page": 2})
+        self.assertEqual(len(second.data["results"]), 12)
+        big = self.client.get(reverse("audit-log-list"), {"page_size": 5000})
+        self.assertEqual(len(big.data["results"]), 62)  # under the cap of 500: all rows, never more than 500

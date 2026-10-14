@@ -78,9 +78,9 @@ class InboxApiTests(NotificationBase):
 
     def test_users_see_only_their_own_notifications(self):
         self.authenticate(self.maker)
-        self.assertEqual(len(self.client.get(reverse("notification-list")).data), 2)
+        self.assertEqual(len(self.client.get(reverse("notification-list")).data["results"]), 2)
         self.authenticate(self.checker)
-        data = self.client.get(reverse("notification-list")).data
+        data = self.client.get(reverse("notification-list")).data["results"]
         self.assertEqual([n["title"] for n in data], ["Hello"])
         # Someone else's notification is simply not found.
         other = Notification.objects.get(recipient_user=self.maker, title="Hello")
@@ -91,10 +91,10 @@ class InboxApiTests(NotificationBase):
     def test_unread_count_and_mark_read(self):
         self.authenticate(self.maker)
         self.assertEqual(self.client.get(reverse("notification-unread-count")).data["count"], 2)
-        first = self.client.get(reverse("notification-list")).data[0]
+        first = self.client.get(reverse("notification-list")).data["results"][0]
         self.client.post(reverse("notification-mark-read", args=[first["id"]]))
         self.assertEqual(self.client.get(reverse("notification-unread-count")).data["count"], 1)
-        unread = self.client.get(reverse("notification-list"), {"unread": "true"}).data
+        unread = self.client.get(reverse("notification-list"), {"unread": "true"}).data["results"]
         self.assertEqual(len(unread), 1)
         self.assertEqual(self.client.post(reverse("notification-mark-all-read")).data["marked"], 1)
         self.assertEqual(self.client.get(reverse("notification-unread-count")).data["count"], 0)

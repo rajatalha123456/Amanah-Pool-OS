@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.pagination import StandardPagination
 from apps.accounts.permissions import HasAnyRole, IsFinanceChecker, IsFinanceMaker
 from apps.core.audit import log_action
 from apps.core.viewset_guards import NO_DELETE, STAFF_ROLES
@@ -40,12 +41,13 @@ from .serializers import (
 class JournalBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = JournalBatchSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         # See apps/products/views.py etc. for why this must be a method
         # rather than a class-level `queryset = Model.objects.all()`
         # attribute (TenantScopedManager + import-time evaluation bug).
-        queryset = JournalBatch.objects.all()
+        queryset = JournalBatch.objects.all().order_by("-batch_date", "-created_at")
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)
@@ -54,6 +56,7 @@ class JournalBatchViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
 
 class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
     serializer_class = IncomeExpenseEventSerializer
+    pagination_class = StandardPagination
     # Events are ledger facts: created by a maker, posted by an independent checker, never edited or deleted.
     http_method_names = ["get", "post", "head", "options"]
 
@@ -61,7 +64,7 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
         # See apps/products/views.py etc. for why this must be a method
         # rather than a class-level `queryset = Model.objects.all()`
         # attribute (TenantScopedManager + import-time evaluation bug).
-        queryset = IncomeExpenseEvent.objects.all()
+        queryset = IncomeExpenseEvent.objects.all().order_by("-event_date", "-created_at")
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)

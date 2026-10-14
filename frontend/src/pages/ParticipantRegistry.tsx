@@ -3,12 +3,14 @@ import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Card } from "../components/Card"
 import { PageHeader } from "../components/PageHeader"
+import { Pager } from "../components/Pager"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import { extractErrorMessage } from "../api/errors"
+import { DEFAULT_PAGE_SIZE } from "../api/pagination"
 import {
-  fetchParticipantAccounts,
+  fetchAccountsOfParticipants,
   fetchParticipants,
   rejectParticipantKyc,
   verifyParticipantKyc,
@@ -31,22 +33,25 @@ export function ParticipantRegistry() {
   const canDecideKyc = user?.role === "risk_compliance"
   const [participants, setParticipants] = useState<Participant[]>([])
   const [accounts, setAccounts] = useState<ParticipantAccount[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const [p, a] = await Promise.all([fetchParticipants(), fetchParticipantAccounts()])
-      setParticipants(p)
-      setAccounts(a)
+      const p = await fetchParticipants(page)
+      setParticipants(p.results)
+      setCount(p.count)
+      setAccounts(await fetchAccountsOfParticipants(p.results.map((x) => x.id)))
       setError("")
     } catch (err) {
       setError(extractErrorMessage(err, "Unable to load participants."))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
     void load()
@@ -110,14 +115,17 @@ export function ParticipantRegistry() {
         subtitle="Depositors and investors with their pool accounts and KYC status"
       />
       {error && <p className="text-sm text-red-400">{error}</p>}
-      <Card title={`Participant Registry (${participants.length})`}>
+      <Card title={`Participant Registry (${count})`}>
         {loading ? (
           <div className="flex items-center gap-2 py-8 text-ink-secondary">
             <Spinner />
             <span className="text-sm">Loading participants...</span>
           </div>
         ) : (
-          <Table columns={columns} data={participants} keyField={(p) => p.id} />
+          <>
+            <Table columns={columns} data={participants} keyField={(p) => p.id} />
+            <Pager page={page} pageSize={DEFAULT_PAGE_SIZE} count={count} onChange={setPage} />
+          </>
         )}
       </Card>
     </div>

@@ -45,7 +45,7 @@ export function NotificationBell() {
     setOpen(next)
     if (next) {
       try {
-        setItems((await fetchNotifications({ unread: true })).slice(0, 8))
+        setItems((await fetchNotifications({ unread: true }, 1, 8)).results)
       } catch {
         setItems([])
       }

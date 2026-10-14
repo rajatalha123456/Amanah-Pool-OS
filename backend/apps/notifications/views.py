@@ -4,6 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.pagination import StandardPagination
+
 from .models import Notification
 from .serializers import NotificationSerializer
 
@@ -13,6 +15,7 @@ class NotificationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
 
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         queryset = Notification.objects.filter(recipient_user=self.request.user)

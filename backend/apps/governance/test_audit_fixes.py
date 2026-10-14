@@ -234,3 +234,24 @@ class AuditFixTests(APITestCase):
         )
         r = self.call(self.user("finance_checker"), "post", f"/api/v1/allocation/allocation-runs/{run.pk}/check/")
         self.assertEqual(r.status_code, 200, r.data)
+
+    # BRD 14 scale: growing lists are paged ----------------------------------------------------------
+    def test_growing_lists_are_paged_and_accounts_follow_the_page(self):
+        from apps.participants.models import Participant, ParticipantAccount
+
+        risk = self.user("risk_compliance")
+        for url in ("/api/v1/participants/participants/", "/api/v1/participants/accounts/", "/api/v1/core/audit-log/",
+                    "/api/v1/notifications/", "/api/v1/accounting/journal-batches/",
+                    "/api/v1/accounting/income-expense-events/", "/api/v1/pools/daily-balances/"):
+            r = self.call(risk, "get", url, {"page_size": 2})
+            self.assertEqual(r.status_code, 200, url)
+            self.assertEqual(set(r.data), {"count", "next", "previous", "results"}, url)
+            self.assertLessEqual(len(r.data["results"]), 2, url)
+
+        page = self.call(risk, "get", "/api/v1/participants/participants/", {"page_size": 3}).data["results"]
+        ids = [p["id"] for p in page]
+        accounts = self.call(risk, "get", "/api/v1/participants/accounts/", {"participants": ",".join(ids), "page_size": 500}).data
+        expected = ParticipantAccount._base_manager.filter(tenant=self.tenant, participant_id__in=ids).count()
+        self.assertEqual(accounts["count"], expected)
+        self.assertTrue(all(str(a["participant"]) in {str(i) for i in ids} for a in accounts["results"]))
+        self.assertGreater(Participant._base_manager.filter(tenant=self.tenant).count(), 3)

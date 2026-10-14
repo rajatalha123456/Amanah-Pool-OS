@@ -1,0 +1,519 @@
+Creating test database for alias 'default'...
+2026-10-14 13:59:17,742 WARNING log Forbidden: /api/v1/accounting/income-expense-events/99278b43-dfcf-420c-b02a-2bcaf56f0867/post/
+2026-10-14 13:59:17,762 WARNING log Bad Request: /api/v1/accounting/income-expense-events/99278b43-dfcf-420c-b02a-2bcaf56f0867/post/
+..2026-10-14 13:59:17,798 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+...2026-10-14 13:59:17,962 ERROR services Reconciliation check failed for JournalBatch 411334a9-98bb-4765-91b3-68a17595ec20
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\accounting\services.py", line 186, in create_journal_from_allocation
+    check_reconciliation(batch)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: test
+...2026-10-14 13:59:18,039 WARNING log Bad Request: /api/v1/auth/me/
+...2026-10-14 13:59:18,229 WARNING log Unauthorized: /api/v1/core/audit-log/
+.2026-10-14 13:59:18,242 WARNING log Forbidden: /api/v1/allocation/reserve-policies/
+...2026-10-14 13:59:18,280 WARNING log Forbidden: /api/v1/core/audit-log/
+...2026-10-14 13:59:18,437 ERROR log Service Unavailable: /api/v1/ai/contract-analyzer/analyze/
+...2026-10-14 13:59:18,484 WARNING log Bad Request: /api/v1/ai/recommendations/afa6c69d-3f0a-47fd-8fa0-d0c4d883a493/dispose/
+2026-10-14 13:59:18,487 WARNING log Bad Request: /api/v1/ai/recommendations/afa6c69d-3f0a-47fd-8fa0-d0c4d883a493/dispose/
+2026-10-14 13:59:18,505 WARNING log Bad Request: /api/v1/ai/recommendations/afa6c69d-3f0a-47fd-8fa0-d0c4d883a493/dispose/
+.2026-10-14 13:59:18,519 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-14 13:59:18,521 WARNING log Forbidden: /api/v1/ai/recommendations/f0f257b4-e7f2-49c7-b951-8796e4c7872f/dispose/
+....2026-10-14 13:59:18,675 WARNING log Forbidden: /api/v1/ai/models/1/
+.2026-10-14 13:59:18,731 ERROR log Service Unavailable: /api/v1/ai/shariah-copilot/ask/
+....2026-10-14 13:59:19,636 WARNING log Bad Request: /api/v1/allocation/allocation-runs/a9042623-5a89-440b-b25c-0c416d43182d/approve/
+..2026-10-14 13:59:19,847 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e3cb214e-0e9d-4863-a095-5c7b5fb6ced0/check/
+.......2026-10-14 13:59:20,765 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 13:59:20,782 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-14 13:59:20,812 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 13:59:20,973 WARNING log Forbidden: /api/v1/allocation/allocation-runs/e43fd9f4-aafa-4ccf-8d28-c105dfa38f46/restate/
+..2026-10-14 13:59:21,608 WARNING log Forbidden: /api/v1/allocation/allocation-runs/55b2ea70-ac57-4b60-9a6d-697ee2d9170b/restate/
+.2026-10-14 13:59:21,769 WARNING log Bad Request: /api/v1/allocation/allocation-runs/e88343a2-33f2-4fb5-a8e7-0cf668b9c70d/restate/
+.2026-10-14 13:59:21,901 WARNING log Bad Request: /api/v1/allocation/allocation-runs/bcb449e8-41e8-48b5-94a9-b2f34d6e7087/restate/
+..2026-10-14 13:59:22,521 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5666e69b-66b4-4f06-95a4-4cb449d010d9/approve/
+..2026-10-14 13:59:23,240 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 13:59:23,622 WARNING log Bad Request: /api/v1/allocation/allocation-runs/965945ea-0f5f-44d5-9d05-6e609ce390c6/approve/
+...2026-10-14 13:59:24,251 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+...2026-10-14 13:59:24,789 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 13:59:24,925 WARNING log Bad Request: /api/v1/accounting/income-expense-events/341956dc-1bca-4c5e-b5ff-1af3bf711a79/post/
+.2026-10-14 13:59:24,975 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+.2026-10-14 13:59:25,032 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/3ec8e92f-c7a7-49b0-90a5-f6e57f5c29f4/
+2026-10-14 13:59:25,034 WARNING log Method Not Allowed: /api/v1/accounting/income-expense-events/3ec8e92f-c7a7-49b0-90a5-f6e57f5c29f4/
+..2026-10-14 13:59:25,325 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 13:59:25,370 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+2026-10-14 13:59:25,376 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+..2026-10-14 13:59:25,883 WARNING log Forbidden: /api/v1/allocation/allocation-runs/5362449d-eb89-4c06-97df-c00c5cca3402/approve/
+...2026-10-14 13:59:26,302 WARNING log Forbidden: /api/v1/allocation/allocation-runs/c0fe74eb-a05e-4228-9e0e-146b8ab38b37/approve/
+........2026-10-14 13:59:28,177 WARNING log Bad Request: /api/v1/governance/config-changes/49c19153-175c-4769-8f6e-587ce5c8acf7/approve/
+.2026-10-14 13:59:28,222 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,224 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+.2026-10-14 13:59:28,257 WARNING log Forbidden: /api/v1/accounting/account-mappings/
+2026-10-14 13:59:28,287 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+2026-10-14 13:59:28,289 WARNING log Bad Request: /api/v1/accounting/account-mappings/
+.2026-10-14 13:59:28,344 WARNING log Forbidden: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,349 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,371 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,373 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,375 WARNING log Bad Request: /api/v1/accounting/approval-matrix/
+2026-10-14 13:59:28,376 WARNING log Method Not Allowed: /api/v1/accounting/approval-matrix/44893e7c-8951-4510-abc8-55f242296671/
+.2026-10-14 13:59:28,440 WARNING log Forbidden: /api/v1/governance/config-changes/99d9d2f7-c613-4d19-8e61-a1af85316f3b/approve/
+2026-10-14 13:59:28,441 WARNING log Forbidden: /api/v1/governance/config-changes/99d9d2f7-c613-4d19-8e61-a1af85316f3b/approve/
+2026-10-14 13:59:28,445 WARNING log Bad Request: /api/v1/governance/config-changes/99d9d2f7-c613-4d19-8e61-a1af85316f3b/reject/
+2026-10-14 13:59:28,457 WARNING log Bad Request: /api/v1/governance/config-changes/99d9d2f7-c613-4d19-8e61-a1af85316f3b/approve/
+.2026-10-14 13:59:28,504 WARNING log Bad Request: /api/v1/governance/config-changes/7af94bbc-2786-4212-bb8e-6991d461a983/approve/
+2026-10-14 13:59:28,509 WARNING log Bad Request: /api/v1/accounting/approval-matrix/54fd2b79-177e-445a-8009-971e3e24ae4f/
+......2026-10-14 13:59:29,091 WARNING log Bad Request: /api/v1/participants/participants/
+2026-10-14 13:59:29,098 WARNING log Bad Request: /api/v1/participants/accounts/
+..2026-10-14 13:59:29,187 WARNING log Forbidden: /api/v1/participants/participants/262e007a-234c-474f-9e32-d573af2398d7/verify-kyc/
+.......2026-10-14 13:59:30,067 WARNING log Bad Request: /api/v1/allocation/allocation-runs/3c1ec773-aa04-4596-9f8f-c50422bd697f/approve/
+..2026-10-14 13:59:30,389 WARNING log Bad Request: /api/v1/allocation/allocation-runs/0b8c6eb6-26ff-4121-a630-e0c8912c8f47/check/
+.2026-10-14 13:59:30,739 WARNING log Not Found: /api/v1/allocation/allocation-runs/9c07b9a2-e75e-45ee-ad13-2a73af280437/
+2026-10-14 13:59:30,741 WARNING log Not Found: /api/v1/allocation/allocation-runs/9c07b9a2-e75e-45ee-ad13-2a73af280437/statements/
+2026-10-14 13:59:30,742 WARNING log Forbidden: /api/v1/participants/participants/
+..2026-10-14 13:59:31,000 WARNING log Forbidden: /api/v1/allocation/allocation-runs/my-statements/
+...2026-10-14 13:59:31,727 WARNING log Forbidden: /api/v1/participants/my-tax-support/
+..2026-10-14 13:59:32,129 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+.2026-10-14 13:59:32,352 WARNING log Forbidden: /api/v1/allocation/payout-clearing/authorize/
+2026-10-14 13:59:32,360 WARNING log Bad Request: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-14 13:59:32,369 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+2026-10-14 13:59:32,379 WARNING log Bad Request: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-14 13:59:32,398 WARNING log Bad Request: /api/v1/allocation/payout-clearing/post-contra-gl/
+.2026-10-14 13:59:32,590 WARNING log Forbidden: /api/v1/allocation/payout-clearing/
+..2026-10-14 13:59:33,028 WARNING log Bad Request: /api/v1/allocation/payout-clearing/authorize/
+.2026-10-14 13:59:33,211 WARNING log Bad Request: /api/v1/allocation/reserve-policies/
+.2026-10-14 13:59:33,417 WARNING log Conflict: /api/v1/allocation/payout-clearing/dispatch-simulate/
+2026-10-14 13:59:33,419 WARNING log Conflict: /api/v1/banking/settle/
+2026-10-14 13:59:33,423 WARNING log Conflict: /api/v1/pools/balance-imports/cbs-sftp-daemon/
+.2026-10-14 13:59:33,617 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+.2026-10-14 13:59:33,850 WARNING log Bad Request: /api/v1/allocation/payout-clearing/batch-detail/
+...2026-10-14 13:59:34,237 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+.....2026-10-14 13:59:34,767 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/shariah-sign-off/
+2026-10-14 13:59:34,770 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+2026-10-14 13:59:34,772 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/check/
+2026-10-14 13:59:34,777 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/check/
+2026-10-14 13:59:34,779 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/check/
+2026-10-14 13:59:34,808 WARNING log Bad Request: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+2026-10-14 13:59:34,810 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/shariah-sign-off/
+2026-10-14 13:59:34,812 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/shariah-sign-off/
+2026-10-14 13:59:34,813 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/shariah-sign-off/
+2026-10-14 13:59:34,829 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+2026-10-14 13:59:34,831 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+2026-10-14 13:59:34,832 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+2026-10-14 13:59:34,833 WARNING log Forbidden: /api/v1/allocation/allocation-runs/4b7549c2-ad89-4c02-8322-0a778b2ecc4f/approve/
+.2026-10-14 13:59:34,970 WARNING log Bad Request: /api/v1/allocation/allocation-runs/5cff8a42-beed-48e2-bd8e-6310f276d1d2/reject/
+2026-10-14 13:59:35,066 WARNING log Bad Request: /api/v1/allocation/allocation-runs/630b26af-987d-4e49-a877-c48bde80eb39/reject/
+2026-10-14 13:59:35,183 WARNING log Bad Request: /api/v1/allocation/allocation-runs/0089cef7-32bc-4db6-9815-27e306cc3427/reject/
+.2026-10-14 13:59:35,259 WARNING log Forbidden: /api/v1/allocation/allocation-runs/77a8bd3f-a688-4a17-b99b-d6b249437dac/reject/
+2026-10-14 13:59:35,314 WARNING log Bad Request: /api/v1/allocation/allocation-runs/77a8bd3f-a688-4a17-b99b-d6b249437dac/reject/
+.2026-10-14 13:59:35,409 WARNING log Bad Request: /api/v1/allocation/allocation-runs/da62bb43-c60d-4494-9acc-12e19ae138ad/shariah-sign-off/
+.2026-10-14 13:59:35,528 WARNING log Bad Request: /api/v1/allocation/allocation-runs/69c72656-d59c-4ab4-a3b2-fcbed360cc59/approve/
+...2026-10-14 13:59:35,768 WARNING log Bad Request: /api/v1/circles/circle-members/cb32ed9a-18d7-4782-a2d7-bcd9137ec2ae/flag-arrears/
+.2026-10-14 13:59:35,792 WARNING log Bad Request: /api/v1/circles/arrears-records/deab32de-2644-4915-9d37-84585d26a044/grant-hardship/
+.2026-10-14 13:59:35,804 WARNING log Forbidden: /api/v1/circles/circle-members/60eb6577-d830-485f-9e3c-6d8c34c62cab/flag-arrears/
+..2026-10-14 13:59:35,844 WARNING log Forbidden: /api/v1/circles/arrears-records/75024df1-4b3f-4452-b810-85bcde2ecb84/grant-hardship/
+..2026-10-14 13:59:35,981 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+..2026-10-14 13:59:36,160 WARNING log Forbidden: /api/v1/circles/closures/close/
+.2026-10-14 13:59:36,209 WARNING log Bad Request: /api/v1/circles/closures/prepare/
+.2026-10-14 13:59:36,253 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-14 13:59:36,257 WARNING log Bad Request: /api/v1/circles/draws/b3d2bad4-9928-449e-a79a-699caadea1fc/execute/
+2026-10-14 13:59:36,278 WARNING log Bad Request: /api/v1/circles/draws/b3d2bad4-9928-449e-a79a-699caadea1fc/execute/
+.2026-10-14 13:59:36,294 WARNING log Bad Request: /api/v1/circles/draws/commit/
+2026-10-14 13:59:36,351 WARNING log Bad Request: /api/v1/circles/draws/commit/
+.2026-10-14 13:59:36,396 WARNING log Bad Request: /api/v1/circles/rules/accept/
+2026-10-14 13:59:36,412 WARNING log Bad Request: /api/v1/circles/rules/accept/
+.2026-10-14 13:59:36,459 WARNING log Bad Request: /api/v1/circles/draws/c708123e-4049-442d-96eb-7610f24edebe/execute/
+........2026-10-14 13:59:36,876 WARNING log Forbidden: /api/v1/circles/circle-members/run-draw/6047e4ae-4912-4f77-aa9f-10a933d9eca0/
+2026-10-14 13:59:36,963 WARNING log Forbidden: /api/v1/circles/payouts/request-payout/6047e4ae-4912-4f77-aa9f-10a933d9eca0/
+2026-10-14 13:59:37,021 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/6047e4ae-4912-4f77-aa9f-10a933d9eca0/
+2026-10-14 13:59:37,057 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/6047e4ae-4912-4f77-aa9f-10a933d9eca0/
+2026-10-14 13:59:37,075 WARNING log Bad Request: /api/v1/circles/circle-members/b894c8ca-9b53-4bd1-b885-65f8c82ebebd/record-contribution/
+2026-10-14 13:59:37,090 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/6047e4ae-4912-4f77-aa9f-10a933d9eca0/
+2026-10-14 13:59:37,092 WARNING log Forbidden: /api/v1/circles/circle-members/568a69c8-8568-4f17-b173-0b234bdb848d/verify-kyc/
+2026-10-14 13:59:37,139 WARNING log Forbidden: /api/v1/circles/payouts/d3a841a1-f189-4afb-aca3-e057f67d0701/approve/
+2026-10-14 13:59:37,153 WARNING log Bad Request: /api/v1/circles/payouts/d3a841a1-f189-4afb-aca3-e057f67d0701/settle/
+2026-10-14 13:59:37,194 WARNING log Bad Request: /api/v1/circles/payouts/d3a841a1-f189-4afb-aca3-e057f67d0701/settle/
+2026-10-14 13:59:37,225 WARNING log Bad Request: /api/v1/circles/payouts/d3a841a1-f189-4afb-aca3-e057f67d0701/approve/
+..2026-10-14 13:59:37,279 WARNING log Bad Request: /api/v1/circles/circle-members/run-draw/a1c1c9ed-5298-4caa-adfe-66f7a0ce23e9/
+.2026-10-14 13:59:37,398 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-14 13:59:37,450 WARNING log Bad Request: /api/v1/circles/circle-members/accept-rules/
+.2026-10-14 13:59:37,500 WARNING log Forbidden: /api/v1/circles/circle-members/
+..2026-10-14 13:59:37,559 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+..2026-10-14 13:59:37,616 WARNING log Bad Request: /api/v1/circles/circle-members/28b746bd-88fa-4c03-a113-918dc910273d/link-login/
+.2026-10-14 13:59:37,651 WARNING log Bad Request: /api/v1/circles/circle-proposals/8afd35cb-e93b-4b65-beab-2b43f4b8d18d/vote/
+.2026-10-14 13:59:37,670 WARNING log Forbidden: /api/v1/circles/circle-members/my-circles/
+.2026-10-14 13:59:37,692 WARNING log Forbidden: /api/v1/circles/circle-members/cast-vote/
+2026-10-14 13:59:37,698 WARNING log Bad Request: /api/v1/circles/circle-members/cast-vote/
+.2026-10-14 13:59:37,863 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/c55eda36-5e99-4a08-b4e3-f254a60a7ffc/
+..2026-10-14 13:59:38,007 WARNING log Forbidden: /api/v1/circles/payouts/ceremony-readiness/e8619259-f5d4-44f8-9db5-80c56da7784b/
+.2026-10-14 13:59:38,052 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/c817e935-4961-4f80-9858-879ecd2f9afe/
+.2026-10-14 13:59:38,122 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/2154b3fe-d07e-43d1-8681-7c4e1ec00f12/
+.2026-10-14 13:59:38,188 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/6831315c-a1e5-487e-b7a9-9836a9b7f372/
+.2026-10-14 13:59:38,239 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/74ff90f6-d252-4a2b-b68b-04645634f21d/
+.2026-10-14 13:59:38,271 WARNING log Method Not Allowed: /api/v1/circles/payouts/
+.2026-10-14 13:59:38,344 WARNING log Bad Request: /api/v1/circles/payouts/54e8475a-a7ce-4b71-bd4a-68d4178bfde2/approve/
+...2026-10-14 13:59:38,553 WARNING log Bad Request: /api/v1/circles/payouts/fbbcf281-5f51-4463-8cd4-d48d5dce3c58/reject/
+2026-10-14 13:59:38,574 WARNING log Bad Request: /api/v1/circles/payouts/fbbcf281-5f51-4463-8cd4-d48d5dce3c58/approve/
+.2026-10-14 13:59:38,652 WARNING log Bad Request: /api/v1/circles/payouts/5b5afc7c-7751-4567-a7e6-480ce2aa7de2/approve/
+.2026-10-14 13:59:38,700 WARNING log Bad Request: /api/v1/circles/payouts/request-payout/e0b408b3-d8ba-4b0f-8b2a-1eed1cc37db9/
+.2026-10-14 13:59:38,808 WARNING log Bad Request: /api/v1/circles/circle-proposals/e7ae656f-c1d7-4425-b0be-6017fb64e8b3/close/
+2026-10-14 13:59:38,816 WARNING log Bad Request: /api/v1/circles/circle-proposals/e7ae656f-c1d7-4425-b0be-6017fb64e8b3/close/
+.2026-10-14 13:59:38,864 WARNING log Bad Request: /api/v1/circles/circle-proposals/137d0542-2a8b-4b39-bc17-6bca722704d6/vote/
+...2026-10-14 13:59:39,041 WARNING log Bad Request: /api/v1/circles/circle-proposals/cb53e406-78a2-4dff-a0af-135efc245ec7/vote/
+..2026-10-14 13:59:39,079 WARNING log Forbidden: /api/v1/circles/circle-proposals/7ce993c7-3ef4-403c-972c-7422b84ae98e/close/
+.2026-10-14 13:59:39,087 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+.....2026-10-14 13:59:41,595 WARNING log Bad Request: /api/v1/allocation/psr-schedules/c7a84d0a-fc57-4962-b46e-2d1327a7e571/
+2026-10-14 13:59:41,606 WARNING log Bad Request: /api/v1/allocation/weightage-bands/13f904a1-c139-4d5a-a429-058fd3b8958b/
+2026-10-14 13:59:41,613 WARNING log Method Not Allowed: /api/v1/allocation/psr-schedules/c7a84d0a-fc57-4962-b46e-2d1327a7e571/
+2026-10-14 13:59:41,623 WARNING log Bad Request: /api/v1/products/contract-templates/1b137707-5463-48da-b9c2-1f013cbe153d/
+2026-10-14 13:59:41,634 WARNING log Bad Request: /api/v1/products/shariah-decisions/0be2e1c4-fd71-46ea-a804-53099bd7ef18/
+2026-10-14 13:59:41,641 WARNING log Bad Request: /api/v1/products/shariah-decisions/0be2e1c4-fd71-46ea-a804-53099bd7ef18/
+.2026-10-14 13:59:41,692 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-14 13:59:41,698 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-14 13:59:41,705 WARNING log Forbidden: /api/v1/ai/recommendations/00000000-0000-0000-0000-000000000000/dispose/
+.2026-10-14 13:59:41,760 WARNING log Forbidden: /api/v1/allocation/psr-schedules/c7a84d0a-fc57-4962-b46e-2d1327a7e571/
+2026-10-14 13:59:41,768 WARNING log Forbidden: /api/v1/allocation/weightage-bands/13f904a1-c139-4d5a-a429-058fd3b8958b/
+2026-10-14 13:59:41,775 WARNING log Forbidden: /api/v1/accounting/reconciliation-batches/a3d742cd-2a2c-4405-89b1-dd6aa06f0eaf/
+2026-10-14 13:59:41,781 WARNING log Forbidden: /api/v1/circles/circle-members/02caf040-00b5-4f4b-941c-2b64b6be3a45/
+2026-10-14 13:59:41,787 WARNING log Forbidden: /api/v1/circles/circle-members/swap-turns/95d149de-6e8b-4d81-8d05-b2fc3e3a9d7a/
+2026-10-14 13:59:41,794 WARNING log Forbidden: /api/v1/circles/circle-proposals/78172f4c-c5e1-4e43-9d46-53af20ab0d38/vote/
+2026-10-14 13:59:41,801 WARNING log Forbidden: /api/v1/governance/related-party-transactions/31f960ed-d7f8-47d5-a125-824cd0c0591d/
+2026-10-14 13:59:41,807 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/7f90f681-3f05-4e19-afb9-510d714e059f/approve/
+2026-10-14 13:59:41,813 WARNING log Forbidden: /api/v1/pools/pools/2a506336-0df4-4401-a503-08b9320c4de8/
+2026-10-14 13:59:41,819 WARNING log Forbidden: /api/v1/pools/assets/0b7c6fda-0089-4cb6-80fa-7c321df80fd4/
+2026-10-14 13:59:41,825 WARNING log Forbidden: /api/v1/pools/asset-assignments/2d2ea90f-981d-4834-b8bd-8f44057eac0c/transfer/
+2026-10-14 13:59:41,833 WARNING log Forbidden: /api/v1/pools/period-closes/465771ce-2da8-46a3-af3a-6f50f7260f31/lock/
+2026-10-14 13:59:41,839 WARNING log Forbidden: /api/v1/products/products/073cfde6-4215-4f89-8aa2-35302eea691f/
+2026-10-14 13:59:41,845 WARNING log Forbidden: /api/v1/products/contract-templates/1b137707-5463-48da-b9c2-1f013cbe153d/
+2026-10-14 13:59:41,851 WARNING log Forbidden: /api/v1/ai/fraud-collusion/detect/
+2026-10-14 13:59:41,856 WARNING log Forbidden: /api/v1/auth/users/
+2026-10-14 13:59:41,862 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-14 13:59:41,869 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-14 13:59:41,875 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-14 13:59:41,881 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-14 13:59:41,892 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-14 13:59:41,898 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-14 13:59:41,905 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-14 13:59:41,911 WARNING log Forbidden: /api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/resolve/
+2026-10-14 13:59:41,917 WARNING log Forbidden: /api/v1/governance/support-requests/00000000-0000-0000-0000-000000000000/assign/
+2026-10-14 13:59:41,924 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-14 13:59:41,930 WARNING log Forbidden: /api/v1/tenants/
+..2026-10-14 13:59:42,070 WARNING log Bad Request: /api/v1/accounting/income-expense-events/61f4e4d6-64c1-4773-8144-602883c38657/reclassify/
+.2026-10-14 13:59:42,103 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-14 13:59:42,111 WARNING log Forbidden: /api/v1/circles/rules/accept/
+2026-10-14 13:59:42,118 WARNING log Forbidden: /api/v1/circles/rules/accept/
+.2026-10-14 13:59:42,154 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-14 13:59:42,162 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-14 13:59:42,168 WARNING log Forbidden: /api/v1/participants/participants/
+2026-10-14 13:59:42,174 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-14 13:59:42,180 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-14 13:59:42,186 WARNING log Forbidden: /api/v1/circles/circle-members/
+..2026-10-14 13:59:42,272 WARNING log Forbidden: /api/v1/investments/capital-accounts/209aeb49-10dd-4f31-a737-a47f15a06c79/
+2026-10-14 13:59:42,283 WARNING log Bad Request: /api/v1/investments/capital-accounts/209aeb49-10dd-4f31-a737-a47f15a06c79/
+2026-10-14 13:59:42,292 WARNING log Forbidden: /api/v1/circles/circle-members/02caf040-00b5-4f4b-941c-2b64b6be3a45/
+..............2026-10-14 13:59:42,727 WARNING log Forbidden: /api/v1/core/audit-log/export/
+.2026-10-14 13:59:42,742 WARNING log Forbidden: /api/v1/core/audit-log/
+........2026-10-14 13:59:42,931 WARNING log Forbidden: /api/v1/core/audit-log/export/
+.2026-10-14 13:59:42,951 WARNING log Forbidden: /api/v1/core/audit-log/
+.....2026-10-14 13:59:43,445 WARNING log Not Found: /api/v1/dashboard/home/
+2026-10-14 13:59:43,447 WARNING log Not Found: /api/v1/dashboard/home/
+...2026-10-14 13:59:44,056 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+2026-10-14 13:59:44,058 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+..2026-10-14 13:59:44,442 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+2026-10-14 13:59:44,444 WARNING log Forbidden: /api/v1/core/evidence-bundle/compile/
+..2026-10-14 13:59:44,834 WARNING log Bad Request: /api/v1/core/evidence-bundle/compile/
+.....2026-10-14 13:59:47,871 WARNING log Bad Request: /api/v1/core/period-report/
+2026-10-14 13:59:47,873 WARNING log Bad Request: /api/v1/core/period-report/
+.2026-10-14 13:59:47,911 WARNING log Forbidden: /api/v1/core/period-report/
+2026-10-14 13:59:47,915 WARNING log Forbidden: /api/v1/core/period-report/
+.........2026-10-14 13:59:52,785 WARNING log Bad Request: /api/v1/allocation/allocation-runs/7896c732-a64c-4750-8e7c-dea512b579e8/check/
+.2026-10-14 13:59:52,921 WARNING log Bad Request: /api/v1/participants/accounts/1edab265-3304-4c08-b575-864130873684/
+2026-10-14 13:59:52,930 WARNING log Bad Request: /api/v1/participants/accounts/1edab265-3304-4c08-b575-864130873684/
+...2026-10-14 13:59:53,042 WARNING log Bad Request: /api/v1/allocation/reserve-policies/2be3a9ff-f184-43d9-8a7b-e84cce450700/
+2026-10-14 13:59:53,051 WARNING log Bad Request: /api/v1/allocation/reserve-policies/2be3a9ff-f184-43d9-8a7b-e84cce450700/
+2026-10-14 13:59:53,076 WARNING log Forbidden: /api/v1/governance/config-changes/43d27c83-ad6c-458b-85be-6cce41a7418c/approve/
+.2026-10-14 13:59:53,180 WARNING log Forbidden: /api/v1/governance/config-changes/19bbc9f8-2367-43c3-bdcb-668ce7490adc/approve/
+..2026-10-14 13:59:53,358 WARNING log Forbidden: /api/v1/products/jurisdiction-rule-packs/5af75fa1-5fc6-4014-85b5-cd41270522d4/revisions/
+..2026-10-14 13:59:53,473 WARNING log Bad Request: /api/v1/governance/support-requests/
+.......2026-10-14 13:59:53,715 WARNING log Forbidden: /api/v1/governance/retention-policies/
+2026-10-14 13:59:53,722 WARNING log Forbidden: /api/v1/governance/retention-policies/68ed699a-7a10-471f-8e24-e02055b71bbc/approve/
+2026-10-14 13:59:53,727 WARNING log Bad Request: /api/v1/governance/retention-policies/68ed699a-7a10-471f-8e24-e02055b71bbc/approve/
+.2026-10-14 13:59:53,733 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-14 13:59:53,735 WARNING log Bad Request: /api/v1/governance/retention-policies/
+2026-10-14 13:59:53,737 WARNING log Bad Request: /api/v1/governance/retention-policies/
+..2026-10-14 13:59:53,820 WARNING log Bad Request: /api/v1/products/shariah-decisions/
+....2026-10-14 13:59:53,912 WARNING log Forbidden: /api/v1/governance/shariah-audit-plans/annual-report/
+.....2026-10-14 13:59:54,197 WARNING log Forbidden: /api/v1/governance/support-requests/2a4194c7-cc3c-4c83-aa63-57591339306e/assign/
+.2026-10-14 13:59:54,209 WARNING log Bad Request: /api/v1/governance/support-requests/5227b9a2-994e-4608-9e7c-d2cd6f929d24/resolve/
+....2026-10-14 13:59:54,288 WARNING log Forbidden: /api/v1/governance/support-requests/5f57082b-3df8-4b71-8a85-cc3b98837a80/resolve/
+...2026-10-14 13:59:54,460 WARNING log Bad Request: /api/v1/governance/exceptions/a760f32d-fcef-4664-8e7b-54a7e24890a6/set-treatment/
+.2026-10-14 13:59:54,467 WARNING log Bad Request: /api/v1/governance/exceptions/9e3f3336-0926-4a7e-9ebd-e2e31a4cc536/start-investigation/
+2026-10-14 13:59:54,477 WARNING log Bad Request: /api/v1/governance/exceptions/9e3f3336-0926-4a7e-9ebd-e2e31a4cc536/start-investigation/
+.2026-10-14 13:59:54,482 WARNING log Forbidden: /api/v1/governance/exceptions/dd058afb-f4ee-446a-a959-d7dabb73874c/start-investigation/
+2026-10-14 13:59:54,484 WARNING log Forbidden: /api/v1/governance/exceptions/dd058afb-f4ee-446a-a959-d7dabb73874c/set-treatment/
+.2026-10-14 13:59:54,573 WARNING log Bad Request: /api/v1/governance/related-party-transactions/97de7311-3f50-45bf-8aed-15790e2a44cc/elevated-approve/
+.2026-10-14 13:59:54,609 WARNING log Bad Request: /api/v1/governance/related-party-transactions/8d718e2e-8ae7-4c9c-a7be-ccd666d4e9d6/review/
+2026-10-14 13:59:54,618 WARNING log Bad Request: /api/v1/governance/related-party-transactions/8d718e2e-8ae7-4c9c-a7be-ccd666d4e9d6/review/
+.2026-10-14 13:59:54,639 WARNING log Forbidden: /api/v1/governance/related-party-transactions/40397829-bd38-4356-a353-ba0b5be79899/elevated-approve/
+.2026-10-14 13:59:54,672 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-14 13:59:54,682 WARNING log Forbidden: /api/v1/governance/related-party-transactions/7a5e97a9-b4e0-461e-8c43-442bf3f5bd30/review/
+...2026-10-14 13:59:55,428 WARNING log Not Found: /api/v1/investments/disclosures/093a3994-00c9-429d-9c9f-19a7572d3214/acknowledge/
+2026-10-14 13:59:55,464 WARNING log Bad Request: /api/v1/investments/disclosures/093a3994-00c9-429d-9c9f-19a7572d3214/approve/
+..2026-10-14 13:59:55,682 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+2026-10-14 13:59:55,727 WARNING log Bad Request: /api/v1/investments/disclosures/publish/
+.2026-10-14 13:59:55,857 WARNING log Bad Request: /api/v1/investments/disclosures/70970e20-954b-4eab-9c57-1e283ff44a5c/acknowledge/
+2026-10-14 13:59:55,862 WARNING log Bad Request: /api/v1/investments/disclosures/70970e20-954b-4eab-9c57-1e283ff44a5c/acknowledge/
+2026-10-14 13:59:55,867 WARNING log Bad Request: /api/v1/investments/disclosures/70970e20-954b-4eab-9c57-1e283ff44a5c/acknowledge/
+2026-10-14 13:59:55,906 WARNING log Bad Request: /api/v1/investments/disclosures/70970e20-954b-4eab-9c57-1e283ff44a5c/acknowledge/
+.2026-10-14 13:59:56,014 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-14 13:59:56,016 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-14 13:59:56,018 WARNING log Forbidden: /api/v1/investments/disclosures/publish/
+2026-10-14 13:59:56,036 WARNING log Forbidden: /api/v1/investments/disclosures/d8d4eec1-c0f2-4510-b6a1-94751e88002d/approve/
+2026-10-14 13:59:56,038 WARNING log Forbidden: /api/v1/investments/disclosures/d8d4eec1-c0f2-4510-b6a1-94751e88002d/approve/
+2026-10-14 13:59:56,039 WARNING log Forbidden: /api/v1/investments/disclosures/d8d4eec1-c0f2-4510-b6a1-94751e88002d/approve/
+.2026-10-14 13:59:56,171 WARNING log Bad Request: /api/v1/investments/disclosures/0cd4ca8c-24c5-466f-bec0-c8cb52dc408f/acknowledge/
+2026-10-14 13:59:56,177 WARNING log Bad Request: /api/v1/investments/disclosures/f6a564fa-e644-42e6-9e96-7073e3b33770/acknowledge/
+.2026-10-14 13:59:56,292 WARNING log Bad Request: /api/v1/investments/capital-accounts/a16e837c-5916-4d6f-887e-6de27b836f80/subscribe/
+.2026-10-14 13:59:56,534 WARNING log Bad Request: /api/v1/investments/capital-accounts/89860582-470f-4ddd-a671-6c1a405fcf10/subscribe/
+...2026-10-14 13:59:57,107 WARNING log Bad Request: /api/v1/investments/distribution-runs/26cb5593-333a-4c7f-88f0-e68d80ba16f2/approve/
+.2026-10-14 13:59:57,351 WARNING log Forbidden: /api/v1/investments/distribution-runs/a598bf73-2794-4b24-8bcc-fa8e4ba4c086/approve/
+2026-10-14 13:59:57,354 WARNING log Forbidden: /api/v1/investments/distribution-runs/a598bf73-2794-4b24-8bcc-fa8e4ba4c086/approve/
+2026-10-14 13:59:57,357 WARNING log Forbidden: /api/v1/investments/distribution-runs/a598bf73-2794-4b24-8bcc-fa8e4ba4c086/approve/
+2026-10-14 13:59:57,359 WARNING log Forbidden: /api/v1/investments/distribution-runs/a598bf73-2794-4b24-8bcc-fa8e4ba4c086/approve/
+2026-10-14 13:59:57,365 WARNING log Bad Request: /api/v1/investments/distribution-runs/a598bf73-2794-4b24-8bcc-fa8e4ba4c086/approve/
+.2026-10-14 13:59:57,598 WARNING log Bad Request: /api/v1/investments/distribution-runs/436d0705-fcb4-4621-adcb-eb3902daeede/shariah-sign-off/
+2026-10-14 13:59:57,601 WARNING log Forbidden: /api/v1/investments/distribution-runs/436d0705-fcb4-4621-adcb-eb3902daeede/check/
+2026-10-14 13:59:57,635 WARNING log Forbidden: /api/v1/investments/distribution-runs/436d0705-fcb4-4621-adcb-eb3902daeede/shariah-sign-off/
+.......2026-10-14 13:59:59,200 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+...2026-10-14 13:59:59,987 WARNING log Bad Request: /api/v1/investments/distribution-runs/8db67609-ee73-4c69-9ed4-d8c27cfb9877/approve/
+.2026-10-14 14:00:00,095 WARNING log Forbidden: /api/v1/investments/distribution-runs/
+2026-10-14 14:00:00,143 WARNING log Forbidden: /api/v1/investments/distribution-runs/13d99e02-93b3-4c24-b650-8b6aad0ef926/approve/
+2026-10-14 14:00:00,153 WARNING log Bad Request: /api/v1/investments/distribution-runs/13d99e02-93b3-4c24-b650-8b6aad0ef926/reject/
+.2026-10-14 14:00:00,434 WARNING log Bad Request: /api/v1/investments/distribution-runs/eada45ed-9c68-4b50-a867-b8a1e5b70401/check/
+.2026-10-14 14:00:00,789 WARNING log Not Found: /api/v1/investments/distribution-runs/127050af-2c4b-4901-b22e-5b9406013314/
+.2026-10-14 14:00:00,896 WARNING log Not Found: /api/v1/investments/capital-accounts/06b075eb-5e9d-4a76-b132-4080e3105d53/statement/
+.....2026-10-14 14:00:01,935 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+2026-10-14 14:00:01,942 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+...2026-10-14 14:00:02,631 WARNING log Bad Request: /api/v1/investments/distribution-runs/9e07b7a0-21b4-41c0-9344-e25ebc5f9792/approve/
+.2026-10-14 14:00:02,929 WARNING log Bad Request: /api/v1/investments/distribution-runs/3a3d34a4-aa62-47e5-b927-0731c86ece64/approve/
+.2026-10-14 14:00:03,132 WARNING log Bad Request: /api/v1/investments/negligence-cases/24e4aec4-bd27-40f3-943b-3eb89452f177/determine/
+2026-10-14 14:00:03,137 WARNING log Bad Request: /api/v1/investments/negligence-cases/24e4aec4-bd27-40f3-943b-3eb89452f177/add-note/
+..2026-10-14 14:00:03,500 WARNING log Bad Request: /api/v1/investments/distribution-runs/
+.2026-10-14 14:00:03,684 WARNING log Bad Request: /api/v1/investments/negligence-cases/
+..2026-10-14 14:00:04,015 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+2026-10-14 14:00:04,017 WARNING log Forbidden: /api/v1/investments/negligence-cases/
+..2026-10-14 14:00:04,481 WARNING log Forbidden: /api/v1/investments/negligence-cases/ae05e8c6-076c-4eb1-b857-b17e7443f4da/determine/
+2026-10-14 14:00:04,485 WARNING log Bad Request: /api/v1/investments/negligence-cases/ae05e8c6-076c-4eb1-b857-b17e7443f4da/determine/
+2026-10-14 14:00:04,489 WARNING log Bad Request: /api/v1/investments/negligence-cases/ae05e8c6-076c-4eb1-b857-b17e7443f4da/determine/
+2026-10-14 14:00:04,493 WARNING log Bad Request: /api/v1/investments/negligence-cases/ae05e8c6-076c-4eb1-b857-b17e7443f4da/determine/
+2026-10-14 14:00:04,497 WARNING log Bad Request: /api/v1/investments/negligence-cases/ae05e8c6-076c-4eb1-b857-b17e7443f4da/determine/
+..2026-10-14 14:00:05,200 WARNING log Bad Request: /api/v1/allocation/psr-schedules/
+.......2026-10-14 14:00:06,322 WARNING log Bad Request: /api/v1/investments/capital-accounts/b59f8cf0-4006-481d-89d1-9dcf5efc67db/redeem/
+.2026-10-14 14:00:06,478 WARNING log Bad Request: /api/v1/investments/capital-accounts/a5d219d5-78f2-47a6-8003-8c4973358eed/subscribe/
+.2026-10-14 14:00:06,674 WARNING log Bad Request: /api/v1/products/products/d6db39d5-a469-4690-b9d9-ebcfa0c6111d/
+.2026-10-14 14:00:06,801 WARNING log Bad Request: /api/v1/investments/investor-profiles/a0d0286f-c4dc-46b2-afd3-11d508407b22/verify-kyc/
+.2026-10-14 14:00:06,955 WARNING log Bad Request: /api/v1/investments/capital-accounts/5fab4a92-0d8b-4c91-97f6-deda9034d56d/redeem/
+.2026-10-14 14:00:07,162 WARNING log Bad Request: /api/v1/investments/capital-accounts/9b2a04ff-79f1-4e9b-9bc0-c89c2fcc2e6f/subscribe/
+.2026-10-14 14:00:07,379 WARNING log Bad Request: /api/v1/investments/capital-accounts/5d324c21-716a-480c-a28c-11be0e279e0d/subscribe/
+.2026-10-14 14:00:07,545 WARNING log Bad Request: /api/v1/investments/capital-accounts/
+.2026-10-14 14:00:07,880 WARNING log Bad Request: /api/v1/investments/redemptions/c0c2c705-3d1c-414e-90e5-475ccb2f2cec/approve/
+.2026-10-14 14:00:08,038 WARNING log Bad Request: /api/v1/investments/redemptions/2337c516-ca8f-41d1-bb0b-537c9624ee14/approve/
+2026-10-14 14:00:08,041 WARNING log Bad Request: /api/v1/investments/redemptions/2337c516-ca8f-41d1-bb0b-537c9624ee14/reject/
+.2026-10-14 14:00:08,216 WARNING log Bad Request: /api/v1/investments/redemptions/b725c8e1-7ee7-41b8-b6bf-e7452985249e/approve/
+.2026-10-14 14:00:08,409 WARNING log Not Found: /api/v1/investments/capital-accounts/27b2a451-00ae-4892-b0fa-3e6b8653fb9e/redeem/
+.2026-10-14 14:00:08,506 WARNING log Bad Request: /api/v1/investments/capital-accounts/da0af034-f349-487d-a1f9-895bf0f7c667/redeem/
+.2026-10-14 14:00:08,631 WARNING log Bad Request: /api/v1/investments/capital-accounts/7d282f5d-7288-47dc-9e0f-75012a1f4fa4/redeem/
+.2026-10-14 14:00:08,776 WARNING log Bad Request: /api/v1/investments/redemptions/f60af434-ff96-4263-a984-7c5fd130358f/reject/
+..2026-10-14 14:00:09,065 WARNING log Forbidden: /api/v1/investments/redemptions/7193ff96-e631-4498-98e7-25eafebf1b6b/approve/
+2026-10-14 14:00:09,067 WARNING log Forbidden: /api/v1/investments/redemptions/7193ff96-e631-4498-98e7-25eafebf1b6b/approve/
+..2026-10-14 14:00:09,414 WARNING log Bad Request: /api/v1/investments/capital-accounts/b960887c-19d2-4f0c-ac44-c3755715cb36/subscribe/
+2026-10-14 14:00:09,440 WARNING log Bad Request: /api/v1/investments/capital-accounts/b960887c-19d2-4f0c-ac44-c3755715cb36/subscribe/
+.2026-10-14 14:00:09,541 WARNING log Forbidden: /api/v1/investments/investor-profiles/a29690ea-03e7-4da8-abb0-4cf1ed976a41/verify-kyc/
+....2026-10-14 14:00:10,164 ERROR services Could not create notifications for Allocation run awaiting independent check: POOL-L 2026-09-01 to 2026-09-10
+Traceback (most recent call last):
+  File "D:\Projects\Pool Management\pool management system\backend\apps\notifications\services.py", line 47, in notify_users
+    notification = Notification.objects.create(
+        tenant=tenant,
+    ...<7 lines>...
+        related_id=str(related[1]) if related else "",
+    )
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+...2026-10-14 14:00:10,739 WARNING services Email delivery failed for notification cdac5aa1-9aea-4f13-9edb-51456554c8ca: smtp down
+...2026-10-14 14:00:11,333 WARNING log Bad Request: /api/v1/allocation/psr-schedules/3619c0da-33da-471d-bdc3-ff5014c88ca3/approve/
+...2026-10-14 14:00:12,001 WARNING log Bad Request: /api/v1/allocation/weightage-bands/d84f83bd-25a3-4ca9-bc31-49046b1959bd/approve/
+.2026-10-14 14:00:12,132 WARNING log Method Not Allowed: /api/v1/notifications/
+..2026-10-14 14:00:12,248 WARNING log Not Found: /api/v1/notifications/ac05cdba-b9a9-4fa3-8ffe-062c6b47d293/mark-read/
+.2026-10-14 14:00:12,349 WARNING log Bad Request: /api/v1/participants/consents/da9c573f-e2ee-471d-8ede-550eb2b05a95/withdraw/
+..2026-10-14 14:00:12,401 WARNING log Bad Request: /api/v1/participants/consents/
+2026-10-14 14:00:12,418 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-14 14:00:12,428 WARNING log Forbidden: /api/v1/participants/consents/
+2026-10-14 14:00:12,429 WARNING log Forbidden: /api/v1/participants/consents/my-data/
+.2026-10-14 14:00:12,449 WARNING log Bad Request: /api/v1/participants/consents/
+.2026-10-14 14:00:12,482 WARNING log Bad Request: /api/v1/participants/consents/4f641d0b-6240-4182-b7bb-49e0af832081/withdraw/
+.2026-10-14 14:00:12,584 WARNING log Bad Request: /api/v1/pools/pools/fd38e9ed-6e0a-4eef-a6a6-517418b19ba4/open/
+...2026-10-14 14:00:12,722 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+2026-10-14 14:00:12,760 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+2026-10-14 14:00:12,795 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+2026-10-14 14:00:12,832 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+2026-10-14 14:00:13,006 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+2026-10-14 14:00:13,045 WARNING log Bad Request: /api/v1/pools/pools/87e144c2-662e-409d-ae72-967dfbcb9a9e/open/
+.2026-10-14 14:00:13,065 WARNING log Forbidden: /api/v1/pools/pools/4512411d-2525-48ed-a630-af7d4070a14d/open/
+2026-10-14 14:00:13,067 WARNING log Forbidden: /api/v1/pools/pools/4512411d-2525-48ed-a630-af7d4070a14d/open/
+2026-10-14 14:00:13,069 WARNING log Forbidden: /api/v1/pools/pools/4512411d-2525-48ed-a630-af7d4070a14d/create-version/
+...2026-10-14 14:00:13,301 WARNING log Bad Request: /api/v1/pools/pools/cba38faf-e91e-4688-a622-47b24ca86522/create-version/
+2026-10-14 14:00:13,314 WARNING log Bad Request: /api/v1/pools/pools/cba38faf-e91e-4688-a622-47b24ca86522/create-version/
+...2026-10-14 14:00:13,661 WARNING log Bad Request: /api/v1/pools/pools/0d615425-184a-486c-89b1-803f63c5225d/open/
+.2026-10-14 14:00:13,693 WARNING log Bad Request: /api/v1/pools/pools/36490b78-c259-4cd7-9a0b-e48b092d251c/open/
+.2026-10-14 14:00:13,804 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+.2026-10-14 14:00:13,873 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+2026-10-14 14:00:13,879 WARNING log Bad Request: /api/v1/pools/asset-assignments/
+..2026-10-14 14:00:13,992 WARNING log Bad Request: /api/v1/pools/asset-assignments/7e511a88-700a-46bc-a386-017e7b50c7c3/transfer/
+2026-10-14 14:00:13,996 WARNING log Bad Request: /api/v1/pools/asset-assignments/7e511a88-700a-46bc-a386-017e7b50c7c3/transfer/
+.2026-10-14 14:00:14,143 WARNING log Bad Request: /api/v1/pools/daily-closes/924aaf3e-7ee9-4a03-b247-fb7b5f6e74f3/sign/
+.2026-10-14 14:00:14,193 WARNING log Bad Request: /api/v1/accounting/income-expense-events/
+2026-10-14 14:00:14,199 WARNING log Bad Request: /api/v1/pools/balance-imports/
+.2026-10-14 14:00:14,234 WARNING log Forbidden: /api/v1/pools/daily-closes/prepare/
+.2026-10-14 14:00:14,293 WARNING log Forbidden: /api/v1/pools/daily-closes/930c86b2-cf85-4b71-afb5-5c8315be322f/sign/
+2026-10-14 14:00:14,310 WARNING log Conflict: /api/v1/pools/daily-closes/930c86b2-cf85-4b71-afb5-5c8315be322f/sign/
+2026-10-14 14:00:14,316 WARNING log Conflict: /api/v1/pools/daily-closes/prepare/
+.2026-10-14 14:00:14,426 WARNING log Conflict: /api/v1/circles/circle-members/05fe683b-ac6b-42a6-a7f5-a7d85c92d75d/record-contribution/
+.2026-10-14 14:00:14,454 WARNING log Bad Request: /api/v1/pools/pools/ba88df36-8766-462c-9115-12d02cfc056b/freeze/
+2026-10-14 14:00:14,467 WARNING log Bad Request: /api/v1/pools/pools/ba88df36-8766-462c-9115-12d02cfc056b/freeze/
+.2026-10-14 14:00:14,486 WARNING log Bad Request: /api/v1/pools/pools/0ffe6188-7fea-4ddd-a802-5e6e64546314/archive/
+.2026-10-14 14:00:14,533 WARNING log Conflict: /api/v1/pools/pools/49697bbf-c60f-41b5-8a09-25d7ee356d37/unfreeze/
+.2026-10-14 14:00:14,559 WARNING log Forbidden: /api/v1/pools/pools/c66a84c2-60db-436e-ba20-498e96cd8dca/freeze/
+2026-10-14 14:00:14,572 WARNING log Forbidden: /api/v1/pools/pools/c66a84c2-60db-436e-ba20-498e96cd8dca/unfreeze/
+....2026-10-14 14:00:14,869 WARNING log Bad Request: /api/v1/pools/period-closes/b4dc1760-5a02-4a54-9477-ae2b6de63f1b/sign-off-role/
+.2026-10-14 14:00:15,175 WARNING log Bad Request: /api/v1/pools/period-closes/
+.2026-10-14 14:00:15,221 WARNING log Method Not Allowed: /api/v1/pools/period-closes/c5a82fdb-08b8-4f69-a5c7-e35a9a921c79/
+2026-10-14 14:00:15,223 WARNING log Method Not Allowed: /api/v1/pools/period-closes/c5a82fdb-08b8-4f69-a5c7-e35a9a921c79/
+2026-10-14 14:00:15,225 WARNING log Bad Request: /api/v1/pools/period-closes/c5a82fdb-08b8-4f69-a5c7-e35a9a921c79/certify/
+.2026-10-14 14:00:15,478 WARNING log Bad Request: /api/v1/pools/period-closes/72377c50-8276-4482-b317-64a113c367d1/sign-off-role/
+.2026-10-14 14:00:15,712 WARNING log Forbidden: /api/v1/pools/period-closes/cb88c344-4101-4f6d-8e10-8bfdbb2bd916/sign-off-role/
+2026-10-14 14:00:15,724 WARNING log Bad Request: /api/v1/pools/period-closes/cb88c344-4101-4f6d-8e10-8bfdbb2bd916/sign-off-role/
+2026-10-14 14:00:15,757 WARNING log Bad Request: /api/v1/pools/period-closes/cb88c344-4101-4f6d-8e10-8bfdbb2bd916/sign-off-role/
+2026-10-14 14:00:15,778 WARNING log Bad Request: /api/v1/pools/period-closes/cb88c344-4101-4f6d-8e10-8bfdbb2bd916/lock-ceremony/
+2026-10-14 14:00:15,797 WARNING log Forbidden: /api/v1/pools/period-closes/cb88c344-4101-4f6d-8e10-8bfdbb2bd916/lock-ceremony/
+2026-10-14 14:00:15,841 WARNING log Bad Request: /api/v1/allocation/allocation-runs/
+.2026-10-14 14:00:15,953 WARNING log Forbidden: /api/v1/pools/pools/portfolio-summary/
+...2026-10-14 14:00:16,431 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+.2026-10-14 14:00:16,553 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-14 14:00:16,668 WARNING log Forbidden: /api/v1/pools/asset-provisions/3861a77f-ed40-4d62-bf80-93c7ebccf736/approve/
+.2026-10-14 14:00:16,715 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+2026-10-14 14:00:16,765 WARNING log Bad Request: /api/v1/pools/asset-provisions/
+.2026-10-14 14:00:16,906 WARNING log Bad Request: /api/v1/pools/asset-provisions/4dcbe8c2-a610-4d2b-88bb-0bbbc8b9652a/approve/
+.2026-10-14 14:00:16,964 WARNING log Bad Request: /api/v1/pools/asset-provisions/935060bf-3261-4f43-ac4d-a48013f39c08/reject/
+...2026-10-14 14:00:17,347 WARNING log Bad Request: /api/v1/products/shariah-decisions/89ed6f97-cab5-4dec-87a0-7144d291c88e/cast-quorum-vote/
+.2026-10-14 14:00:17,381 WARNING log Bad Request: /api/v1/products/shariah-decisions/76e5e132-a79f-43e1-a7d6-1a1fefb96e3c/cast-quorum-vote/
+.2026-10-14 14:00:17,402 WARNING log Bad Request: /api/v1/products/shariah-decisions/bcf0c562-6492-4f52-aa5c-36e272af5a4f/cast-quorum-vote/
+2026-10-14 14:00:17,406 WARNING log Bad Request: /api/v1/products/shariah-decisions/bcf0c562-6492-4f52-aa5c-36e272af5a4f/cast-quorum-vote/
+.2026-10-14 14:00:17,455 WARNING log Bad Request: /api/v1/products/shariah-decisions/11c23aa5-2336-4c62-9dd7-1da072f8bfd8/cast-quorum-vote/
+.2026-10-14 14:00:17,521 WARNING log Not Found: /api/v1/products/contract-templates/00000000-0000-0000-0000-000000000000/clauses-schema/
+...2026-10-14 14:00:17,677 WARNING log Bad Request: /api/v1/products/shariah-decisions/5d2e7736-db94-4975-ba48-6070ce29f2bd/
+.2026-10-14 14:00:17,695 WARNING log Bad Request: /api/v1/products/shariah-decisions/a2775eba-e869-4033-b6c2-ad2a05ddf37d/approve/
+.2026-10-14 14:00:17,709 WARNING log Forbidden: /api/v1/products/shariah-decisions/52b8286c-8759-426d-a679-73fb5b2f9af0/approve/
+.2026-10-14 14:00:17,750 WARNING log Bad Request: /api/v1/products/shariah-decisions/7c638829-29ab-4abf-b304-fe7b68973f8c/
+.2026-10-14 14:00:17,779 WARNING log Not Found: /api/v1/products/shariah-decisions/a21481dc-13d8-46c1-8fb7-a35a3031072f/
+.2026-10-14 14:00:17,808 WARNING log Bad Request: /api/v1/products/shariah-decisions/c1cc0b2c-7342-44c8-98ac-2ca8036bcba2/
+2026-10-14 14:00:17,812 WARNING log Bad Request: /api/v1/products/shariah-decisions/c1cc0b2c-7342-44c8-98ac-2ca8036bcba2/
+..2026-10-14 14:00:17,849 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+.2026-10-14 14:00:17,865 WARNING log Forbidden: /api/v1/products/shariah-decisions/b31e45ae-b833-4d44-87f2-0a2442ea3708/
+2026-10-14 14:00:17,867 WARNING log Forbidden: /api/v1/products/shariah-decisions/b31e45ae-b833-4d44-87f2-0a2442ea3708/
+.2026-10-14 14:00:18,142 WARNING log Not Found: /api/v1/products/shariah-decisions/0a48d032-29d2-4822-aadf-9d1913347178/
+2026-10-14 14:00:18,147 WARNING log Not Found: /api/v1/products/contract-templates/c04153fd-40fe-418c-bb71-291cc12c14ad/
+2026-10-14 14:00:18,152 WARNING log Not Found: /api/v1/products/products/aa9bfcad-9a3e-4e58-b97d-edeb1b2d6445/
+2026-10-14 14:00:18,158 WARNING log Not Found: /api/v1/pools/pools/0bc7f071-6a3c-4b47-a2c8-fdd877f35bc3/
+2026-10-14 14:00:18,162 WARNING log Not Found: /api/v1/pools/assets/030ebf5d-092b-4058-be05-649828c4eff4/
+2026-10-14 14:00:18,168 WARNING log Not Found: /api/v1/pools/asset-assignments/952e6b21-f81c-43ca-936b-a8cc5aff07c7/
+2026-10-14 14:00:18,177 WARNING log Not Found: /api/v1/pools/asset-provisions/12bcae04-3741-4bbb-9003-4796d1996951/
+2026-10-14 14:00:18,182 WARNING log Not Found: /api/v1/allocation/weightage-bands/d9201629-7d31-43c0-8e2d-4ec49a42632f/
+2026-10-14 14:00:18,186 WARNING log Not Found: /api/v1/allocation/psr-schedules/816edb2e-5fcb-4e7e-aee2-a7ca2c03d79a/
+2026-10-14 14:00:18,189 WARNING log Not Found: /api/v1/allocation/allocation-runs/09de1a9d-a20d-4a09-89f9-0c54f0d5cece/
+2026-10-14 14:00:18,194 WARNING log Not Found: /api/v1/accounting/journal-batches/5038890e-843f-42bd-8d77-755646042e4e/
+2026-10-14 14:00:18,200 WARNING log Not Found: /api/v1/accounting/income-expense-events/edbe7af4-c5a7-4882-a7ba-c0dfb24cc72d/
+2026-10-14 14:00:18,205 WARNING log Not Found: /api/v1/governance/exceptions/6ab45c01-0f78-45ab-98d7-17471af95cb8/
+2026-10-14 14:00:18,211 WARNING log Not Found: /api/v1/governance/purification-entries/ab5689b9-19f0-45eb-90ec-0330faed0801/
+2026-10-14 14:00:18,216 WARNING log Not Found: /api/v1/governance/related-party-transactions/72188ba7-c055-4b75-8a49-d7a69b51fe7c/
+2026-10-14 14:00:18,222 WARNING log Not Found: /api/v1/governance/support-requests/c1d73c62-c479-41ad-8142-60204bbf285a/
+2026-10-14 14:00:18,227 WARNING log Not Found: /api/v1/investments/capital-accounts/03ef1845-bdce-4f8e-9e26-5c6c6123eb37/
+2026-10-14 14:00:18,232 WARNING log Not Found: /api/v1/investments/nav-snapshots/5d9700ca-f065-4084-846b-15f552e7306c/
+2026-10-14 14:00:18,237 WARNING log Not Found: /api/v1/investments/investor-profiles/5c6af0db-a84a-4ffd-b78e-1433ee201b2a/
+2026-10-14 14:00:18,242 WARNING log Not Found: /api/v1/investments/impairment-events/69d73dcf-1401-4ccd-8947-f2d7cbedf8b0/
+2026-10-14 14:00:18,246 WARNING log Not Found: /api/v1/investments/subscriptions/c134300a-0166-4c1c-9b06-36825bf0fad5/
+2026-10-14 14:00:18,251 WARNING log Not Found: /api/v1/investments/redemptions/269d40be-1185-4154-8a11-90b209f5464d/
+2026-10-14 14:00:18,257 WARNING log Not Found: /api/v1/circles/circle-members/3d4b6518-5b13-4cf9-84e1-5c4fe4e3a084/
+2026-10-14 14:00:18,261 WARNING log Not Found: /api/v1/circles/contributions/574a9177-734b-4ada-8ee1-49388c7f7de3/
+2026-10-14 14:00:18,266 WARNING log Not Found: /api/v1/circles/arrears-records/a66865d5-7b8f-4529-ab81-8fdacaad40a2/
+2026-10-14 14:00:18,271 WARNING log Not Found: /api/v1/circles/circle-proposals/178dd822-bcbf-4f30-9252-bff8cbc522c3/
+2026-10-14 14:00:18,274 WARNING log Not Found: /api/v1/circles/rules/55c47e8b-1bdf-4747-8b8a-7d0aaafad2d6/
+2026-10-14 14:00:18,280 WARNING log Not Found: /api/v1/ai/recommendations/9b990958-d7ba-4b88-8486-e3eb4405c3d1/
+2026-10-14 14:00:18,286 WARNING log Not Found: /api/v1/governance/config-changes/252ad81e-1207-42fa-ae57-e156845c61aa/
+2026-10-14 14:00:18,289 WARNING log Not Found: /api/v1/investments/disclosures/5d45ca58-a8e9-42d1-a898-4fbde6901958/
+2026-10-14 14:00:18,295 WARNING log Not Found: /api/v1/circles/draws/320f7100-3855-47eb-bf25-bfdf81a9820c/
+2026-10-14 14:00:18,300 WARNING log Not Found: /api/v1/circles/closures/e43e8d2f-2cc1-48ca-aaf2-751570c89476/
+........2026-10-14 14:00:19,488 WARNING log Forbidden: /api/v1/products/shariah-decisions/
+2026-10-14 14:00:19,489 WARNING log Forbidden: /api/v1/products/contract-templates/
+2026-10-14 14:00:19,489 WARNING log Forbidden: /api/v1/products/products/
+2026-10-14 14:00:19,490 WARNING log Forbidden: /api/v1/pools/pools/
+2026-10-14 14:00:19,490 WARNING log Forbidden: /api/v1/pools/assets/
+2026-10-14 14:00:19,491 WARNING log Forbidden: /api/v1/pools/asset-assignments/
+2026-10-14 14:00:19,491 WARNING log Forbidden: /api/v1/pools/asset-provisions/
+2026-10-14 14:00:19,491 WARNING log Forbidden: /api/v1/pools/daily-balances/
+2026-10-14 14:00:19,492 WARNING log Forbidden: /api/v1/pools/balance-imports/
+2026-10-14 14:00:19,492 WARNING log Forbidden: /api/v1/allocation/weightage-bands/
+2026-10-14 14:00:19,492 WARNING log Forbidden: /api/v1/allocation/psr-schedules/
+2026-10-14 14:00:19,493 WARNING log Forbidden: /api/v1/allocation/allocation-runs/
+2026-10-14 14:00:19,493 WARNING log Forbidden: /api/v1/accounting/journal-batches/
+2026-10-14 14:00:19,494 WARNING log Forbidden: /api/v1/accounting/income-expense-events/
+2026-10-14 14:00:19,494 WARNING log Forbidden: /api/v1/governance/exceptions/
+2026-10-14 14:00:19,494 WARNING log Forbidden: /api/v1/governance/purification-entries/
+2026-10-14 14:00:19,495 WARNING log Forbidden: /api/v1/governance/related-party-transactions/
+2026-10-14 14:00:19,495 WARNING log Forbidden: /api/v1/governance/support-requests/
+2026-10-14 14:00:19,496 WARNING log Forbidden: /api/v1/investments/capital-accounts/
+2026-10-14 14:00:19,496 WARNING log Forbidden: /api/v1/investments/nav-snapshots/
+2026-10-14 14:00:19,498 WARNING log Forbidden: /api/v1/investments/investor-profiles/
+2026-10-14 14:00:19,499 WARNING log Forbidden: /api/v1/investments/impairment-events/
+2026-10-14 14:00:19,499 WARNING log Forbidden: /api/v1/investments/subscriptions/
+2026-10-14 14:00:19,500 WARNING log Forbidden: /api/v1/investments/redemptions/
+2026-10-14 14:00:19,500 WARNING log Forbidden: /api/v1/circles/circle-members/
+2026-10-14 14:00:19,500 WARNING log Forbidden: /api/v1/circles/contributions/
+2026-10-14 14:00:19,501 WARNING log Forbidden: /api/v1/circles/payouts/
+2026-10-14 14:00:19,501 WARNING log Forbidden: /api/v1/circles/arrears-records/
+2026-10-14 14:00:19,501 WARNING log Forbidden: /api/v1/circles/circle-proposals/
+2026-10-14 14:00:19,502 WARNING log Forbidden: /api/v1/circles/rules/
+2026-10-14 14:00:19,502 WARNING log Forbidden: /api/v1/ai/recommendations/
+2026-10-14 14:00:19,503 WARNING log Forbidden: /api/v1/governance/config-changes/
+2026-10-14 14:00:19,503 WARNING log Forbidden: /api/v1/investments/disclosures/
+2026-10-14 14:00:19,504 WARNING log Forbidden: /api/v1/circles/draws/
+2026-10-14 14:00:19,504 WARNING log Forbidden: /api/v1/circles/closures/
+.2026-10-14 14:00:19,593 WARNING log Forbidden: /api/v1/pools/pools/
+...2026-10-14 14:00:19,658 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-14 14:00:19,662 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-14 14:00:19,663 WARNING log Bad Request: /api/v1/public/demo-requests/
+2026-10-14 14:00:19,663 WARNING log Bad Request: /api/v1/public/demo-requests/
+.2026-10-14 14:00:19,679 WARNING log Forbidden: /api/v1/demo-requests/
+.2026-10-14 14:00:19,715 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+2026-10-14 14:00:19,716 WARNING log Too Many Requests: /api/v1/public/demo-requests/
+...2026-10-14 14:00:19,719 WARNING contract_analyzer Copilot direct analysis call failed: down
+..
+----------------------------------------------------------------------
+Ran 467 tests in 62.110s
+
+OK
+Destroying test database for alias 'default'...
+Found 467 test(s).
+System check identified no issues (0 silenced).

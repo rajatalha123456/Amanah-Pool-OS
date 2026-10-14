@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.pagination import StandardPagination
 from apps.accounts.permissions import (
     HasAnyRole,
     IsFinanceChecker,
@@ -567,9 +568,10 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
 class DailyBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = DailyBalanceSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
 
     def get_queryset(self):
-        queryset = DailyBalance.objects.all()
+        queryset = DailyBalance.objects.all().order_by("-value_date", "participant_class", "account_id")
         pool_id = self.request.query_params.get("pool")
         if pool_id:
             queryset = queryset.filter(pool_id=pool_id)

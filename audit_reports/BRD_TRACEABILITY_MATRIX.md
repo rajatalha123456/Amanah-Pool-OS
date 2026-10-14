@@ -226,7 +226,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Status | Sev | Evidence |
 |---|---|---|---|---|---|
 | R-154 | 14 | Availability 99.9%, graceful AI degradation | NOT TESTED (no HA deployment exists; AI fallback tested) | P1 | DEPLOYMENT.md |
-| R-155 | 14 | P95 < 2 s; batch SLA; million-account scaling | PARTIAL: P95 0.38-0.83 s on demo data (`evidence/latency_probe.txt`); **no pagination on any list endpoint** | P1 | `config/settings/base.py` REST_FRAMEWORK |
+| R-155 | 14 | P95 < 2 s; batch SLA; million-account scaling | PARTIAL: P95 0.38-0.83 s on demo data (`evidence/latency_probe.txt`); the growing lists are now paged (default 50, max 500; BT `test_growing_lists_are_paged...`, `test_the_audit_log_is_paged...`). No load test at real volume; allocation runs in one process | P2 | `apps/core/pagination.py` |
 | R-156 | 14 | SSO/MFA, RBAC+ABAC, tenant isolation, encryption, vault, WAF, EDR | PARTIAL (MFA, RBAC, isolation tested; no SSO/vault/WAF/EDR) | P1 | AT security tests |
 | R-157 | 14 | Append-only audit, signed manifests, tamper-evident hashes | PASS | - | BT core.test_audit_chain (7) |
 | R-158 | 14 | Privacy: purpose limitation, minimisation, consent, residency, retention, DSAR | PARTIAL | P2 | BT consents, retention |

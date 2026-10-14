@@ -1,4 +1,5 @@
 import { apiClient } from "./axios"
+import { pageParams, type Page } from "./pagination"
 import type { BalanceImportBatch, BalanceImportInput, BalanceImportResult, DailyBalance } from "../types"
 
 export async function importBalances(data: BalanceImportInput): Promise<BalanceImportResult> {
@@ -13,9 +14,9 @@ export async function fetchImportHistory(poolId: string): Promise<BalanceImportB
   return response.data
 }
 
-export async function fetchDailyBalances(poolId: string, valueDate: string): Promise<DailyBalance[]> {
-  const response = await apiClient.get<DailyBalance[]>("pools/daily-balances/", {
-    params: { pool: poolId, value_date: valueDate },
+export async function fetchDailyBalances(poolId: string, valueDate: string, page = 1): Promise<Page<DailyBalance>> {
+  const response = await apiClient.get<Page<DailyBalance>>("pools/daily-balances/", {
+    params: { pool: poolId, value_date: valueDate, ...pageParams(page) },
   })
   return response.data
 }

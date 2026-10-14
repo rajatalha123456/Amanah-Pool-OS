@@ -25,7 +25,7 @@ The findings below were written before the fixes. This section records what chan
 
 Test results after the fixes: backend 454/454, audit tests 42/42, browser smoke 30/30 and role sweep 13/13 (one earlier fail was caused by running two Playwright jobs at once), `tsc` clean.
 Requirement rows: PASS 88 of 184 applicable (48%), see the matrix.
-**Readiness after the fixes: still NOT READY for real customer money**, for the reasons that are not code: no live integrations, no backup/restore or HA evidence, no external penetration test, no Shariah UAT or parallel run, open sign-offs. The code-level P0/P1 findings are closed. Remaining code work: roadmap T-02 (rule pack versioning), signed daily close, pagination, GL export status, suspense.
+**Readiness after the fixes: still NOT READY for real customer money**, for the reasons that are not code: no live integrations, no backup/restore or HA evidence, no external penetration test, no Shariah UAT or parallel run, open sign-offs. The code-level P0/P1 findings are closed. Remaining code work: GL export status, suspense, draw-room two-step, a concurrency test. Done since: rule pack versioning (T-02), signed daily close, pagination of the growing lists (T-12).
 
 ## 1. Architecture map
 ```

@@ -1,16 +1,19 @@
 import { apiClient } from "./axios"
+import { pageParams, type Page } from "./pagination"
 import type { DepositorStatement, Participant, ParticipantAccount } from "../types"
 
-export async function fetchParticipants(): Promise<Participant[]> {
-  const response = await apiClient.get<Participant[]>("participants/participants/")
+export async function fetchParticipants(page = 1): Promise<Page<Participant>> {
+  const response = await apiClient.get<Page<Participant>>("participants/participants/", { params: pageParams(page) })
   return response.data
 }
 
-export async function fetchParticipantAccounts(poolId?: string): Promise<ParticipantAccount[]> {
-  const response = await apiClient.get<ParticipantAccount[]>("participants/accounts/", {
-    params: poolId ? { pool: poolId } : undefined,
+/** Accounts of the given participants (one page of the registry), at most 500. */
+export async function fetchAccountsOfParticipants(participantIds: string[]): Promise<ParticipantAccount[]> {
+  if (participantIds.length === 0) return []
+  const response = await apiClient.get<Page<ParticipantAccount>>("participants/accounts/", {
+    params: { participants: participantIds.join(","), ...pageParams(1, 500) },
   })
-  return response.data
+  return response.data.results
 }
 
 export async function verifyParticipantKyc(id: string, note?: string): Promise<Participant> {

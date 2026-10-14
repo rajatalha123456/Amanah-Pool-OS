@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.pagination import StandardPagination
 from apps.accounts.permissions import HasAnyRole
 from apps.core.audit import log_action
 
@@ -22,6 +23,7 @@ WRITE_ROLES = ["pool_manager", "finance_maker"]
 
 class ParticipantViewSet(viewsets.ModelViewSet):
     serializer_class = ParticipantSerializer
+    pagination_class = StandardPagination
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
@@ -79,6 +81,7 @@ class ParticipantViewSet(viewsets.ModelViewSet):
 
 class ParticipantAccountViewSet(viewsets.ModelViewSet):
     serializer_class = ParticipantAccountSerializer
+    pagination_class = StandardPagination
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
@@ -89,6 +92,10 @@ class ParticipantAccountViewSet(viewsets.ModelViewSet):
         participant_id = self.request.query_params.get("participant")
         if participant_id:
             queryset = queryset.filter(participant_id=participant_id)
+        # ?participants=id1,id2: the accounts of the participants shown on one page of the registry
+        participant_ids = [p for p in (self.request.query_params.get("participants") or "").split(",") if p]
+        if participant_ids:
+            queryset = queryset.filter(participant_id__in=participant_ids)
         return queryset
 
     def get_permissions(self):

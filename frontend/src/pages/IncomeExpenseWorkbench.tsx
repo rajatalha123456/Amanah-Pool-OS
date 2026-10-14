@@ -15,6 +15,8 @@ import {
   scanOverheadLeakage,
 } from "../api/accounting"
 import { fetchPools } from "../api/pools"
+import { DEFAULT_PAGE_SIZE } from "../api/pagination"
+import { Pager } from "../components/Pager"
 import type {
   CostClassification,
   CreateIncomeExpenseEventInput,
@@ -29,6 +31,8 @@ export function IncomeExpenseWorkbench() {
   const [pools, setPools] = useState<Pool[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState<string>("")
   const [events, setEvents] = useState<IncomeExpenseEvent[]>([])
+  const [eventPage, setEventPage] = useState(1)
+  const [eventCount, setEventCount] = useState(0)
   const [summary, setSummary] = useState<PoolIncomeExpenseSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<FilterTab>("all")
@@ -72,15 +76,17 @@ export function IncomeExpenseWorkbench() {
   }, [])
 
   // Load events & summary for selected pool
-  async function loadData(poolId: string) {
+  async function loadData(poolId: string, page = eventPage) {
     if (!poolId) return
     try {
       setIsLoading(true)
       const [eventsData, summaryData] = await Promise.all([
-        fetchIncomeExpenseEvents(poolId),
+        fetchIncomeExpenseEvents(poolId, page),
         fetchPoolIncomeExpenseSummary(poolId),
       ])
-      setEvents(eventsData)
+      setEvents(eventsData.results)
+      setEventCount(eventsData.count)
+      setEventPage(page)
       setSummary(summaryData)
     } catch (err) {
       console.error("Failed to load income/expense data", err)
@@ -351,7 +357,7 @@ export function IncomeExpenseWorkbench() {
                 : "bg-white/5 text-ink-secondary hover:text-ink-primary"
             }`}
           >
-            All Items ({events.length})
+            All Items ({eventCount})
           </button>
           <button
             onClick={() => setActiveTab("income")}
@@ -565,6 +571,7 @@ export function IncomeExpenseWorkbench() {
                 )}
               </tbody>
             </table>
+            <Pager page={eventPage} pageSize={DEFAULT_PAGE_SIZE} count={eventCount} onChange={(p) => void loadData(selectedPoolId, p)} disabled={isLoading} />
           </div>
         )}
       </Card>

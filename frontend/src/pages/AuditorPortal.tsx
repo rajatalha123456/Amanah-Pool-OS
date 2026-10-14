@@ -7,6 +7,8 @@ import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
 import { downloadAuditLogCsv, fetchAuditLog } from "../api/auditLog"
+import { DEFAULT_PAGE_SIZE } from "../api/pagination"
+import { Pager } from "../components/Pager"
 import { runAuditSamplingAnalysis, type AuditSamplingResult, type AuditSampleItem } from "../api/auditSampling"
 import { extractErrorMessage } from "../api/errors"
 import { PeriodReportPanel } from "../components/audit/PeriodReportPanel"
@@ -50,6 +52,8 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
 
 
   const [entries, setEntries] = useState<AuditLogEntry[]>([])
+  const [logPage, setLogPage] = useState(1)
+  const [logCount, setLogCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [pageError, setPageError] = useState("")
   const [modelName, setModelName] = useState("")
@@ -69,15 +73,22 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mayLog, maySample])
 
-  function loadEntries() {
+  function loadEntries(page = 1) {
     setIsLoading(true)
     setPageError("")
-    fetchAuditLog({
-      model_name: modelName || undefined,
-      date_from: dateFrom || undefined,
-      date_to: dateTo || undefined,
-    })
-      .then((data: AuditLogEntry[]) => setEntries(data))
+    fetchAuditLog(
+      {
+        model_name: modelName || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      },
+      page,
+    )
+      .then((data) => {
+        setEntries(data.results)
+        setLogCount(data.count)
+        setLogPage(page)
+      })
       .catch((error: unknown) => setPageError(extractErrorMessage(error, "Unable to load audit log.")))
       .finally(() => setIsLoading(false))
   }
@@ -415,7 +426,7 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
                 className={inputClasses}
               />
             </label>
-            <Button variant="outline" onClick={loadEntries} disabled={isLoading}>
+            <Button variant="outline" onClick={() => loadEntries()} disabled={isLoading}>
               Apply Filters
             </Button>
             <Button variant="gold" onClick={() => void handleExport()} disabled={isExporting}>
@@ -431,7 +442,10 @@ export function AuditorPortal({ initialTab = "evidence-bundle" }: AuditorPortalP
           ) : entries.length === 0 ? (
             <p className="text-sm text-ink-secondary">No audit log entries match these filters.</p>
           ) : (
-            <Table columns={columns} data={entries} keyField={(entry) => entry.id} />
+            <>
+              <Table columns={columns} data={entries} keyField={(entry) => entry.id} />
+              <Pager page={logPage} pageSize={DEFAULT_PAGE_SIZE} count={logCount} onChange={loadEntries} disabled={isLoading} />
+            </>
           )}
         </Card>
       )}

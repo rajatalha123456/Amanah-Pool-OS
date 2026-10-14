@@ -4,8 +4,10 @@ import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
 import { Card } from "../components/Card"
 import { PageHeader } from "../components/PageHeader"
+import { Pager } from "../components/Pager"
 import { Spinner } from "../components/Spinner"
 import { extractErrorMessage } from "../api/errors"
+import { DEFAULT_PAGE_SIZE } from "../api/pagination"
 import {
   fetchNotifications,
   markAllNotificationsRead,
@@ -26,20 +28,24 @@ const CATEGORY: Record<AppNotification["category"], { label: string; variant: Ba
 export function Notifications() {
   const navigate = useNavigate()
   const [items, setItems] = useState<AppNotification[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   const load = useCallback(async () => {
     try {
-      setItems(await fetchNotifications({ unread: onlyUnread }))
+      const data = await fetchNotifications({ unread: onlyUnread }, page)
+      setItems(data.results)
+      setCount(data.count)
       setError("")
     } catch (err) {
       setError(extractErrorMessage(err, "Unable to load notifications."))
     } finally {
       setLoading(false)
     }
-  }, [onlyUnread])
+  }, [onlyUnread, page])
 
   useEffect(() => {
     void load()
@@ -75,7 +81,7 @@ export function Notifications() {
         }
       />
       {error && <p className="text-sm text-red-400">{error}</p>}
-      <Card title={`Inbox (${items.length})`}>
+      <Card title={`Inbox (${count})`}>
         {loading ? (
           <div className="flex items-center gap-2 py-6 text-ink-secondary">
             <Spinner /> <span className="text-sm">Loading...</span>
@@ -107,6 +113,7 @@ export function Notifications() {
             ))}
           </ul>
         )}
+        <Pager page={page} pageSize={DEFAULT_PAGE_SIZE} count={count} onChange={setPage} disabled={loading} />
       </Card>
     </div>
   )

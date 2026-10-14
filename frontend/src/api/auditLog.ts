@@ -1,4 +1,5 @@
 import { apiClient } from "./axios"
+import { pageParams, type Page } from "./pagination"
 import type { AuditLogEntry } from "../types"
 
 export interface FetchAuditLogParams {
@@ -8,8 +9,8 @@ export interface FetchAuditLogParams {
   tenant?: string
 }
 
-export async function fetchAuditLogs(params: FetchAuditLogParams = {}): Promise<AuditLogEntry[]> {
-  const response = await apiClient.get<AuditLogEntry[]>("core/audit-log/", { params })
+export async function fetchAuditLogs(params: FetchAuditLogParams = {}, page = 1): Promise<Page<AuditLogEntry>> {
+  const response = await apiClient.get<Page<AuditLogEntry>>("core/audit-log/", { params: { ...params, ...pageParams(page) } })
   return response.data
 }
 

@@ -8,6 +8,8 @@ import { Table, type TableColumn } from "../components/Table"
 import { PageHeader } from "../components/PageHeader"
 import { fetchPools } from "../api/pools"
 import { fetchJournalBatches } from "../api/accounting"
+import { DEFAULT_PAGE_SIZE } from "../api/pagination"
+import { Pager } from "../components/Pager"
 import type { BadgeVariant, JournalBatch, JournalEntry, Pool } from "../types"
 
 type PageState = "loading" | "loaded" | "error"
@@ -34,6 +36,8 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
   const [pageState, setPageState] = useState<PageState>("loading")
   const [pageError, setPageError] = useState("")
   const [batches, setBatches] = useState<JournalBatch[]>([])
+  const [page, setPage] = useState(1)
+  const [count, setCount] = useState(0)
   const [expandedBatches, setExpandedBatches] = useState<ExpandedBatches>({})
   const [verifiedBatches, setVerifiedBatches] = useState<Record<string, boolean>>({})
 
@@ -52,16 +56,17 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
   useEffect(() => {
     if (!selectedPoolId) return
     setPageState("loading")
-    fetchJournalBatches(selectedPoolId)
+    fetchJournalBatches(selectedPoolId, page)
       .then((data) => {
-        setBatches(data)
+        setBatches(data.results)
+        setCount(data.count)
         setPageState("loaded")
       })
       .catch(() => {
         setPageError("Failed to load journal batches")
         setPageState("error")
       })
-  }, [selectedPoolId])
+  }, [selectedPoolId, page])
 
   function toggleBatchExpand(batchId: string) {
     setExpandedBatches((prev) => ({
@@ -347,13 +352,14 @@ export function JournalBatchReview({ hideHeader }: JournalBatchReviewProps) {
                 </div>
               )
             })}
+            <Pager page={page} pageSize={DEFAULT_PAGE_SIZE} count={count} onChange={setPage} />
           </div>
         )}
       </Card>
 
       {/* Bottom Control Total Bar matching Catalogue Screen 15 */}
       <p className="mt-6 border-t border-white/8 pt-4 text-xs text-ink-secondary">
-        {batches.length} batch{batches.length === 1 ? "" : "es"} · debits {totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })} ·
+        {count > batches.length ? `This page: ${batches.length} of ${count} batches` : `${batches.length} batch${batches.length === 1 ? "" : "es"}`} · debits {totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })} ·
         credits {totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })} ·{" "}
         {allBalanced ? "every batch balances" : `out of balance by ${netVariance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
       </p>

@@ -231,4 +231,4 @@ class IncomeExpenseEventApiTests(APITestCase):
 
         list_response = self.client.get(self.list_url, {"pool": str(self.pool.id)})
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(len(list_response.data["results"]), 1)

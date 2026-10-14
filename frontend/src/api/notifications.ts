@@ -1,4 +1,5 @@
 import { apiClient } from "./axios"
+import { pageParams, type Page } from "./pagination"
 
 export interface AppNotification {
   id: string
@@ -12,9 +13,17 @@ export interface AppNotification {
   created_at: string
 }
 
-export async function fetchNotifications(params?: { unread?: boolean; category?: string }): Promise<AppNotification[]> {
-  const response = await apiClient.get<AppNotification[]>("notifications/", {
-    params: { ...(params?.unread ? { unread: "true" } : {}), ...(params?.category ? { category: params.category } : {}) },
+export async function fetchNotifications(
+  params?: { unread?: boolean; category?: string },
+  page = 1,
+  pageSize?: number,
+): Promise<Page<AppNotification>> {
+  const response = await apiClient.get<Page<AppNotification>>("notifications/", {
+    params: {
+      ...(params?.unread ? { unread: "true" } : {}),
+      ...(params?.category ? { category: params.category } : {}),
+      ...pageParams(page, pageSize),
+    },
   })
   return response.data
 }

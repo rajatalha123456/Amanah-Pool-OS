@@ -1,4 +1,5 @@
 import { apiClient } from "./axios"
+import { pageParams, type Page } from "./pagination"
 import type {
   CreateIncomeExpenseEventInput,
   IncomeExpenseEvent,
@@ -6,16 +7,16 @@ import type {
   PoolIncomeExpenseSummary,
 } from "../types"
 
-export async function fetchJournalBatches(poolId: string): Promise<JournalBatch[]> {
-  const response = await apiClient.get<JournalBatch[]>("accounting/journal-batches/", {
-    params: { pool: poolId },
+export async function fetchJournalBatches(poolId: string, page = 1): Promise<Page<JournalBatch>> {
+  const response = await apiClient.get<Page<JournalBatch>>("accounting/journal-batches/", {
+    params: { pool: poolId, ...pageParams(page) },
   })
   return response.data
 }
 
-export async function fetchIncomeExpenseEvents(poolId?: string): Promise<IncomeExpenseEvent[]> {
-  const response = await apiClient.get<IncomeExpenseEvent[]>("accounting/income-expense-events/", {
-    params: poolId ? { pool: poolId } : undefined,
+export async function fetchIncomeExpenseEvents(poolId?: string, page = 1): Promise<Page<IncomeExpenseEvent>> {
+  const response = await apiClient.get<Page<IncomeExpenseEvent>>("accounting/income-expense-events/", {
+    params: { ...(poolId ? { pool: poolId } : {}), ...pageParams(page) },
   })
   return response.data
 }

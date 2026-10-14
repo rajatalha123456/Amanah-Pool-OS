@@ -11,6 +11,8 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasAnyRole
 
+from apps.core.pagination import StandardPagination
+
 from .models import AuditLog
 from .serializers import AuditLogSerializer
 from .audit import log_action
@@ -76,6 +78,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
     serializer_class = AuditLogSerializer
     permission_classes = [IsAuthenticated, HasAnyRole(["auditor", "risk_compliance", "platform_super_admin"])]
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         return _filtered_audit_log_queryset(self.request)
