@@ -10,7 +10,9 @@ A pool period is closed in three controlled steps:
              in force for the period;
    - Gate 3  no open high/critical exception for the pool;
    - Gate 4  the period's profit run is signed (allocation run / investment distribution);
-   - Gate 5  that run's journal batch is posted and balanced.
+   - Gate 5  that run's journal batch is posted and balanced;
+   - Gate 6  suspense: every amount in suspense is a named item, and none is older than the allowed age at period end
+             (rule pack `suspense_max_age_days`, default 30).
    Community circles have no profit run; gates 1, 2, 4 and 5 do not apply to them.
 2. **Sign-off** by three different people in their own roles: the pool manager, a Shariah reviewer
    (Secretariat or Board) and a finance checker. Sign-off is only possible while every gate passes.
@@ -160,6 +162,23 @@ def compute_gates(period_close):
             "The signed run has no balanced journal batch." if run else "No signed run, so no journal."
         ),
         applicable=not is_circle,
+    )
+
+    # Gate 6 - suspense
+    from apps.accounting.suspense import ageing
+
+    sus = ageing(pool, end)
+    gates["suspense_cleared"] = _gate(
+        sus["itemized"] and sus["overdue_items"] == 0,
+        "Gate 6: Suspense explained",
+        (
+            "Nothing in suspense." if sus["open_items"] == 0 else
+            f"{sus['open_items']} open item(s), none older than {sus['max_age_days']} days."
+        ) if sus["itemized"] and sus["overdue_items"] == 0 else (
+            f"The suspense ledger ({sus['ledger_balance']}) does not equal its open items ({sus['items_net']})."
+            if not sus["itemized"] else
+            f"{sus['overdue_items']} suspense item(s) older than {sus['max_age_days']} days must be cleared first."
+        ),
     )
     return gates, run
 

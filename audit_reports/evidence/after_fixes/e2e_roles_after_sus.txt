@@ -1,0 +1,25 @@
+
+> frontend@0.0.0 e2e:roles
+> playwright test --config=playwright.roles.config.ts
+
+
+Running 13 tests using 1 worker
+
+  ok  1 e2e\role-sweep.spec.ts:15:3 › role sweep: superadmin opens every screen in its menu without refused calls (12.6s)
+  ok  2 e2e\role-sweep.spec.ts:15:3 › role sweep: poolmanager opens every screen in its menu without refused calls (1.0m)
+  ok  3 e2e\role-sweep.spec.ts:15:3 › role sweep: maker opens every screen in its menu without refused calls (55.2s)
+  ok  4 e2e\role-sweep.spec.ts:15:3 › role sweep: checker opens every screen in its menu without refused calls (57.3s)
+  ok  5 e2e\role-sweep.spec.ts:15:3 › role sweep: risk opens every screen in its menu without refused calls (1.1m)
+  ok  6 e2e\role-sweep.spec.ts:15:3 › role sweep: secretariat opens every screen in its menu without refused calls (35.5s)
+  ok  7 e2e\role-sweep.spec.ts:15:3 › role sweep: board opens every screen in its menu without refused calls (38.7s)
+  ok  8 e2e\role-sweep.spec.ts:15:3 › role sweep: auditor opens every screen in its menu without refused calls (59.2s)
+  ok  9 e2e\role-sweep.spec.ts:15:3 › role sweep: pm opens every screen in its menu without refused calls (19.2s)
+  ok 10 e2e\role-sweep.spec.ts:15:3 › role sweep: signatory opens every screen in its menu without refused calls (23.6s)
+  ok 11 e2e\role-sweep.spec.ts:15:3 › role sweep: investor opens every screen in its menu without refused calls (10.2s)
+  ok 12 e2e\role-sweep.spec.ts:15:3 › role sweep: member opens every screen in its menu without refused calls (8.7s)
+  ok 13 e2e\role-sweep.spec.ts:15:3 › role sweep: mudarabah.investor@novulabsdemo.test opens every screen in its menu without refused calls (10.1s)
+
+  Slow test file: e2e\role-sweep.spec.ts (7.6m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  13 passed (7.6m)
+EXIT 0

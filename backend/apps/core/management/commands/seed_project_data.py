@@ -168,6 +168,12 @@ class Command(BaseCommand):
             from apps.notifications.models import Notification
 
             Notification.objects.filter(tenant=tenant).delete()
+            # GL hand-overs and suspense items point at journals and pools (PROTECT). A reseed wipes demo data only, so
+            # the bulk delete (which bypasses their no-delete rule) is deliberate here.
+            from apps.accounting.models import GLExport, SuspenseItem
+
+            SuspenseItem.objects.filter(tenant=tenant).delete()
+            GLExport.objects.filter(tenant=tenant).delete()
             JournalEntry.objects.filter(tenant=tenant).delete()
             JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
             JournalBatch.objects.filter(tenant=tenant).delete()
@@ -245,6 +251,9 @@ class Command(BaseCommand):
             Product.objects.filter(tenant=tenant).delete()
             ContractTemplate.objects.filter(tenant=tenant).delete()
             ShariahDecision.objects.filter(tenant=tenant).delete()
+            from apps.products.models import RulePackRevision
+
+            RulePackRevision.objects.filter(tenant=tenant).delete()  # demo history only (bulk delete bypasses the guard)
             JurisdictionRulePack.objects.filter(tenant=tenant).delete()
 
             AccountMapping.objects.filter(tenant=tenant).delete()

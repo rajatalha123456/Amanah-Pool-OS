@@ -22,6 +22,7 @@ from .chart import ACCOUNTS, REQUIRED_BY_MODEL
 from .exports import generate_gl_csv
 from .models import (
     GLExport,
+    SuspenseItem,
     CostClassification,
     IncomeExpenseEvent,
     IncomeExpenseEventStatus,
@@ -567,3 +568,105 @@ def trial_balance_view(request):
 
     pool = get_object_or_404(Pool, id=request.query_params.get("pool"))
     return Response(trial_balance(pool, request.query_params.get("as_of") or None))
+
+
+class SuspenseItemSerializer(serializers.ModelSerializer):
+    pool_code = serializers.CharField(source="pool.code", read_only=True)
+    proposed_by_name = serializers.CharField(source="proposed_by.full_name", read_only=True, default=None)
+    opened_by_name = serializers.CharField(source="opened_by.full_name", read_only=True, default=None)
+    cleared_by_name = serializers.CharField(source="cleared_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = SuspenseItem
+        fields = (
+            "id", "pool", "pool_code", "side", "amount", "counter_account_key", "description", "reference", "opened_on",
+            "reconciliation_batch", "status", "proposed_by", "proposed_by_name", "opened_by_name", "opened_at",
+            "opening_journal", "clear_account_key", "clear_reason", "clear_proposed_by", "cleared_by_name", "cleared_on",
+            "clearing_journal", "decision_note", "created_at",
+        )
+        read_only_fields = fields
+
+
+class SuspenseItemViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """
+    Suspense items of a pool. A finance maker proposes to park an amount (or to clear one); a different finance checker
+    approves, and only then is the journal posted.
+    """
+
+    serializer_class = SuspenseItemSerializer
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        queryset = SuspenseItem.objects.select_related("pool", "proposed_by", "opened_by", "cleared_by")
+        for param in ("pool", "status"):
+            value = self.request.query_params.get(param)
+            if value:
+                queryset = queryset.filter(**{f"{param}_id" if param == "pool" else param: value})
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("create", "propose_clear"):
+            return [IsAuthenticated(), IsFinanceMaker()]
+        if self.action in ("approve", "reject", "approve_clear", "reject_clear"):
+            return [IsAuthenticated(), IsFinanceChecker()]
+        return [IsAuthenticated(), HasAnyRole(GL_READ_ROLES)()]
+
+    def create(self, request, *args, **kwargs):
+        from .suspense import propose_open
+
+        pool = get_object_or_404(Pool, id=request.data.get("pool"))
+        recon = None
+        if request.data.get("reconciliation_batch"):
+            recon = get_object_or_404(ReconciliationBatch, id=request.data["reconciliation_batch"], pool=pool)
+        item = propose_open(
+            pool=pool, side=request.data.get("side"), amount=request.data.get("amount"),
+            description=request.data.get("description", ""), reference=request.data.get("reference", ""),
+            counter_account_key=request.data.get("counter_account_key") or "pool_cash",
+            opened_on=request.data.get("opened_on") or None, reconciliation_batch=recon, user=request.user, request=request,
+        )
+        return Response(self.get_serializer(item).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from .suspense import approve_open
+
+        return Response(self.get_serializer(approve_open(self.get_object(), request.user, request)).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .suspense import reject_open
+
+        return Response(self.get_serializer(reject_open(self.get_object(), request.user, request.data.get("reason"), request)).data)
+
+    @action(detail=True, methods=["post"], url_path="propose-clear")
+    def propose_clear(self, request, pk=None):
+        from .suspense import propose_clear
+
+        item = propose_clear(self.get_object(), request.user, request.data.get("target_account_key"), request.data.get("reason"), request)
+        return Response(self.get_serializer(item).data)
+
+    @action(detail=True, methods=["post"], url_path="approve-clear")
+    def approve_clear(self, request, pk=None):
+        from .suspense import approve_clear
+
+        return Response(self.get_serializer(approve_clear(self.get_object(), request.user, request)).data)
+
+    @action(detail=True, methods=["post"], url_path="reject-clear")
+    def reject_clear(self, request, pk=None):
+        from .suspense import reject_clear
+
+        return Response(self.get_serializer(reject_clear(self.get_object(), request.user, request.data.get("reason"), request)).data)
+
+    @action(detail=False, methods=["get"])
+    def ageing(self, request):
+        from .suspense import ageing
+
+        pool = get_object_or_404(Pool, id=request.query_params.get("pool"))
+        return Response(ageing(pool, request.query_params.get("as_of") or None))
+
+    @action(detail=False, methods=["get"])
+    def accounts(self, request):
+        """The pool accounts an amount can be cleared to."""
+        from .chart import ACCOUNTS
+
+        return Response([{"key": k, "name": v} for k, v in ACCOUNTS.items() if k != "suspense"])

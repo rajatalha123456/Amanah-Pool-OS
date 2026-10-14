@@ -113,6 +113,9 @@ Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Anal
 | M11 | Finance maker: Finance & Ledger > GL Hand-over, generate an export; try again | The first file holds every posted batch not sent yet; the second attempt is refused (nothing new to send) |
 | M12 | Finance checker records the GL's answer with its reference (or rejects with a reason) | Recorded with the checker's name; the maker cannot do it; after a rejection the batches can be sent again; the downloaded file is identical to what was sent |
 | M13 | Open the trial balance, then pick an earlier "as of" date | Debits equal credits; the totals change with the date |
+| M14 | Finance maker parks an unidentified receipt in suspense (Finance & Ledger > Suspense); checker approves | Nothing is posted until the checker approves; the maker cannot approve; the position shows every amount as a named item |
+| M15 | Maker proposes clearing it to the account it belongs to; checker approves | The item is cleared and the suspense balance drops by the amount; a refused clearing returns the item to open |
+| M16 | Leave an item open past 30 days (or the rule-pack limit), then try to close the period | Period close gate 6 fails and names the overdue items |
 
 ## L. Sign-off
 | Function | Name | Date | Passed all steps? | Notes |

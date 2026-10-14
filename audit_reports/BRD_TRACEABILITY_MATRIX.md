@@ -54,7 +54,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-030 | 4 | Loss & impairment: waterfall, negligence cases, provisions, write-offs, recoveries | `investments/negligence.py`, provisions | Investments, Risk | - | BT NegligenceWorkflowTests (11), provisions | PASS | - |
 | R-031 | 4 | Community circle: schedules, ballots/rotation, guarantees, late payments, hardship, payout, dissolution | `circles/*` | Community Circles | - | BT circles (60+) | PARTIAL (guarantees missing) | P2 |
 | R-032 | 4 | Shariah governance: register, policy mapping, pre-launch, exceptions, review and audit | `products/shariah.py`, `governance/*` | Shariah Governance | - | BT register, quorum, audit report | PARTIAL (policy mapping, exception SLA missing) | P2 |
-| R-033 | 4 | Accounting subledger: double entry, chart mapping, close, reversals, suspense, GL export | `accounting/*` | Finance & Ledger | `JournalBatch` | BT accounting.tests, ImmutabilityTests | PARTIAL (no suspense handling; GL export has no status) | P2 |
+| R-033 | 4 | Accounting subledger: double entry, chart mapping, close, reversals, suspense, GL export | `accounting/*` | Finance & Ledger | `JournalBatch` | BT accounting.tests, ImmutabilityTests | PARTIAL (suspense and GL hand-over built; no live ERP connection) | P2 |
 | R-034 | 4 | AI & analytics: forecasts, anomaly, extraction, explanation, copilot, scenarios | `ai_agents`, `pools/liquidity.py` | AI & Analytics | `AIRecommendation` | BT ai_agents (13) | PARTIAL | P2 |
 | R-035 | 4 | Reporting & portal: regulatory, management, statements, disclosures, examiner data room | period report, evidence bundle | Reports, portal | - | BT core.test_period_report; E2E auditor | PARTIAL (no regulatory return formats) | P2 |
 | R-036 | 4 | Integration hub: core banking, GL, KYC, payment rails, market data, e-sign, notifications, BI | simulators only (`core/banking_switch.py`, `cbs_daemon.py`), refused in production | - | - | BT core.test_evidence_and_simulation | MISSING | P1 |
@@ -180,7 +180,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-126 | 10 | Payout / redemption journal | payout clearing, redemptions | - | - | BT payout clearing, CapitalJournalTests | PASS | - |
 | R-127 | 10 | Provision / write-off journal | provisions | - | - | BT pools.test_provisions | PASS | - |
 | R-128 | 10 | Reversal / recovery | `create_reversal_journal` | - | - | BT RestatementTests | PASS | - |
-| R-129 | 10 | Reconcile to enterprise GL; never silently balance through suspense | GL recon; no suspense account | - | - | BT ReconciliationTests | PARTIAL | P2 |
+| R-129 | 10 | Reconcile to enterprise GL; never silently balance through suspense | Suspense is itemized (`accounting/suspense.py`): named items, maker-checker, journals on approval, ageing, ledger = items check, period-close gate 6 | - | - | BT accounting.test_suspense (5); E2E suspense flow | PASS | - |
 
 ## Section 11: data model and integrity
 

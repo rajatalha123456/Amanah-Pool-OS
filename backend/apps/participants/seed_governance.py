@@ -29,6 +29,7 @@ GL_CHART = {
     "asset_portfolio": ("1301-001", "Financing Asset Portfolio"),
     "pool_cash": ("1001-001", "Pool Cash"),
     "recovery_income": ("4101-020", "Recovery of Written-off Assets"),
+    "suspense": ("1999-001", "Suspense - Unidentified Items"),
 }
 
 MATRIX = [

@@ -34,6 +34,8 @@ ACCOUNTS = {
     "asset_portfolio": "Financing Asset Portfolio",
     "pool_cash": "Pool Cash",
     "recovery_income": "Recovery of Written-off Assets",
+    # Amounts that cannot be placed yet, each one a named item (accounting/suspense.py).
+    "suspense": "Suspense - Unidentified Items",
 }
 
 REQUIRED_BY_MODEL = {

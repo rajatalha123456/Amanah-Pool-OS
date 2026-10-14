@@ -353,3 +353,50 @@ class GLExport(TenantScopedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("A GL export is a record of what was sent and cannot be deleted.")
+
+
+class SuspenseSide(models.TextChoices):
+    UNIDENTIFIED_RECEIPT = "unidentified_receipt", "Unidentified receipt (money in, owner not known)"
+    UNEXPLAINED_SHORTFALL = "unexplained_shortfall", "Unexplained shortfall (money missing, reason not known)"
+
+
+class SuspenseStatus(models.TextChoices):
+    PROPOSED = "proposed", "Proposed (awaiting a checker)"
+    OPEN = "open", "Open in suspense"
+    CLEARING_PROPOSED = "clearing_proposed", "Clearing proposed"
+    CLEARED = "cleared", "Cleared"
+    REJECTED = "rejected", "Rejected"
+
+
+class SuspenseItem(TenantScopedModel):
+    """One amount held in the pool's suspense account, with who, why and where it finally went (accounting/suspense.py)."""
+
+    pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="suspense_items")
+    side = models.CharField(max_length=24, choices=SuspenseSide.choices)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    counter_account_key = models.CharField(max_length=40, default="pool_cash")
+    description = models.TextField()
+    reference = models.CharField(max_length=100, blank=True, default="")
+    opened_on = models.DateField()
+    reconciliation_batch = models.ForeignKey(
+        ReconciliationBatch, on_delete=models.PROTECT, null=True, blank=True, related_name="suspense_items"
+    )
+    status = models.CharField(max_length=20, choices=SuspenseStatus.choices, default=SuspenseStatus.PROPOSED)
+    proposed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    opened_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    opened_at = models.DateTimeField(null=True, blank=True)
+    opening_journal = models.ForeignKey(JournalBatch, on_delete=models.PROTECT, null=True, blank=True, related_name="+")
+    clear_account_key = models.CharField(max_length=40, blank=True, default="")
+    clear_reason = models.TextField(blank=True, default="")
+    clear_proposed_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    cleared_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    cleared_on = models.DateField(null=True, blank=True)
+    clearing_journal = models.ForeignKey(JournalBatch, on_delete=models.PROTECT, null=True, blank=True, related_name="+")
+    decision_note = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["opened_on", "created_at"]
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="suspense_amount_positive")]
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("A suspense item is part of the ledger trail and cannot be deleted; reject or clear it.")

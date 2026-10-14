@@ -9,6 +9,7 @@ from .views import (
     JournalBatchViewSet,
     ReconciliationBatchViewSet,
     GLExportViewSet,
+    SuspenseItemViewSet,
     gl_export,
     trial_balance_view,
 )
@@ -22,6 +23,7 @@ router.register("income-expense-events", IncomeExpenseEventViewSet, basename="in
 router.register("reconciliation-batches", ReconciliationBatchViewSet, basename="reconciliation-batch")
 router.register("reconciliations", ReconciliationBatchViewSet, basename="reconciliation")
 router.register("gl-exports", GLExportViewSet, basename="gl-export")
+router.register("suspense-items", SuspenseItemViewSet, basename="suspense-item")
 
 urlpatterns = [
     path("journal-batches/gl-export/", gl_export, name="journal-batch-gl-export"),

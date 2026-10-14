@@ -814,6 +814,22 @@ def _build_rule_pack_revision(tenant, cache):
     return RulePackRevision._base_manager.filter(pack=pack).order_by("revision").first()
 
 
+def _build_suspense_item(tenant, cache):
+    from datetime import date as _date
+
+    from apps.accounting.models import SuspenseItem
+
+    return SuspenseItem.objects.create(
+        tenant=tenant, pool=cache.pool(), side="unidentified_receipt", amount=1, description="x", opened_on=_date(2026, 1, 1),
+    )
+
+
+def _suspense_model():
+    from apps.accounting.models import SuspenseItem
+
+    return SuspenseItem
+
+
 def _gl_export_model():
     from apps.accounting.models import GLExport
 
@@ -844,6 +860,7 @@ BUILDERS = {
     "products.JurisdictionRulePack": (JurisdictionRulePack, _build_jurisdiction_rule_pack),
     "products.RulePackRevision": (RulePackRevision, _build_rule_pack_revision),
     "accounting.GLExport": (_gl_export_model(), _build_gl_export),
+    "accounting.SuspenseItem": (_suspense_model(), _build_suspense_item),
     "pools.Pool": (Pool, _build_pool),
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),

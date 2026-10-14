@@ -57,7 +57,10 @@ export function GLHandover() {
     fetchPools()
       .then((data) => {
         setPools(data)
-        const first = data.find((p) => p.product_detail?.operating_model !== "community_circle") ?? data[0]
+        // A live pool first: a draft (e.g. one just made in the wizard) has no journals yet.
+        const first =
+          data.find((p) => !["draft", "pending_approval"].includes(p.status) && p.product_detail?.operating_model !== "community_circle") ??
+          data[0]
         if (first) setPoolId(first.id)
       })
       .catch((err) => setError(extractErrorMessage(err, "Unable to load pools.")))

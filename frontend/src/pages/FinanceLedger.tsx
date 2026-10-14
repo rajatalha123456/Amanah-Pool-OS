@@ -3,20 +3,28 @@ import { PageHeader } from "../components/PageHeader"
 import { JournalBatchReview } from "./JournalBatchReview"
 import { IncomeExpenseWorkbench } from "./IncomeExpenseWorkbench"
 import { GLHandover } from "../components/finance/GLHandover"
+import { SuspenseItems } from "../components/finance/SuspenseItems"
 
-type Tab = "journal-batches" | "income-expense" | "gl-handover"
+type Tab = "journal-batches" | "income-expense" | "gl-handover" | "suspense"
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "journal-batches", label: "Journal Batches" },
   { key: "income-expense", label: "Income & Expense" },
   { key: "gl-handover", label: "GL Hand-over & Trial Balance" },
+  { key: "suspense", label: "Suspense" },
 ]
 
 export function FinanceLedger() {
   const [activeTab, setActiveTab] = useState<Tab>("journal-batches")
 
   const activeMeta =
-    activeTab === "gl-handover"
+    activeTab === "suspense"
+      ? {
+          num: "15",
+          title: "Suspense",
+          sub: "Amounts that cannot be placed yet, each a named item with an owner, an age and a clearing",
+        }
+      : activeTab === "gl-handover"
       ? {
           num: "15",
           title: "GL Hand-over & Trial Balance",
@@ -62,6 +70,7 @@ export function FinanceLedger() {
       {activeTab === "journal-batches" && <JournalBatchReview hideHeader />}
       {activeTab === "income-expense" && <IncomeExpenseWorkbench />}
       {activeTab === "gl-handover" && <GLHandover />}
+      {activeTab === "suspense" && <SuspenseItems />}
     </div>
   )
 }

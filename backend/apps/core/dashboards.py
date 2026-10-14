@@ -66,7 +66,7 @@ def pool_manager(tenant):
 
 
 def finance(tenant):
-    from apps.accounting.models import IncomeExpenseEvent, JournalBatch, ReconciliationBatch
+    from apps.accounting.models import IncomeExpenseEvent, JournalBatch, ReconciliationBatch, SuspenseItem
     from apps.allocation.models import AllocationRun
     from apps.pools.models import AssetProvisionEntry, DailyClose, PeriodCloseChecklist
 
@@ -75,6 +75,10 @@ def finance(tenant):
         {"title": "Reconciliation", "metrics": [
             _m("Batches with a flagged variance", _count(ReconciliationBatch._base_manager.filter(tenant=tenant, status="variance_flagged")), link="/daily-operations", attention=True),
             _m("Batches matched or cleared", _count(ReconciliationBatch._base_manager.filter(tenant=tenant, status__in=["matched", "cleared"]))),
+        ]},
+        {"title": "Suspense", "metrics": [
+            _m("Items open in suspense", _count(SuspenseItem._base_manager.filter(tenant=tenant, status__in=["open", "clearing_proposed"])), link="/finance-ledger", attention=True),
+            _m("Suspense proposals awaiting a checker", _count(SuspenseItem._base_manager.filter(tenant=tenant, status__in=["proposed", "clearing_proposed"])), link="/finance-ledger", attention=True),
         ]},
         {"title": "Journals and residuals", "metrics": [
             _m("Posted journal batches", _count(JournalBatch._base_manager.filter(tenant=tenant, status="posted")), link="/finance-ledger"),

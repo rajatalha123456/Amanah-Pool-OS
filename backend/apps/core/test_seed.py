@@ -87,3 +87,20 @@ class SeedProjectDataTests(TestCase):
         # 25% manager share of (2,750,000 - 130,000)
         self.assertEqual(signed.manager_share, Decimal("655000.00"))
         self.assertEqual(signed.lines.count(), 1)
+
+    def test_the_demo_can_be_seeded_again_over_itself(self):
+        """A reseed wipes the demo tenant, including records that are protected in normal use (GL exports, suspense
+        items, rule-pack history); it must not fail on the second run."""
+        from apps.accounting.models import GLExport, SuspenseItem
+        from apps.accounting.suspense import propose_open
+        from apps.accounts.models import User
+        from apps.pools.models import Pool
+        from apps.products.models import RulePackRevision
+
+        maker = User.objects.filter(tenant=self.tenant, role="finance_maker").first()
+        pool = Pool._base_manager.get(tenant=self.tenant, code="POOL-TREAS-02")
+        propose_open(pool=pool, side="unidentified_receipt", amount="10.00", description="demo", user=maker)
+        GLExport.objects.create(tenant=self.tenant, pool=pool, row_count=0, total_debit=0, total_credit=0, content="", content_hash="0" * 64)
+        self.assertTrue(RulePackRevision._base_manager.filter(tenant=self.tenant).exists())
+        call_command("seed_project_data", tenant_code="SEED-TEST", allow_non_debug=True, stdout=StringIO())
+        self.assertFalse(SuspenseItem._base_manager.filter(tenant=self.tenant).exists())

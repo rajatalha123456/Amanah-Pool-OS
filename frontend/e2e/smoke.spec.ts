@@ -127,7 +127,9 @@ test("a circle member signs in and sees only their own circle", async ({ page })
   const circles = page.getByTestId("my-circle")
   await expect(circles).toHaveCount(1)
   await expect(circles.first()).toContainText("MEM-002")
-  await expect(circles.first()).not.toContainText("MEM-001")
+  await expect(circles.first()).toContainText("Circle ledger") // wait until the whole card has loaded
+  // The transparent ledger (BRD 6.5) names each cycle's recipient by member reference only: never another member's name.
+  await expect(circles.first()).not.toContainText("Tariq Mahmood")
   await expect(circles.first()).toContainText("Payout position")
   await page.goto("/community-circles")
   await expect(page).toHaveURL(/localhost:5173\/$/)
@@ -381,4 +383,47 @@ test("journals go to the GL once: the maker generates, a different checker recor
     await expect(page.getByText("Recorded as posted in the GL.")).toBeVisible()
   }
   await expect(page.getByText("Posted in GL").first()).toBeVisible()
+})
+
+test("an unplaced amount is parked in suspense and cleared, each step approved by a different person", async ({ page }) => {
+  const ref = `E2E-SUS-${Date.now()}`
+  await login(page, "maker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "Suspense", exact: true }).click()
+  await expect(page.getByText("Suspense position")).toBeVisible()
+  await page.getByLabel("Amount (PKR)").fill("1234.50")
+  await page.getByLabel("Bank / statement reference").fill(ref)
+  await page.getByLabel("What is known about it").fill("Raast credit received without a customer reference")
+  await page.getByRole("button", { name: "Propose", exact: true }).click()
+  await expect(page.getByText("Proposed. A finance checker approves it")).toBeVisible()
+  const card = page.locator("div.rounded-lg", { hasText: ref })
+  await expect(card.getByText("Proposed", { exact: true })).toBeVisible()
+  await expect(card.getByRole("button", { name: "Approve and post" })).toHaveCount(0) // the maker cannot approve
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "checker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "Suspense", exact: true }).click()
+  await page.locator("div.rounded-lg", { hasText: ref }).getByRole("button", { name: "Approve and post" }).click()
+  await expect(page.getByText("Approved and posted to suspense.")).toBeVisible()
+  await expect(page.getByText("Every amount is a named item")).toBeVisible()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "maker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "Suspense", exact: true }).click()
+  const open = page.locator("div.rounded-lg", { hasText: ref })
+  await open.getByRole("button", { name: "Propose clearing" }).click()
+  await open.getByLabel("Where it belongs").selectOption("depositor_payable")
+  await open.getByLabel("How that was established").fill("Customer confirmed by phone; bank advice attached")
+  await open.getByRole("button", { name: "Propose", exact: true }).click()
+  await expect(page.getByText("Clearing proposed. A finance checker approves it.")).toBeVisible()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "checker")
+  await page.goto("/finance-ledger")
+  await page.getByRole("button", { name: "Suspense", exact: true }).click()
+  await page.locator("div.rounded-lg", { hasText: ref }).getByRole("button", { name: "Approve clearing" }).click()
+  await expect(page.getByText("Cleared and posted.")).toBeVisible()
+  await expect(page.locator("div.rounded-lg", { hasText: ref }).getByText("Cleared", { exact: true })).toBeVisible()
 })
