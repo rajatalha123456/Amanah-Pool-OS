@@ -1336,6 +1336,10 @@ export interface ShariahQueryFilters {
 // --- Governance: Exception Queue + Purification Ledger (apps.governance) ---
 
 export interface ExceptionCase {
+  sla_days?: number
+  sla_due_on?: string
+  sla_breached?: boolean
+  sla_basis?: string
   id: string
   source_module: string
   source_object_id: string | null

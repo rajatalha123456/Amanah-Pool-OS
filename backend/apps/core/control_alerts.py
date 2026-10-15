@@ -49,5 +49,13 @@ def build_alerts(tenant, today=None):
         alerts.append(_alert("key_rotation_overdue", "critical", "Encryption keys past their rotation date", len(overdue_keys),
                              "/administration", ", ".join(k.purpose for k in overdue_keys)[:200]))
 
+    from apps.governance.models import ExceptionCase
+    from apps.governance.sla import sla_breached
+
+    breached = [c for c in ExceptionCase._base_manager.filter(tenant=tenant, status__in=["open", "investigating"]) if sla_breached(c, today)]
+    if breached:
+        alerts.append(_alert("exception_sla_breached", "critical", "Exception cases past their time limit", len(breached),
+                             "/shariah-governance", "Time limits are defaults until the Board and Risk confirm them."))
+
     order = {"critical": 0, "warning": 1}
     return sorted(alerts, key=lambda a: order[a["severity"]])

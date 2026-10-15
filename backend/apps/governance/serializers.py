@@ -6,9 +6,38 @@ from .models import ExceptionCase, PurificationEntry, RelatedPartyTransaction, S
 
 
 class ExceptionCaseSerializer(serializers.ModelSerializer):
+    sla_days = serializers.SerializerMethodField()
+    sla_due_on = serializers.SerializerMethodField()
+    sla_breached = serializers.SerializerMethodField()
+    sla_basis = serializers.SerializerMethodField()
+
+    def get_sla_days(self, case):
+        from .sla import sla_days
+
+        return sla_days(case)
+
+    def get_sla_due_on(self, case):
+        from .sla import sla_due_on
+
+        return str(sla_due_on(case))
+
+    def get_sla_breached(self, case):
+        from .sla import sla_breached
+
+        return sla_breached(case)
+
+    def get_sla_basis(self, case):
+        from .sla import SLA_BASIS
+
+        return SLA_BASIS
+
     class Meta:
         model = ExceptionCase
         fields = (
+            "sla_days",
+            "sla_due_on",
+            "sla_breached",
+            "sla_basis",
             "id",
             "source_module",
             "source_object_id",
@@ -37,6 +66,7 @@ class ExceptionCaseSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = (
+            "sla_days", "sla_due_on", "sla_breached", "sla_basis",
             "quarantine_status",
             "quarantined_amount",
             "quarantine_reason",
