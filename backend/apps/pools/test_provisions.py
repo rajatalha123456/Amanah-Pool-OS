@@ -52,6 +52,21 @@ class ProvisionTests(ParticipantLedgerTestBase):
         self.assertEqual(self.position()["provision_balance"], "200.00")
         self.assertEqual(self.decide(entry).status_code, 400)  # already decided
 
+    def test_provisions_and_releases_move_the_profit_the_next_run_distributes(self):
+        # BRD R-087: distributable = gross - expenses - provisions +/- reversals. An approved provision is a pool
+        # expense and an approved release is pool income, both in the period the next run derives its figures from.
+        from apps.allocation.income import derive_income
+
+        start, end = date(2026, 9, 1), date(2026, 9, 30)
+        base = derive_income(self.pool, start, end)
+        self.done("provision", "200.00")
+        after_provision = derive_income(self.pool, start, end)
+        self.assertEqual(after_provision["direct_expenses"] - base["direct_expenses"], Decimal("200.00"))
+        self.assertEqual(after_provision["gross_income"], base["gross_income"])
+        self.done("release", "50.00")
+        after_release = derive_income(self.pool, start, end)
+        self.assertEqual(after_release["gross_income"] - after_provision["gross_income"], Decimal("50.00"))
+
     def test_maker_cannot_approve_their_own_entry(self):
         entry = self.request("provision", "50.00").data
         self.assertEqual(self.decide(entry, user=self.maker).status_code, 403)

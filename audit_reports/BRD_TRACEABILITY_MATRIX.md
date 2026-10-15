@@ -123,7 +123,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-084 | 7.1 | Participation ratio | engine 340-342 | - | - | AT 01, 02 | PASS | - |
 | R-085 | 7.1 | Gross income eligible and assigned to pool | `income.py` | - | - | BT DerivedFromEvents | PASS | - |
 | R-086 | 7.1 | Only approved direct expenses | overhead excluded | - | - | BT DerivedFromEvents | PASS | - |
-| R-087 | 7.1 | Distributable = gross - expenses - provisions +/- reversals - purification +/- reserve movements | appropriations yes; reserve **release** to cover a loss not modelled | - | - | AT 04, 13 | PARTIAL | P2 |
+| R-087 | 7.1 | Distributable = gross - expenses - provisions +/- reversals - purification +/- reserve movements | appropriations yes; approved provisions/releases flow in as pool expense/income (BT pools.test_provisions); reserve **release** to cover a loss deliberately not built: needs a Shariah ruling | - | - | AT 04, 13; BT pools.test_provisions | PARTIAL | P2 |
 | R-088 | 7.1 | Investor profit by PSR / weighted participation | engine | - | - | AT 02 | PASS | - |
 | R-089 | 7.1 | Mudarib share never a share of capital | loss path sets Mudarib 0 | - | - | AT 04 | PASS | - |
 | R-090 | 7.1 | Musharakah loss by capital ratio | `distribution.py` | - | - | BT musharakah | PASS | - |
@@ -132,7 +132,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-093 | 7.3 | High precision; round only at output | Decimal throughout | - | - | AT 11, 12 | PASS | - |
 | R-094 | 7.3 | Residual to disclosed rounding account | engine 365-378; journal | - | - | AT 10; BT journal tie-out | PASS | - |
 | R-095 | 7.3 | No edit to signed run; reversal + linked rerun | model guards, restatement | Restatement wizard | - | BT ImmutabilityTests, RestatementTests | PASS | - |
-| R-096 | 7.3 | Back-dated entries go to an adjustment period unless a restatement is opened | refused in a locked period; no adjustment period | - | - | BT PeriodLockTests | PARTIAL | P2 |
+| R-096 | 7.3 | Back-dated entries go to an adjustment period unless a restatement is opened | refused in a locked period (stricter than the BRD); routing to an adjustment period is a design decision still open | - | - | BT PeriodLockTests | PARTIAL | P2 |
 
 ## Section 8: Shariah controls
 
