@@ -232,6 +232,18 @@ class FromScratch(APITestCase):
 
     def phase_d_profit_run(self, pid, people):
         """The month-end profit run: maker calculates, checker checks, Shariah reviews, signatory releases."""
+        # BRD R-114: the simulator calculates but writes nothing (no run, line, journal or AI record).
+        from apps.accounting.models import JournalBatch
+        from apps.ai_agents.models import AIRecommendation
+        from apps.allocation.models import AllocationLine, AllocationRun
+
+        def rows():
+            return (AllocationRun._base_manager.count(), AllocationLine._base_manager.count(),
+                    JournalBatch._base_manager.count(), AIRecommendation._base_manager.count())
+
+        before = rows()
+        self.call("maker", "post", "/api/v1/allocation/allocation-runs/simulate/", {"pool": pid, "value_date": "2026-01-05", "period_start": "2026-01-01"}, expect=200)
+        self.assertEqual(rows(), before, "simulate must not write anything")
         run = self.call("maker", "post", "/api/v1/allocation/allocation-runs/", {"pool": pid, "value_date": "2026-01-05", "period_start": "2026-01-01"}, expect=201).data
         rid = run["id"]
         base = f"/api/v1/allocation/allocation-runs/{rid}"
