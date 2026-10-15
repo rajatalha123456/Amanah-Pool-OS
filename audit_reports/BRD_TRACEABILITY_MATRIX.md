@@ -151,7 +151,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
-| R-105 | 9 | Shariah Policy Copilot: citations mandatory; cannot issue fatwa | external FastAPI service `shariah-policy-copilot/` | Copilot | - | copilot unit tests 2/2 (`evidence/copilot_tests.txt`); live service not running | BLOCKED | P2 |
+| R-105 | 9 | Shariah Policy Copilot: citations mandatory; cannot issue fatwa | external FastAPI service `shariah-policy-copilot/` | Copilot | - | copilot unit tests 2/2 (`evidence/copilot_tests.txt`); live service not running; live check 2026-10-15 (scripts/copilot_live_check.py): answers carry citations; no evidence gives the fixed fallback; an investor gets 403. The copilot issues no ruling | PASS | - |
 | R-106 | 9 | Contract analyzer: low confidence routes to human | `contract_analyzer.py:114` uses model's self-reported confidence | - | - | none; after fix AI-01: the model's own confidence never clears human review (BT test_a_document_cannot_clear...) | PASS | - |
 | R-107 | 9 | Anomaly detector advisory with reason codes | `anomaly_detector.py` | Anomaly queue | `ExceptionCase` | none direct; after fix: findings recorded with reason code and pending disposition (BT DetectorRecordingTests) | PASS | - |
 | R-108 | 9 | Cash-flow and liquidity forecast with ranges | `pools/liquidity.py` | Liquidity section | - | BT test_liquidity_forecast (3) | PASS | - |
@@ -165,7 +165,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-116 | 9 | Prompt/output logging with masking and retention | `ai_agents/recording.py` | log viewer | - | BT test_masking; retention | PASS | - |
 | R-117 | 9 | Accuracy, drift, bias, hallucination, override, false-positive metrics | acceptance/override/fallback only | Model Governance | - | BT recommendations | PARTIAL | P2 |
 | R-118 | 9 | Role-based copilot access; no cross-tenant retrieval | tenant header; copilot filter | - | - | copilot test_tenant_isolation; AT role matrix | PASS | - |
-| R-119 | 9 | Approved knowledge base only; paragraph-level citations | copilot service | - | - | live service not running | BLOCKED | P2 |
+| R-119 | 9 | Approved knowledge base only; paragraph-level citations | copilot service | - | - | live service not running; live check: answers cite document, section and page from the approved corpus; the approved-corpus-only rule is enforced by the copilot service, not re-tested here; no red-team run | PARTIAL | P2 |
 | R-120 | 9 | Kill switch, safe fallback, manual operating procedure | kill switch, fallback; no manual procedure doc | - | - | BT kill switch test, copilot fallback test | PARTIAL | P3 |
 
 ## Section 10: accounting
@@ -269,15 +269,15 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-185 | 18 | AI validation, red-team, fallback, monitoring | PARTIAL (fallback only) | P2 | copilot tests |
 | R-186 | 19 | Implementation decisions recorded | PASS (documented, sign-offs pending) | P2 | `docs/DECISIONS.md` |
 
-## Totals (R-001..R-186), after all code fixes (2026-10-14)
+## Totals (R-001..R-186), after all code fixes and the live copilot check (2026-10-15)
 
 | Status | Count |
 |---|---|
-| PASS | 97 |
-| PARTIAL | 60 |
+| PASS | 98 |
+| PARTIAL | 61 |
 | FAIL | 0 |
 | MISSING | 9 |
-| BLOCKED | 8 |
+| BLOCKED | 6 |
 | NOT TESTED | 10 |
 | NOT APPLICABLE | 2 |
 | **Total** | **186** |
