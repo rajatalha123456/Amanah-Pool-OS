@@ -101,9 +101,18 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
+        from .shariah import board_size
+
         decision = self.get_object()
         if decision.status == ShariahDecisionStatus.APPROVED:
             raise ValidationError("This decision has already been approved.")
+        # BRD 5 / 8: a ruling is approved by a quorum of the Board, never by one member. The direct approval below exists
+        # only for a tenant whose Board has a single member, where a quorum cannot be formed.
+        if board_size(decision.tenant_id) >= 2:
+            raise ValidationError(
+                "This Board has several members: a ruling is approved by the quorum vote (each member signs), "
+                "not by one member alone."
+            )
         if decision.created_by and decision.created_by == request.user:
             raise ValidationError(
                 "Maker and checker cannot be the same user: the user who drafted this Shariah decision cannot approve it."

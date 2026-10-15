@@ -32,3 +32,34 @@ export async function fetchMyStatements(): Promise<DepositorStatement[]> {
   return response.data
 }
 
+
+export interface NewParticipant {
+  reference: string
+  full_name: string
+  participant_class: string
+  email?: string
+  cnic_ntn?: string
+  iban?: string
+  bank_name?: string
+  tax_status?: string
+}
+
+export async function createParticipant(body: NewParticipant): Promise<Participant> {
+  const response = await apiClient.post<Participant>("participants/participants/", body)
+  return response.data
+}
+
+export async function createParticipantAccount(body: {
+  participant: string
+  pool: string
+  account_number: string
+  opened_date: string
+}): Promise<ParticipantAccount> {
+  const response = await apiClient.post<ParticipantAccount>("participants/accounts/", body)
+  return response.data
+}
+
+export async function linkParticipantLogin(id: string, email: string): Promise<Participant> {
+  const response = await apiClient.post<Participant>(`participants/participants/${id}/link-login/`, { email })
+  return response.data
+}

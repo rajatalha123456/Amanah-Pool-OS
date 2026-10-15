@@ -362,7 +362,7 @@ export function ShariahDecisionDetailModal({
             </Button>
             {decision.status === "draft" && isBoardMember && (
               <Button variant="primary" className="text-xs font-semibold px-3 py-1.5" disabled={isApproving} onClick={handleLegacyApprove}>
-                {isApproving ? <Spinner className="h-4 w-4" /> : "✓ Approve Ruling"}
+                {isApproving ? <Spinner className="h-4 w-4" /> : "✓ Approve (single-member Board only)"}
               </Button>
             )}
           </div>

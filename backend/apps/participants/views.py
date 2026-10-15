@@ -39,6 +39,8 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         if self.action in ("verify_kyc", "reject_kyc"):
             # KYC decisions belong to Risk & Compliance (BRD Section 3).
             return [IsAuthenticated(), HasAnyRole(["risk_compliance"])()]
+        if self.action == "link_login":
+            return [IsAuthenticated(), HasAnyRole(["pool_manager"])()]
         return [IsAuthenticated(), HasAnyRole(READ_ROLES)()]
 
     def perform_create(self, serializer):
@@ -67,6 +69,29 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             changes={"kyc_status": {"before": previous, "after": new_status}},
             reason=request.data.get("note"),
             request=request,
+        )
+        return Response(self.get_serializer(participant).data)
+
+    @action(detail=True, methods=["post"], url_path="link-login")
+    def link_login(self, request, pk=None):
+        """
+        The pool manager gives a depositor / investor a sign-in: the participant is linked to an existing investor-role
+        user of the same tenant, who then sees only this participant's own accounts and statements.
+        """
+        from apps.accounts.models import User
+
+        participant = self.get_object()
+        email = str(request.data.get("email", "")).strip().lower()
+        user = User.objects.filter(tenant=participant.tenant, email__iexact=email, role="investor_member").first()
+        if user is None:
+            raise ValidationError({"email": ["No investor-role user with this email exists in this tenant (create it in Administration first)."]})
+        if Participant.objects.filter(user=user).exclude(pk=participant.pk).exists():
+            raise ValidationError({"email": ["This login is already linked to another participant."]})
+        participant.user = user
+        participant.save(update_fields=["user", "updated_at"])
+        log_action(
+            tenant=participant.tenant, actor=request.user, action="participant_login_linked", model_name="Participant",
+            object_id=str(participant.id), changes={"user": str(user.id)}, request=request,
         )
         return Response(self.get_serializer(participant).data)
 

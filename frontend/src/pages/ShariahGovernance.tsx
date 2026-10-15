@@ -7,7 +7,7 @@ import { Button } from "../components/Button"
 import { Spinner } from "../components/Spinner"
 import { StatCard } from "../components/StatCard"
 import { useAuth } from "../api/auth"
-import { approveShariahDecision, fetchShariahDashboard, fetchShariahDecisions } from "../api/shariahGovernance"
+import { fetchShariahDashboard, fetchShariahDecisions } from "../api/shariahGovernance"
 import {
   fetchExceptions,
   startInvestigation,
@@ -462,7 +462,7 @@ function FatwaRegisterTab() {
   const [selectedDecision, setSelectedDecision] = useState<ShariahDecision | null>(null)
   const [editingDecision, setEditingDecision] = useState<ShariahDecision | null>(null)
   const [deletingDecision, setDeletingDecision] = useState<ShariahDecision | null>(null)
-  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [approvingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchShariahDecisions()
@@ -479,22 +479,6 @@ function FatwaRegisterTab() {
   function handleCreated(decision: ShariahDecision) {
     setDecisions((prev) => [decision, ...prev])
     setIsNewOpen(false)
-  }
-
-  async function handleApprove(decision: ShariahDecision) {
-    setApprovingId(decision.id)
-    setError("")
-    try {
-      const updated = await approveShariahDecision(decision.id)
-      setDecisions((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
-      if (selectedDecision?.id === updated.id) {
-        setSelectedDecision(updated)
-      }
-    } catch (err) {
-      setError(extractErrorMessage(err, "Unable to approve this decision."))
-    } finally {
-      setApprovingId(null)
-    }
   }
 
   function exportCSV() {
@@ -647,9 +631,10 @@ function FatwaRegisterTab() {
                                 variant="primary"
                                 className="text-xs py-1 px-2.5"
                                 disabled={approvingId === item.id}
-                                onClick={() => handleApprove(item)}
+                                onClick={() => setSelectedDecision(item)}
+                                title="A ruling is approved by the Board quorum: open it and sign your vote."
                               >
-                                {approvingId === item.id ? <Spinner className="h-4 w-4" /> : "Approve"}
+                                {approvingId === item.id ? <Spinner className="h-4 w-4" /> : "Review & sign"}
                               </Button>
                             )
                           )}

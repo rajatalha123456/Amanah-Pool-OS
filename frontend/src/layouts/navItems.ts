@@ -48,7 +48,7 @@ export const navItems: RoleNavItem[] = [
     roles: ["auditor", "risk_compliance", "pool_manager", "finance_checker", "shariah_board"],
   },
   {
-    label: "Governance Config", labelKey: "nav.governanceConfig", path: "/governance-config",
+    label: "Governance Config", labelKey: "nav.governanceConfig", path: "/governance-config", also: ["/jurisdiction-rule-packs"],
     roles: ["risk_compliance", "finance_maker", "finance_checker", "pool_manager", "auditor"],
   },
   { label: "Administration", labelKey: "nav.administration", path: "/administration", roles: ["platform_super_admin"] },

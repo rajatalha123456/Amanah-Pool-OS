@@ -29,8 +29,7 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
   const { user } = useAuth()
   const canManage =
     user?.role === "platform_super_admin" ||
-    user?.role === "compliance_officer" ||
-    user?.role === "risk_manager"
+    user?.role === "risk_compliance"
 
   const isAdmin = user?.role === "platform_super_admin"
   const [rulePacks, setRulePacks] = useState<JurisdictionRulePack[]>([])

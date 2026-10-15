@@ -27,7 +27,8 @@ class ParticipantSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         # KYC status only changes through the dedicated verify/reject actions.
-        read_only_fields = ("id", "tenant", "kyc_status", "created_at", "updated_at")
+        # The login is attached only through the link-login action (same tenant, investor role); it is never set from a payload.
+        read_only_fields = ("id", "tenant", "kyc_status", "user", "created_at", "updated_at")
 
     def validate_reference(self, value):
         # The tenant-scoped manager already limits this to the current tenant.
