@@ -1001,6 +1001,7 @@ export interface CreateNAVSnapshotInput {
   pool: string
   valuation_date: string
   total_pool_value: string
+  launch_nav_per_unit?: string
 }
 
 export interface CircleMember {

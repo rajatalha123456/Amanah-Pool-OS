@@ -270,8 +270,189 @@ class FromScratch(APITestCase):
         self.assertTrue(len(mine) >= 1)
         return rid
 
+    def phase_e_community_circle(self):
+        """A rotating savings circle (Qard) from nothing: ruling, product, pool, rules, members, contributions, draw, payout, closure."""
+        from apps.tenants.models import LegalEntity
+
+        ruling = {"decision_code": "FATWA-C-001", "title": "Qard-based rotating savings circle", "decision_type": "product_approval",
+                  "description": "A circle in which members lend each other in turn and no one receives more than the pot collected.",
+                  "fiqh_reference": "AAOIFI Shariah Standard No. 19 (Qard)", "mandatory_caveats": "No interest, late charge or uplift.",
+                  "effective_date": "2026-01-01"}
+        d = self.call("secretariat", "post", "/api/v1/products/shariah-decisions/", ruling, expect=201).data["id"]
+        vote = {"vote": "approve", "fiqh_opinion_notes": "Qard without benefit"}
+        self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
+            "name": "Qard Circle Charter", "contract_type": "qard", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+        self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
+        prod = self.call("pm", "post", "/api/v1/products/products/", {
+            "name": "Neighbourhood Circle", "code": "CIRCLE-1", "operating_model": "community_circle", "contract_template": ct["id"],
+            "base_currency": "PKR", "eligible_asset_types": [], "minimum_subscription": "1000.00"}, expect=201).data
+        self.call("pm", "post", f"/api/v1/products/products/{prod['id']}/submit-for-review/", expect=200)
+        self.call("board", "post", f"/api/v1/products/products/{prod['id']}/approve/", expect=200)
+        entity = LegalEntity.objects.filter(tenant=self.tenant).first()
+        pool = self.call("poolmanager", "post", "/api/v1/pools/pools/", {
+            "name": "Neighbourhood Circle 2026", "code": "CIR-2026", "product": prod["id"], "effective_date": "2026-01-01",
+            "legal_entity": str(entity.id), "branch": "Main Branch", "timezone": "Asia/Karachi", "calendar": "daily"}, expect=201).data
+        pid = pool["id"]
+        ready = self.call("poolmanager", "get", f"/api/v1/pools/pools/{pid}/activation-readiness/", expect=200).data
+        self.call("poolmanager", "post", f"/api/v1/pools/pools/{pid}/submit-for-approval/", expect=200)
+        self.call("board", "post", f"/api/v1/pools/pools/{pid}/approve/", expect=200)
+        self.call("checker", "post", f"/api/v1/pools/pools/{pid}/open/", expect=200)
+
+        # Rules first: the organizer publishes them, then members are recorded as having accepted them.
+        self.refused("maker", "post", "/api/v1/circles/rules/publish/", {"pool": pid, "contribution_amount": "10000", "cycle_days": 30})
+        self.call("poolmanager", "post", "/api/v1/circles/rules/publish/", {
+            "pool": pid, "contribution_amount": "10000.00", "cycle_days": 30, "first_due_date": "2026-02-01",
+            "order_policy": "Random provably fair draw", "hardship_policy": "Deferral without any charge"}, expect=201)
+        members = []
+        for n in (1, 2, 3):
+            m = self.call("poolmanager", "post", "/api/v1/circles/circle-members/", {
+                "pool": pid, "member_name": f"Member {n}", "member_reference": f"M-{n}", "joined_date": "2026-01-15",
+                "email": f"m{n}@example.test", "iban": f"PK00TEST00000000000010{n}", "bank_name": "Test Bank"}, expect=201).data["id"]
+            self.refused("maker", "post", f"/api/v1/circles/circle-members/{m}/verify-kyc/", {})
+            self.call("risk", "post", f"/api/v1/circles/circle-members/{m}/verify-kyc/", {}, expect=200)
+            self.call("poolmanager", "post", "/api/v1/circles/rules/accept/", {"member": m, "method": "in_person", "evidence_reference": f"SIGN-{n}"}, expect=201)
+            members.append(m)
+
+        # The draw fixes the order: commit first (the organizer cannot see the result), then execute with a client seed.
+        draw = self.call("poolmanager", "post", "/api/v1/circles/draws/commit/", {"pool": pid}, expect=201).data
+        self.call("poolmanager", "post", f"/api/v1/circles/draws/{draw['id']}/execute/", {"client_seed": "witness-seed-1"}, expect=200)
+        self.assertTrue(self.call("auditor", "get", f"/api/v1/circles/draws/{draw['id']}/verify/", expect=200).data)
+
+        # Cycle 1: every member pays in (maker records from the bank receipt), then the draw winner of turn 1 is paid.
+        for m in members:
+            self.refused("poolmanager", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {"amount": "10000.00", "contribution_date": "2026-02-01", "cycle_number": 1})
+            self.call("maker", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {
+                "amount": "10000.00", "contribution_date": "2026-02-01", "cycle_number": 1, "payment_reference": f"RAAST-{m[:6]}"}, expect=[200, 201])
+        roster = self.call("poolmanager", "get", f"/api/v1/circles/circle-members/?pool={pid}", expect=200).data
+        rows = roster if isinstance(roster, list) else roster["results"]
+        first = [r for r in rows if r["payout_position"] == 1][0]
+        req = self.call("poolmanager", "post", f"/api/v1/circles/payouts/request-payout/{pid}/", {
+            "member_id": first["id"], "cycle_number": 1, "settlement_rail": "internal_book", "payout_date": "2026-02-02"}, expect=201).data
+        self.assertEqual(req["amount"], "30000.00", "the payout is exactly the pot collected, nothing more")
+        self.refused("poolmanager", "post", f"/api/v1/circles/payouts/{req['id']}/approve/")
+        self.call("checker", "post", f"/api/v1/circles/payouts/{req['id']}/approve/", expect=200)
+        self.call("maker", "post", f"/api/v1/circles/payouts/{req['id']}/settle/", {}, expect=200)
+        return pid, members
+
+    def phase_f_investment_pool(self):
+        """An investment (unit/NAV) pool from nothing: ruling, product, pool, investor, disclosure, NAV, subscription, profit."""
+        from apps.tenants.models import LegalEntity
+
+        ruling = {"decision_code": "FATWA-I-001", "title": "Unrestricted Mudarabah investment pool", "decision_type": "product_approval",
+                  "description": "Investors subscribe at published NAV; profit is shared by the approved ratio.",
+                  "fiqh_reference": "AAOIFI Shariah Standard No. 13", "mandatory_caveats": "Loss is borne by investors except for negligence.",
+                  "effective_date": "2026-01-01"}
+        d = self.call("secretariat", "post", "/api/v1/products/shariah-decisions/", ruling, expect=201).data["id"]
+        vote = {"vote": "approve", "fiqh_opinion_notes": "Compliant"}
+        self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
+            "name": "Investment Mudarabah Charter", "contract_type": "mudarabah_unrestricted", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+        self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
+        prod = self.call("pm", "post", "/api/v1/products/products/", {
+            "name": "Growth Investment Pool", "code": "INV-1", "operating_model": "investment_pool", "contract_template": ct["id"],
+            "base_currency": "PKR", "eligible_asset_types": ["murabahah"], "minimum_subscription": "1000.00"}, expect=201).data
+        self.call("pm", "post", f"/api/v1/products/products/{prod['id']}/submit-for-review/", expect=200)
+        self.call("board", "post", f"/api/v1/products/products/{prod['id']}/approve/", expect=200)
+        entity = LegalEntity.objects.filter(tenant=self.tenant).first()
+        pool = self.call("poolmanager", "post", "/api/v1/pools/pools/", {
+            "name": "Growth Investment Pool 2026", "code": "INV-2026", "product": prod["id"], "effective_date": "2026-01-01",
+            "legal_entity": str(entity.id), "branch": "Main Branch", "timezone": "Asia/Karachi", "calendar": "mon_fri"}, expect=201).data
+        pid = pool["id"]
+        ready = self.call("poolmanager", "get", f"/api/v1/pools/pools/{pid}/activation-readiness/", expect=200).data
+        missing = [c["key"] for c in ready.get("checks", []) if not c["passed"]]
+        psr = self.call("poolmanager", "post", "/api/v1/allocation/psr-schedules/", {
+            "pool": pid, "depositor_share": "80.00", "mudarib_share": "20.00", "effective_from": "2026-01-01"}, expect=201).data
+        self.call("board", "post", f"/api/v1/allocation/psr-schedules/{psr['id']}/approve/", expect=200)
+        self.call("poolmanager", "post", f"/api/v1/pools/pools/{pid}/submit-for-approval/", expect=200)
+        self.call("board", "post", f"/api/v1/pools/pools/{pid}/approve/", expect=200)
+        self.call("checker", "post", f"/api/v1/pools/pools/{pid}/open/", expect=200)
+
+        # Investor: capital account, profile (suitability), KYC by Risk.
+        acct = self.call("poolmanager", "post", "/api/v1/investments/capital-accounts/", {
+            "pool": pid, "investor_name": "Tariq Investor", "investor_reference": "INV-001"}, expect=201).data["id"]
+        prof = self.call("maker", "post", "/api/v1/investments/investor-profiles/", {
+            "capital_account": acct, "id_document_type": "cnic", "id_document_number": "35202-3333333-3",
+            "date_of_birth": "1985-05-05", "address": "Lahore", "risk_tolerance": "moderate",
+            "suitability_assessment_notes": "Understands capital is at risk"}, expect=201).data["id"]
+        self.refused("maker", "post", f"/api/v1/investments/investor-profiles/{prof}/verify-kyc/", {"kyc_status": "verified"})
+        self.call("risk", "post", f"/api/v1/investments/investor-profiles/{prof}/verify-kyc/", {"kyc_status": "verified"}, expect=200)
+
+        # No subscription before the disclosure is prepared, validated by someone else, and acknowledged.
+        self.refused("maker", "post", f"/api/v1/investments/capital-accounts/{acct}/subscribe/", {"amount": "100000.00", "transaction_date": "2026-02-02"})
+        disc = self.call("poolmanager", "post", "/api/v1/investments/disclosures/publish/", {
+            "pool": pid, "risk_warnings": "Capital is at risk; returns are not guaranteed.", "fee_statement": "Fees are the stated profit share only.",
+            "summary": "Unrestricted Mudarabah pool"}, expect=201).data
+        self.refused("poolmanager", "post", f"/api/v1/investments/disclosures/{disc['id']}/approve/")
+        self.call("risk", "post", f"/api/v1/investments/disclosures/{disc['id']}/approve/", expect=200)
+        self.call("maker", "post", f"/api/v1/investments/disclosures/{disc['id']}/acknowledge/", {
+            "capital_account": acct, "method": "in_person", "evidence_reference": "FORM-1", "risk_acknowledged": True}, expect=201)
+
+        # NAV: the maker proposes the pool value, a different checker publishes it.
+        # The first NAV of an empty pool is a launch price (nothing to divide by yet); without it the request is refused.
+        self.refused("maker", "post", "/api/v1/investments/nav-snapshots/", {"pool": pid, "valuation_date": "2026-02-01", "total_pool_value": "0.00"})
+        nav = self.call("maker", "post", "/api/v1/investments/nav-snapshots/", {
+            "pool": pid, "valuation_date": "2026-02-01", "total_pool_value": "0.00", "launch_nav_per_unit": "10.00"}, expect=201).data
+        self.refused("maker", "post", f"/api/v1/investments/nav-snapshots/{nav['id']}/publish/")
+        self.call("checker", "post", f"/api/v1/investments/nav-snapshots/{nav['id']}/publish/", expect=200)
+        sub = self.call("maker", "post", f"/api/v1/investments/capital-accounts/{acct}/subscribe/", {"amount": "100000.00", "transaction_date": "2026-02-02"}, expect=[200, 201]).data
+        # Month end: the maker records pool income, the next NAV reflects it, and the profit is shared by the 4-person ceremony.
+        ev = self.call("maker", "post", "/api/v1/accounting/income-expense-events/", {
+            "pool": pid, "event_type": "income", "category": "Financing Profit", "amount": "5000.00",
+            "event_date": "2026-02-20", "description": "Murabaha profit"}, expect=201).data
+        self.call("checker", "post", f"/api/v1/accounting/income-expense-events/{ev['id']}/post/", expect=200)
+        nav2 = self.call("maker", "post", "/api/v1/investments/nav-snapshots/", {"pool": pid, "valuation_date": "2026-02-28", "total_pool_value": "105000.00"}, expect=201).data
+        self.call("checker", "post", f"/api/v1/investments/nav-snapshots/{nav2['id']}/publish/", expect=200)
+        body = {"pool": pid, "period_start": "2026-02-01", "period_end": "2026-02-28", "gross_income": "5000.00", "direct_expenses": "0.00"}
+        run = self.call("maker", "post", "/api/v1/investments/distribution-runs/", body, expect=201).data
+        base = f"/api/v1/investments/distribution-runs/{run['id']}"
+        self.call("maker", "post", f"{base}/submit-for-checking/", expect=200)
+        self.refused("maker", "post", f"{base}/check/")
+        self.call("checker", "post", f"{base}/check/", expect=200)
+        self.refused("signatory", "post", f"{base}/approve/")
+        self.call("secretariat", "post", f"{base}/shariah-sign-off/", {"note": "Reviewed"}, expect=200)
+        self.call("signatory", "post", f"{base}/approve/", expect=200)
+        return pid, acct, missing
+
+    def phase_g_ledger_and_close(self, pid):
+        """After the run: hand the journals to the GL, check the trial balance, park a difference, close the period."""
+        base = "/api/v1/accounting"
+        pending = self.call("maker", "get", f"{base}/gl-exports/pending-batches/?pool={pid}", expect=200).data
+        self.assertGreaterEqual(pending["pending_batches"], 1, "the signed run's journal is waiting to go to the GL")
+        self.refused("checker", "post", f"{base}/gl-exports/", {"pool": pid})
+        export = self.call("maker", "post", f"{base}/gl-exports/", {"pool": pid}, expect=201).data
+        self.refused("maker", "post", f"{base}/gl-exports/{export['id']}/confirm/", {"gl_reference": "GL-001"})
+        self.call("checker", "post", f"{base}/gl-exports/{export['id']}/confirm/", {"gl_reference": "GL-001"}, expect=200)
+        tb = self.call("checker", "get", f"{base}/trial-balance/?pool={pid}", expect=200).data
+        self.assertTrue(tb.get("balanced", True), tb)
+
+        item = self.call("maker", "post", f"{base}/suspense-items/", {
+            "pool": pid, "side": "unidentified_receipt", "amount": "150.00", "description": "Unmatched bank receipt", "reference": "BANK-77"}, expect=201).data
+        self.refused("maker", "post", f"{base}/suspense-items/{item['id']}/approve/")
+        self.call("checker", "post", f"{base}/suspense-items/{item['id']}/approve/", expect=200)
+
+        pc = self.call("poolmanager", "post", "/api/v1/pools/period-closes/", {"pool": pid, "period_start": "2026-01-01", "period_end": "2026-01-31"}, expect=201).data
+        gates = self.call("checker", "post", f"/api/v1/pools/period-closes/{pc['id']}/auto-verify-gates/", expect=200).data
+        sign = f"/api/v1/pools/period-closes/{pc['id']}/sign-off-role/"
+        self.refused("checker", "post", sign, {"role": "cfo_checker"})  # the pool manager signs first
+        self.call("poolmanager", "post", sign, {"role": "pool_manager", "notes": "Checked"}, expect=200)
+        self.refused("poolmanager", "post", sign, {"role": "shariah_reviewer", "fatwa_ref": "FATWA-T-001"})  # wrong role
+        self.refused("secretariat", "post", sign, {"role": "shariah_reviewer"})  # the ruling must be cited
+        self.call("secretariat", "post", sign, {"role": "shariah_reviewer", "fatwa_ref": "FATWA-T-001", "notes": "Reviewed"}, expect=200)
+        self.call("checker", "post", sign, {"role": "cfo_checker", "notes": "Figures agree"}, expect=200)
+        self.call("signatory", "post", f"/api/v1/pools/period-closes/{pc['id']}/lock-ceremony/", {"lock_note": "January closed"}, expect=200)
+        # A back-dated event in the closed period is refused: it needs a restatement.
+        self.refused("maker", "post", "/api/v1/accounting/income-expense-events/", {
+            "pool": pid, "event_type": "income", "category": "Financing Profit", "amount": "10.00", "event_date": "2026-01-10", "description": "late"})
+        return gates
+
     def test_full_lifecycle(self):
         self.phase_a_foundation()
         self.pool_id = self.phase_b_product_and_pool()
         self.people = self.phase_c_bank_pool_operations(self.pool_id)
         self.run_id = self.phase_d_profit_run(self.pool_id, self.people)
+        self.gates = self.phase_g_ledger_and_close(self.pool_id)
+        self.circle = self.phase_e_community_circle()
+        self.investment = self.phase_f_investment_pool()

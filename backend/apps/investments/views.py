@@ -640,14 +640,40 @@ class NAVSnapshotViewSet(
             return [IsAuthenticated(), IsFinanceChecker()]
         return [IsAuthenticated()]
 
+    def _launch_nav(self, pool, total_pool_value):
+        """
+        The very first NAV of a new pool. With no units outstanding there is nothing to divide by, and no subscription can
+        happen before a published NAV exists, so the opening unit price is set explicitly (e.g. PKR 10 per unit) in
+        `launch_nav_per_unit`. It is still a maker's draft that a different checker publishes, and it is only possible while
+        the pool has no published NAV and no units at all. Returns None when this is not a launch NAV.
+        """
+        units = sum(
+            CapitalAccount.objects.filter(pool=pool, status=CapitalAccountStatus.ACTIVE).values_list("units_held", flat=True),
+            Decimal("0"),
+        )
+        if units != 0 or NAVSnapshot.objects.filter(pool=pool, status=NAVSnapshotStatus.PUBLISHED).exists():
+            return None
+        try:
+            price = Decimal(str(self.request.data.get("launch_nav_per_unit")))
+        except (ArithmeticError, TypeError, ValueError):
+            raise ValidationError({"launch_nav_per_unit": [
+                "This pool has no units yet: enter the opening price per unit to launch it (for example 10.00)."]})
+        if price <= 0:
+            raise ValidationError({"launch_nav_per_unit": ["The opening price must be positive."]})
+        if Decimal(total_pool_value) != 0:
+            raise ValidationError({"total_pool_value": ["A launch NAV is for a pool with no money in it yet: enter 0."]})
+        return {"total_units_outstanding": Decimal("0"), "nav_per_unit": price.quantize(Decimal("0.000001"))}
+
     def perform_create(self, serializer):
         pool = serializer.validated_data["pool"]
         total_pool_value = serializer.validated_data["total_pool_value"]
 
-        try:
-            result = calculate_nav(pool, total_pool_value)
-        except ValueError as exc:
-            raise ValidationError(str(exc)) from exc
+        result = self._launch_nav(pool, total_pool_value)
+        if result is None:
+            try:
+                result = calculate_nav(pool, total_pool_value)
+            except ValueError as exc:
+                raise ValidationError(str(exc)) from exc
 
         instance = serializer.save(
             tenant=self.request.user.tenant,

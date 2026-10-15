@@ -1,6 +1,6 @@
 # Khali system se poori workflow: kaun kya karega, kis tarteeb mein
 
-Yeh guide ek **bilkul khali database** se shuru hoti hai. Har qadam mein likha hai: kaun sa user, kaun si screen/tab, kya bharna hai, aur kya nazar aana chahiye. Bank-pool wali tarteeb (Hissa 0 se Hissa 6) `backend/apps/core/test_from_scratch.py` mein **code se chala kar verify** ki gayi hai (tenant khali, har qadam ka role, aur har "yeh role nahi kar sakta" wala qadam bhi refuse hota hai). Investment pool aur Circle wale hisse (Hissa 7, 8) abhi khali system se end-to-end verify **nahi** hue; woh `SYSTEM_GUIDE_AND_TEST_WALKTHROUGH.md` ke Test 8 aur Test 15 ke mutabiq chalein, aur jo ruke woh mujhe batayein.
+Yeh guide ek **bilkul khali database** se shuru hoti hai. Har qadam mein likha hai: kaun sa user, kaun si screen/tab, kya bharna hai, aur kya nazar aana chahiye. Bank-pool wali tarteeb (Hissa 0 se Hissa 6) `backend/apps/core/test_from_scratch.py` mein **code se chala kar verify** ki gayi hai (tenant khali, har qadam ka role, aur har "yeh role nahi kar sakta" wala qadam bhi refuse hota hai). Hissa 7, 8, 9 (GL/period close, Circle, Investment pool) bhi ab khali system se API par verify ho chuke hain. Redemption aur circle closure abhi baaki hain.
 
 ## Hissa 0: Database saaf karna
 
@@ -55,11 +55,27 @@ Nazar aana chahiye: teen approval rules, ek default rule pack, har catalog accou
 2. **Pool Manager** → Participants → us participant par **Link login** → woh email dalein. Ek login sirf ek participant se jur sakta hai.
 3. Us investor se login karein: home par Investor Portal, sirf apne accounts aur statements (`my-statements`).
 
-## Hissa 7: GL, journal, period close
-**Finance Maker/Checker** → Finance & Ledger: *Journal Batches* (run ke baad journal), *GL Hand-over & Trial Balance* (export banao → bank ka GL confirm kare → trial balance), *Suspense*. **Period Close** (Daily Operations) mahine ke akhir mein. Yeh hissa abhi sirf unit tests aur Test 10/11 se cover hai, khali system se end-to-end nahi.
+## Hissa 7: GL, suspense, period close (code se khali system par verify hua)
+1. **Finance Maker** → Finance & Ledger → *GL Hand-over*: pending batches dekhein, **Generate export**. **Finance Checker** (maker nahi) GL ka jawab record kare: **Confirm** (GL reference ke saath) ya Reject (wajah ke saath). Phir *Trial Balance*: debit = credit.
+2. **Suspense**: Maker kisi na-mile paise ko propose kare (side: unidentified receipt / unexplained shortfall, amount, wajah, reference); Checker approve kare tab journal banta hai.
+3. **Period close** (Daily Operations → Period Close & Locking): Pool Manager period banaye → *Auto-verify gates* → tarteeb se sign-offs: **Pool Manager** pehle, phir **Shariah reviewer** (Secretariat/Board; fatwa reference lazmi), phir **CFO checker** (Finance Checker). Teeno alag log. Phir **Finance Checker ya Authorized Signatory** *Lock ceremony*. Lock ke baad us period mein back-dated entry refuse hoti hai (restatement chahiye).
 
-## Hissa 8: Doosre models (abhi unverified from empty)
-Investment pool (Investments: Investor Onboarding → Capital Accounts → Subscription → NAV → Profit Distribution) aur Community Circle (Circle Setup → Member Roster → Contributions → Draw → Payout Ceremony → Closure) ke liye `SYSTEM_GUIDE_AND_TEST_WALKTHROUGH.md` Test 8 aur 15 dekhein. Is dauran jo screen khali dikhe ya button gayab ho, woh batayein: wahi asli gap hai.
+## Hissa 8: Community Circle (Qard), khali system se verify hua
+1. **Secretariat** ruling draft → **Board A, B** quorum vote. 2. **PM** contract template (type Qard) → **Board** approve. 3. **PM** product (model *community_circle*) → review → **Board** approve. 4. **Pool Manager** pool banaye → submit → **Board** approve → **Finance Checker** open (circle ko PSR/weightage nahi chahiye).
+5. **Pool Manager**: *Rules publish* (contribution amount, cycle days, pehli due date). 6. Har member: **Pool Manager** create → **Risk** KYC verify → **Pool Manager** rules acceptance record kare (dastakhat ka saboot). Member ko login dena ho to Member Roster par **Link login**.
+7. **Draw**: Pool Manager *commit* (result chhupa hota hai) → *execute* (client seed ke saath); Auditor *verify* kar sakta hai.
+8. **Contribution**: sirf **Finance Maker** record karta hai (bank/Raast ki payment reference lazmi). Pool Manager khud nahi kar sakta.
+9. **Payout**: Pool Manager/Maker request (amount hamesha jama shuda pot ke barabar), **Finance Checker** approve (requester nahi), Maker/Checker *Settle*.
+Closure (prepare → Finance Checker close) saare cycles ke baad; yeh hissa abhi sirf pehle cycle tak verify hua.
+
+## Hissa 9: Investment Pool (NAV), khali system se verify hua
+1. Shariah ruling, template (Mudarabah), product (model *investment_pool*), pool, PSR (Board approve), open: bank pool jaisa hi (Hissa 3-4), weightage ki zaroorat nahi.
+2. **Pool Manager** *Capital account* banaye; **Finance Maker** investor profile (ID, suitability); **Risk** KYC verify.
+3. **Disclosure**: Pool Manager/PM *prepare*, **Risk ya Board** (doosra banda) *approve*, phir Maker/PM investor ka *acknowledge* record kare (in-person, risk acknowledged). Iske baghair subscription refuse.
+4. **Pehla NAV**: nayi pool mein koi unit nahi, isliye Maker NAV screen par *Total Pool Asset Value = 0* aur **Opening price per unit** (jaise 10.00) bhare; **Finance Checker** publish kare. (Yeh option is dauran naya banaya gaya: pehle pehli subscription mumkin hi nahi thi.)
+5. **Finance Maker** *Subscribe* (amount, date). Units NAV ke hisaab se milte hain.
+6. Mahine ke aakhir mein: income event (Maker) → post (Checker); naya NAV (value ke saath); phir **Profit Distribution** ceremony: Maker run → Maker *submit* → Checker *check* → Shariah *sign-off* → Authorized Signatory *approve*.
+Redemption (request → Finance Checker approve) is flow mein abhi nahi chalaya gaya.
 
 ## Kaun kya NAHI kar sakta (jaldi check karne ke liye)
 | Koshish | Nateeja |

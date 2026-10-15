@@ -11,6 +11,7 @@ import { useAuth } from "../api/auth"
 import { useHasRole } from "../components/RoleGate"
 import {
   createCircleMember,
+  linkCircleMemberLogin,
   fetchArrearsRecordsForPool,
   fetchCircleMembers,
   fetchContributionsForPool,
@@ -178,6 +179,21 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false)
+  const [linkMember, setLinkMember] = useState<CircleMember | null>(null)
+  const [linkEmail, setLinkEmail] = useState("")
+  const [linkError, setLinkError] = useState("")
+
+  async function submitLink() {
+    if (!linkMember) return
+    try {
+      await linkCircleMemberLogin(linkMember.id, linkEmail)
+      setLinkMember(null)
+      setLinkEmail("")
+      setLinkError("")
+    } catch (error) {
+      setLinkError(extractErrorMessage(error, "Could not link the login."))
+    }
+  }
   const [isDrawConfirmOpen, setIsDrawConfirmOpen] = useState(false)
   const [rules, setRules] = useState<Awaited<ReturnType<typeof fetchRulesSummary>> | null>(null)
   const [terms, setTerms] = useState<PoolTerms | null>(null)
@@ -382,6 +398,15 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
       header: "Actions",
       accessor: (member) => (
         <div className="flex items-center gap-2">
+          {user?.role === "pool_manager" && (
+            <button
+              type="button"
+              onClick={() => { setLinkMember(member); setLinkEmail(""); setLinkError("") }}
+              className="rounded border border-white/10 px-2 py-1 text-xs text-ink-secondary hover:border-emerald-500 hover:text-emerald-400"
+            >
+              Link login
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setContributionModalMember(member)}
@@ -543,6 +568,21 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
           {/* ========================================================================= */}
           {/* SCREEN 24: Member Roster (PDF Page 25)                                   */}
           {/* ========================================================================= */}
+          {linkMember && (
+            <Modal title={`Link login - ${linkMember.member_name}`} onClose={() => setLinkMember(null)}>
+              <div className="space-y-3">
+                <label className="block text-sm">
+                  Email of the member login (create it first in Administration, role Investor / member)
+                  <input className="mt-1 w-full rounded border border-white/10 bg-transparent p-2" value={linkEmail} onChange={(e) => setLinkEmail(e.target.value)} />
+                </label>
+                {linkError && <p className="text-sm text-red-400">{linkError}</p>}
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setLinkMember(null)}>Cancel</Button>
+                  <Button variant="primary" onClick={() => void submitLink()}>Save</Button>
+                </div>
+              </div>
+            </Modal>
+          )}
           {activeTab === "roster" && (
             <Card>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

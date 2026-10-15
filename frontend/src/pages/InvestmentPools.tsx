@@ -496,6 +496,7 @@ export function InvestmentPools() {
         pool: selectedPoolId,
         valuation_date: String(form.get("valuation_date")),
         total_pool_value: String(form.get("total_pool_value")),
+        ...(form.get("launch_nav_per_unit") ? { launch_nav_per_unit: String(form.get("launch_nav_per_unit")) } : {}),
       })
       await refreshInvestmentData()
       setActionSuccess("Draft NAV Snapshot created. Awaiting Finance Checker publication.")
@@ -1928,6 +1929,18 @@ export function InvestmentPools() {
                 min="0"
                 required
                 placeholder="e.g. 120000000.00"
+                className={inputClasses}
+              />
+            </label>
+
+            <label className={labelClasses}>
+              Opening price per unit (only for a brand-new pool with no units; enter 0 as the asset value above)
+              <input
+                name="launch_nav_per_unit"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 10.00"
                 className={inputClasses}
               />
             </label>
