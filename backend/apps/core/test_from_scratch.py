@@ -320,20 +320,31 @@ class FromScratch(APITestCase):
         self.call("poolmanager", "post", f"/api/v1/circles/draws/{draw['id']}/execute/", {"client_seed": "witness-seed-1"}, expect=200)
         self.assertTrue(self.call("auditor", "get", f"/api/v1/circles/draws/{draw['id']}/verify/", expect=200).data)
 
-        # Cycle 1: every member pays in (maker records from the bank receipt), then the draw winner of turn 1 is paid.
-        for m in members:
-            self.refused("poolmanager", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {"amount": "10000.00", "contribution_date": "2026-02-01", "cycle_number": 1})
-            self.call("maker", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {
-                "amount": "10000.00", "contribution_date": "2026-02-01", "cycle_number": 1, "payment_reference": f"RAAST-{m[:6]}"}, expect=[200, 201])
-        roster = self.call("poolmanager", "get", f"/api/v1/circles/circle-members/?pool={pid}", expect=200).data
-        rows = roster if isinstance(roster, list) else roster["results"]
-        first = [r for r in rows if r["payout_position"] == 1][0]
-        req = self.call("poolmanager", "post", f"/api/v1/circles/payouts/request-payout/{pid}/", {
-            "member_id": first["id"], "cycle_number": 1, "settlement_rail": "internal_book", "payout_date": "2026-02-02"}, expect=201).data
-        self.assertEqual(req["amount"], "30000.00", "the payout is exactly the pot collected, nothing more")
-        self.refused("poolmanager", "post", f"/api/v1/circles/payouts/{req['id']}/approve/")
-        self.call("checker", "post", f"/api/v1/circles/payouts/{req['id']}/approve/", expect=200)
-        self.call("maker", "post", f"/api/v1/circles/payouts/{req['id']}/settle/", {}, expect=200)
+        # Three cycles (one per member): everyone pays in, then the member whose turn it is receives exactly the pot.
+        for cycle in (1, 2, 3):
+            day = f"2026-0{cycle + 1}-01"
+            for m in members:
+                if cycle == 1:
+                    self.refused("poolmanager", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {"amount": "10000.00", "contribution_date": day, "cycle_number": cycle})
+                self.call("maker", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {
+                    "amount": "10000.00", "contribution_date": day, "cycle_number": cycle, "payment_reference": f"RAAST-{cycle}-{m[:6]}"}, expect=[200, 201])
+            roster = self.call("poolmanager", "get", f"/api/v1/circles/circle-members/?pool={pid}", expect=200).data
+            rows = roster if isinstance(roster, list) else roster["results"]
+            turn = [r for r in rows if r["payout_position"] == cycle][0]
+            req = self.call("poolmanager", "post", f"/api/v1/circles/payouts/request-payout/{pid}/", {
+                "member_id": turn["id"], "cycle_number": cycle, "settlement_rail": "internal_book", "payout_date": f"2026-0{cycle + 1}-02"}, expect=201).data
+            self.assertEqual(req["amount"], "30000.00", "the payout is exactly the pot collected, nothing more")
+            if cycle == 1:
+                self.refused("poolmanager", "post", f"/api/v1/circles/payouts/{req['id']}/approve/")
+            self.call("checker", "post", f"/api/v1/circles/payouts/{req['id']}/approve/", expect=200)
+            self.call("maker", "post", f"/api/v1/circles/payouts/{req['id']}/settle/", {}, expect=200)
+
+        # Closure: collected equals disbursed, the organizer prepares, a finance checker closes.
+        preview = self.call("poolmanager", "get", f"/api/v1/circles/closures/preview/?pool={pid}", expect=200).data
+        self.call("poolmanager", "post", "/api/v1/circles/closures/prepare/", {"pool": pid, "resolution_note": "All cycles paid"}, expect=201)
+        self.refused("poolmanager", "post", "/api/v1/circles/closures/close/", {"pool": pid})
+        closed = self.call("checker", "post", "/api/v1/circles/closures/close/", {"pool": pid}, expect=200).data
+        self.assertEqual(closed["difference"], "0.00", preview)
         return pid, members
 
     def phase_f_investment_pool(self):
@@ -414,6 +425,12 @@ class FromScratch(APITestCase):
         self.refused("signatory", "post", f"{base}/approve/")
         self.call("secretariat", "post", f"{base}/shariah-sign-off/", {"note": "Reviewed"}, expect=200)
         self.call("signatory", "post", f"{base}/approve/", expect=200)
+
+        # Redemption: the investor's units go back at the published NAV; a different finance checker approves.
+        red = self.call("maker", "post", f"/api/v1/investments/capital-accounts/{acct}/redeem/", {
+            "units_redeemed": "1000.000000", "transaction_date": "2026-03-02"}, expect=[200, 201]).data
+        self.refused("maker", "post", f"/api/v1/investments/redemptions/{red['id']}/approve/")
+        self.call("checker", "post", f"/api/v1/investments/redemptions/{red['id']}/approve/", expect=200)
         return pid, acct, missing
 
     def phase_g_ledger_and_close(self, pid):

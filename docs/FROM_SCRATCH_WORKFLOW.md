@@ -1,6 +1,6 @@
 # Khali system se poori workflow: kaun kya karega, kis tarteeb mein
 
-Yeh guide ek **bilkul khali database** se shuru hoti hai. Har qadam mein likha hai: kaun sa user, kaun si screen/tab, kya bharna hai, aur kya nazar aana chahiye. Bank-pool wali tarteeb (Hissa 0 se Hissa 6) `backend/apps/core/test_from_scratch.py` mein **code se chala kar verify** ki gayi hai (tenant khali, har qadam ka role, aur har "yeh role nahi kar sakta" wala qadam bhi refuse hota hai). Hissa 7, 8, 9 (GL/period close, Circle, Investment pool) bhi ab khali system se API par verify ho chuke hain. Redemption aur circle closure abhi baaki hain.
+Yeh guide ek **bilkul khali database** se shuru hoti hai. Har qadam mein likha hai: kaun sa user, kaun si screen/tab, kya bharna hai, aur kya nazar aana chahiye. Bank-pool wali tarteeb (Hissa 0 se Hissa 6) `backend/apps/core/test_from_scratch.py` mein **code se chala kar verify** ki gayi hai (tenant khali, har qadam ka role, aur har "yeh role nahi kar sakta" wala qadam bhi refuse hota hai). Hissa 7, 8, 9 (GL/period close, Circle, Investment pool) bhi ab khali system se API par verify ho chuke hain. Ab sab flows verify hain.
 
 ## Hissa 0: Database saaf karna
 
@@ -66,7 +66,7 @@ Nazar aana chahiye: teen approval rules, ek default rule pack, har catalog accou
 7. **Draw**: Pool Manager *commit* (result chhupa hota hai) → *execute* (client seed ke saath); Auditor *verify* kar sakta hai.
 8. **Contribution**: sirf **Finance Maker** record karta hai (bank/Raast ki payment reference lazmi). Pool Manager khud nahi kar sakta.
 9. **Payout**: Pool Manager/Maker request (amount hamesha jama shuda pot ke barabar), **Finance Checker** approve (requester nahi), Maker/Checker *Settle*.
-Closure (prepare → Finance Checker close) saare cycles ke baad; yeh hissa abhi sirf pehle cycle tak verify hua.
+10. Teeno cycles ke baad **Closure**: Pool Manager *prepare* (jama = diya hua, farq 0), phir sirf **Finance Checker** *close* kar sakta hai.
 
 ## Hissa 9: Investment Pool (NAV), khali system se verify hua
 1. Shariah ruling, template (Mudarabah), product (model *investment_pool*), pool, PSR (Board approve), open: bank pool jaisa hi (Hissa 3-4), weightage ki zaroorat nahi.
@@ -75,7 +75,7 @@ Closure (prepare → Finance Checker close) saare cycles ke baad; yeh hissa abhi
 4. **Pehla NAV**: nayi pool mein koi unit nahi, isliye Maker NAV screen par *Total Pool Asset Value = 0* aur **Opening price per unit** (jaise 10.00) bhare; **Finance Checker** publish kare. (Yeh option is dauran naya banaya gaya: pehle pehli subscription mumkin hi nahi thi.)
 5. **Finance Maker** *Subscribe* (amount, date). Units NAV ke hisaab se milte hain.
 6. Mahine ke aakhir mein: income event (Maker) → post (Checker); naya NAV (value ke saath); phir **Profit Distribution** ceremony: Maker run → Maker *submit* → Checker *check* → Shariah *sign-off* → Authorized Signatory *approve*.
-Redemption (request → Finance Checker approve) is flow mein abhi nahi chalaya gaya.
+7. **Redemption**: Finance Maker request (units, date), **Finance Checker** approve (maker nahi).
 
 ## Kaun kya NAHI kar sakta (jaldi check karne ke liye)
 | Koshish | Nateeja |
