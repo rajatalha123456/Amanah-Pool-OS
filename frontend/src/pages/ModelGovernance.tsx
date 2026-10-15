@@ -54,6 +54,12 @@ export function ModelGovernance() {
       header: "Status",
       accessor: (model) => <Badge variant={STATUS_BADGE[model.status]}>{model.status}</Badge>,
     },
+    { header: "Owner", accessor: (model) => model.owner || "not set" },
+    {
+      header: "Validation",
+      accessor: (model) => (model.validation_status === "validated" ? `validated ${model.validated_on ?? ""}` : model.validation_status.replace("_", " ")),
+    },
+    { header: "Retires", accessor: (model) => model.retirement_date ?? "no date" },
     {
       header: "Control",
       accessor: (model) =>

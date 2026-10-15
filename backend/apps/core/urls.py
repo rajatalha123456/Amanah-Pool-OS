@@ -8,6 +8,7 @@ router.register("core/audit-log", views.AuditLogViewSet, basename="audit-log")
 
 urlpatterns = [
     path("health/", views.health_check, name="health-check"),
+    path("core/control-alerts/", views.control_alerts, name="control-alerts"),
     path("health/ready/", views.readiness_check, name="health-ready"),
     path("core/audit-log/export/", views.audit_log_export, name="audit-log-export"),
     path("banking/settle/", views.process_banking_settlement, name="banking-settle"),

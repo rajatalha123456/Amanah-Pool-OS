@@ -15,15 +15,17 @@ import { JurisdictionRulePacks } from "./administration/JurisdictionRulePacks"
 import { SecurityAuditLog } from "./administration/SecurityAuditLog"
 import { TenantManagement } from "./administration/TenantManagement"
 import { DemoRequests } from "./administration/DemoRequests"
+import { FlagsAndKeys } from "./administration/FlagsAndKeys"
 import type { BadgeVariant, UserAdmin, UserCreateResponse } from "../types"
 
-type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs" | "enquiries"
+type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs" | "flags-keys" | "enquiries"
 
 const TABS: { key: AdminTab; label: string; num: string }[] = [
   { key: "audit-log", label: "Security & Audit Log", num: "" },
   { key: "multi-tenant", label: "Multi-Tenant Configuration", num: "" },
   { key: "users", label: "User Administration", num: "" },
   { key: "rule-packs", label: "Jurisdiction & Rule Packs", num: "" },
+  { key: "flags-keys", label: "Feature Flags & Encryption Keys", num: "" },
   { key: "enquiries", label: "Website Enquiries", num: "" },
 ]
 
@@ -340,6 +342,7 @@ export function UserAdministration() {
 
       {/* Tab 4: Screen 42 Jurisdiction & Rule Packs */}
       {activeTab === "rule-packs" && <JurisdictionRulePacks hideHeader />}
+      {activeTab === "flags-keys" && isSuperAdmin && <FlagsAndKeys />}
       {activeTab === "enquiries" && isSuperAdmin && <DemoRequests />}
     </div>
   )

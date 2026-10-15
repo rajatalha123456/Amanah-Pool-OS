@@ -8,6 +8,12 @@ class AIModelStatus(models.TextChoices):
 	DISABLED = "disabled", "Disabled"
 
 
+class ModelValidation(models.TextChoices):
+	NOT_VALIDATED = "not_validated", "Not validated"
+	VALIDATED = "validated", "Validated"
+	EXPIRED = "expired", "Validation expired"
+
+
 class AIModelRegistry(models.Model):
 	model_name = models.CharField(max_length=100, unique=True)
 	version = models.CharField(max_length=50)
@@ -16,6 +22,14 @@ class AIModelRegistry(models.Model):
 		choices=AIModelStatus.choices,
 		default=AIModelStatus.ACTIVE,
 	)
+	# Model inventory (BRD 9): who answers for it, what it is for, where it came from, whether it was validated, when it retires.
+	owner = models.CharField(max_length=150, blank=True, default="")
+	purpose = models.TextField(blank=True, default="")
+	provenance = models.TextField(blank=True, default="")
+	validation_status = models.CharField(max_length=15, choices=ModelValidation.choices, default=ModelValidation.NOT_VALIDATED)
+	validated_on = models.DateField(null=True, blank=True)
+	validation_reference = models.CharField(max_length=200, blank=True, default="")
+	retirement_date = models.DateField(null=True, blank=True)
 	disabled_reason = models.TextField(null=True, blank=True)
 	disabled_by = models.ForeignKey(
 		"accounts.User",

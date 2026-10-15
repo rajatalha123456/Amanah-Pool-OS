@@ -86,6 +86,22 @@ class RecommendationRecordTests(APITestCase):
         self.assertEqual((row["total"], row["pending"], row["decided"]), (3, 1, 2))
         self.assertEqual((row["acceptance_rate"], row["override_rate"]), (0.5, 0.5))
         self.assertEqual(row["fallback_rate"], 1.0)
+        # BRD 9: a rejected flag is a false positive; drift needs history on both sides, so it is None here.
+        self.assertEqual(row["false_positive_rate"], 0.0)
+        self.assertIsNone(row["confidence_drift"])
+
+    def test_model_inventory_is_kept_by_the_platform_administrator_only(self):
+        admin = User.objects.create_user(email="root@air.example.com", password="password", full_name="Root",
+                                         role=UserRole.PLATFORM_SUPER_ADMIN, tenant=self.tenant)
+        reg = AIModelRegistry.objects.create(model_name="contract_analyzer", version="1")
+        body = {"owner": "Head of Shariah Compliance", "purpose": "Screens contract text", "provenance": "Vendor LLM + rules",
+                "validation_status": "validated", "validated_on": "2026-09-01", "validation_reference": "VAL-001",
+                "retirement_date": "2027-09-01"}
+        self.assertEqual(self.call(self.board, "patch", f"models/{reg.id}/", body).status_code, 403)
+        done = self.call(admin, "patch", f"models/{reg.id}/", body)
+        self.assertEqual(done.status_code, 200)
+        self.assertEqual(done.data["owner"], "Head of Shariah Compliance")
+        self.assertEqual(done.data["validation_status"], "validated")
 
     def test_an_explicit_kill_switch_blocks_a_registry_less_feature(self):
         AIModelRegistry.objects.create(model_name="contract_analyzer", version="1", status=AIModelStatus.DISABLED)

@@ -28,6 +28,13 @@ export interface AIModelRegistry {
   disabled_reason: string | null
   disabled_by: number | null
   disabled_at: string | null
+  owner: string
+  purpose: string
+  provenance: string
+  validation_status: "not_validated" | "validated" | "expired"
+  validated_on: string | null
+  validation_reference: string
+  retirement_date: string | null
 }
 
 export interface LoginResponse {
@@ -416,6 +423,8 @@ export interface AIMetricsRow {
   acceptance_rate: number | null
   override_rate: number | null
   fallback_rate: number | null
+  false_positive_rate: number | null
+  confidence_drift: number | null
   avg_confidence: number | null
   avg_latency_ms: number
 }

@@ -120,5 +120,23 @@ def metrics():
         row["acceptance_rate"] = round(row["accepted"] / decided, 3) if decided else None
         row["override_rate"] = round((row["rejected"] + row["overridden"]) / decided, 3) if decided else None
         row["fallback_rate"] = round(row["fallback"] / row["total"], 3) if row["total"] else None
+        # A flag a person rejected is a false positive: the share of decided outputs that were rejected.
+        row["false_positive_rate"] = round(row["rejected"] / decided, 3) if decided else None
+        row["confidence_drift"] = _confidence_drift(row["model_name"])
         result.append(row)
     return result
+
+
+def _confidence_drift(model_name, days=30):
+    """Average confidence of the last `days` days minus that of everything before; None when either side is empty."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    cut = timezone.now() - timedelta(days=days)
+    base = AIRecommendation.objects.filter(model_name=model_name, confidence__isnull=False)
+    recent = base.filter(created_at__gte=cut).aggregate(a=Avg("confidence"))["a"]
+    earlier = base.filter(created_at__lt=cut).aggregate(a=Avg("confidence"))["a"]
+    if recent is None or earlier is None:
+        return None
+    return round(float(recent) - float(earlier), 3)

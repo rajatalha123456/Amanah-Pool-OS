@@ -67,6 +67,8 @@ export function AIRecommendationLog() {
                   <th className="px-3 py-2">Awaiting</th>
                   <th className="px-3 py-2">Acceptance</th>
                   <th className="px-3 py-2">Override / reject</th>
+                  <th className="px-3 py-2">False positives</th>
+                  <th className="px-3 py-2">Confidence drift (30d)</th>
                   <th className="px-3 py-2">Fallback</th>
                   <th className="px-3 py-2">Avg confidence</th>
                   <th className="px-3 py-2">Avg latency</th>
@@ -80,6 +82,8 @@ export function AIRecommendationLog() {
                     <td className="px-3 py-2">{m.pending}</td>
                     <td className="px-3 py-2">{pct(m.acceptance_rate)}</td>
                     <td className="px-3 py-2">{pct(m.override_rate)}</td>
+                    <td className="px-3 py-2">{pct(m.false_positive_rate)}</td>
+                    <td className="px-3 py-2">{m.confidence_drift ?? "—"}</td>
                     <td className="px-3 py-2">{pct(m.fallback_rate)}</td>
                     <td className="px-3 py-2">{m.avg_confidence ?? "—"}</td>
                     <td className="px-3 py-2">{m.avg_latency_ms} ms</td>

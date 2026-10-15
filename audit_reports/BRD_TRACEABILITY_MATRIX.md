@@ -29,7 +29,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-010 | 2 | Circles: no interest or time-value uplift | no rate field anywhere (ST); payout = collected pot | - | - | no negative test exists | PASS | P2 |
 | R-011 | 2 | Out of scope list (fatwa without human, capital guarantee, crypto, Takaful, Sukuk, GL replacement, abusive collection) | - | - | - | - | NOT APPLICABLE | - |
 | R-012 | 3 | Super Admin: tenant provisioning | `tenants/views.py` | Administration | `Tenant` | BT tenants.*; AT role matrix | PASS | - |
-| R-013 | 3 | Super Admin: feature flags, encryption keys | AI model toggle only | - | - | - | MISSING | P2 |
+| R-013 | 3 | Super Admin: feature flags, encryption keys | AI model toggle; per-tenant feature flags and an encryption-key register (metadata, rotation attestation; no key material, the keys stay in the bank's KMS/HSM) | Administration tab | audit log | BT tenants.test_flags_and_keys | PARTIAL | P2 |
 | R-014 | 3 | Super Admin cannot view tenant financial data by default | `ADMIN_ALLOWED` includes `core/audit-log/` (`accounts/investor_scope.py`) | Security & Audit Log tab | `AuditLog.changes` holds amounts | RT `evidence/superadmin_audit_log_exposure.txt` (amounts returned); AT test_superadmin_reads_no_financial_data (pools/runs blocked); after fix F-03: AT test_super_admin_audit_log_hides_the_figures (BT governance.test_audit_fixes) | PASS | - |
 | R-015 | 3 | Product Manager drafts; cannot approve own configuration | `products/views.py` | Products & Pools | `Product.status` | BT products.tests, core.test_access_control | PASS | - |
 | R-016 | 3 | Pool Manager creates pools, assigns assets, proposes allocations; cannot approve runs or Shariah exceptions | `allocation/views.py:343-369` | Allocation Engine | - | AT role matrix; BT access control | PASS | - |
@@ -161,9 +161,9 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-112 | 9 | Audit sampling logged and challengeable | `audit_sampler.py` + recommendation record | Reports | `AIRecommendation` | BT recommendations | PASS | - |
 | R-113 | 9 | Fraud and collusion graph; KYC/AML decides | indicators from real data | - | - | BT test_collusion_indicators (2) | PARTIAL (no graph) | P3 |
 | R-114 | 9 | Scenario simulator sandbox cannot alter production | `simulate` endpoints write nothing (ST) | Scenario comparison | - | none asserting no writes | PASS | P2 |
-| R-115 | 9 | Model inventory: owner, purpose, version, provenance, validation, retirement | registry fields partial | Model Governance | `AIModelRegistry` | BT ai_agents.tests | PARTIAL | P2 |
+| R-115 | 9 | Model inventory: owner, purpose, version, provenance, validation, retirement | registry holds owner, purpose, provenance, validation status/date/reference, retirement date | Model Governance | `AIModelRegistry` | BT ai_agents.test_recommendations | PARTIAL (inventory is edited through the API; no edit form yet) | P2 |
 | R-116 | 9 | Prompt/output logging with masking and retention | `ai_agents/recording.py` | log viewer | - | BT test_masking; retention | PASS | - |
-| R-117 | 9 | Accuracy, drift, bias, hallucination, override, false-positive metrics | acceptance/override/fallback only | Model Governance | - | BT recommendations | PARTIAL | P2 |
+| R-117 | 9 | Accuracy, drift, bias, hallucination, override, false-positive metrics | acceptance, override, fallback, false-positive rate, 30-day confidence drift; bias and hallucination cannot be measured automatically (need reviewed samples) | Model Governance | - | BT recommendations | PARTIAL | P2 |
 | R-118 | 9 | Role-based copilot access; no cross-tenant retrieval | tenant header; copilot filter | - | - | copilot test_tenant_isolation; AT role matrix | PASS | - |
 | R-119 | 9 | Approved knowledge base only; paragraph-level citations | copilot service | - | - | live service not running; live check: answers cite document, section and page from the approved corpus; the approved-corpus-only rule is enforced by the copilot service, not re-tested here; no red-team run | PARTIAL | P2 |
 | R-120 | 9 | Kill switch, safe fallback, manual operating procedure | kill switch, fallback; no manual procedure doc | - | - | BT kill switch test, copilot fallback test | PARTIAL | P3 |
@@ -233,7 +233,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-159 | 14 | Resilience: multi-zone, encrypted backups, tested restore, RPO 15 min, RTO 4 h | BLOCKED (scripts exist, never run; no pg_dump here) | P1 | `backend/scripts/` |
 | R-160 | 14 | WCAG 2.2 AA, keyboard, contrast, labels, localization; after fix: every control gets an accessible name (probe: 242 unnamed -> 0 over 8 roles); no full WCAG audit | PARTIAL | P3 | `evidence/a11y_probe.txt` |
 | R-161 | 14 | Multi-currency, timezone, calendars, English/Urdu/Arabic, RTL | PARTIAL (no Arabic UI; RTL for Urdu) | P2 | ST `i18n/index.ts` |
-| R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | PARTIAL (logs + health endpoints only) | P2 | BT HealthTests |
+| R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | PARTIAL (logs, health endpoints and control alerts: late close, suspense ageing, stale approvals, key rotation; no traces or lineage) | P2 | BT HealthTests |
 
 ## Section 16: business rules
 
@@ -274,9 +274,9 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | Status | Count |
 |---|---|
 | PASS | 104 |
-| PARTIAL | 61 |
+| PARTIAL | 62 |
 | FAIL | 0 |
-| MISSING | 9 |
+| MISSING | 8 |
 | BLOCKED | 6 |
 | NOT TESTED | 4 |
 | NOT APPLICABLE | 2 |

@@ -313,3 +313,15 @@ def home_dashboard_view(request):
     if data is None:
         raise NotFound("No dashboard is defined for this role.")
     return Response(data)
+
+
+ALERT_ROLES = ["auditor", "risk_compliance", "pool_manager", "finance_checker", "authorized_signatory", "shariah_board"]
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, HasAnyRole(ALERT_ROLES)])
+def control_alerts(request):
+    """What has been left undone for too long, counted from recorded data (BRD 14)."""
+    from .control_alerts import build_alerts
+
+    return Response({"alerts": build_alerts(request.user.tenant)})

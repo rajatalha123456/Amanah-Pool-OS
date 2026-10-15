@@ -1,4 +1,5 @@
 import { RoleDashboard } from "../components/dashboard/RoleDashboard"
+import { ControlAlerts } from "../components/dashboard/ControlAlerts"
 import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card } from "../components/Card"
@@ -157,6 +158,7 @@ export function CommandCenter() {
         subtitle="Enterprise visibility across active Islamic bank pools, profit curves, and Shariah structures"
       />
 
+      <ControlAlerts />
       <RoleDashboard />
 
       {/* Real Dynamic Backend Stat Cards */}

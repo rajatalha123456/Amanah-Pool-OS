@@ -33,6 +33,13 @@ class AIModelRegistrySerializer(serializers.ModelSerializer):
             "disabled_reason",
             "disabled_by",
             "disabled_at",
+            "owner",
+            "purpose",
+            "provenance",
+            "validation_status",
+            "validated_on",
+            "validation_reference",
+            "retirement_date",
         )
         read_only_fields = ("id", "model_name", "version", "disabled_by", "disabled_at")
 

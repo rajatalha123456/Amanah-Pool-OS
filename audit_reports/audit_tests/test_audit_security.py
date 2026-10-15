@@ -33,6 +33,8 @@ REVIEWED = {
     ("platform_super_admin", "/api/v1/core/audit-log/simulate-tamper/"), ("platform_super_admin", "/api/v1/core/audit-log/verify-merkle/"),
     ("platform_super_admin", "/api/v1/legal-entities/"), ("platform_super_admin", "/api/v1/notifications/mark-all-read/"),
     ("platform_super_admin", "/api/v1/products/jurisdiction-rule-packs/"), ("platform_super_admin", "/api/v1/tenants/"),
+    # Administration: per-tenant feature flags and the encryption-key register (administrator only; tests in tenants.test_flags_and_keys).
+    ("platform_super_admin", "/api/v1/tenants/feature-flags/"), ("platform_super_admin", "/api/v1/tenants/encryption-keys/"),
 }
 ROLES = [
     "platform_super_admin", "product_manager", "pool_manager", "finance_maker", "finance_checker",
