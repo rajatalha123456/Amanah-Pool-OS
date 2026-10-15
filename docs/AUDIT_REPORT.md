@@ -490,3 +490,11 @@ Journals now reach the enterprise GL through a controlled hand-over (`apps/accou
 
 ### 2026-10-14 (suspense account, BRD 4 / 6.2 / 10)
 New Suspense tab in Finance & Ledger (`accounting/suspense.py`, `SuspenseItem`). A finance maker proposes to park an amount (unidentified receipt or unexplained shortfall, with a description and the bank reference, optionally linked to a reconciliation); a different finance checker approves and only then is the journal posted (Dr cash / Cr suspense, or the reverse). Clearing to the account the amount belongs to is proposed and approved the same way. Ageing (0-30, 31-60, 61-90, over 90 days) and a check that the suspense ledger equals the open items. Period close has a new Gate 6: suspense explained and no item older than the allowed age (rule pack `suspense_max_age_days`, default 30). The finance dashboard shows open items and proposals awaiting a checker. Also fixed: a second reseed of the demo failed since the rule-pack history and GL exports protect their parents (regression test added).
+
+### 2026-10-14 (the remaining code items closed)
+- **Draw room**: two-step ceremony in the browser (seal, then reveal with the members' own seed); the one-step endpoints refuse without a seal; no pre-filled seed or invented swap reason.
+- **Concurrency**: real-thread tests (`governance/test_concurrency.py`). They found a real race: two makers exporting to the GL at once were both given the same batches. Fixed by locking the pool; GL answers and suspense decisions are row-locked too. A double release of an investment distribution releases once.
+- **Database**: 13 financial relations changed from CASCADE to PROTECT.
+- **Accessibility**: every form control gets an accessible name (`accessibility/autoLabel.ts`); a probe over 8 roles x every menu screen and tab found 242 unnamed controls before and 0 after.
+- **AI**: the anomaly detector and the reconciliation copilot record their findings (a bug was found on the way: the profit-margin finding was not passing the user); the contract analyzer no longer trusts the model's confidence.
+- **Asset transfer**: valuation, basis and a different approver. **Exceptions**: value quarantine, Board decision, disclosure.

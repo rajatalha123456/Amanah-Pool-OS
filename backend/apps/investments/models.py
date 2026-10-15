@@ -50,7 +50,7 @@ class CapitalAccount(TenantScopedModel):
     """
 
     pool = models.ForeignKey(
-        "pools.Pool", on_delete=models.CASCADE, related_name="capital_accounts"
+        "pools.Pool", on_delete=models.PROTECT, related_name="capital_accounts"
     )
     investor_name = models.CharField(max_length=255)
     investor_reference = models.CharField(max_length=50)
@@ -142,7 +142,7 @@ class Subscription(TenantScopedModel):
     """
 
     capital_account = models.ForeignKey(
-        CapitalAccount, on_delete=models.CASCADE, related_name="subscriptions"
+        CapitalAccount, on_delete=models.PROTECT, related_name="subscriptions"
     )
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     nav_per_unit = models.DecimalField(max_digits=18, decimal_places=6)
@@ -211,7 +211,7 @@ class Redemption(TenantScopedModel):
     """
 
     capital_account = models.ForeignKey(
-        CapitalAccount, on_delete=models.CASCADE, related_name="redemptions"
+        CapitalAccount, on_delete=models.PROTECT, related_name="redemptions"
     )
     units_redeemed = models.DecimalField(max_digits=18, decimal_places=6)
     nav_per_unit = models.DecimalField(max_digits=18, decimal_places=6)
@@ -287,7 +287,7 @@ class InvestmentDistributionRun(TenantScopedModel):
     hash, immutable once signed, corrected by reversal + linked rerun.
     """
 
-    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="distribution_runs")
+    pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="distribution_runs")
     period_start = models.DateField()
     period_end = models.DateField()
     gross_income = models.DecimalField(max_digits=18, decimal_places=2)

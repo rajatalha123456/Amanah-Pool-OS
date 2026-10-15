@@ -19,7 +19,6 @@ import {
   grantHardship,
   predictCircleHardship,
   recordContribution,
-  runDraw,
   type CircleHardshipPredictionResult,
 } from "../api/circles"
 import { closeCircleProposal, createCircleProposal, fetchCircleProposals, recordVote } from "../api/circleProposals"
@@ -39,7 +38,6 @@ import type {
   Contribution,
   Payout,
   Pool,
-  RunDrawResponse,
 } from "../types"
 
 type Tab =
@@ -181,7 +179,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
   const [isSaving, setIsSaving] = useState(false)
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false)
   const [isDrawConfirmOpen, setIsDrawConfirmOpen] = useState(false)
-  const [lastDraw, setLastDraw] = useState<RunDrawResponse | null>(null)
   const [rules, setRules] = useState<Awaited<ReturnType<typeof fetchRulesSummary>> | null>(null)
   const [terms, setTerms] = useState<PoolTerms | null>(null)
 
@@ -317,20 +314,10 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
     }
   }
 
+  // The draw is a two-step ceremony (seal, then reveal with the members' seed); the Draw Room runs it.
   async function handleRunDraw() {
-    if (!selectedPoolId) return
-    setActionError("")
-    setIsSaving(true)
-    try {
-      const result = await runDraw(selectedPoolId)
-      setLastDraw(result)
-      await loadCircleData(selectedPoolId)
-      setIsDrawConfirmOpen(false)
-    } catch (error) {
-      setActionError(extractErrorMessage(error, "Unable to run draw."))
-    } finally {
-      setIsSaving(false)
-    }
+    setIsDrawConfirmOpen(false)
+    navigate("/draw-room")
   }
 
   async function handleRecordContribution(event: FormEvent<HTMLFormElement>) {
@@ -583,16 +570,6 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                     FILTERS
                   </Button>
                 </div>
-                <div>
-                  {lastDraw && (
-                    <p className="text-xs text-ink-secondary">
-                      Draw Seed:{" "}
-                      <code className="rounded bg-navy-800 px-1.5 py-0.5 text-emerald-400 font-mono">
-                        {lastDraw.seed}
-                      </code>
-                    </p>
-                  )}
-                </div>
               </div>
 
               {members.length === 0 ? (
@@ -759,8 +736,8 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         <Modal title="Run Draw" onClose={() => setIsDrawConfirmOpen(false)}>
           <div className="space-y-4">
             <p className="text-sm text-ink-primary">
-              This action will randomly assign a payout order to all active members who don't have one yet. This
-              cannot be undone.
+              The payout order is fixed by a two-step ceremony in the Draw Room: first the draw is sealed (its fingerprint is
+              published), then it is revealed with a seed the members choose. Nobody can change the result in between.
             </p>
             {actionError && <p className="text-sm text-red-400">{actionError}</p>}
             <div className="flex gap-2">
@@ -768,7 +745,7 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
                 Cancel
               </Button>
               <Button variant="gold" onClick={() => void handleRunDraw()} disabled={isSaving}>
-                {isSaving ? <Spinner className="h-4 w-4" /> : "Confirm Draw"}
+                Open the Draw Room
               </Button>
             </div>
           </div>

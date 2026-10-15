@@ -128,3 +128,7 @@ Re-checked by the browser suites (smoke 30/30, role sweep 13/13) and `tsc`:
 - **SCR-P8** (weightage): negative values refused. **SCR-O5, SCR-O6** (allocation): read-only roles pick the pool; the failing ceremony test passes. **SCR-S6, SCR-S7** (risk limits): limits come from the rule pack and the screen says where they come from; regulator claims removed. Status: RENDERS.
 - **SCR-O7** (approval ceremony) now also covers investment distributions (Distribution tab).
 - **Still a defect: SCR-C4** (draw room commits and reveals in one request; invented default swap reason). Not yet fixed (roadmap T-31).
+
+## Update after the remaining fixes (2026-10-14)
+- **SCR-C4** (draw room): two-step ceremony (seal, then reveal with the members' seed); no pre-filled seed, no random "shuffle" animation, no invented swap reason. Status: WORKING (E2E).
+- New tabs in Finance & Ledger: **GL Hand-over & Trial Balance** and **Suspense**; the Exception Case screen shows **Quarantined value**; the pool Assets tab shows **Transfers awaiting approval**. Every control on every menu screen of 8 roles has an accessible name.

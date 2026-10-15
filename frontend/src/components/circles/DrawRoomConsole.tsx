@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom"
 import { Card } from "../Card"
 import { Button } from "../Button"
 import { Spinner } from "../Spinner"
+import { commitCircleDraw, executeCircleDraw } from "../../api/circleGovernance"
 import { extractErrorMessage } from "../../api/errors"
 import {
   fetchDrawRoomStatus,
-  executeProvablyFairDraw,
   swapCircleTurns,
   type DrawRoomStatusResponse,
 } from "../../api/circles"
@@ -29,11 +29,8 @@ export function DrawRoomConsole({
 
   // Ceremony Draw Modal
   const [isCeremonyOpen, setIsCeremonyOpen] = useState(false)
-  const [isSpinning, setIsSpinning] = useState(false)
-  const [spunMember, setSpunMember] = useState<string | null>(null)
-  const [clientSeed, setClientSeed] = useState<string>(
-    () => `entropy-${Math.random().toString(36).substring(2, 10)}`,
-  )
+  const [isWorking, setIsWorking] = useState(false)
+  const [clientSeed, setClientSeed] = useState<string>("")
   const [drawResult, setDrawResult] = useState<{
     server_seed: string
     provably_fair_hash: string
@@ -44,9 +41,7 @@ export function DrawRoomConsole({
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false)
   const [swapMemberA, setSwapMemberA] = useState<string>("")
   const [swapMemberB, setSwapMemberB] = useState<string>("")
-  const [swapReason, setSwapReason] = useState<string>(
-    "Urgent family medical emergency advancement",
-  )
+  const [swapReason, setSwapReason] = useState<string>("")
   const [swapSuccessMsg, setSwapSuccessMsg] = useState<string | null>(null)
   const [isSwapping, setIsSwapping] = useState(false)
 
@@ -68,37 +63,40 @@ export function DrawRoomConsole({
     loadStatus()
   }, [poolId])
 
-  async function handleExecuteDraw(forceReshuffle = false) {
+  // Step 1: seal. The server fixes its secret and publishes only its hash; nobody can change the outcome after this.
+  async function handleCommit() {
+    setIsWorking(true)
+    setError(null)
     try {
-      setIsSpinning(true)
-      setDrawResult(null)
-
-      // Visual shuffling animation effect
-      const candidates = data?.rotation_ladder.map((m) => m.member_name) || ["Member"]
-      let count = 0
-      const interval = setInterval(() => {
-        setSpunMember(candidates[Math.floor(Math.random() * candidates.length)])
-        count++
-        if (count > 15) {
-          clearInterval(interval)
-        }
-      }, 100)
-
-      const res = await executeProvablyFairDraw(poolId, clientSeed, forceReshuffle)
-
-      setTimeout(async () => {
-        setIsSpinning(false)
-        setDrawResult({
-          server_seed: res.server_seed,
-          provably_fair_hash: res.provably_fair_hash,
-          message: res.message,
-        })
-        await loadStatus()
-        if (onDrawExecuted) onDrawExecuted()
-      }, 2000)
+      await commitCircleDraw(poolId)
+      await loadStatus()
     } catch (err: unknown) {
-      setIsSpinning(false)
+      setError(extractErrorMessage(err, "Could not seal the draw"))
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  // Step 2: reveal. The members' own seed is added, the order is computed and the server secret is published.
+  async function handleReveal() {
+    const drawId = data?.provably_fair.draw_id
+    if (!drawId) return
+    setIsWorking(true)
+    setError(null)
+    try {
+      const res = await executeCircleDraw(drawId, clientSeed)
+      setDrawResult({
+        server_seed: res.server_seed ?? "",
+        provably_fair_hash: res.result_hash ?? "",
+        message: "Draw revealed. Anyone can recompute the order from the two seeds (Rules, Draw & Closure > Verify).",
+      })
+      setClientSeed("")
+      await loadStatus()
+      if (onDrawExecuted) onDrawExecuted()
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, "Draw execution failed"))
+    } finally {
+      setIsWorking(false)
     }
   }
 
@@ -148,6 +146,7 @@ export function DrawRoomConsole({
     )
   }
 
+  const committed = data.provably_fair.draw_status === "committed"
   const eligibleForSwap = data.rotation_ladder.filter((m) => m.status === "active")
 
   return (
@@ -220,7 +219,7 @@ export function DrawRoomConsole({
               className="border-gold-500/40 text-xs font-semibold text-gold-300 hover:bg-gold-500/10"
               onClick={() => setIsCeremonyOpen(true)}
             >
-              🎲 Run Provably Fair Qur'ah (Lucky Draw)
+              🎲 Draw ceremony (seal, then reveal)
             </Button>
 
             <Button
@@ -385,19 +384,15 @@ export function DrawRoomConsole({
               </button>
             </div>
 
-            {/* Live Spinner Box */}
+            {/* Status box */}
             <div className="my-8 rounded-2xl border-2 border-gold-500/40 bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950 p-8 shadow-inner">
               <p className="text-xs uppercase tracking-widest text-ink-muted">
-                {isSpinning ? "Cryptographically Shuffling..." : "Randomized Recipient"}
+                Draw status
               </p>
 
               <div className="mt-4 flex h-20 items-center justify-center">
-                <span
-                  className={`text-3xl font-black uppercase tracking-wide transition-all ${
-                    isSpinning ? "text-gold-400 animate-bounce" : "text-emerald-400"
-                  }`}
-                >
-                  {spunMember || data.next_recipient?.member_name || "Tap Draw to Spin"}
+                <span className="text-xl font-black tracking-wide text-emerald-400">
+                  {committed ? "Sealed: waiting for the members' seed" : "Not sealed yet"}
                 </span>
               </div>
 
@@ -411,37 +406,51 @@ export function DrawRoomConsole({
               )}
             </div>
 
-            {/* Entropy Inputs */}
-            <div className="space-y-2 text-left text-xs">
-              <label className="block text-ink-secondary">
-                Client Entropy Seed (Generated locally in your browser):
-              </label>
-              <input
-                type="text"
-                value={clientSeed}
-                onChange={(e) => setClientSeed(e.target.value)}
-                className="w-full rounded border border-white/10 bg-navy-950 px-3 py-1.5 font-mono text-ink-primary focus:border-gold-500"
-              />
-              <span className="text-[10px] text-ink-muted">
-                Ensures the server cannot predict or manipulate the turn sequence.
-              </span>
+            {/* The two steps */}
+            <div className="space-y-3 text-left text-xs">
+              <div className="rounded border border-white/10 bg-navy-950 p-3">
+                <p className="font-semibold text-ink-primary">Step 1: Seal the draw</p>
+                <p className="mt-1 text-ink-secondary">
+                  The server fixes a secret and shows only its fingerprint. After this nobody, including the organiser, can
+                  change the result.
+                </p>
+                <p className="mt-2 break-all font-mono text-[10px] text-emerald-400">
+                  {data.provably_fair.server_seed_hash ?? "Not sealed yet"}
+                </p>
+                <Button className="mt-2" size="sm" variant="secondary" onClick={() => void handleCommit()} disabled={isWorking || committed}>
+                  {committed ? "Sealed" : isWorking ? <Spinner className="h-4 w-4" /> : "Seal the draw"}
+                </Button>
+              </div>
+
+              <div className={`rounded border border-white/10 bg-navy-950 p-3 ${committed ? "" : "opacity-50"}`}>
+                <p className="font-semibold text-ink-primary">Step 2: Reveal with the members' seed</p>
+                <label className="mt-1 block text-ink-secondary" htmlFor="draw-client-seed">
+                  Seed chosen by the members (at least 4 characters, for example words they all agree on):
+                </label>
+                <input
+                  id="draw-client-seed"
+                  type="text"
+                  value={clientSeed}
+                  onChange={(e) => setClientSeed(e.target.value)}
+                  disabled={!committed}
+                  className="mt-1 w-full rounded border border-white/10 bg-navy-900 px-3 py-1.5 font-mono text-ink-primary focus:border-gold-500"
+                />
+                <Button
+                  className="mt-2"
+                  size="sm"
+                  variant="primary"
+                  onClick={() => void handleReveal()}
+                  disabled={isWorking || !committed || clientSeed.trim().length < 4}
+                >
+                  {isWorking ? <Spinner className="h-4 w-4" /> : "Reveal the draw"}
+                </Button>
+              </div>
+              {error && <p className="text-red-400">{error}</p>}
             </div>
 
             <div className="mt-6 flex justify-end gap-2 border-t border-white/8 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => setIsCeremonyOpen(false)}
-                disabled={isSpinning}
-              >
+              <Button variant="secondary" onClick={() => setIsCeremonyOpen(false)} disabled={isWorking}>
                 Close
-              </Button>
-              <Button
-                variant="primary"
-                className="bg-gold-600 font-bold hover:bg-gold-500"
-                onClick={() => handleExecuteDraw(true)}
-                disabled={isSpinning}
-              >
-                {isSpinning ? <Spinner className="h-4 w-4" /> : "⚡ Spin Provably Fair Draw"}
               </Button>
             </div>
           </div>
@@ -515,7 +524,7 @@ export function DrawRoomConsole({
                     value={swapReason}
                     onChange={(e) => setSwapReason(e.target.value)}
                     className="mt-1 w-full rounded border border-white/10 bg-navy-950 px-3 py-1.5 text-ink-primary"
-                    placeholder="e.g. Hospital admission expenses, school term deadline..."
+                    placeholder="The reason the two members gave (written down in their own words)"
                     required
                   />
                 </div>

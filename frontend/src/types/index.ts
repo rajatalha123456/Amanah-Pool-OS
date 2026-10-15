@@ -1341,6 +1341,13 @@ export interface ExceptionCase {
   resolution_notes: string | null
   resolved_by: number | null
   resolved_at: string | null
+  quarantine_status: "none" | "held" | "decided"
+  quarantined_amount: string | null
+  quarantine_reason: string
+  quarantined_at: string | null
+  quarantine_treatment: string
+  treatment_note: string
+  disclosure_note: string
   created_at: string
   updated_at: string
 }

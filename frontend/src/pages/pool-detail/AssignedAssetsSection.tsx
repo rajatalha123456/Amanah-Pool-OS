@@ -3,7 +3,8 @@ import { Card } from "../../components/Card"
 import { Button } from "../../components/Button"
 import { Spinner } from "../../components/Spinner"
 import { Table, type TableColumn } from "../../components/Table"
-import { fetchAssetAssignments, fetchAssets, unassignAsset } from "../../api/assets"
+import { useAuth } from "../../api/auth"
+import { decideAssetTransfer, fetchAssetAssignments, fetchAssetTransfers, fetchAssets, unassignAsset, type AssetTransferRequest } from "../../api/assets"
 import { extractErrorMessage } from "../../api/errors"
 import { AssignAssetModal } from "./AssignAssetModal"
 import { TransferAssetModal } from "./TransferAssetModal"
@@ -18,12 +19,17 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
   const [unassigningId, setUnassigningId] = useState<string | null>(null)
   const [actionError, setActionError] = useState("")
   const [transferId, setTransferId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const canDecide = user?.role === "finance_checker" || user?.role === "risk_compliance"
+  const [transfers, setTransfers] = useState<AssetTransferRequest[]>([])
+  const [notice, setNotice] = useState("")
 
   function loadData() {
     setIsLoading(true)
-    Promise.all([fetchAssetAssignments(poolId), fetchAssets()])
-      .then(([assignmentData, assetData]) => {
+    Promise.all([fetchAssetAssignments(poolId), fetchAssets(), fetchAssetTransfers(poolId)])
+      .then(([assignmentData, assetData, transferData]) => {
         setAssignments(assignmentData)
+        setTransfers(transferData)
         setAssetsById(Object.fromEntries(assetData.map((asset) => [asset.id, asset])))
       })
       .catch(() => setLoadError("Failed to load data"))
@@ -96,6 +102,60 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
       </div>
 
       {actionError && <p className="mb-3 text-sm text-red-400">{actionError}</p>}
+      {notice && <p className="mb-3 text-sm text-emerald-300">{notice}</p>}
+
+      {transfers.filter((t) => t.status === "pending").length > 0 && (
+        <div className="mb-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">Transfers awaiting approval</p>
+          {transfers
+            .filter((t) => t.status === "pending")
+            .map((t) => (
+              <div key={t.id} className="rounded-lg border border-white/8 bg-navy-900/50 p-3 text-xs">
+                <p className="font-semibold text-ink-primary">
+                  {t.asset_reference}: {t.from_pool_code} to {t.to_pool_code} from {t.effective_date}, valued at PKR{" "}
+                  {Number(t.valuation).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+                <p className="mt-1 text-ink-secondary">
+                  Basis: {t.valuation_basis} · reason: {t.reason} · proposed by {t.requested_by_name ?? "—"}
+                </p>
+                {canDecide && String(t.requested_by) !== String(user?.id) && (
+                  <div className="mt-2 flex gap-4">
+                    <button
+                      type="button"
+                      className="text-emerald-400"
+                      onClick={() =>
+                        void decideAssetTransfer(t.id, "approve")
+                          .then(() => {
+                            setNotice("Transfer approved and carried out.")
+                            loadData()
+                          })
+                          .catch((err) => setActionError(extractErrorMessage(err, "Unable to approve the transfer.")))
+                      }
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="text-red-400"
+                      onClick={() => {
+                        const reason = window.prompt("Why is the transfer refused?")
+                        if (reason)
+                          void decideAssetTransfer(t.id, "reject", reason)
+                            .then(() => {
+                              setNotice("Transfer refused.")
+                              loadData()
+                            })
+                            .catch((err) => setActionError(extractErrorMessage(err, "Unable to refuse the transfer.")))
+                      }}
+                    >
+                      Refuse
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex items-center gap-2 py-4 text-ink-secondary">
@@ -121,6 +181,7 @@ export function AssignedAssetsSection({ poolId }: { poolId: string }) {
           onClose={() => setTransferId(null)}
           onTransferred={() => {
             setTransferId(null)
+            setNotice("Transfer proposed. A different finance checker or risk officer approves it before anything moves.")
             loadData()
           }}
         />

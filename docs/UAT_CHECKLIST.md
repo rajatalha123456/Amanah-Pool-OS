@@ -116,6 +116,9 @@ Product Manager: Command Center, Products & Pools, Shariah Governance, AI & Anal
 | M14 | Finance maker parks an unidentified receipt in suspense (Finance & Ledger > Suspense); checker approves | Nothing is posted until the checker approves; the maker cannot approve; the position shows every amount as a named item |
 | M15 | Maker proposes clearing it to the account it belongs to; checker approves | The item is cleared and the suspense balance drops by the amount; a refused clearing returns the item to open |
 | M16 | Leave an item open past 30 days (or the rule-pack limit), then try to close the period | Period close gate 6 fails and names the overdue items |
+| M17 | Pool manager proposes an asset transfer (value and its basis required); the proposer tries to approve; a finance checker approves | Nothing moves until a different person approves; the new assignment shows the valuation |
+| M18 | Risk quarantines an amount on an open exception; try to close the case; the Shariah Board decides the treatment; close with a disclosure | The case refuses to close while value is held, and after the Board's decision still needs the disclosure |
+| M19 | Draw room: open the ceremony | Two steps: seal (shows the fingerprint), then reveal with a seed the members type; no pre-filled seed |
 
 ## L. Sign-off
 | Function | Name | Date | Passed all steps? | Notes |

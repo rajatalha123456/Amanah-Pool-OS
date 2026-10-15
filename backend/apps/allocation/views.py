@@ -751,7 +751,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         # Best-effort: a failure here must never block a successful approve
         # (the run is already signed and the journal is already posted).
         try:
-            check_for_anomalies(run)
+            check_for_anomalies(run, request.user)
         except Exception:
             logger.exception("Anomaly check failed for AllocationRun %s", run.id)
 

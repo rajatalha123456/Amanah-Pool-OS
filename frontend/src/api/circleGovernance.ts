@@ -24,8 +24,11 @@ export async function commitCircleDraw(poolId: string): Promise<CircleDrawRecord
   return (await apiClient.post<CircleDrawRecord>("circles/draws/commit/", { pool: poolId })).data
 }
 
-export async function executeCircleDraw(drawId: string, clientSeed: string): Promise<CircleDrawRecord> {
-  return (await apiClient.post<CircleDrawRecord>(`circles/draws/${drawId}/execute/`, { client_seed: clientSeed })).data
+export async function executeCircleDraw(
+  drawId: string,
+  clientSeed: string,
+): Promise<CircleDrawRecord & { server_seed?: string; result_hash?: string }> {
+  return (await apiClient.post<CircleDrawRecord & { server_seed?: string; result_hash?: string }>(`circles/draws/${drawId}/execute/`, { client_seed: clientSeed })).data
 }
 
 export async function verifyCircleDraw(drawId: string): Promise<{ verified: boolean }> {

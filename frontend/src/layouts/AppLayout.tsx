@@ -10,6 +10,7 @@ import { AiCopilotDrawer } from "../components/AiCopilotDrawer"
 import { LiveControlsModal } from "../components/LiveControlsModal"
 
 import { ErrorBoundary } from "../components/ErrorBoundary"
+import { watchLabels } from "../accessibility/autoLabel"
 
 export function AppLayout() {
   const { user, loadCurrentUser } = useAuth()
@@ -27,6 +28,9 @@ export function AppLayout() {
   // Staff only see the areas their role works in (BRD section 3); the API refuses the rest.
   const staffBlocked = !!user && user.role !== "investor_member" && !roleMayOpen(user.role, location.pathname)
   const adminHomeRedirect = user?.role === "platform_super_admin" && location.pathname === "/"
+
+  // Every form control gets an accessible name (see accessibility/autoLabel.ts).
+  useEffect(() => watchLabels(), [])
 
   useEffect(() => {
     if (!user) {

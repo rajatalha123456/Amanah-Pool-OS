@@ -39,7 +39,7 @@ class JournalBatch(TenantScopedModel):
     reverses_batch = models.OneToOneField(
         "self", on_delete=models.PROTECT, related_name="reversed_by", null=True, blank=True
     )
-    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="journal_batches")
+    pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="journal_batches")
     batch_date = models.DateField()
     total_debit = models.DecimalField(max_digits=18, decimal_places=2)
     total_credit = models.DecimalField(max_digits=18, decimal_places=2)
@@ -114,7 +114,7 @@ class IncomeExpenseEvent(TenantScopedModel):
     """
 
     pool = models.ForeignKey(
-        "pools.Pool", on_delete=models.CASCADE, related_name="income_expense_events"
+        "pools.Pool", on_delete=models.PROTECT, related_name="income_expense_events"
     )
     event_type = models.CharField(max_length=10, choices=IncomeExpenseEventType.choices)
     cost_classification = models.CharField(

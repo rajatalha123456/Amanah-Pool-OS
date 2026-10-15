@@ -26,6 +26,8 @@ export function TransferAssetModal({
   const [toPool, setToPool] = useState("")
   const [effectiveDate, setEffectiveDate] = useState("")
   const [reason, setReason] = useState("")
+  const [valuation, setValuation] = useState("")
+  const [valuationBasis, setValuationBasis] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
 
@@ -40,7 +42,13 @@ export function TransferAssetModal({
     setBusy(true)
     setError("")
     try {
-      await transferAsset(assignmentId, { to_pool: toPool, effective_date: effectiveDate, reason })
+      await transferAsset(assignmentId, {
+        to_pool: toPool,
+        effective_date: effectiveDate,
+        reason,
+        valuation,
+        valuation_basis: valuationBasis,
+      })
       onTransferred()
     } catch (err) {
       setError(extractErrorMessage(err, "Unable to transfer the asset."))
@@ -53,7 +61,8 @@ export function TransferAssetModal({
     <Modal title="Transfer Asset" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <p className="text-xs text-ink-secondary">
-          The asset leaves this pool the day before the effective date and joins the destination pool on it.
+          This only proposes the transfer: a different finance checker or risk officer approves it. When approved, the asset leaves
+          this pool the day before the effective date and joins the destination pool on it, at the value stated below.
         </p>
         <div>
           <label className={LABEL}>Destination pool</label>
@@ -71,6 +80,14 @@ export function TransferAssetModal({
           <input required type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className={INPUT} />
         </div>
         <div>
+          <label className={LABEL}>Value at the transfer date (PKR)</label>
+          <input required type="number" min="0.01" step="0.01" value={valuation} onChange={(e) => setValuation(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <label className={LABEL}>How the value was established</label>
+          <input required value={valuationBasis} onChange={(e) => setValuationBasis(e.target.value)} className={INPUT} placeholder="Valuer, report number or market source" />
+        </div>
+        <div>
           <label className={LABEL}>Reason</label>
           <textarea required rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className={INPUT} />
         </div>
@@ -80,7 +97,7 @@ export function TransferAssetModal({
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? "Transferring..." : "Transfer"}
+            {busy ? "Proposing..." : "Propose transfer"}
           </Button>
         </div>
       </form>

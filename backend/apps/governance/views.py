@@ -78,6 +78,11 @@ class ExceptionCaseViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [IsAuthenticated(), HasAnyRole(["risk_compliance", "pool_manager"])()]
+        if self.action == "quarantine":
+            return [IsAuthenticated(), HasAnyRole(["risk_compliance", "shariah_secretariat", "shariah_board"])()]
+        if self.action == "decide_quarantine":
+            # A treatment of value is a Shariah decision (BRD 8): the Board decides.
+            return [IsAuthenticated(), HasAnyRole(["shariah_board"])()]
         if self.action in (
             "update",
             "partial_update",
@@ -173,19 +178,95 @@ class ExceptionCaseViewSet(
         return Response(self.get_serializer(case).data)
 
     @action(detail=True, methods=["post"])
+    def quarantine(self, request, pk=None):
+        """Holds a stated amount of value while the case is investigated; nothing is distributed from it meanwhile."""
+        from decimal import Decimal, InvalidOperation
+
+        from .models import QuarantineStatus
+
+        case = self.get_object()
+        if case.status in (ExceptionStatus.RESOLVED, ExceptionStatus.DISMISSED):
+            raise ValidationError("A closed case cannot hold value.")
+        if case.quarantine_status != QuarantineStatus.NONE:
+            raise ValidationError("Value is already quarantined for this case.")
+        try:
+            amount = Decimal(str(request.data.get("amount")))
+        except InvalidOperation:
+            amount = Decimal("0")
+        if amount <= 0:
+            raise ValidationError({"amount": ["The amount held must be greater than zero."]})
+        reason = str(request.data.get("reason") or "").strip()
+        if not reason:
+            raise ValidationError({"reason": ["Say what is held and why."]})
+        case.quarantine_status, case.quarantined_amount, case.quarantine_reason = QuarantineStatus.HELD, amount, reason
+        case.quarantined_by, case.quarantined_at = request.user, timezone.now()
+        if case.status == ExceptionStatus.OPEN:
+            case.status = ExceptionStatus.INVESTIGATING
+        case.save(update_fields=[
+            "quarantine_status", "quarantined_amount", "quarantine_reason", "quarantined_by", "quarantined_at", "status",
+            "updated_at",
+        ])
+        log_action(
+            tenant=case.tenant, actor=request.user, action="quarantine", model_name="ExceptionCase", object_id=str(case.id),
+            changes={"amount": str(amount)}, reason=reason, request=request,
+        )
+        return Response(self.get_serializer(case).data)
+
+    @action(detail=True, methods=["post"], url_path="decide-quarantine")
+    def decide_quarantine(self, request, pk=None):
+        """The Shariah Board decides what happens to the held value; the case cannot close before this."""
+        from .models import QuarantineStatus, QuarantineTreatment
+
+        case = self.get_object()
+        if case.quarantine_status != QuarantineStatus.HELD:
+            raise ValidationError("There is no quarantined value awaiting a decision.")
+        treatment = request.data.get("treatment")
+        if treatment not in QuarantineTreatment.values:
+            raise ValidationError({"treatment": [f"One of {', '.join(QuarantineTreatment.values)}."]})
+        note = str(request.data.get("note") or "").strip()
+        if not note:
+            raise ValidationError({"note": ["Record the reasoning for the treatment."]})
+        case.quarantine_status, case.quarantine_treatment, case.treatment_note = QuarantineStatus.DECIDED, treatment, note
+        case.treatment_decided_by, case.treatment_decided_at = request.user, timezone.now()
+        case.save(update_fields=[
+            "quarantine_status", "quarantine_treatment", "treatment_note", "treatment_decided_by", "treatment_decided_at",
+            "updated_at",
+        ])
+        log_action(
+            tenant=case.tenant, actor=request.user, action="quarantine_treatment_decided", model_name="ExceptionCase",
+            object_id=str(case.id), changes={"treatment": treatment, "amount": str(case.quarantined_amount)}, reason=note,
+            request=request,
+        )
+        return Response(self.get_serializer(case).data)
+
+    @staticmethod
+    def _assert_value_settled(case, request):
+        """A case with quarantined value closes only after the Board decided its treatment and a disclosure was written."""
+        from .models import QuarantineStatus
+
+        if case.quarantine_status == QuarantineStatus.HELD:
+            raise ValidationError("Value is quarantined for this case: the Shariah Board must decide its treatment first.")
+        if case.quarantine_status == QuarantineStatus.DECIDED:
+            disclosure = str(request.data.get("disclosure_note") or "").strip()
+            if not disclosure:
+                raise ValidationError({"disclosure_note": ["Write how the treatment of the held value is disclosed."]})
+            case.disclosure_note, case.disclosed_at = disclosure, timezone.now()
+
+    @action(detail=True, methods=["post"])
     def resolve(self, request, pk=None):
         case = self.get_object()
 
         resolution_notes = request.data.get("resolution_notes")
         if not resolution_notes:
             raise ValidationError({"resolution_notes": ["This field is required."]})
+        self._assert_value_settled(case, request)
 
         previous_status = case.status
         case.status = ExceptionStatus.RESOLVED
         case.resolution_notes = resolution_notes
         case.resolved_by = request.user
         case.resolved_at = timezone.now()
-        case.save(update_fields=["status", "resolution_notes", "resolved_by", "resolved_at", "updated_at"])
+        case.save(update_fields=["status", "resolution_notes", "resolved_by", "resolved_at", "disclosure_note", "disclosed_at", "updated_at"])
 
         log_action(
             tenant=case.tenant,
@@ -206,13 +287,14 @@ class ExceptionCaseViewSet(
         resolution_notes = request.data.get("resolution_notes")
         if not resolution_notes:
             raise ValidationError({"resolution_notes": ["This field is required."]})
+        self._assert_value_settled(case, request)
 
         previous_status = case.status
         case.status = ExceptionStatus.DISMISSED
         case.resolution_notes = resolution_notes
         case.resolved_by = request.user
         case.resolved_at = timezone.now()
-        case.save(update_fields=["status", "resolution_notes", "resolved_by", "resolved_at", "updated_at"])
+        case.save(update_fields=["status", "resolution_notes", "resolved_by", "resolved_at", "disclosure_note", "disclosed_at", "updated_at"])
 
         log_action(
             tenant=case.tenant,

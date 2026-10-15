@@ -29,6 +29,76 @@ def assert_asset_eligible(asset, pool, on_date):
     assert_period_open(pool, on_date)
 
 
+def request_transfer(assignment, to_pool, effective_date, reason, valuation, valuation_basis, user):
+    """A proposed transfer, fully validated now (and again on approval); nothing moves yet."""
+    from decimal import Decimal, InvalidOperation
+
+    from .models import AssetTransferRequest, AssetTransferStatus
+
+    try:
+        valuation = Decimal(str(valuation))
+    except (InvalidOperation, TypeError):
+        valuation = Decimal("0")
+    if valuation <= 0:
+        raise ValidationError({"valuation": ["The value of the asset at the transfer date is required (greater than zero)."]})
+    if not (valuation_basis or "").strip():
+        raise ValidationError({"valuation_basis": ["Say how the value was established (valuer, report or market source)."]})
+    if assignment.unassigned_date is not None:
+        raise ValidationError("Only a current assignment can be transferred.")
+    if not (reason or "").strip():
+        raise ValidationError({"reason": ["A transfer reason is required."]})
+    if to_pool.id == assignment.pool_id:
+        raise ValidationError({"to_pool": ["The asset is already in this pool."]})
+    if effective_date <= assignment.assigned_date:
+        raise ValidationError({"effective_date": ["The transfer must take effect after the current assignment began."]})
+    assert_asset_eligible(assignment.asset, to_pool, effective_date)
+    assert_period_open(assignment.pool, effective_date)
+    if AssetTransferRequest.objects.filter(assignment=assignment, status=AssetTransferStatus.PENDING).exists():
+        raise ValidationError("A transfer of this asset is already awaiting approval.")
+    return AssetTransferRequest.objects.create(
+        tenant=assignment.tenant, assignment=assignment, to_pool=to_pool, effective_date=effective_date,
+        reason=reason.strip(), valuation=valuation, valuation_basis=valuation_basis.strip(), requested_by=user,
+    )
+
+
+def approve_transfer(request_obj, user):
+    """A different person approves; the transfer is performed and the valuation recorded on the new assignment."""
+    from django.db import transaction
+    from django.utils import timezone
+
+    from .models import AssetTransferRequest, AssetTransferStatus
+
+    with transaction.atomic():
+        req = AssetTransferRequest.objects.select_for_update().get(pk=request_obj.pk)
+        if req.status != AssetTransferStatus.PENDING:
+            raise ValidationError(f"This transfer is already {req.status}.")
+        if req.requested_by_id == user.id:
+            raise ValidationError("Four-eyes rule: the person who requested a transfer cannot approve it.")
+        new = transfer_asset(req.assignment, req.to_pool, req.effective_date, req.reason, req.requested_by)
+        new.transfer_valuation, new.transfer_valuation_basis = req.valuation, req.valuation_basis
+        new.save(update_fields=["transfer_valuation", "transfer_valuation_basis", "updated_at"])
+        req.status, req.decided_by, req.decided_at, req.new_assignment = AssetTransferStatus.APPROVED, user, timezone.now(), new
+        req.save(update_fields=["status", "decided_by", "decided_at", "new_assignment", "updated_at"])
+    return req
+
+
+def reject_transfer(request_obj, user, reason):
+    from django.utils import timezone
+
+    from .models import AssetTransferStatus
+
+    if request_obj.status != AssetTransferStatus.PENDING:
+        raise ValidationError(f"This transfer is already {request_obj.status}.")
+    if not (reason or "").strip():
+        raise ValidationError({"reason": ["Say why the transfer is refused."]})
+    if request_obj.requested_by_id == user.id:
+        raise ValidationError("Four-eyes rule: the person who requested a transfer cannot decide it.")
+    request_obj.status, request_obj.decided_by = AssetTransferStatus.REJECTED, user
+    request_obj.decided_at, request_obj.decision_note = timezone.now(), reason.strip()
+    request_obj.save(update_fields=["status", "decided_by", "decided_at", "decision_note", "updated_at"])
+    return request_obj
+
+
 def transfer_asset(assignment, to_pool, effective_date, reason, user):
     """
     Move a held asset to another pool with effect from `effective_date`: the old assignment ends the

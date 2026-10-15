@@ -206,7 +206,7 @@ def analyze_contract(request):
     if not is_ai_feature_allowed("contract_analyzer"):
         raise ServiceUnavailable("This AI feature is currently disabled.")
     timer = Timer()
-    result = analyze_contract_text(text, request.user.tenant.code, str(request.user.id))
+    result = analyze_contract_text(text, request.user.tenant.code, str(request.user.id), request.user.role)
     recommendation_id = record_ai_output(
         user=request.user, feature="contract_analyzer", model_name="contract_analyzer", prompt=text, output=result,
         sources=[result.get("source", "")], confidence=result.get("confidence_score"),

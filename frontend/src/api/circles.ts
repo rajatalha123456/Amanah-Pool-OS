@@ -172,6 +172,7 @@ export interface DrawRoomStatusResponse {
   provably_fair: {
     server_seed_hash: string | null
     draw_status?: string | null
+    draw_id?: string | null
     algorithm: string
     shariah_zero_riba_rule: string
     verification_endpoint: string | null

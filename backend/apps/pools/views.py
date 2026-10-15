@@ -4,6 +4,7 @@ from decimal import Decimal
 import uuid
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -37,6 +38,7 @@ from .models import (
     AssetAssignment,
     AssetProvisionEntry,
     AssetStatus,
+    AssetTransferRequest,
     BalanceImportBatch,
     BalanceImportBatchStatus,
     DailyBalance,
@@ -52,6 +54,7 @@ from .serializers import (
     AssetAssignmentSerializer,
     AssetProvisionEntrySerializer,
     AssetSerializer,
+    AssetTransferRequestSerializer,
     BalanceImportBatchSerializer,
     BulkBalanceImportSerializer,
     DailyBalanceSerializer,
@@ -532,8 +535,11 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def transfer(self, request, pk=None):
-        """Effective-dated move of the asset to another pool (old assignment ends the day before)."""
-        from .asset_rules import transfer_asset
+        """
+        Proposes an effective-dated move of the asset to another pool (BRD 4). Valuation and its basis are required and
+        a different person approves (`pools/asset-transfers/{id}/approve/`); the old assignment ends the day before.
+        """
+        from .asset_rules import request_transfer
 
         assignment = self.get_object()
         to_pool = Pool.objects.filter(id=request.data.get("to_pool")).first()
@@ -544,25 +550,59 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
         except ValueError:
             raise ValidationError({"effective_date": ["A valid date (YYYY-MM-DD) is required."]})
 
-        with transaction.atomic():
-            new_assignment = transfer_asset(
-                assignment, to_pool, effective_date, str(request.data.get("reason") or ""), request.user
-            )
-            log_action(
-                tenant=assignment.tenant,
-                actor=request.user,
-                action="transfer",
-                model_name="AssetAssignment",
-                object_id=str(assignment.id),
-                changes={
-                    "from_pool": str(assignment.pool_id),
-                    "to_pool": str(to_pool.id),
-                    "effective_date": str(effective_date),
-                },
-                reason=new_assignment.transfer_reason,
-                request=request,
-            )
-        return Response(self.get_serializer(new_assignment).data)
+        proposal = request_transfer(
+            assignment, to_pool, effective_date, str(request.data.get("reason") or ""),
+            request.data.get("valuation"), str(request.data.get("valuation_basis") or ""), request.user,
+        )
+        log_action(
+            tenant=assignment.tenant, actor=request.user, action="asset_transfer_requested", model_name="AssetTransferRequest",
+            object_id=str(proposal.id),
+            changes={"from_pool": str(assignment.pool_id), "to_pool": str(to_pool.id), "effective_date": str(effective_date),
+                     "valuation": str(proposal.valuation), "basis": proposal.valuation_basis},
+            reason=proposal.reason, request=request,
+        )
+        return Response(AssetTransferRequestSerializer(proposal).data, status=202)
+
+
+class AssetTransferViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Proposed asset transfers: the requester is a pool manager; a different finance checker or risk officer decides."""
+
+    serializer_class = AssetTransferRequestSerializer
+
+    def get_queryset(self):
+        queryset = AssetTransferRequest.objects.select_related("assignment__asset", "assignment__pool", "to_pool", "requested_by", "decided_by")
+        pool_id = self.request.query_params.get("pool")
+        if pool_id:
+            queryset = queryset.filter(Q(assignment__pool_id=pool_id) | Q(to_pool_id=pool_id))
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), HasAnyRole(["finance_checker", "risk_compliance"])()]
+        return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        from .asset_rules import approve_transfer
+
+        req = approve_transfer(self.get_object(), request.user)
+        log_action(
+            tenant=req.tenant, actor=request.user, action="asset_transfer_approved", model_name="AssetTransferRequest",
+            object_id=str(req.id), changes={"new_assignment": str(req.new_assignment_id), "valuation": str(req.valuation)},
+            request=request,
+        )
+        return Response(self.get_serializer(req).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        from .asset_rules import reject_transfer
+
+        req = reject_transfer(self.get_object(), request.user, request.data.get("reason"))
+        log_action(
+            tenant=req.tenant, actor=request.user, action="asset_transfer_rejected", model_name="AssetTransferRequest",
+            object_id=str(req.id), reason=req.decision_note, request=request,
+        )
+        return Response(self.get_serializer(req).data)
 
 
 class DailyBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

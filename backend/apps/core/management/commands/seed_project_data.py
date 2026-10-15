@@ -172,8 +172,11 @@ class Command(BaseCommand):
             # the bulk delete (which bypasses their no-delete rule) is deliberate here.
             from apps.accounting.models import GLExport, SuspenseItem
 
+            from apps.pools.models import AssetTransferRequest
+
             SuspenseItem.objects.filter(tenant=tenant).delete()
             GLExport.objects.filter(tenant=tenant).delete()
+            AssetTransferRequest.objects.filter(tenant=tenant).delete()
             JournalEntry.objects.filter(tenant=tenant).delete()
             JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
             JournalBatch.objects.filter(tenant=tenant).delete()
@@ -373,6 +376,13 @@ class Command(BaseCommand):
                 },
             },
         )
+        # The AI kill switch is explicit: a feature runs only while its registry row is active. The registry is global
+        # (not per tenant) and is created by a migration; make sure the demo has it, so the copilot and the detectors work.
+        from apps.ai_agents.models import AIModelRegistry
+
+        for model_name in ("shariah_copilot", "allocation_anomaly_detector", "reconciliation_copilot"):
+            AIModelRegistry.objects.get_or_create(model_name=model_name, defaults={"version": "1.0", "status": "active"})
+
         self.stdout.write(self.style.SUCCESS("[OK] Jurisdiction Rule Packs Seeded (SBP & AAOIFI)"))
 
         # 4. Shariah Decisions / Fatwas (Screen 26)

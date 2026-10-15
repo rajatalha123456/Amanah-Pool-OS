@@ -427,3 +427,76 @@ test("an unplaced amount is parked in suspense and cleared, each step approved b
   await expect(page.getByText("Cleared and posted.")).toBeVisible()
   await expect(page.locator("div.rounded-lg", { hasText: ref }).getByText("Cleared", { exact: true })).toBeVisible()
 })
+
+test("the draw room is a two-step ceremony with no pre-filled seed or invented reason", async ({ page }) => {
+  await login(page, "poolmanager")
+  await page.goto("/draw-room")
+  await page.getByRole("button", { name: /Draw ceremony/ }).click()
+  await expect(page.getByText("Step 1: Seal the draw")).toBeVisible()
+  await expect(page.getByText("Step 2: Reveal with the members' seed")).toBeVisible()
+  const seed = page.getByLabel(/Seed chosen by the members/)
+  await expect(seed).toHaveValue("") // the members choose it: the browser never makes one up
+  await expect(page.getByRole("button", { name: "Reveal the draw" })).toBeDisabled()
+  await page.getByRole("button", { name: "Close" }).click()
+  await page.getByRole("button", { name: /Mutual Hardship Turn Swap/ }).click()
+  await expect(page.getByPlaceholder(/reason the two members gave/)).toHaveValue("")
+})
+
+test("an exception can hold value: the Board decides its treatment and the case closes only with a disclosure", async ({ page }) => {
+  const tag = `E2E-HOLD-${Date.now()}`
+  await login(page, "risk")
+  await page.goto("/risk-compliance")
+  await page.getByRole("button", { name: "Exception Queue" }).click()
+  await page.locator("tbody tr").first().click()
+  await expect(page.getByText("Quarantined value")).toBeVisible()
+  await page.getByLabel("Amount to hold (PKR)").fill("9000")
+  await page.getByLabel("What is held and why").fill(tag)
+  await page.getByRole("button", { name: "Quarantine this value" }).click()
+  await expect(page.getByText("Treatment not decided yet")).toBeVisible()
+  const url = page.url()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "board")
+  await page.goto(url)
+  await expect(page.getByText(tag)).toBeVisible()
+  await page.getByLabel("Treatment").selectOption("purify")
+  await page.getByLabel("Reasoning").fill("Non-permissible income: to charity")
+  await page.getByRole("button", { name: /Record the Board/ }).click()
+  await expect(page.getByText("Purify: route to charity")).toBeVisible()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "risk")
+  await page.goto(url)
+  await page.getByLabel("Notes").fill("Reviewed")
+  await page.getByRole("button", { name: "Resolve", exact: true }).click()
+  await expect(page.getByText(/Disclosure of the treatment/)).toBeVisible() // refused: the disclosure is missing
+  await page.getByLabel(/Disclosure of the treatment/).fill("Disclosed in the pool report, note 4")
+  await page.getByRole("button", { name: "Resolve", exact: true }).click()
+  await expect(page.getByText("Disclosure: Disclosed in the pool report, note 4")).toBeVisible()
+})
+
+test("an asset transfer is proposed with its valuation and carried out only after a different person approves", async ({ page }) => {
+  const basis = `E2E valuer report ${Date.now()}`
+  await login(page, "poolmanager")
+  await page.goto("/pools")
+  await page.getByText("POOL-GEN-01").first().click()
+  await page.getByRole("button", { name: "Assets" }).click()
+  await page.getByRole("button", { name: "Transfer" }).first().click()
+  await page.getByLabel("Destination pool").selectOption({ index: 1 })
+  await page.getByLabel("Effective date").fill(new Date(Date.now() + 86400000).toISOString().slice(0, 10))
+  await page.getByLabel("Value at the transfer date (PKR)").fill("2500000")
+  await page.getByLabel("How the value was established").fill(basis)
+  await page.getByLabel("Reason").fill("Rebalancing between pools")
+  await page.getByRole("button", { name: "Propose transfer" }).click()
+  await expect(page.getByText("Transfer proposed.")).toBeVisible()
+  await expect(page.getByText(basis)).toBeVisible()
+  await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(0) // the proposer cannot approve
+  const url = page.url()
+  await page.evaluate(() => localStorage.clear())
+
+  await login(page, "checker")
+  await page.goto(url)
+  await page.getByRole("button", { name: "Assets" }).click()
+  await page.locator("div.rounded-lg", { hasText: basis }).getByRole("button", { name: "Approve" }).click()
+  await expect(page.getByText("Transfer approved and carried out.")).toBeVisible()
+})

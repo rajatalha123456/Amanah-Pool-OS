@@ -36,7 +36,7 @@ def _deviation(current: Decimal, average: Decimal) -> Decimal | None:
     return abs(current - average) / abs(average)
 
 
-def check_for_anomalies(allocation_run: AllocationRun) -> bool:
+def check_for_anomalies(allocation_run: AllocationRun, user=None) -> bool:
     """
     Compares `allocation_run` against the trailing BASELINE_RUN_COUNT signed
     runs for the same pool. Raises one ExceptionCase (the first metric found
@@ -75,6 +75,7 @@ def check_for_anomalies(allocation_run: AllocationRun) -> bool:
             current_value=current_margin,
             average_value=average_margin,
             deviation=margin_deviation,
+            user=user,
         )
         return True
 
@@ -105,6 +106,7 @@ def check_for_anomalies(allocation_run: AllocationRun) -> bool:
                 current_value=current_ratio,
                 average_value=average_ratio,
                 deviation=ratio_deviation,
+                user=user,
             )
             return True
 
@@ -117,6 +119,7 @@ def _raise_anomaly(
     current_value: Decimal,
     average_value: Decimal,
     deviation: Decimal,
+    user=None,
 ) -> None:
     severity = "high" if deviation >= HIGH_SEVERITY_THRESHOLD else "medium"
 
@@ -124,16 +127,37 @@ def _raise_anomaly(
     average_pct = average_value * 100
     deviation_pct = deviation * 100
 
-    create_exception_case(
+    description = (
+        f"{metric_label} {current_pct:.2f}% is {deviation_pct:.2f}% different from the "
+        f"{BASELINE_RUN_COUNT}-run average of {average_pct:.2f}%."
+    )
+    case = create_exception_case(
         tenant=allocation_run.tenant,
         source_module="allocation",
         source_object_id=str(allocation_run.id),
         pool=allocation_run.pool,
         severity=severity,
         title=f"Unusual allocation pattern detected on {allocation_run.pool.code} for {allocation_run.value_date}",
-        description=(
-            f"{metric_label} {current_pct:.2f}% is {deviation_pct:.2f}% different from the "
-            f"{BASELINE_RUN_COUNT}-run average of {average_pct:.2f}%."
-        ),
+        description=description,
         detected_by="system",
+    )
+    _record(allocation_run, user or allocation_run.released_by, case, metric_label, current_value, average_value, deviation, severity, description)
+
+
+def _record(run, user, case, metric_label, current_value, average_value, deviation, severity, description):
+    """BR-009: the output shows its source, confidence, reason and a human disposition (advisory only, reason codes visible)."""
+    if user is None:
+        return
+    from apps.ai_agents.recording import record_ai_output
+
+    record_ai_output(
+        user=user, feature="allocation_anomaly", model_name="allocation_anomaly_detector",
+        prompt={"run": str(run.id), "pool": run.pool.code, "baseline_runs": BASELINE_RUN_COUNT},
+        output={
+            "reason_code": "DEVIATION_FROM_BASELINE", "metric": metric_label, "current": str(current_value),
+            "baseline_average": str(average_value), "deviation": str(deviation), "threshold": str(DEVIATION_THRESHOLD),
+            "severity": severity, "exception_case_id": str(case.id),
+        },
+        sources=[{"type": "allocation_runs", "detail": f"trailing {BASELINE_RUN_COUNT} signed runs of {run.pool.code}"}],
+        confidence=None, reason=description, requires_review=True, subject_type="AllocationRun", subject_id=str(run.id),
     )

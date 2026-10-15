@@ -123,7 +123,7 @@ class AllocationRun(TenantScopedModel):
     """
 
     pool = models.ForeignKey(
-        "pools.Pool", on_delete=models.CASCADE, related_name="allocation_runs"
+        "pools.Pool", on_delete=models.PROTECT, related_name="allocation_runs"
     )
     # value_date is the period end. period_start is null only on legacy
     # single-day runs, which cover just their value_date.

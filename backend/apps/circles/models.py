@@ -75,7 +75,7 @@ class CircleMember(TenantScopedModel):
 
 
 class Contribution(TenantScopedModel):
-    member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="contributions")
+    member = models.ForeignKey(CircleMember, on_delete=models.PROTECT, related_name="contributions")
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     contribution_date = models.DateField()
     cycle_number = models.IntegerField()
@@ -111,8 +111,8 @@ class Payout(TenantScopedModel):
     randomization that assigned its recipient's turn.
     """
 
-    member = models.ForeignKey(CircleMember, on_delete=models.CASCADE, related_name="payouts")
-    pool = models.ForeignKey("pools.Pool", on_delete=models.CASCADE, related_name="circle_payouts")
+    member = models.ForeignKey(CircleMember, on_delete=models.PROTECT, related_name="payouts")
+    pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="circle_payouts")
     cycle_number = models.IntegerField()
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     payout_date = models.DateField()

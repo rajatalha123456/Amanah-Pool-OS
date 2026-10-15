@@ -43,18 +43,30 @@ export async function updateExceptionAssignee(id: string, assignedToUserId: numb
   return response.data
 }
 
-export async function resolveException(id: string, resolutionNotes: string): Promise<ExceptionCase> {
+export async function resolveException(id: string, resolutionNotes: string, disclosureNote?: string): Promise<ExceptionCase> {
   const response = await apiClient.post<ExceptionCase>(`governance/exceptions/${id}/resolve/`, {
     resolution_notes: resolutionNotes,
+    disclosure_note: disclosureNote,
   })
   return response.data
 }
 
-export async function dismissException(id: string, resolutionNotes: string): Promise<ExceptionCase> {
+export async function dismissException(id: string, resolutionNotes: string, disclosureNote?: string): Promise<ExceptionCase> {
   const response = await apiClient.post<ExceptionCase>(`governance/exceptions/${id}/dismiss/`, {
     resolution_notes: resolutionNotes,
+    disclosure_note: disclosureNote,
   })
   return response.data
+}
+
+/** Holds an amount of value while the case is investigated (BRD 8). */
+export async function quarantineValue(id: string, amount: string, reason: string): Promise<ExceptionCase> {
+  return (await apiClient.post<ExceptionCase>(`governance/exceptions/${id}/quarantine/`, { amount, reason })).data
+}
+
+/** The Shariah Board decides what happens to the held value. */
+export async function decideQuarantine(id: string, treatment: string, note: string): Promise<ExceptionCase> {
+  return (await apiClient.post<ExceptionCase>(`governance/exceptions/${id}/decide-quarantine/`, { treatment, note })).data
 }
 
 export async function fetchPurificationEntries(poolId?: string): Promise<PurificationEntry[]> {

@@ -38,17 +38,35 @@ def check_reconciliation(journal_batch):
     if difference == 0:
         return False
 
-    create_exception_case(
+    description = (
+        f"Depositor payable posted to the GL: {gl_net_credit}; participant sub-ledger (allocation lines): "
+        f"{subledger_total}; difference {difference}."
+    )
+    case = create_exception_case(
         tenant=journal_batch.tenant,
         source_module="accounting",
         source_object_id=str(journal_batch.id),
         pool=journal_batch.pool,
         severity="high",
         title=f"GL / sub-ledger mismatch on {journal_batch.pool.code} for {run.value_date}",
-        description=(
-            f"Depositor payable posted to the GL: {gl_net_credit}; participant sub-ledger (allocation lines): "
-            f"{subledger_total}; difference {difference}."
-        ),
+        description=description,
         detected_by="system",
     )
+    if journal_batch.posted_by is not None:
+        from apps.ai_agents.recording import record_ai_output
+
+        # BR-009 and BRD 9: the reconciliation copilot only proposes; it cannot post or write off. Its finding is recorded
+        # with its source, reason and a human disposition.
+        record_ai_output(
+            user=journal_batch.posted_by, feature="reconciliation", model_name="reconciliation_copilot",
+            prompt={"journal_batch": str(journal_batch.id), "run": str(run.id)},
+            output={
+                "reason_code": "GL_SUBLEDGER_MISMATCH", "gl_net_credit": str(gl_net_credit),
+                "subledger_total": str(subledger_total), "difference": str(difference), "exception_case_id": str(case.id),
+                "proposed_action": "Investigate; nothing was posted or written off.",
+            },
+            sources=[{"type": "journal_batch", "detail": str(journal_batch.id)}, {"type": "allocation_lines", "detail": str(run.id)}],
+            confidence=None, reason=description, requires_review=True, subject_type="JournalBatch",
+            subject_id=str(journal_batch.id),
+        )
     return True

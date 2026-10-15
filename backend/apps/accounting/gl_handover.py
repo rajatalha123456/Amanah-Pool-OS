@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.core.audit import log_action
+from apps.pools.models import Pool
 
 from .exports import write_gl_csv
 from .models import GLExport, GLExportStatus, JournalBatch, JournalBatchStatus, JournalEntry, JournalEntryType
@@ -34,7 +35,10 @@ def pending_batches(pool, date_from=None, date_to=None):
 
 def create_export(*, pool, date_from, date_to, user, request=None):
     with transaction.atomic():
-        # Lock the candidate batches so that two makers cannot export the same ones at the same moment.
+        # One export of a pool at a time. Locking the batches alone is not enough: whether a batch was already sent is
+        # decided by another table, which the database does not re-check after waiting for a row lock. Locking the pool
+        # serialises exports, and the "not sent yet" query below then runs after the first export has committed.
+        Pool._base_manager.select_for_update().get(pk=pool.pk)
         batches = list(pending_batches(pool, date_from, date_to).select_for_update())
         if not batches:
             raise ValidationError("Nothing to export: every posted batch in this range was already sent to the GL.")
@@ -55,7 +59,10 @@ def create_export(*, pool, date_from, date_to, user, request=None):
     return export
 
 
+@transaction.atomic
 def _decide(export, user, status, *, gl_reference="", note="", request=None):
+    # Re-read under a row lock: two checkers answering the same export at once must not both succeed.
+    export = GLExport.objects.select_for_update().get(pk=export.pk)
     if export.status != GLExportStatus.GENERATED:
         raise ValidationError(f"This export is already {export.status}.")
     if export.exported_by_id == user.id:

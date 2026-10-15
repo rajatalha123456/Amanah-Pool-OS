@@ -26,6 +26,19 @@ class ExceptionStatus(models.TextChoices):
     DISMISSED = "dismissed", "Dismissed"
 
 
+class QuarantineStatus(models.TextChoices):
+    NONE = "none", "No value held"
+    HELD = "held", "Value quarantined, treatment not decided"
+    DECIDED = "decided", "Treatment decided"
+
+
+class QuarantineTreatment(models.TextChoices):
+    RELEASE_TO_POOL = "release_to_pool", "Release to the pool (no non-compliance found)"
+    PURIFY = "purify", "Purify: route to charity"
+    RETURN_TO_SOURCE = "return_to_source", "Return to the source"
+    WRITE_OFF = "write_off", "Write off at the bank's cost"
+
+
 class ExceptionDetectedBy(models.TextChoices):
     SYSTEM = "system", "System"
     AI_AGENT = "ai_agent", "AI Agent"
@@ -44,7 +57,7 @@ class ExceptionCase(TenantScopedModel):
     source_module = models.CharField(max_length=30, choices=ExceptionSourceModule.choices)
     source_object_id = models.CharField(max_length=64, null=True, blank=True)
     pool = models.ForeignKey(
-        "pools.Pool", on_delete=models.CASCADE, related_name="exception_cases", null=True, blank=True
+        "pools.Pool", on_delete=models.PROTECT, related_name="exception_cases", null=True, blank=True
     )
     severity = models.CharField(max_length=10, choices=ExceptionSeverity.choices)
     title = models.CharField(max_length=255)
@@ -74,6 +87,19 @@ class ExceptionCase(TenantScopedModel):
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
 
+    # BRD 8 exception handling: classify, QUARANTINE value, investigate, decide treatment and DISCLOSE.
+    quarantine_status = models.CharField(max_length=10, choices=QuarantineStatus.choices, default=QuarantineStatus.NONE)
+    quarantined_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    quarantine_reason = models.TextField(blank=True, default="")
+    quarantined_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    quarantined_at = models.DateTimeField(null=True, blank=True)
+    quarantine_treatment = models.CharField(max_length=20, choices=QuarantineTreatment.choices, blank=True, default="")
+    treatment_decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    treatment_decided_at = models.DateTimeField(null=True, blank=True)
+    treatment_note = models.TextField(blank=True, default="")
+    disclosure_note = models.TextField(blank=True, default="")
+    disclosed_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"[{self.severity}] {self.title}"
 
@@ -94,7 +120,7 @@ class PurificationEntry(TenantScopedModel):
     """
 
     pool = models.ForeignKey(
-        "pools.Pool", on_delete=models.CASCADE, related_name="purification_entries"
+        "pools.Pool", on_delete=models.PROTECT, related_name="purification_entries"
     )
     source_description = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=18, decimal_places=2)

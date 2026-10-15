@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.products.serializers import ContractTemplateBasicSerializer
 
-from .models import DailyClose, Asset, AssetAssignment, AssetProvisionEntry, BalanceImportBatch, DailyBalance, Pool, PoolVersion
+from .models import DailyClose, Asset, AssetAssignment, AssetProvisionEntry, AssetTransferRequest, BalanceImportBatch, DailyBalance, Pool, PoolVersion
 
 
 class ProductBasicSerializer(serializers.Serializer):
@@ -144,13 +144,15 @@ class AssetAssignmentSerializer(serializers.ModelSerializer):
             "assigned_by",
             "transfer_reason",
             "transferred_from",
+            "transfer_valuation",
+            "transfer_valuation_basis",
             "is_active",
             "created_at",
             "updated_at",
         )
         read_only_fields = (
             "id", "tenant", "unassigned_date", "assigned_by", "transfer_reason", "transferred_from",
-            "created_at", "updated_at",
+            "transfer_valuation", "transfer_valuation_basis", "created_at", "updated_at",
         )
 
     def validate(self, attrs):
@@ -303,4 +305,21 @@ class DailyCloseSerializer(serializers.ModelSerializer):
         model = DailyClose
         fields = ("id", "pool", "pool_code", "value_date", "status", "gates", "notes", "prepared_by_name", "prepared_at",
                   "signed_by_name", "signed_at")
+        read_only_fields = fields
+
+
+class AssetTransferRequestSerializer(serializers.ModelSerializer):
+    asset_reference = serializers.CharField(source="assignment.asset.reference_code", read_only=True)
+    from_pool_code = serializers.CharField(source="assignment.pool.code", read_only=True)
+    to_pool_code = serializers.CharField(source="to_pool.code", read_only=True)
+    requested_by_name = serializers.CharField(source="requested_by.full_name", read_only=True, default=None)
+    decided_by_name = serializers.CharField(source="decided_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = AssetTransferRequest
+        fields = (
+            "id", "assignment", "asset_reference", "from_pool_code", "to_pool", "to_pool_code", "effective_date", "reason",
+            "valuation", "valuation_basis", "status", "requested_by", "requested_by_name", "decided_by_name", "decided_at",
+            "decision_note", "new_assignment", "created_at",
+        )
         read_only_fields = fields

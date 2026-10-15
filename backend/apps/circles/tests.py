@@ -136,10 +136,17 @@ class CircleRotationApiTests(APITestCase):
         self.assertEqual(forbidden_draw.status_code, status.HTTP_403_FORBIDDEN)
 
         self.authenticate(self.pool_manager)
+        # No one-step draw: revealing without a published seal is refused.
+        unsealed = self.client.post(reverse("circle-member-run-draw", args=[str(self.pool.id)]), {"client_seed": "members-seed"}, format="json")
+        self.assertEqual(unsealed.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("committed", str(unsealed.data))
+        self.assertEqual(self.client.post("/api/v1/circles/draws/commit/", {"pool": str(self.pool.id)}, format="json").status_code, status.HTTP_201_CREATED)
+        no_seed = self.client.post(reverse("circle-member-run-draw", args=[str(self.pool.id)]), {}, format="json")
+        self.assertEqual(no_seed.status_code, status.HTTP_400_BAD_REQUEST)
         draw_response = self.client.post(
-            reverse("circle-member-run-draw", args=[str(self.pool.id)])
+            reverse("circle-member-run-draw", args=[str(self.pool.id)]), {"client_seed": "members-seed"}, format="json"
         )
-        self.assertEqual(draw_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(draw_response.status_code, status.HTTP_200_OK, draw_response.data)
         self.assertIn("seed", draw_response.data)
         assignments = draw_response.data["assignments"]
         self.assertEqual(len(assignments), 5)

@@ -398,8 +398,9 @@ def _build_asset(tenant, cache):
 
 
 def _build_asset_assignment(tenant, cache):
-    return AssetAssignment.objects.create(
-        tenant=tenant, asset=cache.asset(), pool=cache.pool(), assigned_date=_D
+    return cache.get(
+        "asset_assignment",
+        lambda: AssetAssignment.objects.create(tenant=tenant, asset=cache.asset(), pool=cache.pool(), assigned_date=_D),
     )
 
 
@@ -830,6 +831,24 @@ def _suspense_model():
     return SuspenseItem
 
 
+def _asset_transfer_model():
+    from apps.pools.models import AssetTransferRequest
+
+    return AssetTransferRequest
+
+
+def _build_asset_transfer(tenant, cache):
+    from datetime import date as _date
+
+    from apps.pools.models import AssetTransferRequest
+
+    # The destination is the cached pool (a different pool is a business rule, not a database one).
+    return AssetTransferRequest.objects.create(
+        tenant=tenant, assignment=_build_asset_assignment(tenant, cache), to_pool=cache.pool(), effective_date=_date(2026, 2, 1),
+        reason="r", valuation=1, valuation_basis="b",
+    )
+
+
 def _gl_export_model():
     from apps.accounting.models import GLExport
 
@@ -861,6 +880,7 @@ BUILDERS = {
     "products.RulePackRevision": (RulePackRevision, _build_rule_pack_revision),
     "accounting.GLExport": (_gl_export_model(), _build_gl_export),
     "accounting.SuspenseItem": (_suspense_model(), _build_suspense_item),
+    "pools.AssetTransferRequest": (_asset_transfer_model(), _build_asset_transfer),
     "pools.Pool": (Pool, _build_pool),
     "pools.PoolVersion": (PoolVersion, _build_pool_version),
     "pools.Asset": (Asset, _build_asset),

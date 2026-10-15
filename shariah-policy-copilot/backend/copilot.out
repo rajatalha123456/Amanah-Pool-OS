@@ -1,0 +1,20 @@
+INFO:     Started server process [332]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53567 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53575 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58399 - "GET /documents HTTP/1.1" 200 OK
+Failed to send telemetry event ClientStartEvent: capture() takes 1 positional argument but 3 were given
+Failed to send telemetry event ClientCreateCollectionEvent: capture() takes 1 positional argument but 3 were given
+Failed to send telemetry event CollectionQueryEvent: capture() takes 1 positional argument but 3 were given
+INFO:     127.0.0.1:58408 - "POST /query/ask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52361 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52363 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52365 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52367 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55125 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62823 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59079 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58061 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58063 - "GET /documents HTTP/1.1" 200 OK

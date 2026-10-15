@@ -124,6 +124,9 @@ class AssetAssignment(TenantScopedModel):
     transferred_from = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="transferred_to"
     )
+    # BRD 4: a transfer carries its valuation (the value at which the asset leaves one pool and enters the other).
+    transfer_valuation = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    transfer_valuation_basis = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
         return f"{self.asset.reference_code} -> {self.pool.name}"
@@ -148,7 +151,7 @@ class BalanceImportBatchStatus(models.TextChoices):
 
 
 class DailyBalance(TenantScopedModel):
-    pool = models.ForeignKey(Pool, on_delete=models.CASCADE, related_name="daily_balances")
+    pool = models.ForeignKey(Pool, on_delete=models.PROTECT, related_name="daily_balances")
     participant_class = models.CharField(max_length=100)
     value_date = models.DateField()
     balance_amount = models.DecimalField(max_digits=18, decimal_places=2)
@@ -315,3 +318,39 @@ class DailyClose(TenantScopedModel):
     class Meta:
         ordering = ["-value_date"]
         constraints = [models.UniqueConstraint(fields=["pool", "value_date"], name="unique_daily_close_per_pool_day")]
+
+
+class AssetTransferStatus(models.TextChoices):
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved and transferred"
+    REJECTED = "rejected", "Rejected"
+
+
+class AssetTransferRequest(TenantScopedModel):
+    """
+    A proposed move of a held asset to another pool (BRD 4: "transfer with effective date, valuation and approval").
+    Nothing moves until a different person approves; the valuation and its basis are mandatory and recorded on the
+    new assignment. Approval re-checks eligibility, the periods of both pools and the dates, and performs the move.
+    """
+
+    assignment = models.ForeignKey(AssetAssignment, on_delete=models.PROTECT, related_name="transfer_requests")
+    to_pool = models.ForeignKey(Pool, on_delete=models.PROTECT, related_name="+")
+    effective_date = models.DateField()
+    reason = models.TextField()
+    valuation = models.DecimalField(max_digits=18, decimal_places=2)
+    valuation_basis = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=AssetTransferStatus.choices, default=AssetTransferStatus.PENDING)
+    requested_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
+    decided_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True, default="")
+    new_assignment = models.ForeignKey(AssetAssignment, on_delete=models.PROTECT, null=True, blank=True, related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.CheckConstraint(condition=models.Q(valuation__gt=0), name="asset_transfer_valuation_positive")]
+
+    def delete(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+
+        raise ValidationError("A transfer request is part of the audit trail and cannot be deleted.")

@@ -48,7 +48,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-024 | 4 | Product & Contract Studio: templates for Mudarabah/Musharakah/Wakalah/Qard; PSR, weightage, tenure, notice, disclosure rules | `products/*` | Product catalogue, template studio | `ContractTemplate` | BT products.tests | PARTIAL (mandatory-parameter enforcement per template not built) | P2 |
 | R-025 | 4 | Pool lifecycle: draft, review, approved, open, frozen, allocation, closed, archived | `pools/lifecycle.py`, `activation.py` | Pool detail | `Pool.status` | BT pools.test_lifecycle, test_activation_gates | PASS | - |
 | R-026 | 4 | Capital & membership: opening, KYC/KYB, subscriptions, redemptions, contributions, nominees, member limits | participants, investments, circles | Participants, Investments | - | BT redemptions, participation terms | PARTIAL (no KYB; nominee is text) | P2 |
-| R-027 | 4 | Asset assignment: one pool; transfer with effective date, valuation, approval | `pools/asset_rules.py` | Assets tab, transfer modal | `AssetAssignment` | BT pools.test_asset_rules | PARTIAL (no valuation/approval on transfer; no ring-fencing) | P2 |
+| R-027 | 4 | Asset assignment: one pool; transfer with effective date, valuation, approval | `pools/asset_rules.py` | Assets tab, transfer modal | `AssetAssignment` | BT pools.test_asset_rules; after fix: transfer needs valuation, basis and a different approver (BT, E2E); ring-fencing still not built | PARTIAL | P3 |
 | R-028 | 4 | Income & expense: accruals, realization, direct expenses, provisions, write-offs, reversals, non-permissible income | `allocation/income.py`, provisions | Income & Expense workbench | `IncomeExpenseEvent` | BT test_income_derivation (17), test_provisions | PARTIAL (no accrual vs realization distinction; keyword classification) | P2 |
 | R-029 | 4 | Profit allocation: daily averages, weightages, PSR, Mudarib, Wakalah fee, Hiba, PER/IRR, rounding | `engine.py` | Allocation Engine | `AllocationRun` | AT test_audit_financial (27 pass); see FIN-01; after fix F-02: pending balances refused (AT test_14, BT test_pending_balances_block_a_run) | PASS | - |
 | R-030 | 4 | Loss & impairment: waterfall, negligence cases, provisions, write-offs, recoveries | `investments/negligence.py`, provisions | Investments, Risk | - | BT NegligenceWorkflowTests (11), provisions | PASS | - |
@@ -89,7 +89,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-055 | 6.2.2 | Validate control totals, duplicates, value dates, tags, closed periods | import checks | Balance Import | unique (pool, day, account) | BT BalanceImportTests, PeriodLockTests | PASS | - |
 | R-056 | 6.2.3 | Daily funds and weighted balances by product/class | engine | - | - | AT 07, 09 | PASS | - |
 | R-057 | 6.2.4 | Reconcile assets, sources, pool equity, suspense | `accounting/reconciliation.py` | Reconciliation Center | - | BT ReconciliationTests | PARTIAL (no suspense, no live feed) | P2 |
-| R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; no recommendation record) | Anomaly queue | - | none direct | PARTIAL | P2 |
+| R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; no recommendation record) | Anomaly queue | - | none direct; after fix: recorded with reason code; still a moving-average check after signing, no cross-pool leakage test | PARTIAL | P3 |
 | R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run; after T-02/daily close: signed close required before check and release (BT) | PASS | - |
 | R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack; after rule pack revisions: run seals the pack revision and hash (BT) | PASS | - |
 | R-061 | 6.3.2 | Gross income and permitted direct expenses | `allocation/income.py` | - | - | BT DerivedFromEventsTests | PASS | - |
@@ -141,7 +141,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-097 | 8 | Rule hierarchy; conflicts block activation | `activation.py` rule_conflicts | Pool detail checklist | - | BT activation gates | PARTIAL (hierarchy itself not modelled) | P2 |
 | R-098 | 8 | Decision register: decision, scope, evidence, effective date, superseded version, conditions, approvers | `ShariahDecision` | Fatwa register | - | BT ShariahRegisterTests | PASS | - |
 | R-099 | 8 | Pre-launch review: nothing activates without Shariah approval | activation gate | - | - | BT activation gates | PASS | - |
-| R-100 | 8 | Exceptions: classify, quarantine value, investigate, decide, disclose | `ExceptionCase` | Exception case | - | BT governance.tests | PARTIAL (no value quarantine / disclosure step) | P2 |
+| R-100 | 8 | Exceptions: classify, quarantine value, investigate, decide, disclose | `ExceptionCase` | Exception case | - | BT governance.tests; after fix: quarantine, Board decision, disclosure before close (BT test_quarantined_value_needs...; E2E) | PASS | - |
 | R-101 | 8 | Purification: identify, prevent distribution, approve charity, retain proof | `PurificationEntry` | Purification ledger | - | BT non_permissible test | PASS | - |
 | R-102 | 8 | Related parties: disclose, price-test, conflict declaration, elevated approval | `governance/views.py` | Related-party review | - | BT RelatedPartyTransactionApiTests (4) | PASS | - |
 | R-103 | 8 | Shariah audit: plan, samples, findings, responses, remediation, annual report | `governance/audit_report.py` | Shariah audit plan | - | BT test_shariah_register_and_report | PASS | - |
@@ -152,10 +152,10 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
 | R-105 | 9 | Shariah Policy Copilot: citations mandatory; cannot issue fatwa | external FastAPI service `shariah-policy-copilot/` | Copilot | - | copilot unit tests 2/2 (`evidence/copilot_tests.txt`); live service not running | BLOCKED | P2 |
-| R-106 | 9 | Contract analyzer: low confidence routes to human | `contract_analyzer.py:114` uses model's self-reported confidence | - | - | none | PARTIAL | P2 |
-| R-107 | 9 | Anomaly detector advisory with reason codes | `anomaly_detector.py` | Anomaly queue | `ExceptionCase` | none direct | PARTIAL | P2 |
+| R-106 | 9 | Contract analyzer: low confidence routes to human | `contract_analyzer.py:114` uses model's self-reported confidence | - | - | none; after fix AI-01: the model's own confidence never clears human review (BT test_a_document_cannot_clear...) | PASS | - |
+| R-107 | 9 | Anomaly detector advisory with reason codes | `anomaly_detector.py` | Anomaly queue | `ExceptionCase` | none direct; after fix: findings recorded with reason code and pending disposition (BT DetectorRecordingTests) | PASS | - |
 | R-108 | 9 | Cash-flow and liquidity forecast with ranges | `pools/liquidity.py` | Liquidity section | - | BT test_liquidity_forecast (3) | PASS | - |
-| R-109 | 9 | Reconciliation copilot cannot post or write off | `accounting/reconciliation.py` advisory | Reconciliation | - | BT ReconciliationTests | PARTIAL (no recommendation record) | P3 |
+| R-109 | 9 | Reconciliation copilot cannot post or write off | `accounting/reconciliation.py` advisory | Reconciliation | - | BT ReconciliationTests; after fix: finding recorded; the copilot only proposes (BT DetectorRecordingTests) | PASS | - |
 | R-110 | 9 | Member risk and hardship without protected-trait inference | `hardship_predictor.py` | Arrears tab | - | none on traits | NOT TESTED | P2 |
 | R-111 | 9 | Disclosure generator in Urdu / Arabic / English from signed run only | `allocation/statements.py` template, English | Plain-language card | - | none | PARTIAL | P2 |
 | R-112 | 9 | Audit sampling logged and challengeable | `audit_sampler.py` + recommendation record | Reports | `AIRecommendation` | BT recommendations | PASS | - |
@@ -231,7 +231,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-157 | 14 | Append-only audit, signed manifests, tamper-evident hashes | PASS | - | BT core.test_audit_chain (7) |
 | R-158 | 14 | Privacy: purpose limitation, minimisation, consent, residency, retention, DSAR | PARTIAL | P2 | BT consents, retention |
 | R-159 | 14 | Resilience: multi-zone, encrypted backups, tested restore, RPO 15 min, RTO 4 h | BLOCKED (scripts exist, never run; no pg_dump here) | P1 | `backend/scripts/` |
-| R-160 | 14 | WCAG 2.2 AA, keyboard, contrast, labels, localization | PARTIAL (unlabeled controls found) | P2 | `evidence/a11y_probe.txt` |
+| R-160 | 14 | WCAG 2.2 AA, keyboard, contrast, labels, localization; after fix: every control gets an accessible name (probe: 242 unnamed -> 0 over 8 roles); no full WCAG audit | PARTIAL | P3 | `evidence/a11y_probe.txt` |
 | R-161 | 14 | Multi-currency, timezone, calendars, English/Urdu/Arabic, RTL | PARTIAL (no Arabic UI; RTL for Urdu) | P2 | ST `i18n/index.ts` |
 | R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | PARTIAL (logs + health endpoints only) | P2 | BT HealthTests |
 
@@ -247,7 +247,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-168 | BR-006 Musharakah loss by capital ratio unless liability | PASS | - | BT NegligenceWorkflowTests |
 | R-169 | BR-007 no interest / late interest / uplift in circles | NOT TESTED (static: no field) | P2 | ST |
 | R-170 | BR-008 payout needs collections, eligibility, KYC, dual approval | PASS | - | BT circles.test_payout_workflow (14) |
-| R-171 | BR-009 AI output shows source, confidence, reason, disposition | PARTIAL (anomaly detector, reconciliation copilot write no record) | P2 | BT ai_agents.test_recommendations |
+| R-171 | BR-009 AI output shows source, confidence, reason, disposition; after fixes AI-03: detector and reconciliation copilot now record (BT) | PASS | - | BT ai_agents.test_recommendations |
 | R-172 | BR-010 cross-tenant reads and retrieval denied, tested | PASS | - | BT tenants.test_comprehensive_isolation; AT cross-tenant (two tenants, 0 leaks) |
 
 ## Section 17-19: roadmap, go-live gates, decisions
@@ -269,12 +269,12 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-185 | 18 | AI validation, red-team, fallback, monitoring | PARTIAL (fallback only) | P2 | copilot tests |
 | R-186 | 19 | Implementation decisions recorded | PASS (documented, sign-offs pending) | P2 | `docs/DECISIONS.md` |
 
-## Totals (R-001..R-186), after the fixes through 2026-10-13
+## Totals (R-001..R-186), after all code fixes (2026-10-14)
 
 | Status | Count |
 |---|---|
-| PASS | 91 |
-| PARTIAL | 66 |
+| PASS | 97 |
+| PARTIAL | 60 |
 | FAIL | 0 |
 | MISSING | 9 |
 | BLOCKED | 8 |

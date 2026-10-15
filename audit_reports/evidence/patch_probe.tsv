@@ -19,16 +19,16 @@ allocation/psr-schedules	shariah_board	403	mudarib_share: 15.00 -> 15.00
 allocation/psr-schedules	risk_compliance	403	mudarib_share: 15.00 -> 15.00	
 allocation/psr-schedules	authorized_signatory	403	mudarib_share: 15.00 -> 15.00	
 allocation/psr-schedules	auditor	403	mudarib_share: 15.00 -> 15.00	
-allocation/weightage-bands	platform_super_admin	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	product_manager	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	pool_manager	400	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	finance_maker	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	finance_checker	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	shariah_secretariat	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	shariah_board	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	risk_compliance	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	authorized_signatory	403	weightage: 1.00 -> 1.00	
-allocation/weightage-bands	auditor	403	weightage: 1.00 -> 1.00	
+allocation/weightage-bands	platform_super_admin	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	product_manager	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	pool_manager	400	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	finance_maker	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	finance_checker	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	shariah_secretariat	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	shariah_board	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	risk_compliance	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	authorized_signatory	403	weightage: 1.30 -> 1.30	
+allocation/weightage-bands	auditor	403	weightage: 1.30 -> 1.30	
 investments/capital-accounts	platform_super_admin	403	units_held: 50000.000000 -> 50000.000000	
 investments/capital-accounts	product_manager	403	units_held: 50000.000000 -> 50000.000000	
 investments/capital-accounts	pool_manager	200	units_held: 50000.000000 -> 50000.000000	
@@ -69,26 +69,26 @@ pools/asset-assignments	shariah_board	405	assigned_date: 2026-01-01 -> 2026-01-0
 pools/asset-assignments	risk_compliance	405	assigned_date: 2026-01-01 -> 2026-01-01	
 pools/asset-assignments	authorized_signatory	405	assigned_date: 2026-01-01 -> 2026-01-01	
 pools/asset-assignments	auditor	405	assigned_date: 2026-01-01 -> 2026-01-01	
-accounting/income-expense-events	platform_super_admin	403	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	product_manager	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	pool_manager	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	finance_maker	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	finance_checker	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	shariah_secretariat	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	shariah_board	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	risk_compliance	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	authorized_signatory	405	amount: 12500.00 -> 12500.00	
-accounting/income-expense-events	auditor	405	amount: 12500.00 -> 12500.00	
-circles/circle-members	platform_super_admin	403	payout_position: 2 -> 2	
-circles/circle-members	product_manager	403	payout_position: 2 -> 2	
-circles/circle-members	pool_manager	200	payout_position: 2 -> 2	
-circles/circle-members	finance_maker	403	payout_position: 2 -> 2	
-circles/circle-members	finance_checker	403	payout_position: 2 -> 2	
-circles/circle-members	shariah_secretariat	403	payout_position: 2 -> 2	
-circles/circle-members	shariah_board	403	payout_position: 2 -> 2	
-circles/circle-members	risk_compliance	403	payout_position: 2 -> 2	
-circles/circle-members	authorized_signatory	403	payout_position: 2 -> 2	
-circles/circle-members	auditor	403	payout_position: 2 -> 2	
+accounting/income-expense-events	platform_super_admin	403	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	product_manager	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	pool_manager	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	finance_maker	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	finance_checker	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	shariah_secretariat	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	shariah_board	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	risk_compliance	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	authorized_signatory	405	amount: 650000.00 -> 650000.00	
+accounting/income-expense-events	auditor	405	amount: 650000.00 -> 650000.00	
+circles/circle-members	platform_super_admin	403	payout_position: 4 -> 4	
+circles/circle-members	product_manager	403	payout_position: 4 -> 4	
+circles/circle-members	pool_manager	200	payout_position: 4 -> 4	
+circles/circle-members	finance_maker	403	payout_position: 4 -> 4	
+circles/circle-members	finance_checker	403	payout_position: 4 -> 4	
+circles/circle-members	shariah_secretariat	403	payout_position: 4 -> 4	
+circles/circle-members	shariah_board	403	payout_position: 4 -> 4	
+circles/circle-members	risk_compliance	403	payout_position: 4 -> 4	
+circles/circle-members	authorized_signatory	403	payout_position: 4 -> 4	
+circles/circle-members	auditor	403	payout_position: 4 -> 4	
 products/products	platform_super_admin	403	minimum_subscription: 1000.00 -> 1000.00	
 products/products	product_manager	400	minimum_subscription: 1000.00 -> 1000.00	
 products/products	pool_manager	403	minimum_subscription: 1000.00 -> 1000.00	
@@ -109,16 +109,16 @@ products/contract-templates	shariah_board	403	version: 2025.2 -> 2025.2
 products/contract-templates	risk_compliance	403	version: 2025.2 -> 2025.2	
 products/contract-templates	authorized_signatory	403	version: 2025.2 -> 2025.2	
 products/contract-templates	auditor	403	version: 2025.2 -> 2025.2	
-products/shariah-decisions	platform_super_admin	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	product_manager	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	pool_manager	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	finance_maker	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	finance_checker	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	shariah_secretariat	400	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	shariah_board	400	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	risk_compliance	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	authorized_signatory	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
-products/shariah-decisions	auditor	403	title: Wakala Inter-Bank Treasury Placement & Performance Incentive Structure -> Wakala Inter-Bank Treasury Placement & Performance Incentive Structure	
+products/shariah-decisions	platform_super_admin	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	product_manager	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	pool_manager	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	finance_maker	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	finance_checker	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	shariah_secretariat	400	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	shariah_board	400	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	risk_compliance	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	authorized_signatory	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
+products/shariah-decisions	auditor	403	title: Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix -> Diminishing Musharakah Asset Ownership & Periodic Unit Sale Matrix	
 governance/related-party-transactions	platform_super_admin	403	amount: 15000000.00 -> 15000000.00	
 governance/related-party-transactions	product_manager	403	amount: 15000000.00 -> 15000000.00	
 governance/related-party-transactions	pool_manager	400	amount: 15000000.00 -> 15000000.00	
@@ -129,16 +129,16 @@ governance/related-party-transactions	shariah_board	403	amount: 15000000.00 -> 1
 governance/related-party-transactions	risk_compliance	403	amount: 15000000.00 -> 15000000.00	
 governance/related-party-transactions	authorized_signatory	403	amount: 15000000.00 -> 15000000.00	
 governance/related-party-transactions	auditor	403	amount: 15000000.00 -> 15000000.00	
-pools/pools	platform_super_admin	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	product_manager	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	pool_manager	400	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	finance_maker	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	finance_checker	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	shariah_secretariat	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	shariah_board	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	risk_compliance	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	authorized_signatory	403	effective_date: 2026-01-01 -> 2026-01-01	
-pools/pools	auditor	403	effective_date: 2026-01-01 -> 2026-01-01	
+pools/pools	platform_super_admin	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	product_manager	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	pool_manager	400	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	finance_maker	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	finance_checker	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	shariah_secretariat	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	shariah_board	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	risk_compliance	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	authorized_signatory	403	effective_date: 2026-02-01 -> 2026-02-01	
+pools/pools	auditor	403	effective_date: 2026-02-01 -> 2026-02-01	
 products/jurisdiction-rule-packs	platform_super_admin	400	version: 2025.01 -> 2025.01	
 products/jurisdiction-rule-packs	product_manager	403	version: 2025.01 -> 2025.01	
 products/jurisdiction-rule-packs	pool_manager	403	version: 2025.01 -> 2025.01	

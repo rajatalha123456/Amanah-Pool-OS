@@ -28,11 +28,38 @@ export async function unassignAsset(id: string): Promise<AssetAssignment> {
   return response.data
 }
 
+export interface AssetTransferRequest {
+  id: string
+  asset_reference: string
+  from_pool_code: string
+  to_pool_code: string
+  effective_date: string
+  reason: string
+  valuation: string
+  valuation_basis: string
+  status: "pending" | "approved" | "rejected"
+  requested_by: number | string | null
+  requested_by_name: string | null
+  decided_by_name: string | null
+  decision_note: string
+  created_at: string
+}
+
+/** A transfer is only PROPOSED (HTTP 202): it needs a valuation and a different person's approval. */
 export async function transferAsset(
   assignmentId: string,
-  data: { to_pool: string; effective_date: string; reason: string },
-): Promise<AssetAssignment> {
-  return (await apiClient.post<AssetAssignment>(`pools/asset-assignments/${assignmentId}/transfer/`, data)).data
+  data: { to_pool: string; effective_date: string; reason: string; valuation: string; valuation_basis: string },
+): Promise<AssetTransferRequest> {
+  return (await apiClient.post<AssetTransferRequest>(`pools/asset-assignments/${assignmentId}/transfer/`, data)).data
+}
+
+export async function fetchAssetTransfers(poolId: string): Promise<AssetTransferRequest[]> {
+  const response = await apiClient.get<AssetTransferRequest[]>("pools/asset-transfers/", { params: { pool: poolId } })
+  return response.data
+}
+
+export async function decideAssetTransfer(id: string, verb: "approve" | "reject", reason?: string): Promise<AssetTransferRequest> {
+  return (await apiClient.post<AssetTransferRequest>(`pools/asset-transfers/${id}/${verb}/`, reason ? { reason } : {})).data
 }
 
 export async function fetchProvisions(): Promise<AssetProvisionEntry[]> {

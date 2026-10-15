@@ -36,7 +36,19 @@ from .models import (
 )
 from .rules import current_rules
 from .payouts import build_preflight, create_payout_request, next_cycle_number, next_recipient
-from .rotation import run_draw as run_draw_for_pool
+from .rotation import execute_draw as _execute_draw
+from .models import CircleDraw, DrawStatus
+
+
+def _reveal_committed_draw(pool, client_seed, user):
+    """Reveals the draw already committed for this circle with the members' seed (commit first, then reveal)."""
+    draw = CircleDraw.objects.filter(pool=pool, status=DrawStatus.COMMITTED).order_by("sequence").first()
+    if draw is None:
+        raise ValidationError(
+            "There is no committed draw. Commit (seal) the draw first, then reveal it with the members' seed."
+        )
+    executed = _execute_draw(draw, client_seed, user)
+    return {"seed": executed.server_seed, "assignments": executed.assignments, "draw_id": str(executed.id)}
 from .serializers import (
     ArrearsRecordSerializer,
     CircleMemberSerializer,
@@ -588,7 +600,9 @@ class CircleMemberViewSet(
         except Pool.DoesNotExist:
             raise ValidationError("Pool not found.")
 
-        result = run_draw_for_pool(pool, user=request.user)
+        # The seal must be published before the members' seed exists, so a one-step draw is not allowed: this endpoint
+        # reveals the draw that was committed earlier (circles/draws/commit/).
+        result = _reveal_committed_draw(pool, request.data.get("client_seed"), request.user)
 
         log_action(
             tenant=pool.tenant,
@@ -686,7 +700,7 @@ class CircleMemberViewSet(
         """
         pool = get_circle_pool(pool_id)
 
-        client_seed = request.data.get("client_seed") or "entropy-client-browser"
+        client_seed = request.data.get("client_seed")
         force_reshuffle = request.data.get("force_reshuffle", False)
 
         with transaction.atomic():
@@ -696,7 +710,7 @@ class CircleMemberViewSet(
                     "Use a mutual-consent turn swap instead."
                 )
 
-            result = run_draw_for_pool(pool, client_seed=client_seed, user=request.user)
+            result = _reveal_committed_draw(pool, client_seed, request.user)
 
         audit_hash = CircleDraw.objects.get(pk=result["draw_id"]).result_hash
 

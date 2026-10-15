@@ -99,3 +99,67 @@ class RecommendationRecordTests(APITestCase):
         rec = AIRecommendation._base_manager.get(pk=response.data["recommendation_id"])
         self.assertEqual((rec.feature, str(rec.confidence)), ("shariah_copilot_ask", "0.910"))
         self.assertEqual(rec.sources, [{"document": "Fatwa 12"}])
+
+
+class DetectorRecordingTests(APITestCase):
+    """BR-009 for the allocation anomaly detector and the reconciliation copilot: each finding is recorded."""
+
+    def test_an_anomaly_and_a_reconciliation_finding_are_recorded_with_reason_and_pending_disposition(self):
+        from datetime import date, timedelta
+        from decimal import Decimal
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from apps.accounting.models import JournalBatch
+        from apps.accounting.reconciliation import check_reconciliation
+        from apps.accounts.models import User
+        from apps.allocation.anomaly_detector import check_for_anomalies
+        from apps.allocation.models import AllocationRun
+        from apps.core.context import set_current_tenant
+        from apps.tenants.models import Tenant
+
+        call_command("seed_project_data", tenant_code="DET-T", allow_non_debug=True, stdout=StringIO())
+        tenant = Tenant.objects.get(code="DET-T")
+        set_current_tenant(tenant)
+        try:
+            signatory = User.objects.filter(tenant=tenant, role="authorized_signatory").first()
+            template = AllocationRun._base_manager.filter(tenant=tenant, status="signed").order_by("-value_date").first()
+            pool = template.pool
+            # five signed runs with a steady margin of 0.9, then one whose margin is 0.09
+            for i in range(5):
+                AllocationRun._base_manager.create(
+                    tenant=tenant, pool=pool, value_date=date(2025, 1, 1) + timedelta(days=i), gross_income=Decimal("100.00"),
+                    distributable_amount=Decimal("90.00"), total_weighted_funds=Decimal("90.00"),
+                    depositor_pool_share=Decimal("90.00"), mudarib_share=Decimal("0.00"), status="signed",
+                )
+            latest = AllocationRun._base_manager.create(
+                tenant=tenant, pool=pool, value_date=date(2025, 2, 1), gross_income=Decimal("1000.00"),
+                distributable_amount=Decimal("90.00"), total_weighted_funds=Decimal("90.00"),
+                depositor_pool_share=Decimal("90.00"), mudarib_share=Decimal("0.00"), status="signed",
+            )
+            AIRecommendation.objects.all().delete()
+            self.assertTrue(check_for_anomalies(latest, signatory))
+            rec = AIRecommendation.objects.get(model_name="allocation_anomaly_detector")
+            self.assertEqual(rec.output["reason_code"], "DEVIATION_FROM_BASELINE")
+            self.assertEqual(rec.output["metric"], "Profit margin")
+            self.assertEqual(rec.disposition, "pending")
+            self.assertTrue(rec.requires_human_review)
+            self.assertIn("exception_case_id", rec.output)
+            self.assertEqual(rec.requested_by_id, signatory.id)
+
+            # a GL / sub-ledger mismatch is recorded by the reconciliation copilot
+            batch = JournalBatch._base_manager.filter(tenant=tenant, allocation_run__isnull=False).first()
+            line = batch.allocation_run.lines.first()
+            from apps.allocation.models import AllocationLine
+
+            AllocationLine._base_manager.filter(pk=line.pk).update(allocated_amount=line.allocated_amount + Decimal("5.00"))
+            AIRecommendation.objects.filter(model_name="reconciliation_copilot").delete()
+            self.assertTrue(check_reconciliation(batch))
+            rec = AIRecommendation.objects.get(model_name="reconciliation_copilot")
+            self.assertEqual(rec.output["reason_code"], "GL_SUBLEDGER_MISMATCH")
+            self.assertEqual(Decimal(rec.output["difference"]), Decimal("-5.00"))
+            self.assertEqual(rec.disposition, "pending")
+            self.assertIn("nothing was posted", rec.output["proposed_action"].lower())
+        finally:
+            set_current_tenant(None)

@@ -1,0 +1,9 @@
+
+Running 1 test using 1 worker
+
+  ok 1 e2e\zz_a11y.spec.ts:9:1 › a11y probe (6.3m)
+
+  Slow test file: e2e\zz_a11y.spec.ts (6.3m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 passed (6.4m)
+DONE

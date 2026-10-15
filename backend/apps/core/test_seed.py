@@ -102,5 +102,13 @@ class SeedProjectDataTests(TestCase):
         propose_open(pool=pool, side="unidentified_receipt", amount="10.00", description="demo", user=maker)
         GLExport.objects.create(tenant=self.tenant, pool=pool, row_count=0, total_debit=0, total_credit=0, content="", content_hash="0" * 64)
         self.assertTrue(RulePackRevision._base_manager.filter(tenant=self.tenant).exists())
+        from apps.pools.models import AssetAssignment, AssetTransferRequest
+
+        assignment = AssetAssignment._base_manager.filter(tenant=self.tenant).first()
+        AssetTransferRequest.objects.create(
+            tenant=self.tenant, assignment=assignment, to_pool=pool, effective_date=assignment.assigned_date, reason="r",
+            valuation=1, valuation_basis="b",
+        )
         call_command("seed_project_data", tenant_code="SEED-TEST", allow_non_debug=True, stdout=StringIO())
         self.assertFalse(SuspenseItem._base_manager.filter(tenant=self.tenant).exists())
+        self.assertFalse(AssetTransferRequest._base_manager.filter(tenant=self.tenant).exists())

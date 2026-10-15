@@ -37,6 +37,11 @@ def _assert_account(key, label):
         raise ValidationError({label: [f"Choose one of the pool accounts (not suspense): {key!r} is not one."]})
 
 
+def _locked(item):
+    """The item as it is now, row-locked, so that two people deciding it at once cannot both succeed."""
+    return SuspenseItem.objects.select_for_update().get(pk=item.pk)
+
+
 def _different(user, other_id, what):
     if other_id == user.id:
         raise ValidationError(f"{what} must be approved by a different person than the one who proposed it.")
@@ -69,7 +74,9 @@ def propose_open(*, pool, side, amount, description, user, counter_account_key="
     return item
 
 
+@transaction.atomic
 def approve_open(item, user, request=None):
+    item = _locked(item)
     if item.status != SuspenseStatus.PROPOSED:
         raise ValidationError(f"Only a proposed item can be opened (status: {item.status}).")
     _different(user, item.proposed_by_id, "Parking an amount in suspense")
@@ -87,7 +94,9 @@ def approve_open(item, user, request=None):
     return item
 
 
+@transaction.atomic
 def reject_open(item, user, reason, request=None):
+    item = _locked(item)
     if item.status != SuspenseStatus.PROPOSED:
         raise ValidationError(f"Only a proposed item can be rejected (status: {item.status}).")
     if not (reason or "").strip():
@@ -100,7 +109,9 @@ def reject_open(item, user, reason, request=None):
     return item
 
 
+@transaction.atomic
 def propose_clear(item, user, target_account_key, reason, request=None):
+    item = _locked(item)
     if item.status != SuspenseStatus.OPEN:
         raise ValidationError(f"Only an open item can be cleared (status: {item.status}).")
     _assert_account(target_account_key, "target_account_key")
@@ -114,7 +125,9 @@ def propose_clear(item, user, target_account_key, reason, request=None):
     return item
 
 
+@transaction.atomic
 def approve_clear(item, user, request=None):
+    item = _locked(item)
     from apps.pools.period_lock import assert_period_open
 
     if item.status != SuspenseStatus.CLEARING_PROPOSED:
@@ -136,7 +149,9 @@ def approve_clear(item, user, request=None):
     return item
 
 
+@transaction.atomic
 def reject_clear(item, user, reason, request=None):
+    item = _locked(item)
     if item.status != SuspenseStatus.CLEARING_PROPOSED:
         raise ValidationError(f"There is no clearing awaiting approval (status: {item.status}).")
     if not (reason or "").strip():

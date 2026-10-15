@@ -255,3 +255,63 @@ class AuditFixTests(APITestCase):
         self.assertEqual(accounts["count"], expected)
         self.assertTrue(all(str(a["participant"]) in {str(i) for i in ids} for a in accounts["results"]))
         self.assertGreater(Participant._base_manager.filter(tenant=self.tenant).count(), 3)
+
+    # BRD 8: quarantine value, decide treatment, disclose -----------------------------------------------------------
+    def test_quarantined_value_needs_a_board_decision_and_a_disclosure_before_the_case_closes(self):
+        from apps.governance.models import ExceptionCase
+
+        case = ExceptionCase._base_manager.filter(tenant=self.tenant).exclude(status__in=["resolved", "dismissed"]).first()
+        url = f"/api/v1/governance/exceptions/{case.pk}/"
+        risk, board = self.user("risk_compliance"), self.user("shariah_board")
+
+        self.assertEqual(self.call(self.user("finance_maker"), "post", url + "quarantine/", {"amount": "10", "reason": "x"}).status_code, 403)
+        self.assertEqual(self.call(risk, "post", url + "quarantine/", {"amount": "0", "reason": "x"}).status_code, 400)
+        self.assertEqual(self.call(risk, "post", url + "quarantine/", {"amount": "9000.00"}).status_code, 400)
+        held = self.call(risk, "post", url + "quarantine/", {"amount": "9000.00", "reason": "Penalty income received on 12 July"})
+        self.assertEqual(held.status_code, 200, held.data)
+        self.assertEqual(held.data["quarantine_status"], "held")
+        self.assertEqual(self.call(risk, "post", url + "quarantine/", {"amount": "1", "reason": "again"}).status_code, 400)
+
+        # the case cannot close while value is held and undecided
+        self.assertEqual(self.call(risk, "post", url + "resolve/", {"resolution_notes": "done"}).status_code, 400)
+        self.assertEqual(self.call(risk, "post", url + "dismiss/", {"resolution_notes": "done"}).status_code, 400)
+
+        # only the Shariah Board decides the treatment, with its reasoning
+        self.assertEqual(self.call(risk, "post", url + "decide-quarantine/", {"treatment": "purify", "note": "x"}).status_code, 403)
+        self.assertEqual(self.call(board, "post", url + "decide-quarantine/", {"treatment": "keep_it", "note": "x"}).status_code, 400)
+        self.assertEqual(self.call(board, "post", url + "decide-quarantine/", {"treatment": "purify"}).status_code, 400)
+        decided = self.call(board, "post", url + "decide-quarantine/", {"treatment": "purify", "note": "Non-permissible penalty income"})
+        self.assertEqual(decided.data["quarantine_status"], "decided")
+        self.assertEqual(decided.data["quarantine_treatment"], "purify")
+
+        # closing then needs the disclosure
+        self.assertEqual(self.call(risk, "post", url + "resolve/", {"resolution_notes": "done"}).status_code, 400)
+        closed = self.call(risk, "post", url + "resolve/", {"resolution_notes": "done", "disclosure_note": "Disclosed in the July pool report, note 4"})
+        self.assertEqual(closed.status_code, 200, closed.data)
+        self.assertEqual(closed.data["status"], "resolved")
+        self.assertIn("note 4", closed.data["disclosure_note"])
+
+    def test_a_case_without_quarantined_value_closes_as_before(self):
+        from apps.governance.models import ExceptionCase
+
+        case = ExceptionCase._base_manager.filter(tenant=self.tenant).exclude(status__in=["resolved", "dismissed"]).first()
+        r = self.call(self.user("risk_compliance"), "post", f"/api/v1/governance/exceptions/{case.pk}/resolve/", {"resolution_notes": "checked"})
+        self.assertEqual(r.status_code, 200, r.data)
+
+    # DB audit: financial history is never lost to a cascading delete ---------------------------------------------
+    def test_financial_relations_protect_their_parents_from_deletion(self):
+        from django.apps import apps
+        from django.db import models as dj
+
+        must_protect = {
+            "pools.DailyBalance": "pool", "allocation.AllocationRun": "pool", "accounting.JournalBatch": "pool",
+            "accounting.IncomeExpenseEvent": "pool", "governance.ExceptionCase": "pool", "governance.PurificationEntry": "pool",
+            "investments.CapitalAccount": "pool", "investments.Subscription": "capital_account",
+            "investments.Redemption": "capital_account", "investments.InvestmentDistributionRun": "pool",
+            "circles.Contribution": "member", "circles.Payout": "member", "pools.AssetTransferRequest": "assignment",
+        }
+        weak = [
+            f"{label}.{field}" for label, field in must_protect.items()
+            if apps.get_model(label)._meta.get_field(field).remote_field.on_delete is not dj.PROTECT
+        ]
+        self.assertEqual(weak, [], f"these relations still cascade on delete: {weak}")
