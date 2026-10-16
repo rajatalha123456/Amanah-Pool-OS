@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react"
 import { useTranslation } from "react-i18next"
 import type { BadgeVariant } from "../types"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant
@@ -16,8 +16,8 @@ const variantClasses: Record<BadgeVariant, string> = {
 
 export function Badge({ variant = "neutral", className = "", children, ...props }: BadgeProps) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
-  const content = isUrdu && typeof children === "string" ? translateToUrdu(children) : children
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
+  const content = isUrdu && typeof children === "string" ? translatePhrase(i18n.language, children) : children
 
   return (
     <span

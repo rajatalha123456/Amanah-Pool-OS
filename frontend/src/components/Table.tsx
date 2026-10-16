@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 export interface TableColumn<T> {
   header: string
@@ -16,7 +16,7 @@ interface TableProps<T> {
 
 export function Table<T>({ columns, data, keyField, onRowClick }: TableProps<T>) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
 
   return (
     <div className="overflow-x-auto rounded-xl border border-white/8">
@@ -24,7 +24,7 @@ export function Table<T>({ columns, data, keyField, onRowClick }: TableProps<T>)
         <thead className="bg-navy-800">
           <tr>
             {columns.map((col) => {
-              const displayHeader = isUrdu ? translateToUrdu(col.header) : col.header
+              const displayHeader = isUrdu ? translatePhrase(i18n.language, col.header) : col.header
               return (
                 <th
                   key={col.header}

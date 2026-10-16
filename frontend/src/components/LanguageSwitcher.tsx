@@ -6,14 +6,15 @@ export function LanguageSwitcher() {
   const { i18n } = useTranslation()
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>(() => {
     const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
-    if (stored === "ur") return "ur"
+    if (stored === "ur" || stored === "ar") return stored
     if (i18n.language?.startsWith("ur")) return "ur"
+    if (i18n.language?.startsWith("ar")) return "ar"
     return "en"
   })
 
   useEffect(() => {
     function onLangChange(lng: string) {
-      const next = (lng?.startsWith("ur") ? "ur" : "en") as SupportedLanguage
+      const next = (lng?.startsWith("ur") ? "ur" : lng?.startsWith("ar") ? "ar" : "en") as SupportedLanguage
       setCurrentLanguage(next)
       applyDocumentDirection(next)
     }
@@ -60,6 +61,18 @@ export function LanguageSwitcher() {
         }`}
       >
         اردو
+      </button>
+      <button
+        type="button"
+        onClick={() => setLanguage("ar")}
+        aria-pressed={currentLanguage === "ar"}
+        className={`rounded px-2.5 py-1 font-semibold transition-all ${
+          currentLanguage === "ar"
+            ? "bg-emerald-600 text-white shadow-sm"
+            : "text-ink-secondary hover:text-ink-primary hover:bg-white/5"
+        }`}
+      >
+        العربية
       </button>
     </div>
   )

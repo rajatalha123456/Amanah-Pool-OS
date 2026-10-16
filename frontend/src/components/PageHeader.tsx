@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { PageHeaderBadges } from "./PageHeaderBadges"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 interface PageHeaderProps {
   title: string
@@ -18,15 +18,15 @@ export function PageHeader({
   showControls = true,
 }: PageHeaderProps) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
 
   // Strip any leading screen numbers like "01. ", "Screen 12 - " etc.
   const rawTitle = title
     .replace(/^(?:Screen\s+\d+[\s\:\-]+|\d+[\.\s\-]+)\s*/i, "")
     .trim()
 
-  const displayTitle = isUrdu ? translateToUrdu(rawTitle) : rawTitle
-  const displaySubtitle = isUrdu && subtitle ? translateToUrdu(subtitle) : subtitle
+  const displayTitle = isUrdu ? translatePhrase(i18n.language, rawTitle) : rawTitle
+  const displaySubtitle = isUrdu && subtitle ? translatePhrase(i18n.language, subtitle) : subtitle
 
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

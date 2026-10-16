@@ -1,3 +1,4 @@
+import { translatePhrase } from "../i18n/translate"
 import { NavLink } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { navItemsFor } from "./navItems"
@@ -13,16 +14,15 @@ export function Sidebar() {
           { label: "Notifications", labelKey: "nav.notifications", path: "/notifications" },
         ]
       : navItemsFor(user?.role)
-  const isUrdu = i18n.language?.startsWith("ur")
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-navy-950 border-r rtl:border-r-0 rtl:border-l border-white/5">
       <div className="px-6 pt-6 pb-5">
         <p className="text-[11px] font-semibold tracking-widest text-gold-500 uppercase">
-          {isUrdu ? "نووو لیبز" : "Novu Labs"}
+          {translatePhrase(i18n.language, "Novu Labs")}
         </p>
         <p className="mt-0.5 text-sm font-semibold text-ink-primary">
-          {isUrdu ? "امانہ پول او ایس" : "Amanah Pool OS"}
+          {translatePhrase(i18n.language, "Amanah Pool OS")}
         </p>
       </div>
       <nav className="flex-1 overflow-y-auto px-3">

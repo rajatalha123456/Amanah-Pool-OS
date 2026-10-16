@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react"
 import { useTranslation } from "react-i18next"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "gold"
 type ButtonSize = "sm" | "md" | "lg"
@@ -36,8 +36,8 @@ export function Button({
   ...props
 }: ButtonProps) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
-  const content = isUrdu && typeof children === "string" ? translateToUrdu(children) : children
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
+  const content = isUrdu && typeof children === "string" ? translatePhrase(i18n.language, children) : children
 
   return (
     <button

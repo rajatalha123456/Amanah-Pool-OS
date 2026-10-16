@@ -1,3 +1,4 @@
+import { translatePhrase } from "../i18n/translate"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
@@ -10,7 +11,6 @@ export function TopBar() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -35,7 +35,7 @@ export function TopBar() {
     <header className="flex h-16 items-center justify-between border-b border-white/5 bg-navy-950 px-6">
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-ink-primary">
-          {isUrdu ? "امانہ کیپیٹل" : "Amanah Capital"}
+          {translatePhrase(i18n.language, "Amanah Capital")}
         </span>
         <TenantSwitcher />
       </div>
@@ -53,7 +53,7 @@ export function TopBar() {
               {initial}
             </div>
             <span className="text-sm text-ink-secondary">
-              {user?.full_name ?? (isUrdu ? "صارف" : "User")}
+              {user?.full_name ?? (translatePhrase(i18n.language, "User"))}
             </span>
           </button>
 
@@ -64,7 +64,7 @@ export function TopBar() {
                 onClick={handleLogout}
                 className="block w-full px-3 py-2 text-left rtl:text-right text-sm text-ink-secondary transition-colors hover:bg-white/5 hover:text-ink-primary"
               >
-                {isUrdu ? "لاگ آؤٹ" : "Logout"}
+                {translatePhrase(i18n.language, "Logout")}
               </button>
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 interface StatCardProps {
   label: string
@@ -17,9 +17,9 @@ const toneClasses: Record<NonNullable<StatCardProps["deltaTone"]>, string> = {
 
 export function StatCard({ label, value, delta, deltaTone = "positive", subtext }: StatCardProps) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
-  const displayLabel = isUrdu ? translateToUrdu(label) : label
-  const displaySubtext = isUrdu && subtext ? translateToUrdu(subtext) : subtext
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
+  const displayLabel = isUrdu ? translatePhrase(i18n.language, label) : label
+  const displaySubtext = isUrdu && subtext ? translatePhrase(i18n.language, subtext) : subtext
 
   return (
     <div className="rounded-xl border border-white/8 bg-navy-900 p-5">

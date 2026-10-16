@@ -1,3 +1,4 @@
+import { translatePhrase } from "../i18n/translate"
 import { useTranslation } from "react-i18next"
 import { useUIControls } from "../context/UIControlsContext"
 
@@ -8,7 +9,6 @@ interface PageHeaderBadgesProps {
 export function PageHeaderBadges({ contextName = "Amanah Shariah Pool Governance" }: PageHeaderBadgesProps) {
   const { openCopilot, openLiveControls } = useUIControls()
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
 
   return (
     <div className="flex shrink-0 items-center gap-2.5">
@@ -22,7 +22,7 @@ export function PageHeaderBadges({ contextName = "Amanah Shariah Pool Governance
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
         </span>
-        <span className="tracking-wide uppercase">{isUrdu ? "لائیو کنٹرولز" : "LIVE CONTROLS"}</span>
+        <span className="tracking-wide uppercase">{translatePhrase(i18n.language, "LIVE CONTROLS")}</span>
       </button>
 
       <button
@@ -34,7 +34,7 @@ export function PageHeaderBadges({ contextName = "Amanah Shariah Pool Governance
         <svg className="h-3.5 w-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
         </svg>
-        <span className="tracking-wide uppercase">{isUrdu ? "اے آئی کو پائلٹ" : "AI COPILOT"}</span>
+        <span className="tracking-wide uppercase">{translatePhrase(i18n.language, "AI COPILOT")}</span>
       </button>
     </div>
   )

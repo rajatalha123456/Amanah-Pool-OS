@@ -232,7 +232,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-158 | 14 | Privacy: purpose limitation, minimisation, consent, residency, retention, DSAR | PARTIAL | P2 | BT consents, retention |
 | R-159 | 14 | Resilience: multi-zone, encrypted backups, tested restore, RPO 15 min, RTO 4 h | BLOCKED (scripts exist, never run; no pg_dump here) | P1 | `backend/scripts/` |
 | R-160 | 14 | WCAG 2.2 AA, keyboard, contrast, labels, localization; after fix: every control gets an accessible name (probe: 242 unnamed -> 0 over 8 roles); no full WCAG audit | PARTIAL | P3 | `evidence/a11y_probe.txt` |
-| R-161 | 14 | Multi-currency, timezone, calendars, English/Urdu/Arabic, RTL | PARTIAL (no Arabic UI; RTL for Urdu) | P2 | ST `i18n/index.ts` |
+| R-161 | 14 | Multi-currency, timezone, calendars, English/Urdu/Arabic, RTL | English, Urdu and Arabic UI (language switcher, RTL for Urdu and Arabic, shared components translated); statements explained in all three; per-pool timezone and working calendar; one currency per legal entity | Every screen | `i18n/` | tsc; BT core.test_from_scratch (statements) | PARTIAL (Arabic wording needs a native reviewer; multi-currency within one pool not built) | P2 |
 | R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | PARTIAL (logs, health endpoints and control alerts: late close, suspense ageing, stale approvals, key rotation; no traces or lineage) | P2 | BT HealthTests |
 
 ## Section 16: business rules

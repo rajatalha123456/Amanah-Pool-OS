@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "commandCenter": "مركز القيادة",
+    "productsPools": "المنتجات والأوعية",
+    "participants": "المشاركون",
+    "governanceConfig": "إعدادات الحوكمة",
+    "dailyOperations": "العمليات اليومية",
+    "allocationEngine": "محرك توزيع الأرباح",
+    "investments": "الاستثمارات",
+    "communityCircles": "الجمعيات الادخارية",
+    "shariahGovernance": "الحوكمة الشرعية",
+    "riskCompliance": "المخاطر والامتثال",
+    "financeLedger": "المالية والدفاتر",
+    "aiAnalytics": "الذكاء الاصطناعي والتحليلات",
+    "reports": "التقارير",
+    "administration": "الإدارة"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "submit": "إرسال",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "export": "تصدير"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "ادخل إلى مساحة عملك في نظام أمانة",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "you@amanahcapital.com",
+    "passwordLabel": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "invalidEmail": "صيغة البريد الإلكتروني غير صحيحة",
+    "passwordRequired": "كلمة المرور مطلوبة",
+    "genericError": "تعذّر تسجيل الدخول. يرجى المحاولة مرة أخرى."
+  },
+  "commandCenter": {
+    "title": "مركز القيادة التنفيذي",
+    "subtitle": "رؤية شاملة لجميع نماذج الأوعية",
+    "totalPools": "إجمالي الأوعية",
+    "activePools": "الأوعية النشطة",
+    "draftPools": "الأوعية المسودة",
+    "totalProducts": "إجمالي المنتجات"
+  }
+}

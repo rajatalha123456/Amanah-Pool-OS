@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { translateToUrdu } from "../i18n/urduDictionary"
+import { translatePhrase } from "../i18n/translate"
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string
@@ -10,8 +10,8 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Card({ title, actions, children, className = "", ...props }: CardProps) {
   const { i18n } = useTranslation()
-  const isUrdu = i18n.language?.startsWith("ur")
-  const displayTitle = isUrdu && title ? translateToUrdu(title) : title
+  const isUrdu = !!i18n.language && !i18n.language.startsWith("en") // any non-English language
+  const displayTitle = isUrdu && title ? translatePhrase(i18n.language, title) : title
 
   return (
     <div

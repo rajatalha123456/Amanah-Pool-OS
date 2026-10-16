@@ -9,8 +9,6 @@ export const URDU_PHRASE_DICTIONARY: Record<string, string> = {
   "Amanah Pool OS": "امانہ پول او ایس",
   "Amanah Capital": "امانہ کیپیٹل",
   "Novu Labs": "نووو لیبز",
-  "Moneeb A. Jaffari • Chairman": "منیب اے جعفری • چیئرمین",
-  "Moneeb A. Jaffari": "منیب اے جعفری",
   "Chairman": "چیئرمین",
   "User": "صارف",
   "Logout": "لاگ آؤٹ",
@@ -124,6 +122,8 @@ export const URDU_PHRASE_DICTIONARY: Record<string, string> = {
 
   // --- AI Copilot & Live Controls ---
   "AI Copilot": "اے آئی کو پائلٹ",
+  "LIVE CONTROLS": "لائیو کنٹرولز",
+  "AI COPILOT": "اے آئی کو پائلٹ",
   "Live Controls": "لائیو کنٹرولز",
   "Open Copilot": "کو پائلٹ کھولیں",
   "Copilot Assistant": "معاون کو پائلٹ",
