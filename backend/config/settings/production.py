@@ -17,7 +17,11 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv())
 
-SECURE_SSL_REDIRECT = True
+# Behind a reverse proxy that terminates HTTPS (deploy/Caddyfile), Django learns the original scheme from this header.
+# Only safe when the proxy is the sole way in, which the docker-compose setup guarantees (the API port is not published).
+if config("BEHIND_TLS_PROXY", default=False, cast=bool):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000

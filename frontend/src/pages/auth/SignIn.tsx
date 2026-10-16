@@ -1,3 +1,4 @@
+import { DemoBanner } from "../../components/DemoBanner"
 import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
@@ -64,6 +65,7 @@ export function SignIn() {
 
   return (
     <AuthLayout>
+      <DemoBanner />
       <Card>
         <h1 className="mb-1 text-lg font-semibold text-ink-primary">{t("login.title")}</h1>
         <p className="mb-5 text-sm text-ink-secondary">

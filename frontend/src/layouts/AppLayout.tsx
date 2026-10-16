@@ -1,3 +1,4 @@
+import { DemoBanner } from "../components/DemoBanner"
 import { useEffect, useState } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
@@ -48,6 +49,7 @@ export function AppLayout() {
       <div className="flex h-screen bg-navy-950 font-sans text-ink-primary antialiased">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
+          <DemoBanner />
           <TopBar />
           <main className="flex-1 overflow-y-auto p-6">
             {isLoadingUser ? (

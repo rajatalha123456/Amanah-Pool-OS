@@ -1,0 +1,21 @@
+# {$SITE_ADDRESS} is your domain (e.g. demo.example.com): Caddy then gets and renews an HTTPS certificate by itself.
+# Use ":80" instead to serve plain HTTP on the server's IP (then set SECURE_SSL_REDIRECT=False in .env).
+{$SITE_ADDRESS} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+	}
+}
