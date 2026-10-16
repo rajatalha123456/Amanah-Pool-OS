@@ -32,7 +32,8 @@ class CircleRulesSerializer(serializers.ModelSerializer):
     class Meta:
         model = CircleRules
         fields = ("id", "pool", "version", "contribution_amount", "cycle_days", "first_due_date", "schedule_note",
-                  "order_policy", "hardship_policy", "content_hash", "created_at")
+                  "order_policy", "hardship_policy", "operating_model", "service_fee_per_cycle", "mandates_required",
+                  "content_hash", "created_at")
         read_only_fields = fields
 
 
@@ -68,6 +69,9 @@ class CircleRulesViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
             order_policy=str(request.data.get("order_policy") or ""),
             hardship_policy=str(request.data.get("hardship_policy") or ""),
             schedule_note=str(request.data.get("schedule_note") or ""),
+            operating_model=str(request.data.get("operating_model") or "qard"),
+            service_fee_per_cycle=request.data.get("service_fee_per_cycle") or 0,
+            mandates_required=str(request.data.get("mandates_required", "")).lower() in ("true", "1"),
         )
         log_action(
             tenant=pool.tenant, actor=request.user, action="circle_rules_published", model_name="CircleRules",

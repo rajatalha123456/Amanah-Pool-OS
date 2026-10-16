@@ -416,6 +416,8 @@ class CircleMemberViewSet(
             return [IsAuthenticated(), IsFinanceMaker()]
         if self.action == "verify_kyc":
             return [IsAuthenticated(), IsRiskCompliance()]
+        if self.action == "verify_mandate":
+            return [IsAuthenticated(), IsFinanceChecker()]
         if self.action == "flag_arrears":
             return [IsAuthenticated(), IsRiskCompliance()]
         if self.action in ("update", "partial_update", "swap_turns", "execute_provably_fair_draw"):
@@ -889,6 +891,23 @@ class CircleMemberViewSet(
             object_id=str(member.id),
             changes={"kyc_status": {"before": previous, "after": member.kyc_status}},
             request=request,
+        )
+        return Response(self.get_serializer(member).data)
+
+    @action(detail=True, methods=["post"], url_path="verify-mandate")
+    def verify_mandate(self, request, pk=None):
+        """BRD 6.5: a finance checker confirms the member's payment mandate against the bank's confirmation."""
+        member = self.get_object()
+        if not member.mandate_reference:
+            raise ValidationError({"mandate_reference": ["Record the mandate reference on the member first."]})
+        if member.mandate_verified_at is not None:
+            raise ValidationError("This mandate is already verified.")
+        member.mandate_verified_by = request.user
+        member.mandate_verified_at = timezone.now()
+        member.save(update_fields=["mandate_verified_by", "mandate_verified_at", "updated_at"])
+        log_action(
+            tenant=member.tenant, actor=request.user, action="verify_mandate", model_name="CircleMember",
+            object_id=str(member.id), changes={"mandate_reference": member.mandate_reference}, request=request,
         )
         return Response(self.get_serializer(member).data)
 

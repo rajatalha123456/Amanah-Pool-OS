@@ -27,14 +27,14 @@ def reconcile(pool):
         contributed = sum(
             (c.amount for c in Contribution.objects.filter(member=member, status=ContributionStatus.RECEIVED)), ZERO
         )
-        received = sum(
-            (p.amount for p in Payout.objects.filter(member=member, status=PayoutStatus.DISBURSED)), ZERO
-        )
+        paid = list(Payout.objects.filter(member=member, status=PayoutStatus.DISBURSED))
+        received = sum((p.amount for p in paid), ZERO)
+        fees = sum((p.service_fee for p in paid), ZERO)
         rows.append(
             {
                 "member_reference": member.member_reference, "member_name": member.member_name,
                 "status": member.status, "contributed": str(contributed), "received": str(received),
-                "net": str(contributed - received),
+                "net": str(contributed - received), "service_fees": str(fees),
             }
         )
         if member.status == CircleMemberStatus.ACTIVE:
@@ -47,9 +47,10 @@ def reconcile(pool):
         blockers.append(f"{overdue} unresolved arrears record(s).")
     collected = sum((Decimal(r["contributed"]) for r in rows), ZERO)
     disbursed = sum((Decimal(r["received"]) for r in rows), ZERO)
+    fees = sum((Decimal(r["service_fees"]) for r in rows), ZERO)
     return {
-        "members": rows, "total_collected": collected, "total_disbursed": disbursed,
-        "difference": collected - disbursed, "blockers": blockers,
+        "members": rows, "total_collected": collected, "total_disbursed": disbursed, "total_service_fees": fees,
+        "difference": collected - disbursed - fees, "blockers": blockers,
     }
 
 

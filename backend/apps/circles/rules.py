@@ -16,7 +16,8 @@ def current_rules(pool):
 
 
 def publish_rules(
-    *, pool, user, contribution_amount, cycle_days, order_policy, hardship_policy, schedule_note="", first_due_date=None
+    *, pool, user, contribution_amount, cycle_days, order_policy, hardship_policy, schedule_note="", first_due_date=None,
+    operating_model="qard", service_fee_per_cycle=0, mandates_required=False,
 ):
     if pool.product.operating_model != "community_circle":
         raise ValidationError({"pool": ["Rules apply to community circles only."]})
@@ -24,6 +25,19 @@ def publish_rules(
         raise ValidationError("Contribution amount and cycle length must be positive.")
     if not order_policy.strip() or not hardship_policy.strip():
         raise ValidationError("The payout-order policy and the hardship policy are both required.")
+    from decimal import Decimal
+
+    contract_type = pool.product.contract_template.contract_type if pool.product.contract_template_id else ""
+    fee = Decimal(str(service_fee_per_cycle or 0))
+    if operating_model not in ("qard", "wakalah"):
+        raise ValidationError({"operating_model": ["Must be qard or wakalah."]})
+    if operating_model == "qard" and fee != 0:
+        raise ValidationError({"service_fee_per_cycle": ["A Qard circle charges no fee."]})
+    if operating_model == "wakalah":
+        if contract_type != "wakalah":
+            raise ValidationError({"operating_model": ["The Wakalah model needs a product whose approved contract is Wakalah."]})
+        if fee < 0 or fee >= contribution_amount:
+            raise ValidationError({"service_fee_per_cycle": ["The fee must be zero or more and below one contribution."]})
     previous = current_rules(pool)
     version = (previous.version if previous else 0) + 1
     body = {
@@ -33,10 +47,13 @@ def publish_rules(
     }
     if first_due_date is not None:  # only sealed when set, so earlier rule versions keep their hashes
         body["first_due_date"] = str(first_due_date)
+    if operating_model != "qard" or mandates_required:  # likewise: Qard rules without mandates keep their old hashes
+        body.update({"operating_model": operating_model, "service_fee_per_cycle": str(fee), "mandates_required": mandates_required})
     return CircleRules.objects.create(
         tenant=pool.tenant, pool=pool, version=version, contribution_amount=contribution_amount,
         cycle_days=cycle_days, schedule_note=schedule_note, order_policy=order_policy,
         hardship_policy=hardship_policy, published_by=user, first_due_date=first_due_date,
+        operating_model=operating_model, service_fee_per_cycle=fee, mandates_required=mandates_required,
         content_hash=hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest(),
     )
 

@@ -12,6 +12,7 @@ import { useHasRole } from "../components/RoleGate"
 import {
   createCircleMember,
   linkCircleMemberLogin,
+  verifyCircleMandate,
   fetchArrearsRecordsForPool,
   fetchCircleMembers,
   fetchContributionsForPool,
@@ -320,6 +321,13 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
         member_reference: String(form.get("member_reference")),
         member_name: String(form.get("member_name")),
         joined_date: String(form.get("joined_date")),
+        email: String(form.get("email") || ""),
+        iban: String(form.get("iban") || ""),
+        bank_name: String(form.get("bank_name") || ""),
+        mandate_reference: String(form.get("mandate_reference") || ""),
+        mandate_bank: String(form.get("mandate_bank") || ""),
+        guarantor_name: String(form.get("guarantor_name") || ""),
+        guarantor_reference: String(form.get("guarantor_reference") || ""),
       })
       await loadCircleData(selectedPoolId)
       setIsMemberModalOpen(false)
@@ -395,9 +403,27 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
     },
     { header: "Joined Date", accessor: (member) => member.joined_date },
     {
+      header: "Mandate",
+      accessor: (member) =>
+        !member.mandate_reference ? "-" : member.mandate_verified_at ? <Badge variant="emerald">verified</Badge> : <Badge variant="gold">to verify</Badge>,
+    },
+    {
       header: "Actions",
       accessor: (member) => (
         <div className="flex items-center gap-2">
+          {user?.role === "finance_checker" && member.mandate_reference && !member.mandate_verified_at && (
+            <button
+              type="button"
+              onClick={() => {
+                verifyCircleMandate(member.id)
+                  .then(() => loadCircleData(selectedPoolId))
+                  .catch((error) => setActionError(extractErrorMessage(error, "Unable to verify the mandate.")))
+              }}
+              className="rounded border border-white/10 px-2 py-1 text-xs text-ink-secondary hover:border-emerald-500 hover:text-emerald-400"
+            >
+              Verify mandate
+            </button>
+          )}
           {user?.role === "pool_manager" && (
             <button
               type="button"
@@ -757,7 +783,26 @@ export function CommunityCircles({ initialTab = "setup" }: CommunityCirclesProps
             </label>
             <label className={labelClasses}>
               Member Name
-              <input name="member_name" required className={inputClasses} placeholder="Ali Raza" />
+              <input name="member_name" required className={inputClasses} placeholder="Full name" />
+            </label>
+            <label className={labelClasses}>
+              Email (optional)
+              <input name="email" type="email" className={inputClasses} />
+            </label>
+            <label className={labelClasses}>
+              IBAN and bank (needed for Raast / 1LINK payouts)
+              <input name="iban" className={inputClasses} placeholder="PK.." />
+              <input name="bank_name" className={`${inputClasses} mt-1`} placeholder="Bank name" />
+            </label>
+            <label className={labelClasses}>
+              Payment mandate (reference and bank; a finance checker verifies it)
+              <input name="mandate_reference" className={inputClasses} placeholder="Mandate reference" />
+              <input name="mandate_bank" className={`${inputClasses} mt-1`} placeholder="Mandate bank" />
+            </label>
+            <label className={labelClasses}>
+              Guarantor (optional; a guarantee carries no fee)
+              <input name="guarantor_name" className={inputClasses} placeholder="Guarantor name" />
+              <input name="guarantor_reference" className={`${inputClasses} mt-1`} placeholder="Guarantee document reference" />
             </label>
             <label className={labelClasses}>
               Joined Date

@@ -402,6 +402,64 @@ class FromScratch(APITestCase):
         self.assertEqual(closed["difference"], "0.00", preview)
         return pid, members
 
+    def phase_e2_wakalah_circle(self):
+        """The approved Wakalah model: a fixed, disclosed service fee per payout, payment mandates verified first."""
+        from apps.tenants.models import LegalEntity
+
+        d = self.call("secretariat", "post", "/api/v1/products/shariah-decisions/", {
+            "decision_code": "FATWA-C-002", "title": "Wakalah-serviced savings circle", "decision_type": "product_approval",
+            "description": "An agent runs the circle for a fixed disclosed fee per payout; no interest or time-based charge.",
+            "fiqh_reference": "AAOIFI Shariah Standard No. 23 (Agency)", "mandatory_caveats": "Fee is fixed and disclosed.",
+            "effective_date": "2026-01-01"}, expect=201).data["id"]
+        vote = {"vote": "approve", "fiqh_opinion_notes": "Agency for a known fee"}
+        self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
+        ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
+            "name": "Wakalah Circle Charter", "contract_type": "wakalah", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+        self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
+        prod = self.call("pm", "post", "/api/v1/products/products/", {
+            "name": "Serviced Circle", "code": "CIRCLE-W", "operating_model": "community_circle", "contract_template": ct["id"],
+            "base_currency": "PKR", "eligible_asset_types": [], "minimum_subscription": "1000.00"}, expect=201).data
+        self.call("pm", "post", f"/api/v1/products/products/{prod['id']}/submit-for-review/", expect=200)
+        self.call("board", "post", f"/api/v1/products/products/{prod['id']}/approve/", expect=200)
+        entity = LegalEntity.objects.filter(tenant=self.tenant).first()
+        pid = self.call("poolmanager", "post", "/api/v1/pools/pools/", {
+            "name": "Serviced Circle 2026", "code": "CIRW-2026", "product": prod["id"], "effective_date": "2026-01-01",
+            "legal_entity": str(entity.id), "branch": "Main Branch", "timezone": "Asia/Karachi", "calendar": "daily"}, expect=201).data["id"]
+        self.call("poolmanager", "post", f"/api/v1/pools/pools/{pid}/submit-for-approval/", expect=200)
+        self.call("board", "post", f"/api/v1/pools/pools/{pid}/approve/", expect=200)
+        self.call("checker", "post", f"/api/v1/pools/pools/{pid}/open/", expect=200)
+
+        rules = {"pool": pid, "contribution_amount": "10000.00", "cycle_days": 30, "first_due_date": "2026-02-01",
+                 "order_policy": "Random provably fair draw", "hardship_policy": "Deferral without any charge",
+                 "operating_model": "wakalah", "service_fee_per_cycle": "500.00", "mandates_required": True}
+        self.refused("poolmanager", "post", "/api/v1/circles/rules/publish/", {**rules, "service_fee_per_cycle": "10000.00"})
+        self.call("poolmanager", "post", "/api/v1/circles/rules/publish/", rules, expect=201)
+        members = []
+        for n in (1, 2):
+            m = self.call("poolmanager", "post", "/api/v1/circles/circle-members/", {
+                "pool": pid, "member_name": f"Serviced Member {n}", "member_reference": f"W-{n}", "joined_date": "2026-01-15",
+                "mandate_reference": f"MANDATE-{n}", "mandate_bank": "Test Bank",
+                "guarantor_name": f"Guarantor {n}", "guarantor_reference": f"GUAR-{n}"}, expect=201).data["id"]
+            self.call("risk", "post", f"/api/v1/circles/circle-members/{m}/verify-kyc/", {}, expect=200)
+            self.call("poolmanager", "post", "/api/v1/circles/rules/accept/", {"member": m, "method": "in_person"}, expect=201)
+            members.append(m)
+        draw = self.call("poolmanager", "post", "/api/v1/circles/draws/commit/", {"pool": pid}, expect=201).data
+        self.call("poolmanager", "post", f"/api/v1/circles/draws/{draw['id']}/execute/", {"client_seed": "w-seed"}, expect=200)
+        for m in members:
+            self.call("maker", "post", f"/api/v1/circles/circle-members/{m}/record-contribution/", {
+                "amount": "10000.00", "contribution_date": "2026-02-01", "cycle_number": 1, "payment_reference": f"R-{m[:6]}"}, expect=[200, 201])
+        rows = self.call("poolmanager", "get", f"/api/v1/circles/circle-members/?pool={pid}", expect=200).data
+        rows = rows if isinstance(rows, list) else rows["results"]
+        first = [r for r in rows if r["payout_position"] == 1][0]
+        body = {"member_id": first["id"], "cycle_number": 1, "settlement_rail": "internal_book", "payout_date": "2026-02-02"}
+        self.refused("poolmanager", "post", f"/api/v1/circles/payouts/request-payout/{pid}/", body)  # mandates not verified yet
+        for m in members:
+            self.refused("poolmanager", "post", f"/api/v1/circles/circle-members/{m}/verify-mandate/", {})
+            self.call("checker", "post", f"/api/v1/circles/circle-members/{m}/verify-mandate/", {}, expect=200)
+        req = self.call("poolmanager", "post", f"/api/v1/circles/payouts/request-payout/{pid}/", body, expect=201).data
+        self.assertEqual((req["amount"], req["service_fee"]), ("19500.00", "500.00"), "pot 20,000 less only the disclosed fee")
+
     def phase_f_investment_pool(self):
         """An investment (unit/NAV) pool from nothing: ruling, product, pool, investor, disclosure, NAV, subscription, profit."""
         from apps.tenants.models import LegalEntity
@@ -538,3 +596,4 @@ class FromScratch(APITestCase):
         self.gates = self.phase_g_ledger_and_close(self.pool_id)
         self.circle = self.phase_e_community_circle()
         self.investment = self.phase_f_investment_pool()
+        self.phase_e2_wakalah_circle()

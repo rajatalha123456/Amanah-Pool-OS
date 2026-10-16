@@ -49,6 +49,9 @@ export function CircleGovernance({ poolId }: { poolId: string }) {
     hardship_policy: "",
     schedule_note: "",
     first_due_date: "",
+    operating_model: "qard",
+    service_fee_per_cycle: "0",
+    mandates_required: false,
   })
   const [clientSeed, setClientSeed] = useState("")
   const [note, setNote] = useState("")
@@ -164,6 +167,21 @@ export function CircleGovernance({ poolId }: { poolId: string }) {
             <label className="text-xs text-ink-secondary sm:col-span-2">
               First contribution due date (used for reminders)
               <input type="date" className={`${INPUT} mt-1`} value={rules.first_due_date} onChange={(e) => setRules({ ...rules, first_due_date: e.target.value })} />
+            </label>
+            <label className="text-xs text-ink-secondary">
+              Operating model
+              <select className={`${INPUT} mt-1`} value={rules.operating_model} onChange={(e) => setRules({ ...rules, operating_model: e.target.value, service_fee_per_cycle: e.target.value === "qard" ? "0" : rules.service_fee_per_cycle })}>
+                <option value="qard">Qard (no fee of any kind)</option>
+                <option value="wakalah">Wakalah (fixed disclosed fee per payout; needs a Wakalah contract)</option>
+              </select>
+            </label>
+            <label className="text-xs text-ink-secondary">
+              Service fee per payout (PKR, fixed)
+              <input type="number" min="0" step="0.01" disabled={rules.operating_model === "qard"} className={`${INPUT} mt-1`} value={rules.service_fee_per_cycle} onChange={(e) => setRules({ ...rules, service_fee_per_cycle: e.target.value })} />
+            </label>
+            <label className="flex items-center gap-2 text-xs text-ink-secondary sm:col-span-2">
+              <input type="checkbox" checked={rules.mandates_required} onChange={(e) => setRules({ ...rules, mandates_required: e.target.checked })} />
+              Payment mandates must be verified before any payout
             </label>
             <input placeholder="Schedule note (optional)" className={`${INPUT} sm:col-span-2`} value={rules.schedule_note} onChange={(e) => setRules({ ...rules, schedule_note: e.target.value })} />
             <div className="sm:col-span-2">

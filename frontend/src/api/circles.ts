@@ -69,6 +69,10 @@ export async function linkCircleMemberLogin(memberId: string, email: string): Pr
   await apiClient.post(`circles/circle-members/${memberId}/link-login/`, { email })
 }
 
+export async function verifyCircleMandate(memberId: string): Promise<void> {
+  await apiClient.post(`circles/circle-members/${memberId}/verify-mandate/`, {})
+}
+
 export async function runDraw(poolId: string): Promise<RunDrawResponse> {
   const response = await apiClient.post<RunDrawResponse>(`circles/circle-members/run-draw/${poolId}/`)
   return response.data

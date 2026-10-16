@@ -7,7 +7,10 @@ export async function fetchRulesSummary(poolId: string): Promise<CircleRulesSumm
 
 export async function publishCircleRules(
   poolId: string,
-  data: { contribution_amount: string; cycle_days: string; order_policy: string; hardship_policy: string; schedule_note: string; first_due_date?: string },
+  data: {
+    contribution_amount: string; cycle_days: string; order_policy: string; hardship_policy: string; schedule_note: string
+    first_due_date?: string; operating_model?: string; service_fee_per_cycle?: string; mandates_required?: boolean
+  },
 ): Promise<void> {
   await apiClient.post("circles/rules/publish/", { pool: poolId, ...data })
 }

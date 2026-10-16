@@ -53,6 +53,16 @@ class CircleMember(TenantScopedModel):
     iban = models.CharField(max_length=34, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     bank_name = models.CharField(max_length=100, blank=True, default="")
+    # BRD 6.5: the member's payment mandate (standing authority to collect the contribution), recorded by the organizer
+    # and verified by an independent finance checker against the bank's confirmation.
+    mandate_reference = models.CharField(max_length=100, blank=True, default="")
+    mandate_bank = models.CharField(max_length=100, blank=True, default="")
+    mandate_verified_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    mandate_verified_at = models.DateTimeField(null=True, blank=True)
+    # BRD 4 (Community Circle: guarantees): a person who undertakes to cover the member's contributions if the member
+    # defaults. A guarantee in Qard carries no fee and no profit; it is recorded with its evidence, never priced.
+    guarantor_name = models.CharField(max_length=255, blank=True, default="")
+    guarantor_reference = models.CharField(max_length=100, blank=True, default="")
     # Optional self-service login (role investor_member); the member portal shows only the memberships linked to it.
     user = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="circle_memberships"
@@ -115,6 +125,8 @@ class Payout(TenantScopedModel):
     pool = models.ForeignKey("pools.Pool", on_delete=models.PROTECT, related_name="circle_payouts")
     cycle_number = models.IntegerField()
     amount = models.DecimalField(max_digits=18, decimal_places=2)
+    # The disclosed Wakalah service fee withheld from this pot (0 under Qard); amount + service_fee = pot collected.
+    service_fee = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     payout_date = models.DateField()
     status = models.CharField(max_length=20, choices=PayoutStatus.choices, default=PayoutStatus.PENDING)
     requested_by = models.ForeignKey(
@@ -255,6 +267,11 @@ class CircleRules(TenantScopedModel):
     schedule_note = models.TextField(blank=True, default="")
     order_policy = models.TextField()  # how the payout order is decided (e.g. verifiable draw)
     hardship_policy = models.TextField()
+    # BRD 6.5 / 7.1: Qard (no fee at all) or an approved Wakalah service model whose only charge is a fixed, disclosed
+    # fee per payout - never a percentage of time or of the amount outstanding (BR-007).
+    operating_model = models.CharField(max_length=10, default="qard")
+    service_fee_per_cycle = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    mandates_required = models.BooleanField(default=False)
     content_hash = models.CharField(max_length=64)
     published_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="+")
 

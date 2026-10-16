@@ -18,11 +18,22 @@ class CircleMemberSerializer(serializers.ModelSerializer):
             "kyc_status",
             "iban",
             "bank_name",
+            "mandate_reference",
+            "mandate_bank",
+            "mandate_verified_at",
+            "guarantor_name",
+            "guarantor_reference",
             "created_at",
             "updated_at",
         )
-        # KYC changes only through the Risk & Compliance verify-kyc action.
-        read_only_fields = ("id", "payout_position", "status", "kyc_status", "created_at", "updated_at")
+        # KYC changes only through the Risk & Compliance verify-kyc action; a mandate only through verify-mandate.
+        read_only_fields = ("id", "payout_position", "status", "kyc_status", "mandate_verified_at", "created_at", "updated_at")
+
+    def update(self, instance, validated_data):
+        # A changed mandate is a new mandate: it has to be verified again.
+        if "mandate_reference" in validated_data and validated_data["mandate_reference"] != instance.mandate_reference:
+            instance.mandate_verified_at, instance.mandate_verified_by = None, None
+        return super().update(instance, validated_data)
 
 
 class ContributionSerializer(serializers.ModelSerializer):
@@ -72,6 +83,7 @@ class PayoutSerializer(serializers.ModelSerializer):
             "pool_code",
             "cycle_number",
             "amount",
+            "service_fee",
             "payout_date",
             "status",
             "requested_by",
@@ -101,6 +113,7 @@ class PayoutSerializer(serializers.ModelSerializer):
             "pool",
             "cycle_number",
             "amount",
+            "service_fee",
             "payout_date",
             "status",
             "requested_by",

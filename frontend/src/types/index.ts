@@ -1021,6 +1021,11 @@ export interface CircleMember {
   kyc_status?: string
   iban?: string
   bank_name?: string
+  mandate_reference?: string
+  mandate_bank?: string
+  mandate_verified_at?: string | null
+  guarantor_name?: string
+  guarantor_reference?: string
   id: string
   pool: string
   member_name: string
@@ -1037,6 +1042,13 @@ export interface CreateCircleMemberInput {
   member_name: string
   member_reference: string
   joined_date: string
+  email?: string
+  iban?: string
+  bank_name?: string
+  mandate_reference?: string
+  mandate_bank?: string
+  guarantor_name?: string
+  guarantor_reference?: string
 }
 
 export interface RunDrawResponse {

@@ -75,6 +75,13 @@ def build_preflight(pool, member, cycle_number, rail):
     received_member_ids = set(received.values_list("member_id", flat=True))
     missing = active_ids - received_member_ids
     amount = sum((c.amount for c in received), Decimal("0.00"))
+    from .rules import current_rules
+
+    rules = current_rules(pool)
+    fee = Decimal(rules.service_fee_per_cycle) if rules is not None and rules.operating_model == "wakalah" else Decimal("0.00")
+    unverified_mandates = (
+        active.filter(mandate_verified_at__isnull=True).count() if rules is not None and rules.mandates_required else 0
+    )
 
     overdue = ArrearsRecord.objects.filter(
         member__pool=pool, cycle_number=cycle_number, status=ArrearsStatus.OVERDUE
@@ -129,7 +136,15 @@ def build_preflight(pool, member, cycle_number, rail):
             not missing and bool(active_ids),
             f"{len(missing)} member(s) still pending" if missing else "",
         ),
-        _check("pot_funded", "Collected pot is greater than zero", amount > 0, f"Collected: {amount}"),
+        _check("pot_funded", "Collected pot covers the disclosed fee", amount > fee,
+               f"Collected: {amount}" + (f", Wakalah fee {fee}" if fee else "")),
+        _check(
+            "mandates_verified",
+            "Every active member's payment mandate is verified" if rules is not None and rules.mandates_required
+            else "Payment mandates not required by the rules",
+            unverified_mandates == 0,
+            f"{unverified_mandates} mandate(s) not yet verified" if unverified_mandates else "",
+        ),
         _check(
             "no_overdue_arrears",
             "No unresolved arrears for this cycle",
@@ -156,7 +171,7 @@ def build_preflight(pool, member, cycle_number, rail):
             f"Open payout {open_payout.id}" if open_payout else "",
         ),
     ]
-    return {"checks": checks, "ok": all(c["passed"] for c in checks), "amount": amount}
+    return {"checks": checks, "ok": all(c["passed"] for c in checks), "amount": amount - fee, "service_fee": fee, "pot": amount}
 
 
 def create_payout_request(*, pool, member, user, rail, payout_date, cycle_number=None):
@@ -181,6 +196,7 @@ def create_payout_request(*, pool, member, user, rail, payout_date, cycle_number
         pool=pool,
         cycle_number=computed_cycle,
         amount=preflight["amount"],
+        service_fee=preflight["service_fee"],
         payout_date=payout_date,
         status=PayoutStatus.PENDING,
         requested_by=user,

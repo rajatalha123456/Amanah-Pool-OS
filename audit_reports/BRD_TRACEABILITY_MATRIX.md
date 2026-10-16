@@ -25,7 +25,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-006 | 2 | Bank pools: daily balances x weightages; income less direct expenses; PER/IRR | `allocation/engine.py:152-427` | Allocation Engine | `DailyBalance`, `WeightageBand` | BT test_brd_golden, test_financial_core; AT test_audit_financial 01-13 | PASS | - |
 | R-007 | 2 | Asset contracts Murabahah / Ijarah / Diminishing Musharakah under bank pools | `pools.Asset.asset_type` (types only) | Asset registry | `Asset` | none specific | PARTIAL | P2 |
 | R-008 | 2 | Investment pools: units, PSR, realized/unrealized, manager share, loss by capital | `investments/distribution.py`, `nav_engine.py` | Investments | `CapitalAccount`, `NAVSnapshot` | BT investments.test_distribution (19), test_musharakah_wakalah (23) | PASS | - |
-| R-009 | 2 | Community savings: Qard rotating; Wakalah service model; cooperative rules | `circles/*` (Qard behaviour only) | Community Circles | `CircleMember`, `Contribution` | BT circles.* | PARTIAL | P2 |
+| R-009 | 2 | Community savings: Qard rotating; Wakalah service model; cooperative rules | Qard and approved Wakalah models on the published, member-accepted rules (`circles/rules.py`) | Circle governance | `CircleRules.operating_model` | BT core.test_from_scratch | PASS | - |
 | R-010 | 2 | Circles: no interest or time-value uplift | no rate field anywhere (ST); payout = collected pot | - | - | no negative test exists | PASS | P2 |
 | R-011 | 2 | Out of scope list (fatwa without human, capital guarantee, crypto, Takaful, Sukuk, GL replacement, abusive collection) | - | - | - | - | NOT APPLICABLE | - |
 | R-012 | 3 | Super Admin: tenant provisioning | `tenants/views.py` | Administration | `Tenant` | BT tenants.*; AT role matrix | PASS | - |
@@ -52,7 +52,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-028 | 4 | Income & expense: accruals, realization, direct expenses, provisions, write-offs, reversals, non-permissible income | `allocation/income.py`, provisions | Income & Expense workbench | `IncomeExpenseEvent` | BT test_income_derivation (17), test_provisions | PARTIAL (no accrual vs realization distinction; keyword classification) | P2 |
 | R-029 | 4 | Profit allocation: daily averages, weightages, PSR, Mudarib, Wakalah fee, Hiba, PER/IRR, rounding | `engine.py` | Allocation Engine | `AllocationRun` | AT test_audit_financial (27 pass); see FIN-01; after fix F-02: pending balances refused (AT test_14, BT test_pending_balances_block_a_run) | PASS | - |
 | R-030 | 4 | Loss & impairment: waterfall, negligence cases, provisions, write-offs, recoveries | `investments/negligence.py`, provisions | Investments, Risk | - | BT NegligenceWorkflowTests (11), provisions | PASS | - |
-| R-031 | 4 | Community circle: schedules, ballots/rotation, guarantees, late payments, hardship, payout, dissolution | `circles/*` | Community Circles | - | BT circles (60+) | PARTIAL (guarantees missing) | P2 |
+| R-031 | 4 | Community circle: schedules, ballots/rotation, guarantees, late payments, hardship, payout, dissolution | schedule, commit-reveal draw, guarantor record (no fee), arrears, hardship, payout ceremony, closure | Community Circles | `CircleMember.guarantor_*` | BT circles, core.test_from_scratch | PASS | - |
 | R-032 | 4 | Shariah governance: register, policy mapping, pre-launch, exceptions, review and audit | `products/shariah.py`, `governance/*` | Shariah Governance | - | BT register, quorum, audit report | PARTIAL (policy mapping missing; exception time limits built as unconfirmed defaults, BT governance.test_exception_sla) | P2 |
 | R-033 | 4 | Accounting subledger: double entry, chart mapping, close, reversals, suspense, GL export | `accounting/*` | Finance & Ledger | `JournalBatch` | BT accounting.tests, ImmutabilityTests | PARTIAL (suspense and GL hand-over built; no live ERP connection) | P2 |
 | R-034 | 4 | AI & analytics: forecasts, anomaly, extraction, explanation, copilot, scenarios | `ai_agents`, `pools/liquidity.py` | AI & Analytics | `AIRecommendation` | BT ai_agents (13) | PARTIAL | P2 |
@@ -105,9 +105,9 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-071 | 6.4.5 | Profit by PSR; Musharakah loss by capital ratio | `distribution.py` | - | - | BT musharakah tests | PASS | - |
 | R-072 | 6.4.6 | Negligence allegation opens investigation | `negligence.py` | - | `NegligenceCase` | BT NegligenceWorkflowTests | PASS | - |
 | R-073 | 6.4.7 | Exit subject to valuation, liquidity, terms | `redemptions.py` | - | - | BT test_redemptions (9) | PASS | - |
-| R-074 | 6.5.1 | Organizer selects Qard or approved Wakalah model | Qard only | Circle setup | - | none | PARTIAL | P2 |
+| R-074 | 6.5.28 | Organizer selects Qard or approved Wakalah model | rules choose qard (no fee) or wakalah (needs a Wakalah contract; fixed disclosed fee per payout below one contribution); payout = pot less only that fee; closure counts the fees | Circle governance | `Payout.service_fee` | BT core.test_from_scratch | PASS | - |
 | R-075 | 6.5.2 | Members accept rules, schedule, draw method, hardship policy | `circles/governance` | Circle setup, portal | `CircleRules` | BT test_circle_governance; E2E member | PASS | - |
-| R-076 | 6.5.3 | Verify identities and payment mandates; no uplift | KYC status only | - | - | none | PARTIAL | P2 |
+| R-076 | 6.5.30 | Verify identities and payment mandates; no uplift | KYC by Risk; mandate recorded by the organizer, verified by a finance checker; payouts gated when the rules require mandates; no rate field (BT core.test_brd_prohibitions) | Member roster | `CircleMember.mandate_*` | BT core.test_from_scratch | PASS | - |
 | R-077 | 6.5.4 | Collect and reconcile; arrears trigger respectful reminders | `circles/reminders.py` | Arrears tab | - | BT test_reminders, test_arrears | PASS | - |
 | R-078 | 6.5.5 | Eligibility gate before payout | `circles/payouts.py` | Payout ceremony | - | BT test_payout_workflow (14) | PASS | - |
 | R-079 | 6.5.6 | Transparent ledger, receipts, schedule changes | member portal | portal | - | BT test_member_portal; E2E member | PASS | - |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 114 |
-| PARTIAL | 55 |
+| PASS | 118 |
+| PARTIAL | 51 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |
