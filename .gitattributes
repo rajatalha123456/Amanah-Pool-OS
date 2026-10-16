@@ -1,0 +1,5 @@
+# Files read on a Linux server keep Unix line endings even when checked out on Windows.
+deploy/** text eol=lf
+**/Dockerfile text eol=lf
+**/.dockerignore text eol=lf
+*.sh text eol=lf
