@@ -216,6 +216,35 @@ class FromScratch(APITestCase):
             self.refused("maker", "post", f"/api/v1/accounting/income-expense-events/{ev['id']}/post/")
             self.call("checker", "post", f"/api/v1/accounting/income-expense-events/{ev['id']}/post/", expect=200)
 
+        # BRD 10: posting books the journal. Income: Dr accrued income / Cr pool income; expense: Dr pool expense / Cr payable.
+        from apps.accounting.models import IncomeExpenseEvent, JournalEntry
+
+        def legs(event_id):
+            batch = IncomeExpenseEvent._base_manager.get(pk=event_id).journal_batch_id
+            return sorted((e.account_key, e.entry_type, str(e.amount)) for e in JournalEntry._base_manager.filter(batch_id=batch))
+
+        self.assertEqual(legs(income["id"]), [("accrued_income_receivable", "debit", "120000.00"), ("pool_income", "credit", "120000.00")])
+        self.assertEqual(legs(expense["id"]), [("expense_payable", "credit", "20000.00"), ("pool_direct_expense", "debit", "20000.00")])
+
+        # Non-permissible income (a late-payment penalty) never reaches the pool: it is booked to the clearing account,
+        # the Board approves the purification, a finance checker records the charity payment.
+        penalty = self.call("maker", "post", "/api/v1/accounting/income-expense-events/", {
+            "pool": pid, "event_type": "income", "category": "Late payment penalty", "amount": "3000.00",
+            "event_date": "2026-01-04", "description": "Charity-bound late payment amount"}, expect=201).data
+        self.call("checker", "post", f"/api/v1/accounting/income-expense-events/{penalty['id']}/post/", expect=200)
+        self.assertEqual(legs(penalty["id"]), [("accrued_income_receivable", "debit", "3000.00"), ("non_permissible_clearing", "credit", "3000.00")])
+        entries = self.call("risk", "get", f"/api/v1/governance/purification-entries/?pool={pid}", expect=200).data
+        entry = (entries if isinstance(entries, list) else entries["results"])[0]
+        self.refused("checker", "post", f"/api/v1/governance/purification-entries/{entry['id']}/approve/")
+        self.call("board", "post", f"/api/v1/governance/purification-entries/{entry['id']}/approve/", expect=200)
+        self.call("checker", "post", f"/api/v1/governance/purification-entries/{entry['id']}/mark-distributed/", {
+            "charity_recipient": "Registered charity (training)", "distributed_date": "2026-01-05"}, expect=200)
+        from apps.governance.models import PurificationEntry
+
+        saved = PurificationEntry._base_manager.get(pk=entry["id"])
+        self.assertIsNotNone(saved.approval_journal_id)
+        self.assertIsNotNone(saved.distribution_journal_id)
+
         # C4. Each day: balances come in (maker), then the day is closed (maker prepares, a different checker signs).
         for day in ("2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"):
             imp = self.call("maker", "post", "/api/v1/pools/balance-imports/", {
@@ -463,6 +492,16 @@ class FromScratch(APITestCase):
         # A back-dated event in the closed period is refused: it needs a restatement.
         self.refused("maker", "post", "/api/v1/accounting/income-expense-events/", {
             "pool": pid, "event_type": "income", "category": "Financing Profit", "amount": "10.00", "event_date": "2026-01-10", "description": "late"})
+        # BRD 7.3: asked for explicitly, the same late item enters the adjustment period (today), keeping its real date.
+        from django.utils import timezone
+
+        late = self.call("maker", "post", "/api/v1/accounting/income-expense-events/", {
+            "pool": pid, "event_type": "income", "category": "Financing Profit", "amount": "10.00", "event_date": "2026-01-10",
+            "description": "late", "book_in_adjustment_period": True}, expect=201).data
+        self.assertEqual((late["event_date"], late["adjusted_from_date"]), (str(timezone.localdate()), "2026-01-10"))
+        self.refused("maker", "post", "/api/v1/accounting/income-expense-events/", {
+            "pool": pid, "event_type": "income", "category": "Financing Profit", "amount": "10.00", "event_date": "2026-03-10",
+            "description": "not closed", "book_in_adjustment_period": True})
         return gates
 
     def test_full_lifecycle(self):

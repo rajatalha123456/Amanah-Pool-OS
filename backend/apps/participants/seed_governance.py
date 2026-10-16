@@ -30,6 +30,10 @@ GL_CHART = {
     "pool_cash": ("1001-001", "Pool Cash"),
     "recovery_income": ("4101-020", "Recovery of Written-off Assets"),
     "suspense": ("1999-001", "Suspense - Unidentified Items"),
+    "accrued_income_receivable": ("1202-001", "Accrued Income Receivable"),
+    "expense_payable": ("2103-001", "Pool Expense Payable"),
+    "non_permissible_clearing": ("2104-001", "Non-permissible Income Clearing"),
+    "charity_payable": ("2104-002", "Charity Payable"),
 }
 
 MATRIX = [

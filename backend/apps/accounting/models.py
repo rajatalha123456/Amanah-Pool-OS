@@ -156,6 +156,13 @@ class IncomeExpenseEvent(TenantScopedModel):
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     posted_at = models.DateTimeField(null=True, blank=True)
+    # BRD 7.3: a back-dated event whose date is already closed is booked in the adjustment period (the current open
+    # day); this keeps the date the transaction really happened on.
+    adjusted_from_date = models.DateField(null=True, blank=True)
+    # The journal posted with the event (BRD Section 10); empty for events posted before these journals existed.
+    journal_batch = models.ForeignKey(
+        "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
 
     # Once posted, an event is a ledger fact: only the link to the run that consumes it may change.
     _POSTED_MUTABLE_FIELDS = frozenset({"allocation_run", "updated_at"})

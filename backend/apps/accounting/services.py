@@ -310,3 +310,51 @@ def post_adjustment_journal(*, tenant, pool, on_date, posted_by, debits, credits
     return _post_batch(
         run=None, pool=pool, tenant=tenant, batch_date=on_date, entries=entries, posted_by=posted_by
     )
+
+
+def post_income_expense_journal(event, posted_by=None):
+    """
+    The journal of a posted income/expense event (BRD Section 10). Income is recognised when posted and closed into
+    the period result by the signed run (whose first leg debits Pool Income and credits Pool Direct Expense):
+      permissible income:      Dr Accrued Income Receivable / Cr Pool Income             (pool-chargeable amount)
+      non-permissible income:  Dr Accrued Income Receivable / Cr Non-permissible Clearing (never Pool Income, BR-005)
+      direct expense:          Dr Pool Direct Expense       / Cr Pool Expense Payable    (pool-chargeable amount only;
+                               overhead absorbed by the bank is not a pool cost and is not posted here)
+    Returns the batch, or None when nothing falls on the pool.
+    """
+
+    from .models import CostClassification, IncomeExpenseEventType
+
+    if event.event_type == IncomeExpenseEventType.INCOME:
+        if event.quarantined_to_charity or event.cost_classification == CostClassification.NON_PERMISSIBLE_INCOME:
+            amount, debit, credit = event.amount, "accrued_income_receivable", "non_permissible_clearing"
+        else:
+            amount, debit, credit = event.pool_chargeable_amount, "accrued_income_receivable", "pool_income"
+    else:
+        amount, debit, credit = event.pool_chargeable_amount, "pool_direct_expense", "expense_payable"
+    if not amount or Decimal(amount) <= 0:
+        return None
+    return post_adjustment_journal(
+        tenant=event.tenant, pool=event.pool, on_date=event.event_date, posted_by=posted_by,
+        debits=[(debit, amount, "")], credits=[(credit, amount, "")],
+    )
+
+
+def post_purification_journal(entry, stage, posted_by=None, on_date=None):
+    """
+    Purification (BRD Section 10), for income that came in through a posted event and so sits in the clearing account:
+      approved:     Dr Non-permissible Income Clearing / Cr Charity Payable
+      distributed:  Dr Charity Payable                 / Cr Pool Cash
+    """
+
+    event = getattr(entry, "income_event", None)
+    if event is None or event.journal_batch_id is None:
+        return None
+    if stage == "approved":
+        debit, credit = "non_permissible_clearing", "charity_payable"
+    else:
+        debit, credit = "charity_payable", "pool_cash"
+    return post_adjustment_journal(
+        tenant=entry.tenant, pool=entry.pool, on_date=on_date or entry.identified_date, posted_by=posted_by,
+        debits=[(debit, entry.amount, "")], credits=[(credit, entry.amount, "")],
+    )

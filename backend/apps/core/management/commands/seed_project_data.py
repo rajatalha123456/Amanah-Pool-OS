@@ -177,6 +177,9 @@ class Command(BaseCommand):
             SuspenseItem.objects.filter(tenant=tenant).delete()
             GLExport.objects.filter(tenant=tenant).delete()
             AssetTransferRequest.objects.filter(tenant=tenant).delete()
+            # Events and purification entries point at their journals (PROTECT): unlink before the journals go.
+            IncomeExpenseEvent._base_manager.filter(tenant=tenant).update(journal_batch=None)
+            PurificationEntry._base_manager.filter(tenant=tenant).update(approval_journal=None, distribution_journal=None)
             JournalEntry.objects.filter(tenant=tenant).delete()
             JournalBatch.objects.filter(tenant=tenant, reverses_batch__isnull=False).delete()
             JournalBatch.objects.filter(tenant=tenant).delete()

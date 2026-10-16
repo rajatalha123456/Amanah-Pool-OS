@@ -82,13 +82,14 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), HasAnyRole(STAFF_ROLES)()]
 
     def perform_create(self, serializer):
-        assert_period_open(
-            serializer.validated_data["pool"],
-            serializer.validated_data["event_date"],
-            what="an income/expense event",
-        )
-        assert_day_open(serializer.validated_data["pool"], serializer.validated_data["event_date"], what="an income/expense event")
-        instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
+        pool, event_date = serializer.validated_data["pool"], serializer.validated_data["event_date"]
+        extra = {}
+        if str(self.request.data.get("book_in_adjustment_period", "")).lower() in ("true", "1"):
+            extra = self._adjustment_booking(pool, event_date)
+        else:
+            assert_period_open(pool, event_date, what="an income/expense event")
+            assert_day_open(pool, event_date, what="an income/expense event")
+        instance = serializer.save(tenant=self.request.user.tenant, created_by=self.request.user, **extra)
         log_action(
             tenant=instance.tenant,
             actor=self.request.user,
@@ -103,6 +104,26 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             },
             request=self.request,
         )
+
+    @staticmethod
+    def _adjustment_booking(pool, event_date):
+        """
+        BRD 7.3: a back-dated transaction whose date is closed (signed day or certified/locked period) enters the
+        adjustment period - the current open day - instead of reopening the closed one. The real date is kept in
+        `adjusted_from_date`. If its own date is still open there is nothing to adjust, and today must itself be open.
+        """
+        from apps.pools.models import DailyClose, DailyCloseStatus
+        from apps.pools.period_lock import get_closed_period
+
+        day_signed = DailyClose._base_manager.filter(pool=pool, value_date=event_date, status=DailyCloseStatus.SIGNED).exists()
+        if not day_signed and get_closed_period(pool, event_date) is None:
+            raise ValidationError({"book_in_adjustment_period": [f"{event_date} is still open: record the event on its own date."]})
+        today = timezone.localdate()
+        if event_date > today:
+            raise ValidationError({"event_date": ["A future date cannot be adjusted."]})
+        assert_period_open(pool, today, what="an adjustment-period event")
+        assert_day_open(pool, today, what="an adjustment-period event")
+        return {"event_date": today, "adjusted_from_date": event_date}
 
     @action(detail=True, methods=["post"], url_path="post")
     def post_event(self, request, pk=None):
@@ -122,10 +143,13 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
 
         previous_status = event.status
         with transaction.atomic():
+            from .services import post_income_expense_journal
+
+            event.journal_batch = post_income_expense_journal(event, posted_by=request.user)
             event.status = IncomeExpenseEventStatus.POSTED
             event.posted_by = request.user
             event.posted_at = timezone.now()
-            event.save(update_fields=["status", "posted_by", "posted_at", "updated_at"])
+            event.save(update_fields=["status", "posted_by", "posted_at", "journal_batch", "updated_at"])
 
             # BR-005: non-permissible income never reaches participants - it is routed to purification.
             if event.event_type == IncomeExpenseEventType.INCOME and event.quarantined_to_charity:

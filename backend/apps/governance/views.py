@@ -522,10 +522,16 @@ class PurificationEntryViewSet(
                 f"approve (current status: '{entry.status}')."
             )
 
+        from django.db import transaction
+
+        from apps.accounting.services import post_purification_journal
+
         previous_status = entry.status
-        entry.status = PurificationStatus.APPROVED_FOR_PURIFICATION
-        entry.approved_by = request.user
-        entry.save(update_fields=["status", "approved_by", "updated_at"])
+        with transaction.atomic():
+            entry.approval_journal = post_purification_journal(entry, "approved", posted_by=request.user)
+            entry.status = PurificationStatus.APPROVED_FOR_PURIFICATION
+            entry.approved_by = request.user
+            entry.save(update_fields=["status", "approved_by", "approval_journal", "updated_at"])
 
         log_action(
             tenant=entry.tenant,
@@ -559,11 +565,21 @@ class PurificationEntryViewSet(
         if errors:
             raise ValidationError(errors)
 
+        from django.db import transaction
+
+        from apps.accounting.services import post_purification_journal
+
         previous_status = entry.status
-        entry.status = PurificationStatus.DISTRIBUTED
-        entry.charity_recipient = charity_recipient
-        entry.distributed_date = distributed_date
-        entry.save(update_fields=["status", "charity_recipient", "distributed_date", "updated_at"])
+        with transaction.atomic():
+            entry.status = PurificationStatus.DISTRIBUTED
+            entry.charity_recipient = charity_recipient
+            entry.distributed_date = distributed_date
+            entry.distribution_journal = post_purification_journal(
+                entry, "distributed", posted_by=request.user, on_date=distributed_date
+            )
+            entry.save(update_fields=[
+                "status", "charity_recipient", "distributed_date", "distribution_journal", "updated_at",
+            ])
 
         log_action(
             tenant=entry.tenant,

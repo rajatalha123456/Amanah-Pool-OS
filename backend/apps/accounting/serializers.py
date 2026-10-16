@@ -35,6 +35,7 @@ class IncomeExpenseEventSerializer(serializers.ModelSerializer):
             "is_overhead_leakage",
             "quarantined_to_charity",
             "event_date",
+            "adjusted_from_date",
             "description",
             "shariah_note",
             "status",

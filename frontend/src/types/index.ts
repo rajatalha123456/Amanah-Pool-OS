@@ -655,6 +655,7 @@ export type CostClassification =
   | "non_permissible_income"
 
 export interface IncomeExpenseEvent {
+  adjusted_from_date?: string | null
   id: string
   tenant: string
   pool: string
@@ -707,6 +708,7 @@ export interface CreateIncomeExpenseEventInput {
   event_date: string
   description: string
   shariah_note?: string
+  book_in_adjustment_period?: boolean
 }
 
 export interface DepositorStatement {

@@ -15,6 +15,7 @@ import {
   scanOverheadLeakage,
 } from "../api/accounting"
 import { fetchPools } from "../api/pools"
+import { extractErrorMessage } from "../api/errors"
 import { DEFAULT_PAGE_SIZE } from "../api/pagination"
 import { Pager } from "../components/Pager"
 import type {
@@ -174,7 +175,7 @@ export function IncomeExpenseWorkbench() {
       })
       await loadData(selectedPoolId)
     } catch (err: unknown) {
-      setModalError(err instanceof Error ? err.message : "Failed to record event")
+      setModalError(extractErrorMessage(err, "Failed to record event"))
     } finally {
       setIsSubmitting(false)
     }
@@ -448,6 +449,9 @@ export function IncomeExpenseWorkbench() {
                     >
                       <td className="py-3 px-3 font-mono text-ink-secondary">
                         {item.event_date}
+                        {item.adjusted_from_date && (
+                          <span className="block text-[10px] text-amber-400">adjustment for {item.adjusted_from_date}</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-3">
@@ -698,6 +702,19 @@ export function IncomeExpenseWorkbench() {
                   required
                 />
               </div>
+
+              <label className="flex items-start gap-2 text-xs text-ink-secondary">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.book_in_adjustment_period)}
+                  onChange={(e) => setForm({ ...form, book_in_adjustment_period: e.target.checked })}
+                  className="mt-0.5"
+                />
+                <span>
+                  This date is already closed: book it in the adjustment period (today). The real date is kept on the
+                  record. Without this, a closed date is refused.
+                </span>
+              </label>
 
               <div>
                 <label className="block text-ink-secondary">Description & Obligor</label>

@@ -153,6 +153,12 @@ class PurificationEntry(TenantScopedModel):
         related_name="approved_purification_entries",
     )
     notes = models.TextField(null=True, blank=True)
+    approval_journal = models.ForeignKey(
+        "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    distribution_journal = models.ForeignKey(
+        "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
 
     def __str__(self):
         return f"Purification {self.amount} - {self.source_description}"

@@ -34,6 +34,11 @@ ACCOUNTS = {
     "asset_portfolio": "Financing Asset Portfolio",
     "pool_cash": "Pool Cash",
     "recovery_income": "Recovery of Written-off Assets",
+    # Income and expense recognised when an event is posted, and purification (BRD Section 10).
+    "accrued_income_receivable": "Accrued Income Receivable",
+    "expense_payable": "Pool Expense Payable",
+    "non_permissible_clearing": "Non-permissible Income Clearing",
+    "charity_payable": "Charity Payable",
     # Amounts that cannot be placed yet, each one a named item (accounting/suspense.py).
     "suspense": "Suspense - Unidentified Items",
 }
@@ -42,10 +47,12 @@ REQUIRED_BY_MODEL = {
     "bank_pool": [
         "pool_income", "pool_direct_expense", "distributable_profit", "per_reserve", "irr_reserve",
         "mudarib_payable", "depositor_payable", "rounding_account",
+        "accrued_income_receivable", "expense_payable", "non_permissible_clearing", "charity_payable",
     ],
     "investment_pool": [
         "pool_income", "pool_direct_expense", "distributable_profit", "mudarib_payable", "investor_capital",
         "investor_profit_payable", "settlement_receivable", "redemption_payable", "rounding_account",
+        "accrued_income_receivable", "expense_payable", "non_permissible_clearing", "charity_payable",
     ],
     "community_circle": [],
 }
