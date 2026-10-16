@@ -112,9 +112,16 @@ class AuditFixTests(APITestCase):
         body = str(self.call(admin, "get", "/api/v1/core/audit-log/").data)
         self.assertNotIn("123456.78", body)
         self.assertNotIn("secret reason", body)
-        self.assertIn("AllocationRun", body, "who/what/when must stay visible")
+        # BRD 3: the administrator sees the platform's own security and configuration events, not the tenant's business.
+        self.assertNotIn("AllocationRun", body, "a tenant's business events are not the administrator's")
+        log_action(tenant=self.tenant, actor=admin, action="create", model_name="User", object_id="u1", changes={"role": "auditor"})
+        self.assertIn("'User'", str(self.call(admin, "get", "/api/v1/core/audit-log/").data), "who/what/when of admin events stays visible")
         export = self.call(admin, "get", "/api/v1/core/audit-log/export/").content.decode()
         self.assertNotIn("123456.78", export)
+        self.assertNotIn("AllocationRun", export)
+        chain = self.call(admin, "get", "/api/v1/core/audit-log/verify-merkle/").data
+        self.assertEqual(chain["chain_blocks"], [], "the administrator learns whether the chain is intact, not what it holds")
+        self.assertIn("AllocationRun", str(self.call(auditor, "get", "/api/v1/core/audit-log/verify-merkle/").data))
         self.assertIn("123456.78", str(self.call(auditor, "get", "/api/v1/core/audit-log/").data), "the tenant's auditor still sees everything")
 
     # F-02 ---------------------------------------------------------------------------------------

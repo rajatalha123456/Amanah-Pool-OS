@@ -39,6 +39,24 @@ def readiness_check(request):
     return Response({"status": "ready"})
 
 
+# What the platform administrator may see in the audit trail: the platform's own security and configuration events. The
+# business of a tenant (runs, journals, payouts, participants...) stays with the Auditor and Risk (BRD 3: the Super Admin
+# "cannot view tenant financial data by default"). Amounts and reasons are withheld from the administrator in any case.
+ADMIN_AUDIT_MODELS = (
+    "User", "user", "Tenant", "LegalEntity", "FeatureFlag", "EncryptionKeyRecord", "AIModelRegistry", "aimodelregistry",
+    "JurisdictionRulePack", "ConfigChangeRequest", "configchangerequest", "ApprovalRule", "AccountMapping",
+    "RetentionPolicy", "Session",
+)
+
+
+def _admin_view_of_chain(request, result):
+    """The administrator learns whether the chain is intact, not which business events it holds."""
+    if getattr(request.user, "role", None) != "platform_super_admin":
+        return result
+    hidden = {"chain_blocks": [], "tampered_blocks": [{"block": b.get("height", b.get("sequence"))} for b in result.get("tampered_blocks", [])]}
+    return {**result, **hidden, "detail_withheld": "Block contents are visible to the Auditor and Risk only."}
+
+
 def _filtered_audit_log_queryset(request):
     # AuditLog is deliberately not a TenantScopedModel (see its
     # docstring), so there's no TenantScopedManager auto-filtering -
@@ -47,6 +65,7 @@ def _filtered_audit_log_queryset(request):
     queryset = AuditLog.objects.all()
     user = request.user
     if user.role == "platform_super_admin":
+        queryset = queryset.filter(model_name__in=ADMIN_AUDIT_MODELS)
         tenant_id = request.query_params.get("tenant")
         if tenant_id:
             queryset = queryset.filter(tenant_id=tenant_id)
@@ -93,7 +112,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
         qs = AuditLog.objects.filter(tenant=request.tenant)  # whole chain: continuity can only be checked unfiltered
         result = MerkleAuditEngine.verify_merkle_chain(qs)
-        return Response(result)
+        return Response(_admin_view_of_chain(request, result))
 
     @action(detail=False, methods=["post"], url_path="simulate-tamper")
     def simulate_tamper(self, request):
@@ -111,7 +130,7 @@ class AuditLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
             except (ValueError, TypeError):
                 target_height = None
 
-        result = MerkleAuditEngine.simulate_tamper_detection(qs, target_height=target_height)
+        result = _admin_view_of_chain(request, MerkleAuditEngine.simulate_tamper_detection(qs, target_height=target_height))
         return Response(result)
 
 

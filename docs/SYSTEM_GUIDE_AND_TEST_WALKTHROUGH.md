@@ -63,7 +63,7 @@ aur zyada din laga, usay zyada nafa.
 
 | Login | Kaun hai | Kya kar sakta hai | Kya NAHI kar sakta |
 |---|---|---|---|
-| `superadmin` | Platform administrator | Tenants, users, rule packs, website ki enquiries; audit trail dekhna | Koi maali figure nahi dekh sakta (audit log mein bhi chhupi hoti hain) |
+| `superadmin` | Platform administrator | Tenants, users, rule packs, website ki enquiries; audit trail dekhna | Audit log mein sirf platform ke events (login, users, tenants, settings); bank ka kaarobar aur raqam nahi |
 | `pm` | Product manager | Product banana, draft karna | Apna product khud manzoor nahi |
 | `poolmanager` | Pool manager | Pool banana, assets lagana, run tayyar karna, circle chalana | Run ya Shariah exception manzoor nahi |
 | `maker` | Finance maker | Balances import, income/expense likhna, daily close tayyar karna, GL export banana, suspense propose karna | Apna likha khud post/manzoor nahi |

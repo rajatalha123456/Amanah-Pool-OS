@@ -58,8 +58,16 @@ class LoginView(APIView):
         )
 
         if user is None:
+            # A failed sign-in is a security event: recorded against the account's tenant when the email is known,
+            # without saying so to the caller.
+            known = User.objects.filter(email__iexact=serializer.validated_data["email"]).select_related("tenant").first()
+            log_action(tenant=getattr(known, "tenant", None), actor=None, action="login_failed", model_name="Session",
+                       object_id=str(known.id) if known else "", changes={"email": serializer.validated_data["email"]},
+                       request=request)
             return Response({"detail": "Invalid email or password."}, status=401)
 
+        log_action(tenant=user.tenant, actor=user, action="login_password_ok", model_name="Session", object_id=str(user.id),
+                   request=request)
         if settings.MFA_ENFORCED:
             pending_token = issue_pending_mfa_token(user)
             if not user.mfa_enabled:

@@ -73,12 +73,14 @@ class AuditLogApiTests(APITestCase):
         self.assertEqual(response.data["results"][0]["model_name"], "Pool")
 
     def test_super_admin_can_filter_by_tenant_across_tenants(self):
+        # The administrator sees the platform's own events (users, tenants, configuration) of any tenant, never a
+        # tenant's business events such as the "pool-2" change.
+        log_action(tenant=self.other_tenant, actor=self.super_admin, action="create", model_name="User", object_id="user-2")
         self.client.force_authenticate(user=self.super_admin)
         self.client.defaults["HTTP_X_TENANT_CODE"] = self.other_tenant.code
         response = self.client.get(reverse("audit-log-list"), {"tenant": str(self.other_tenant.id)})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
-        self.assertEqual(response.data["results"][0]["object_id"], "pool-2")
+        self.assertEqual([r["object_id"] for r in response.data["results"]], ["user-2"])
 
     def test_export_returns_csv(self):
         self.client.force_authenticate(user=self.auditor)
@@ -125,3 +127,16 @@ class AuditLogApiTests(APITestCase):
         self.assertEqual(len(second.data["results"]), 12)
         big = self.client.get(reverse("audit-log-list"), {"page_size": 5000})
         self.assertEqual(len(big.data["results"]), 62)  # under the cap of 500: all rows, never more than 500
+
+
+class SignInAuditTests(APITestCase):
+    def test_sign_ins_are_security_events_the_administrator_can_see(self):
+        tenant = Tenant.objects.create(name="Sign", code="SIGN-T", data_residency="PK")
+        User.objects.create_user(email="x@sign.test", password="right-pass", full_name="X", role=UserRole.AUDITOR, tenant=tenant)
+        self.client.post("/api/v1/auth/login/", {"email": "x@sign.test", "password": "wrong"}, format="json")
+        self.client.post("/api/v1/auth/login/", {"email": "x@sign.test", "password": "right-pass"}, format="json")
+        actions = list(AuditLog.objects.filter(tenant=tenant, model_name="Session").order_by("created_at").values_list("action", flat=True))
+        self.assertEqual(actions, ["login_failed", "login_password_ok"])
+        failed = AuditLog.objects.get(tenant=tenant, action="login_failed")
+        self.assertNotIn("right-pass", str(failed.changes))
+        self.assertNotIn("wrong", str(failed.changes), "a typed password is never recorded")
