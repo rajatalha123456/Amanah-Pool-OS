@@ -10,11 +10,13 @@ import {
   fetchPoolIncomeExpenseSummary,
   createIncomeExpenseEvent,
   postIncomeExpenseEvent,
+  settleIncomeExpenseEvent,
   quarantineIncomeToCharity,
   reclassifyExpense,
   scanOverheadLeakage,
 } from "../api/accounting"
 import { fetchPools } from "../api/pools"
+import { useAuth } from "../api/auth"
 import { extractErrorMessage } from "../api/errors"
 import { DEFAULT_PAGE_SIZE } from "../api/pagination"
 import { Pager } from "../components/Pager"
@@ -29,6 +31,7 @@ import type {
 type FilterTab = "all" | "income" | "direct" | "overhead" | "charity"
 
 export function IncomeExpenseWorkbench() {
+  const { user } = useAuth()
   const [pools, setPools] = useState<Pool[]>([])
   const [selectedPoolId, setSelectedPoolId] = useState<string>("")
   const [events, setEvents] = useState<IncomeExpenseEvent[]>([])
@@ -121,7 +124,20 @@ export function IncomeExpenseWorkbench() {
       await postIncomeExpenseEvent(id)
       await loadData(selectedPoolId)
     } catch (err) {
-      console.error("Failed to post event", err)
+      setScanMessage(extractErrorMessage(err, "Failed to post the event."))
+    }
+  }
+
+  async function handleSettleEvent(id: string, isIncome: boolean) {
+    const reference = prompt(isIncome ? "Bank / Raast reference of the money received:" : "Bank / Raast reference of the payment:")
+    if (!reference) return
+    const on = prompt("Date (YYYY-MM-DD):", new Date().toISOString().slice(0, 10))
+    if (!on) return
+    try {
+      await settleIncomeExpenseEvent(id, reference, on)
+      await loadData(selectedPoolId)
+    } catch (err) {
+      setScanMessage(extractErrorMessage(err, "Failed to record the settlement."))
     }
   }
 
@@ -552,6 +568,17 @@ export function IncomeExpenseWorkbench() {
                               {item.is_overhead_leakage ? "Mark Direct" : "Mark Overhead"}
                             </button>
                           )}
+
+                          {item.status === "posted" && !item.settled_on && user?.role === "finance_checker" && (
+                            <button
+                              onClick={() => handleSettleEvent(item.id, item.event_type === "income")}
+                              className="rounded border border-emerald-500/40 px-2 py-1 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-500/10"
+                              title="Record the cash received or paid (realization)"
+                            >
+                              {item.event_type === "income" ? "Received" : "Paid"}
+                            </button>
+                          )}
+                          {item.settled_on && <span className="text-[10px] text-ink-muted">settled {item.settled_on}</span>}
 
                           {item.status === "pending" && (
                             <button

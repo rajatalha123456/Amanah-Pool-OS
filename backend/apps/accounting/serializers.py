@@ -36,6 +36,8 @@ class IncomeExpenseEventSerializer(serializers.ModelSerializer):
             "quarantined_to_charity",
             "event_date",
             "adjusted_from_date",
+            "settled_on",
+            "settlement_reference",
             "description",
             "shariah_note",
             "status",
@@ -63,6 +65,10 @@ class IncomeExpenseEventSerializer(serializers.ModelSerializer):
             "is_direct_expense",
             "is_overhead_leakage",
             "quarantined_to_charity",
+            # set only by the adjustment-period booking and the settle action, never typed in
+            "adjusted_from_date",
+            "settled_on",
+            "settlement_reference",
         )
 
 

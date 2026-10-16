@@ -83,3 +83,13 @@ export async function scanOverheadLeakage(
   )
   return response.data
 }
+
+
+/** Realization (BRD 4): the finance checker records the cash received or paid for a posted event. */
+export async function settleIncomeExpenseEvent(id: string, settlementReference: string, settledOn: string): Promise<IncomeExpenseEvent> {
+  const response = await apiClient.post<IncomeExpenseEvent>(`accounting/income-expense-events/${id}/settle/`, {
+    settlement_reference: settlementReference,
+    settled_on: settledOn,
+  })
+  return response.data
+}

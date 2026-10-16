@@ -75,7 +75,7 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [IsAuthenticated(), IsFinanceMaker()]
-        if self.action == "post_event":
+        if self.action in ("post_event", "settle"):
             return [IsAuthenticated(), IsFinanceChecker()]
         if self.action in ("quarantine_to_charity", "reclassify", "scan_overhead_leakage"):
             return [IsAuthenticated(), HasAnyRole(["finance_maker", "shariah_secretariat"])()]
@@ -174,6 +174,41 @@ class IncomeExpenseEventViewSet(viewsets.ModelViewSet):
             object_id=str(event.id),
             changes={"status": {"before": previous_status, "after": event.status}},
             request=request,
+        )
+        return Response(self.get_serializer(event).data)
+
+    @action(detail=True, methods=["post"])
+    def settle(self, request, pk=None):
+        """
+        Realization (BRD 4): a finance checker records that the accrued income was received, or the expense paid, with
+        the bank reference. Posts the cash journal; the accrual stays as it was.
+        """
+        from datetime import date as _date
+
+        from .services import post_event_settlement_journal
+
+        event = self.get_object()
+        if event.status != IncomeExpenseEventStatus.POSTED or event.journal_batch_id is None:
+            raise ValidationError("Only a posted event with an accrual journal can be settled.")
+        if event.settled_on is not None:
+            raise ValidationError(f"This event was already settled on {event.settled_on}.")
+        reference = str(request.data.get("settlement_reference") or "").strip()
+        if not reference:
+            raise ValidationError({"settlement_reference": ["The bank / Raast reference is required."]})
+        try:
+            on = _date.fromisoformat(str(request.data.get("settled_on") or timezone.localdate()))
+        except ValueError:
+            raise ValidationError({"settled_on": ["Use the format YYYY-MM-DD."]})
+        if on < event.event_date or on > timezone.localdate():
+            raise ValidationError({"settled_on": ["The settlement date must be between the event date and today."]})
+        assert_period_open(event.pool, on, what="a settlement")
+        with transaction.atomic():
+            event.settlement_journal = post_event_settlement_journal(event, on, posted_by=request.user)
+            event.settled_on, event.settlement_reference, event.settled_by = on, reference, request.user
+            event.save(update_fields=["settled_on", "settlement_reference", "settlement_journal", "settled_by", "updated_at"])
+        log_action(
+            tenant=event.tenant, actor=request.user, action="settle", model_name="IncomeExpenseEvent", object_id=str(event.id),
+            changes={"settled_on": str(on), "settlement_reference": reference}, request=request,
         )
         return Response(self.get_serializer(event).data)
 

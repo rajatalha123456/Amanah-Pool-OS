@@ -382,3 +382,23 @@ def post_circle_payout_journal(payout, posted_by=None):
     return post_adjustment_journal(
         tenant=payout.tenant, pool=payout.pool, on_date=payout.payout_date, posted_by=posted_by, debits=debits, credits=credits,
     )
+
+
+def post_event_settlement_journal(event, on_date, posted_by=None):
+    """
+    Realization of a posted event (BRD 4 / 10): income received  Dr Pool Cash / Cr Accrued Income Receivable;
+    expense paid  Dr Pool Expense Payable / Cr Pool Cash. Same amount as the accrual journal it settles.
+    """
+
+    from .models import IncomeExpenseEventType
+
+    lines = list(JournalEntry._base_manager.filter(batch_id=event.journal_batch_id))
+    amount = sum((line.amount for line in lines if line.entry_type == JournalEntryType.DEBIT), ZERO)
+    if event.event_type == IncomeExpenseEventType.INCOME:
+        debit, credit = "pool_cash", "accrued_income_receivable"
+    else:
+        debit, credit = "expense_payable", "pool_cash"
+    return post_adjustment_journal(
+        tenant=event.tenant, pool=event.pool, on_date=on_date, posted_by=posted_by,
+        debits=[(debit, amount, "")], credits=[(credit, amount, "")],
+    )

@@ -36,3 +36,19 @@ class ExceptionSlaTests(TestCase):
         self.case("critical", 5)
         codes = [a["code"] for a in build_alerts(self.tenant)]
         self.assertIn("exception_sla_breached", codes)
+
+
+    def test_a_rule_pack_sets_its_own_time_limits(self):
+        from datetime import date
+
+        from apps.products.models import JurisdictionRulePack
+        from .sla import sla_basis_for, sla_days
+
+        JurisdictionRulePack.objects.create(
+            tenant=self.tenant, code="PK", name="PK", version="1", effective_date=date(2026, 1, 1), is_active=True,
+            is_default=True, rules_config={"exception_sla_days": {"critical": 2}},
+        )
+        case = self.case("critical", 0)
+        self.assertEqual((sla_days(case), sla_basis_for(case)), (2, "rule pack"))
+        self.assertFalse(sla_breached(self.case("critical", 2)))
+        self.assertEqual(sla_days(self.case("low", 0)), 14)  # not set in the pack: the default

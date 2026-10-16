@@ -249,6 +249,16 @@ class FromScratch(APITestCase):
 
         self.assertEqual(legs(income["id"]), [("accrued_income_receivable", "debit", "120000.00"), ("pool_income", "credit", "120000.00")])
         self.assertEqual(legs(expense["id"]), [("expense_payable", "credit", "20000.00"), ("pool_direct_expense", "debit", "20000.00")])
+        # Realization: the checker records the cash received / paid with the bank reference; its own journal.
+        self.refused("maker", "post", f"/api/v1/accounting/income-expense-events/{income['id']}/settle/", {"settlement_reference": "BANK-1", "settled_on": "2026-01-03"})
+        self.refused("checker", "post", f"/api/v1/accounting/income-expense-events/{income['id']}/settle/", {"settled_on": "2026-01-03"})
+        settled = self.call("checker", "post", f"/api/v1/accounting/income-expense-events/{income['id']}/settle/", {
+            "settlement_reference": "BANK-1", "settled_on": "2026-01-03"}, expect=200).data
+        self.assertEqual(settled["settled_on"], "2026-01-03")
+        batch = IncomeExpenseEvent._base_manager.get(pk=income["id"]).settlement_journal_id
+        self.assertEqual(sorted((e.account_key, e.entry_type) for e in JournalEntry._base_manager.filter(batch_id=batch)),
+                         [("accrued_income_receivable", "credit"), ("pool_cash", "debit")])
+        self.refused("checker", "post", f"/api/v1/accounting/income-expense-events/{income['id']}/settle/", {"settlement_reference": "BANK-1"})
 
         # Non-permissible income (a late-payment penalty) never reaches the pool: it is booked to the clearing account,
         # the Board approves the purification, a finance checker records the charity payment.

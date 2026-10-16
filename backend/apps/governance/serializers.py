@@ -27,9 +27,9 @@ class ExceptionCaseSerializer(serializers.ModelSerializer):
         return sla_breached(case)
 
     def get_sla_basis(self, case):
-        from .sla import SLA_BASIS
+        from .sla import sla_basis_for
 
-        return SLA_BASIS
+        return sla_basis_for(case)
 
     class Meta:
         model = ExceptionCase

@@ -657,6 +657,8 @@ export type CostClassification =
 
 export interface IncomeExpenseEvent {
   adjusted_from_date?: string | null
+  settled_on?: string | null
+  settlement_reference?: string
   id: string
   tenant: string
   pool: string

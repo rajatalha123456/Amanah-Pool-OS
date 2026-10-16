@@ -164,8 +164,19 @@ class IncomeExpenseEvent(TenantScopedModel):
         "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
 
+    # BRD 4 (Income & Expense: accruals and realization): posting recognises the accrual; settling records the cash -
+    # income received from the obligor, or an expense paid - with the bank reference and its own journal.
+    settled_on = models.DateField(null=True, blank=True)
+    settlement_reference = models.CharField(max_length=100, blank=True, default="")
+    settlement_journal = models.ForeignKey(
+        "accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    settled_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
     # Once posted, an event is a ledger fact: only the link to the run that consumes it may change.
-    _POSTED_MUTABLE_FIELDS = frozenset({"allocation_run", "updated_at"})
+    _POSTED_MUTABLE_FIELDS = frozenset(
+        {"allocation_run", "updated_at", "settled_on", "settlement_reference", "settlement_journal", "settled_by"}
+    )
 
     def save(self, *args, **kwargs):
         from decimal import Decimal
