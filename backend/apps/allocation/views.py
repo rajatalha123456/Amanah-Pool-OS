@@ -816,6 +816,54 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         events.allocation_rejected(run, request.user, rejection_reason)
         return Response(self.get_serializer(run).data)
 
+    @action(detail=True, methods=["get"])
+    def lineage(self, request, pk=None):
+        """
+        Job lineage (BRD 14): where every input of this run came from and where its output went - balance imports,
+        signed daily closes, posted income/expense events, the rule versions sealed in it, its journal and the GL hand-over.
+        """
+        from apps.accounting.models import GLExport, IncomeExpenseEvent
+        from apps.pools.models import BalanceImportBatch, DailyClose
+
+        run = self.get_object()
+        start, end = run.effective_period_start, run.value_date
+        snapshot = run.config_snapshot or {}
+        event_ids = (snapshot.get("income_source") or {}).get("event_ids") or []
+        batch = getattr(run, "journal_batch", None)
+        exports = GLExport.objects.filter(batches=batch) if batch else GLExport.objects.none()
+        return Response({
+            "run": str(run.id), "pool": run.pool.code, "period": [str(start), str(end)],
+            "inputs": {
+                "balance_imports": [
+                    {"id": str(b.id), "value_date": str(b.value_date), "status": b.status, "records": b.total_records,
+                     "control_total_expected": str(b.control_total_expected), "control_total_actual": str(b.control_total_actual)}
+                    for b in BalanceImportBatch.objects.filter(pool=run.pool, value_date__gte=start, value_date__lte=end).order_by("value_date")
+                ],
+                "daily_closes": [
+                    {"id": str(c.id), "value_date": str(c.value_date), "status": c.status, "signed_by": c.signed_by_id}
+                    for c in DailyClose.objects.filter(pool=run.pool, value_date__gte=start, value_date__lte=end).order_by("value_date")
+                ],
+                "income_expense_events": [
+                    {"id": str(e.id), "type": e.event_type, "category": e.category, "amount": str(e.amount), "date": str(e.event_date),
+                     "posted_by": e.posted_by_id}
+                    for e in IncomeExpenseEvent.objects.filter(id__in=event_ids).order_by("event_date")
+                ],
+                "income_mode": (snapshot.get("income_source") or {}).get("mode"),
+                "rule_versions": {
+                    "psr": (snapshot.get("psr") or {}).get("id"),
+                    "weightage_bands": [b.get("id") for b in snapshot.get("weightage_bands") or []],
+                    "rule_pack": snapshot.get("rule_pack"),
+                },
+            },
+            "seals": {"calculation_hash": run.calculation_hash, "evidence_hash": run.evidence_hash},
+            "outputs": {
+                "status": run.status, "lines": run.lines.count(),
+                "journal_batch": str(batch.id) if batch else None,
+                "gl_exports": [{"id": str(x.id), "status": x.status} for x in exports],
+                "statements": run.statements.count() if hasattr(run, "statements") else None,
+            },
+        })
+
     @action(detail=True, methods=["get"], url_path="verify-evidence")
     def verify_evidence(self, request, pk=None):
         """Recomputes the signed manifest: did the inputs, approvers, balance rows or journal change since signing?"""

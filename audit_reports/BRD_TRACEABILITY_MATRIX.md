@@ -233,7 +233,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-159 | 14 | Resilience: multi-zone, encrypted backups, tested restore, RPO 15 min, RTO 4 h | BLOCKED (scripts exist, never run; no pg_dump here) | P1 | `backend/scripts/` |
 | R-160 | 14 | WCAG 2.2 AA, keyboard, contrast, labels, localization; after fix: every control gets an accessible name (probe: 242 unnamed -> 0 over 8 roles); no full WCAG audit | PARTIAL | P3 | `evidence/a11y_probe.txt` |
 | R-161 | 14 | Multi-currency, timezone, calendars, English/Urdu/Arabic, RTL | English, Urdu and Arabic UI (language switcher, RTL for Urdu and Arabic, shared components translated); statements explained in all three; per-pool timezone and working calendar; one currency per legal entity | Every screen | `i18n/` | tsc; BT core.test_from_scratch (statements) | PARTIAL (Arabic wording needs a native reviewer; multi-currency within one pool not built) | P2 |
-| R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | PARTIAL (logs, health endpoints and control alerts: late close, suspense ageing, stale approvals, key rotation; no traces or lineage) | P2 | BT HealthTests |
+| R-162 | 14 | Metrics, traces, logs, lineage, data-quality and control alerts | request id on every API call (X-Request-ID, traced in `apps.trace` with status, duration, user, tenant); run lineage endpoint (imports, closes, events, rule versions, seals, journal, GL hand-over); health/readiness; control alerts; AI metrics | Command Center alerts | - | BT core.test_control_alerts, core.test_from_scratch | PASS (a central metrics/trace backend is infrastructure, see R-154) | - |
 
 ## Section 16: business rules
 
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 141 |
-| PARTIAL | 28 |
+| PASS | 142 |
+| PARTIAL | 27 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

@@ -602,6 +602,14 @@ class FromScratch(APITestCase):
         self.call("checker", "post", f"{base}/gl-exports/{export['id']}/confirm/", {"gl_reference": "GL-001"}, expect=200)
         tb = self.call("checker", "get", f"{base}/trial-balance/?pool={pid}", expect=200).data
         self.assertTrue(tb.get("balanced", True), tb)
+        # BRD 14: lineage of the signed run, from the balance imports to the GL hand-over.
+        run = self.call("auditor", "get", f"/api/v1/allocation/allocation-runs/?pool={pid}", expect=200).data
+        rid = (run if isinstance(run, list) else run["results"])[0]["id"]
+        lin = self.call("auditor", "get", f"/api/v1/allocation/allocation-runs/{rid}/lineage/", expect=200)
+        self.assertEqual(len(lin.data["inputs"]["balance_imports"]), 5)
+        self.assertTrue(all(c["status"] == "signed" for c in lin.data["inputs"]["daily_closes"]))
+        self.assertEqual(lin.data["outputs"]["gl_exports"][0]["status"], "confirmed")
+        self.assertTrue(lin["X-Request-ID"])
 
         item = self.call("maker", "post", f"{base}/suspense-items/", {
             "pool": pid, "side": "unidentified_receipt", "amount": "150.00", "description": "Unmatched bank receipt", "reference": "BANK-77"}, expect=201).data
