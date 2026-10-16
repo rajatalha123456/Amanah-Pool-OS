@@ -80,7 +80,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 |---|---|---|---|---|---|---|---|---|
 | R-047 | 6.1.1 | PM selects jurisdiction and model | wizard + rule pack binding | wizard | - | E2E wizard | PASS | - |
 | R-048 | 6.1.2 | Contract Studio loads approved clauses and mandatory parameters | clause schema marks the mandatory parameters of the template's contract type; approval refused while any is empty | Contract Template Studio | - | BT core.test_from_scratch | PASS | - |
-| R-049 | 6.1.3 | AI completeness / conflict / policy-mapping check | deterministic `rule_conflicts` gate only | - | - | BT activation gates | PARTIAL | P2 |
+| R-049 | 6.1.3 | AI completeness / conflict / policy-mapping check | automated configuration check on the pool (completeness incl. mandatory contract parameters, rule conflicts, ruling and rule-pack mapping), rule-based, recorded as an AI recommendation for a human decision; kill switch `configuration_checker` | Pool detail, activation readiness | `AIRecommendation` | BT core.test_from_scratch | PASS | - |
 | R-050 | 6.1.4 | Finance validates mappings; Risk validates limits and disclosures | `governance/config_changes.py` | Governance Config | `ConfigChangeRequest` | BT governance; E2E governance config | PASS | - |
 | R-051 | 6.1.5 | Secretariat review pack; Shariah authority approves / rejects / returns | quorum approve; quorum of rejections rejects; any Board member returns with a note (new review round, earlier votes stop counting); Secretariat edits and resubmits | Fatwa register modal | `ShariahDecision.review_round` | BT core.test_from_scratch | PASS | - |
 | R-052 | 6.1.6 | Checker activates with future effective timestamp | `pools/views.py` open by checker/signatory | Pool detail | - | BT activation gates | PASS | - |
@@ -206,7 +206,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-142 | 12 | Messaging: email, SMS, WhatsApp, push, delivery status | PARTIAL (e-mail + in-app) | P2 | BT notifications.tests |
 | R-143 | 12 | BI / data lake (events/CDC, masked) | MISSING | P3 | ST |
 | R-144 | 12 | Regulator / auditor portal: secure export | PARTIAL (auditor portal, evidence bundle; no regulator export) | P2 | E2E auditor |
-| R-145 | 12 | Representative API surface (10 endpoints) | PARTIAL - equivalents exist for 9 of 10; see API_AUDIT.md | P3 | `evidence/api_routes.tsv` |
+| R-145 | 12 | Representative API surface (10 endpoints) | all ten present: pools, pools/{id}/create-version, asset assignments, balance imports, simulate/create run, 4-stage approval, circle contributions, payout request/approve/settle, exceptions, statements, evidence bundles (compile + download) | - | - | `evidence/api_routes.tsv`, API_AUDIT.md | PASS | - |
 
 ## Section 13: dashboards
 
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 138 |
-| PARTIAL | 31 |
+| PASS | 140 |
+| PARTIAL | 29 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

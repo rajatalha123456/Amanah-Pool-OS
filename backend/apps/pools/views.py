@@ -80,6 +80,8 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
         if self.action == "open":
             # BRD 6.1: the Pool Manager prepares, an independent checker activates.
             return [IsAuthenticated(), HasAnyRole(["finance_checker", "authorized_signatory"])()]
+        if self.action == "configuration_check":
+            return [IsAuthenticated(), HasAnyRole(["product_manager", "pool_manager", "risk_compliance"])()]
         if self.action in ("create", "update", "partial_update", "submit_for_approval", "create_version"):
             return [IsAuthenticated(), IsPoolManager()]
         if self.action == "approve":
@@ -160,6 +162,41 @@ class PoolViewSet(EditableWhileDraftMixin, viewsets.ModelViewSet):
         pool = self.get_object()
         checks = activation_checks(pool)
         return Response({"pool": str(pool.id), "ready": all(c["passed"] for c in checks), "checks": checks})
+
+    @action(detail=True, methods=["post"], url_path="configuration-check")
+    def configuration_check(self, request, pk=None):
+        """
+        BRD 6.1 step 3: an automated completeness, conflict and policy-mapping check of the pool's configuration. It is
+        rule-based (no language model), advisory and recorded like every AI output (BR-009): a person decides.
+        """
+        from apps.ai_agents.models import is_ai_feature_allowed
+        from apps.ai_agents.recording import record_ai_output
+        from apps.core.exceptions import ServiceUnavailable
+
+        if not is_ai_feature_allowed("configuration_checker"):
+            raise ServiceUnavailable("This AI feature is currently disabled.")
+        pool = self.get_object()
+        checks = {c["key"]: c for c in activation_checks(pool)}
+        groups = {
+            "completeness": ["product_approved", "contract_approved", "contract_parameters", "psr_approved",
+                             "weightages_approved", "accounting_mapping", "approval_matrix"],
+            "conflicts": ["no_rule_conflicts"],
+            "policy_mapping": ["shariah_decision", "rule_pack"],
+        }
+        result = {
+            name: [{"label": checks[k]["label"], "passed": checks[k]["passed"], "detail": checks[k]["detail"]} for k in keys if k in checks]
+            for name, keys in groups.items()
+        }
+        failing = [item["label"] for items in result.values() for item in items if not item["passed"]]
+        reason = "All checks pass." if not failing else f"{len(failing)} item(s) need attention: " + "; ".join(failing)
+        rec_id = record_ai_output(
+            user=request.user, feature="pool_configuration_check", model_name="configuration_checker",
+            prompt={"pool": pool.code}, output={"groups": result, "failing": failing},
+            sources=[{"type": "pool_configuration", "detail": "product, contract, rulings, rule pack, economics, mapping, matrix"}],
+            confidence=None, reason=reason, requires_review=True, subject_type="Pool", subject_id=str(pool.id),
+        )
+        return Response({"pool": pool.code, "groups": result, "failing": failing, "summary": reason,
+                         "recommendation_id": rec_id, "note": "Automated check; a person decides."})
 
     @action(detail=True, methods=["post"], url_path="create-version")
     def create_version(self, request, pk=None):

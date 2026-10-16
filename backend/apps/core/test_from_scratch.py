@@ -193,6 +193,12 @@ class FromScratch(APITestCase):
         missing = {c["key"] for c in ready["checks"] if not c["passed"]} if "checks" in ready else set()
         self.assertIn("psr_approved", missing)
         self.assertIn("weightages_approved", missing)
+        # BRD 6.1 step 3: the automated configuration check groups the same facts and is recorded for a human decision.
+        cc = self.call("pm", "post", f"/api/v1/pools/pools/{pid}/configuration-check/", {}, expect=200).data
+        self.assertEqual(set(cc["groups"]), {"completeness", "conflicts", "policy_mapping"})
+        self.assertIn("Approved profit-sharing ratio covers the effective date", cc["failing"])
+        self.assertTrue(cc["recommendation_id"])
+        self.refused("auditor", "post", f"/api/v1/pools/pools/{pid}/configuration-check/", {})
 
         psr = self.call("poolmanager", "post", "/api/v1/allocation/psr-schedules/", {
             "pool": pid, "depositor_share": "70.00", "mudarib_share": "30.00", "effective_from": "2026-01-01"}, expect=201).data

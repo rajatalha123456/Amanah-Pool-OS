@@ -124,3 +124,10 @@ export interface PortfolioSummary {
 export async function fetchPortfolioSummary(): Promise<PortfolioSummary> {
   return (await apiClient.get<PortfolioSummary>("pools/pools/portfolio-summary/")).data
 }
+
+
+/** BRD 6.1 step 3: automated completeness / conflict / policy-mapping check, recorded for a human decision. */
+export async function runConfigurationCheck(id: string): Promise<{ summary: string; failing: string[]; note: string }> {
+  const response = await apiClient.post(`pools/pools/${id}/configuration-check/`, {})
+  return response.data
+}

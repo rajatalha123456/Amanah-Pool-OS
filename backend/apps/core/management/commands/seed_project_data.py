@@ -469,6 +469,10 @@ class Command(BaseCommand):
                 "shariah_decision": fatwa_1,
                 "status": ContractTemplateStatus.APPROVED,
                 "clauses": {
+                    "rab_ul_maal": "The depositors provide the capital.",
+                    "mudarib": "The Bank manages the capital as Mudarib.",
+                    "profit_ratio": "Profit is shared by the PSR approved by the Shariah Board for each period.",
+                    "loss_bearing_clause": "Capital loss is borne by depositors in proportion to capital, except for the Mudarib's negligence.",
                     "mudarib_share": "The Bank acts as Mudarib and earns an agreed percentage of actual distributable profit.",
                     "loss_absorption": "Financial loss shall be borne strictly by depositors in proportion to capital.",
                     "reserve_deductions": "Profit Equalization Reserve and Investment Risk Reserve may be appropriated subject to SBP limits.",
@@ -481,10 +485,13 @@ class Command(BaseCommand):
             name="Restricted Wakala Treasury Placement Agreement",
             version="2025.1",
             defaults={
-                "contract_type": "wakala",
+                "contract_type": "wakalah",
                 "shariah_decision": fatwa_2,
                 "status": ContractTemplateStatus.APPROVED,
                 "clauses": {
+                    "principal": "The investors placing funds.",
+                    "agent": "The Bank as Wakeel.",
+                    "loss_bearing_clause": "Loss is borne by the principal unless the agent was negligent.",
                     "wakalah_fee": "Lump-sum agency fee of PKR 25,000 per placement tranche.",
                     "target_return": "Anticipated return bench-marked against 3M KIBOR.",
                     "incentive_bonus": "Any profit exceeding benchmark retained by Wakeel as performance incentive.",
@@ -501,6 +508,9 @@ class Command(BaseCommand):
                 "shariah_decision": fatwa_3,
                 "status": ContractTemplateStatus.APPROVED,
                 "clauses": {
+                    "partners": "The Bank and the client, each contributing capital for undivided ownership units.",
+                    "profit_ratio": "Profit is shared by the agreed ratio; loss follows the capital ratio.",
+                    "loss_bearing_clause": "Loss is shared strictly in proportion to each partner's capital.",
                     "co_ownership": "Bank and Client purchase undivided fractional ownership units.",
                     "monthly_redemption": "Client buys out Bank's share in monthly equal installments.",
                 },
@@ -516,6 +526,8 @@ class Command(BaseCommand):
                 "shariah_decision": fatwa_4,
                 "status": ContractTemplateStatus.APPROVED,
                 "clauses": {
+                    "parties": "Each member lends to the member whose turn it is.",
+                    "late_payment_policy": "Reminders and hardship deferral only; no charge of any kind.",
                     "qard_hasan": "Interest-free mutual loan facility among circle members with zero time-value uplift.",
                     "rotation_basis": "Random draw assignment verified cryptographically.",
                     "hardship_relief": "Community review process for delayed payments without compounding or penalty.",

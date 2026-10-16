@@ -69,7 +69,9 @@ class ActivationBase(APITestCase):
         )
         contract = ContractTemplate.objects.create(
             tenant=self.tenant, name="Mudarabah Master", contract_type="mudarabah_unrestricted", version="1",
-            clauses={}, shariah_decision=self.decision, status=ContractTemplateStatus.APPROVED,
+            clauses={"rab_ul_maal": "Depositors", "mudarib": "Bank", "profit_ratio": "Approved PSR",
+                     "loss_bearing_clause": "Capital providers", "parties": "Members", "late_payment_policy": "No charge"},
+            shariah_decision=self.decision, status=ContractTemplateStatus.APPROVED,
         )
         self.product = Product.objects.create(
             tenant=self.tenant, name="Retail Mudarabah", code="RM", operating_model="bank_pool",
@@ -284,6 +286,14 @@ class RuleConflictTests(ActivationBase):
         response = self.open_pool()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("exceeds the rule pack cap", str(response.data))
+
+    def test_a_contract_missing_its_mandatory_parameters_blocks_activation(self):
+        self.add_everything()
+        template = self.product.contract_template
+        template.clauses = {"rab_ul_maal": "Depositors"}
+        template.save()
+        response = self.open_pool()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_a_contract_that_does_not_fit_the_model_blocks_activation(self):
         self.add_everything()

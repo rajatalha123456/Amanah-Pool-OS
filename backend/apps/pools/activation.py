@@ -63,6 +63,8 @@ def rule_conflicts(pool, contract, pack, day):
 
 
 def activation_checks(pool):
+    from apps.products.contract_rules import missing_parameters
+
     product = pool.product
     contract = product.contract_template
     model = product.operating_model
@@ -99,6 +101,8 @@ def activation_checks(pool):
                f"Product status: {product.status}"),
         _check("contract_approved", "Contract template version is approved", contract.status == ContractTemplateStatus.APPROVED,
                f"{contract.name} v{contract.version}: {contract.status}"),
+        _check("contract_parameters", "The contract states the mandatory parameters of its type", not missing_parameters(contract),
+               "" if not missing_parameters(contract) else "Missing: " + ", ".join(missing_parameters(contract))),
         _check("shariah_decision", "Approved Shariah decision in force for the contract", decision is not None,
                decision.decision_code if decision else "No approved, in-force Shariah decision is linked to the contract."),
         _check("rule_pack", "Jurisdiction rule pack bound or a default active pack exists", pack is not None,
