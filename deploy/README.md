@@ -2,7 +2,7 @@
 
 Yeh **demo / showcase** ke liye hai: sab naam aur figures banawati hain, har screen par peeli patti "DEMO SYSTEM" dikhti hai. Asli customer ya asli paisa is setup par **mat** daalein (us ke liye `docs/PRODUCTION_READINESS_REQUIREMENTS.md`).
 
-Teen hisse chalte hain: **db** (PostgreSQL), **backend** (Django + gunicorn), **web** (Caddy: website + HTTPS + `/api/` ko backend tak pohnchana). AI copilot is mein shamil nahi; AI screens "unavailable" dikhayengi.
+Teen hisse chalte hain: **db** (PostgreSQL), **backend** (Django + gunicorn), **web** (Caddy: website + HTTPS + `/api/` ko backend tak pohnchana). AI copilot backend ke andar hi hai; uske liye `.env` mein LLM ki key daalni hoti hai, warna AI screens "unavailable" dikhayengi.
 
 ## Kya chahiye
 - Aik Linux server (Ubuntu 22.04/24.04), kam az kam 2 GB RAM, 20 GB disk
@@ -64,6 +64,6 @@ docker compose exec db pg_dump -U amanah amanah > backup.sql   # database ka bac
 | Website khulti hai, login par error | `docker compose logs backend`; aksar `ALLOWED_HOSTS` / `CORS_ALLOWED_ORIGINS` mein domain ghalat |
 | HTTPS certificate nahi bana | domain ka A record server ka IP? port 80/443 khule? `docker compose logs web` |
 | "Too many redirects" | IP par chala rahe hain to `SECURE_SSL_REDIRECT=False` |
-| AI screens unavailable | Theek hai: copilot is setup mein nahi |
+| AI screens unavailable | `.env` mein `COPILOT_LLM_PROVIDER` aur uski key theek hai? Quota khatam to bhi yahi hota hai |
 
 Note: yeh setup is repo mein Docker ke baghair wali machine par banaya gaya; Docker par khud chala kar test **nahi** hua. Pehli dafa chalate waqt koi error aaye to uska text bhejein.

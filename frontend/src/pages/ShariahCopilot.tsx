@@ -6,7 +6,7 @@ import { Button } from "../components/Button"
 import { Spinner } from "../components/Spinner"
 import { Table, type TableColumn } from "../components/Table"
 import { useAuth } from "../api/auth"
-import { askQuestion, fetchDocuments, submitReview } from "../api/shariahCopilot"
+import { approveDocument, askQuestion, fetchDocuments, submitReview } from "../api/shariahCopilot"
 import { extractCopilotErrorMessage } from "../api/errors"
 import { UploadDocumentModal } from "./shariah-copilot/UploadDocumentModal"
 import { ModelGovernance } from "./ModelGovernance"
@@ -247,6 +247,8 @@ function AskTab({ canReview }: { canReview: boolean }) {
 }
 
 function DocumentsTab({ canUpload }: { canUpload: boolean }) {
+  const { user } = useAuth()
+  const isBoard = user?.role === "shariah_board"
   const [documents, setDocuments] = useState<ShariahDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -276,6 +278,26 @@ function DocumentsTab({ canUpload }: { canUpload: boolean }) {
       ),
     },
     { header: "Product Category", accessor: (doc) => doc.product_category ?? "—" },
+    {
+      header: "Approval",
+      accessor: (doc) =>
+        isBoard && doc.approval_status !== "approved" && doc.uploaded_by !== user?.id ? (
+          <Button
+            variant="primary"
+            onClick={() =>
+              approveDocument(doc.id)
+                .then(loadDocuments)
+                .catch((err) => setLoadError(extractCopilotErrorMessage(err, "Unable to approve the document.")))
+            }
+          >
+            Approve as a source
+          </Button>
+        ) : doc.approval_status === "approved" ? (
+          "the AI may use it"
+        ) : (
+          "not used by the AI until a Board member approves it"
+        ),
+    },
   ]
 
   return (

@@ -21,9 +21,8 @@ const DOCUMENT_TYPES = [
 const APPROVAL_STATUSES = [
   { value: "draft", label: "Draft" },
   { value: "under_review", label: "Under Review" },
-  { value: "approved", label: "Approved" },
-  { value: "archived", label: "Archived" },
 ]
+// A document is approved by a Shariah Board member other than the uploader, from the document list.
 
 const inputClasses =
   "w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
@@ -36,7 +35,6 @@ export function UploadDocumentModal({ onClose, onUploaded }: UploadDocumentModal
   const [approvalStatus, setApprovalStatus] = useState(APPROVAL_STATUSES[0].value)
   const [productCategory, setProductCategory] = useState("")
   const [jurisdiction, setJurisdiction] = useState("")
-  const [approvedBy, setApprovedBy] = useState("")
 
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -62,7 +60,6 @@ export function UploadDocumentModal({ onClose, onUploaded }: UploadDocumentModal
         approval_status: approvalStatus,
         product_category: productCategory || undefined,
         jurisdiction: jurisdiction || undefined,
-        approved_by: approvedBy || undefined,
       })
       onUploaded(document)
     } catch (err) {
@@ -154,19 +151,6 @@ export function UploadDocumentModal({ onClose, onUploaded }: UploadDocumentModal
             type="text"
             value={jurisdiction}
             onChange={(e) => setJurisdiction(e.target.value)}
-            className={inputClasses}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="approved-by" className={labelClasses}>
-            Approved By (optional)
-          </label>
-          <input
-            id="approved-by"
-            type="text"
-            value={approvedBy}
-            onChange={(e) => setApprovedBy(e.target.value)}
             className={inputClasses}
           />
         </div>

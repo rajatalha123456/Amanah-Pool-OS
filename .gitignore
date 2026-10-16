@@ -1,2 +1,5 @@
 frontend-dev.out
 deploy/.env
+
+# Copilot runtime data: model files, uploaded source documents
+backend/data/

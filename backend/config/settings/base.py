@@ -55,6 +55,7 @@ LOCAL_APPS = [
     "apps.investments",
     "apps.circles",
     "apps.ai_agents",
+    "apps.shariah_copilot",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -195,10 +196,30 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["x-tenant-code"]
 REST_FRAMEWORK["EXCEPTION_HANDLER"] = "apps.core.exceptions.custom_exception_handler"
 
 
-# Shariah Policy Copilot integration (external FastAPI service)
+# Shariah Policy Copilot (apps.shariah_copilot, runs inside this service)
+#
+# LLM: "anthropic" | "gemini" | "ollama" (ollama keeps every query on your own network: BRD 9 private gateway).
+# Embeddings: "fastembed" = a multilingual model (English / Urdu / Arabic) run locally; "none" = keyword search only.
 
-SHARIAH_COPILOT_BASE_URL = config("SHARIAH_COPILOT_BASE_URL", default="http://localhost:8001")
-SHARIAH_COPILOT_INTERNAL_KEY = config("SHARIAH_COPILOT_INTERNAL_KEY", default="")
+COPILOT_LLM_PROVIDER = config("COPILOT_LLM_PROVIDER", default=config("LLM_PROVIDER", default="anthropic"))
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+ANTHROPIC_MODEL = config("ANTHROPIC_MODEL", default="claude-sonnet-4-6")
+GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
+GEMINI_MODEL = config("GEMINI_MODEL", default="gemini-2.5-flash")
+OLLAMA_HOST = config("OLLAMA_HOST", default="http://localhost:11434")
+OLLAMA_MODEL = config("OLLAMA_MODEL", default="llama3.1")
+COPILOT_LLM_TIMEOUT_SECONDS = config("COPILOT_LLM_TIMEOUT_SECONDS", default=90, cast=int)
+
+COPILOT_EMBEDDING_BACKEND = config("COPILOT_EMBEDDING_BACKEND", default="fastembed")
+COPILOT_EMBEDDING_MODEL = config(
+    "COPILOT_EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+)
+COPILOT_MODEL_CACHE_DIR = config("COPILOT_MODEL_CACHE_DIR", default=str(BASE_DIR / "data" / "models"))
+COPILOT_RAW_DOCS_DIR = config("COPILOT_RAW_DOCS_DIR", default=str(BASE_DIR / "data" / "raw_documents"))
+COPILOT_MIN_SEMANTIC_SCORE = config("COPILOT_MIN_SEMANTIC_SCORE", default=0.30, cast=float)
+COPILOT_TOP_K_SEMANTIC = config("COPILOT_TOP_K_SEMANTIC", default=16, cast=int)
+COPILOT_TOP_K_KEYWORD = config("COPILOT_TOP_K_KEYWORD", default=30, cast=int)
+COPILOT_TOP_K_FINAL = config("COPILOT_TOP_K_FINAL", default=12, cast=int)
 
 # Whether AllocationRuns for bank_pool-operating-model pools must pass through
 # a Shariah Secretariat sign-off stage (PENDING_APPROVAL -> SHARIAH_REVIEW)

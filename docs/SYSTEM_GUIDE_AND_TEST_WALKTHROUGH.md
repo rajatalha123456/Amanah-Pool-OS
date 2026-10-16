@@ -118,14 +118,14 @@ python manage.py runserver 8000
 cd "D:\Projects\Pool Management\pool management system\frontend"
 npm run dev
 
-# 3. Copilot (AI Shariah sawal-jawab; na chalaye to sirf AI wali screens "unavailable" dikhengi)
-cd "D:\Projects\Pool Management\pool management system\shariah-policy-copilot\backend"
-venv\Scripts\python.exe -m uvicorn app.main:app --port 8001
+# 3. Copilot ab backend ke andar hi hai (alag service nahi). Bas aik dafa model tayyar karein:
+cd "D:\Projects\Pool Management\pool management system\backend"
+python manage.py copilot_prepare_model
 ```
 
 - Website: **http://localhost:5173/welcome**
 - Login: **http://localhost:5173/login**
-- Check: http://localhost:8000/api/v1/health/ready/ ("ready" aaye), http://localhost:8001/health ("ok")
+- Check: http://localhost:8000/api/v1/health/ready/ ("ready" aaye)
 
 **Demo data dobara taaza karna** (jab test ke baad sab gadbad ho jaye): backend folder mein `python manage.py seed_project_data`
 (servers chalte rehne dein). Isse tamam demo records wapas shuru ki halat par aa jate hain.
@@ -238,7 +238,7 @@ Yeh sab se zaroori test hai. **Teen alag log**, teen alag qadam.
 3. Reveal wala button tab tak band jab tak seed 4 harf se kam ho. Seed browser khud nahi banata.
 4. **Mutual Hardship Turn Swap**: wajah ka box khaali hota hai (pehle se likha nahi), aur dono members ki razamandi ka reference zaroori hai.
 
-### Test 16: AI Copilot (copilot service chalni chahiye)
+### Test 16: AI Copilot (backend mein LLM key set honi chahiye)
 1. Login `board` → **AI & Analytics** → **Ask**: "What is the policy on late payment charges?". **Dikhna:** jawab **hawale ke saath** (document, section, page).
 2. Aisa sawal poochein jis ka demo documents mein jawab nahi (jaise "Atlantis ki rajdhani?"). **Dikhna:** ek tay shuda "koi approved ruling nahi mili" jawab: wo kuch gharta nahi.
 3. **Model Governance**: har AI output ka record, usme "source, confidence, reason" aur insaan ka faisla (accept/reject).
@@ -290,7 +290,7 @@ Har role se login karke **Command Center** dekhein. Har ek ko apne kaam ki ginti
 | Masla | Wajah / hal |
 |---|---|
 | Login par "connection refused" | Backend (8000) ya frontend (5173) band hai: Hissa 6 se dobara chalayein |
-| AI screens "unavailable"/503 | Copilot (8001) band hai, ya demo data seed nahi hua: copilot chalayein, `seed_project_data` chalayein |
+| AI screens "unavailable"/503 | LLM provider ki key set nahi ya uski quota khatam (backend `.env` dekhein); ya model registry mein copilot disabled hai |
 | Bohot saare logins par "too many attempts" | Login throttle: backend ko `AUTH_THROTTLE_RATE=1000/min` ke saath chalayein |
 | Koi screen khaali/ajeeb | `seed_project_data` se demo taaza karein, phir dobara |
 | Kisi step par aisa paigham jo samajh na aaye | Screenshot lein; paigham aam tor par wajah batata hai (jaise "ek aur approver chahiye") |

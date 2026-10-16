@@ -1291,6 +1291,8 @@ export interface ShariahDocument {
   product_category: string | null
   jurisdiction: string | null
   is_current_version: number
+  uploaded_by?: number | null
+  approved_by?: number | null
 }
 
 export interface ShariahDocumentUploadInput {

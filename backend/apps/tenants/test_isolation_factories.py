@@ -694,6 +694,29 @@ def _build_ai_recommendation(tenant, cache):
     )
 
 
+def _copilot_models():
+    from apps.shariah_copilot import models
+
+    return models
+
+
+def _build_copilot_document(tenant, cache):
+    return _copilot_models().CopilotDocument.objects.create(
+        tenant=tenant, document_name=f"Doc {tenant.code}", document_type="policy", approval_status="approved"
+    )
+
+
+def _build_copilot_chunk(tenant, cache):
+    document = _copilot_models().CopilotDocument._base_manager.filter(tenant=tenant).first() or _build_copilot_document(tenant, cache)
+    return _copilot_models().CopilotChunk.objects.create(tenant=tenant, document=document, chunk_index=0, text="clause text")
+
+
+def _build_evidence_pack(tenant, cache):
+    return _copilot_models().EvidencePack.objects.create(
+        tenant=tenant, question="q", research_summary="a", disclaimer="d"
+    )
+
+
 def _build_circle_member(tenant, cache):
     return cache.circle_member()
 
@@ -923,6 +946,9 @@ BUILDERS = {
     "circles.Payout": (Payout, _build_payout),
     "circles.CircleProposal": (CircleProposal, _build_circle_proposal),
     "ai_agents.AIRecommendation": (_ai_model(), _build_ai_recommendation),
+    "shariah_copilot.CopilotDocument": (_copilot_models().CopilotDocument, _build_copilot_document),
+    "shariah_copilot.CopilotChunk": (_copilot_models().CopilotChunk, _build_copilot_chunk),
+    "shariah_copilot.EvidencePack": (_copilot_models().EvidencePack, _build_evidence_pack),
     "governance.ConfigChangeRequest": (_config_change_model(), _build_config_change),
     "investments.PoolDisclosure": (_pool_disclosure_model(), _build_pool_disclosure),
     "investments.DisclosureAcknowledgement": (_ack_model(), _build_disclosure_ack),

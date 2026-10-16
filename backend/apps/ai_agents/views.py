@@ -103,7 +103,7 @@ def _forward_copilot_error(exc: copilot.ShariahCopilotError):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat", "platform_super_admin"])])
+@permission_classes([IsAuthenticated, HasAnyRole(["shariah_board", "shariah_secretariat"])])
 def upload_document(request):
     _ensure_copilot_enabled()
     file = request.FILES.get("file")
@@ -129,6 +129,23 @@ def upload_document(request):
         request=request,
     )
     return Response(result, status=201)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsShariahBoard])
+def approve_document(request, document_id):
+    """A Shariah Board member other than the uploader makes a document something the copilot may rely on (BRD 9)."""
+    _ensure_copilot_enabled()
+    approve = request.data.get("approve", True) not in (False, "false", "False", 0, "0")
+    try:
+        result = copilot.approve_document(request.user, request.user.tenant.code, document_id, approve)
+    except copilot.ShariahCopilotError as exc:
+        _forward_copilot_error(exc)
+    log_action(
+        tenant=request.user.tenant, actor=request.user, action="approve" if approve else "archive",
+        model_name="ShariahCopilotDocument", object_id=str(document_id), changes={"approve": approve}, request=request,
+    )
+    return Response(result)
 
 
 @api_view(["GET"])

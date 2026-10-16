@@ -22,6 +22,8 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
       BEHIND_TLS_PROXY: "True"
+    volumes:
+      - copilot_data:/app/data   # embedding model and uploaded Shariah source documents
     depends_on:
       db:
         condition: service_healthy
@@ -48,3 +50,4 @@ services:
 volumes:
   db_data:
   caddy_data:
+  copilot_data:

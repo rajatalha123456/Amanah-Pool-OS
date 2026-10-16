@@ -13,3 +13,8 @@ qrcode==8.2
 requests==2.33.0
 sqlparse==0.6.0
 tzdata==2026.4
+# Shariah copilot: document reading and local multilingual embeddings (ONNX, no PyTorch)
+numpy>=2.0
+pypdf>=4.3
+python-docx>=1.1
+fastembed>=0.5

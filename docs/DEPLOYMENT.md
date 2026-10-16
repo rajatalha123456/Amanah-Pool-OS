@@ -11,7 +11,7 @@ customer data is handled.
 | API | Django 6 / DRF, `config.settings.production` | Run behind a production WSGI/ASGI server. `gunicorn` (Linux) or `waitress` (Windows) is **not** in `requirements.txt`; add the one you use. |
 | Database | PostgreSQL | The only supported engine (tests run on it). |
 | Web app | React + Vite, `npm run build` -> `frontend/dist` | Serve as static files behind HTTPS. |
-| Shariah Policy Copilot | separate service (`shariah-policy-copilot/`) | Optional. If it is down the copilot says so; no answer is invented. |
+| Shariah Policy Copilot | part of the API (`apps/shariah_copilot`) | Needs a language-model provider key (or a local ollama) and the embedding model (`python manage.py copilot_prepare_model`). Without a model the copilot answers 503; no answer is invented. |
 
 ## 2. Environment variables (backend)
 
@@ -27,7 +27,8 @@ customer data is handled.
 | `PAYOUT_SETTLEMENT_ACCOUNT_BALANCE` | the real settlement-account balance until a live balance feed exists; the liquidity gate **fails** if it is not set |
 | `AUTH_THROTTLE_RATE` | e.g. `10/min` (login / MFA / refresh throttle) |
 | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` | the real mail server; the default backend only prints to the console |
-| `SHARIAH_COPILOT_BASE_URL`, `SHARIAH_COPILOT_INTERNAL_KEY` | the copilot service and its shared key |
+| `COPILOT_LLM_PROVIDER` and `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OLLAMA_HOST` | the language model behind the copilot |
+| `COPILOT_MODEL_CACHE_DIR`, `COPILOT_RAW_DOCS_DIR` | persistent folders for the embedding model and uploaded source documents |
 
 Frontend build: `VITE_API_BASE_URL` = the public API URL ending in `/api/v1/`.
 

@@ -6,6 +6,7 @@ from .views import (
     AIRecommendationViewSet,
     analyze_contract,
     ask,
+    approve_document,
     list_documents,
     predict_circle_hardship,
     detect_collusion_network,
@@ -21,6 +22,7 @@ router.register("recommendations", AIRecommendationViewSet, basename="ai-recomme
 urlpatterns = [
     path("shariah-copilot/documents/upload/", upload_document, name="shariah-copilot-document-upload"),
     path("shariah-copilot/documents/", list_documents, name="shariah-copilot-document-list"),
+    path("shariah-copilot/documents/<uuid:document_id>/approve/", approve_document, name="shariah-copilot-document-approve"),
     path("shariah-copilot/ask/", ask, name="shariah-copilot-ask"),
     path("shariah-copilot/review/<str:evidence_pack_id>/", review, name="shariah-copilot-review"),
     path("contract-analyzer/analyze/", analyze_contract, name="contract-analyzer-analyze"),

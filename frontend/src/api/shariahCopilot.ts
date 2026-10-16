@@ -41,3 +41,10 @@ export async function submitReview(evidencePackId: string, approve: boolean): Pr
   })
   return response.data
 }
+
+
+/** A Shariah Board member other than the uploader makes a document a source the AI may use. */
+export async function approveDocument(id: string, approve = true): Promise<ShariahDocument> {
+  const response = await apiClient.post<ShariahDocument>(`ai/shariah-copilot/documents/${id}/approve/`, { approve })
+  return response.data
+}
