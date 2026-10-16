@@ -159,7 +159,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-110 | 9 | Member risk and hardship without protected-trait inference | `hardship_predictor.py` | Arrears tab | - | none on traits | PASS | P2 |
 | R-111 | 9 | Disclosure generator in Urdu / Arabic / English from signed run only | `allocation/statements.py` fixed templates (no machine translation) in English, Urdu, Roman Urdu, Arabic from the signed run | Statement view language tabs | `DepositorStatement.narrative_translations` | BT core.test_from_scratch | PASS (Urdu/Arabic wording to be confirmed by a native reviewer) | - |
 | R-112 | 9 | Audit sampling logged and challengeable | `audit_sampler.py` + recommendation record | Reports | `AIRecommendation` | BT recommendations | PASS | - |
-| R-113 | 9 | Fraud and collusion graph; KYC/AML decides | indicators from real data | - | - | BT test_collusion_indicators (2) | PARTIAL (no graph) | P3 |
+| R-113 | 9 | Fraud and collusion graph; KYC/AML decides | graph of circle members and depositors/investors linked by shared identity number, bank account or e-mail (possible duplicates / related accounts) and post-payout arrears; indicators only, Risk decides | Syndicate & Collusion Graph | - | BT ai_agents.test_collusion_indicators | PASS | - |
 | R-114 | 9 | Scenario simulator sandbox cannot alter production | `simulate` endpoints write nothing (ST) | Scenario comparison | - | none asserting no writes | PASS | P2 |
 | R-115 | 9 | Model inventory: owner, purpose, version, provenance, validation, retirement | registry holds owner, purpose, provenance, validation status/date/reference, retirement date | Model Governance | `AIModelRegistry` | BT ai_agents.test_recommendations | PARTIAL (inventory is edited through the API; no edit form yet) | P2 |
 | R-116 | 9 | Prompt/output logging with masking and retention | `ai_agents/recording.py` | log viewer | - | BT test_masking; retention | PASS | - |
@@ -186,7 +186,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
-| R-130 | 11 | Core entities (Foundation ... Assurance & AI) | most present; `Member` = `CircleMember`; no `Payment`, `EvidenceObject`, `ModelVersion` as such | - | migrations | - | PARTIAL | P3 |
+| R-130 | 11 | Core entities (Foundation ... Assurance & AI) | every BRD entity mapped to its model in `docs/DATA_MODEL_MAPPING.md` (Member = CircleMember, Payment = payout batch line / circle payout, EvidenceObject = hash-chained audit log + bundles + run evidence hash, ModelVersion = model registry) | - | migrations | doc | PASS | - |
 | R-131 | 11 | One effective asset assignment unless sharing approved | `asset_rules.py` (application level) | - | no DB constraint | BT AssetRuleTests | PASS | - |
 | R-132 | 11 | Signed run references immutable pool, contract, rate, balance, rule-pack versions | rule pack edited in place keeps its version; balances not versioned | - | `JurisdictionRulePack` | AT patch probe; after fix F-04: pack edits are controlled, but the pack is still edited in place and not versioned; after rule pack revisions: signed run seals pack revision; history immutable (BT) | PASS | - |
 | R-133 | 11 | PSR totals equal the configured whole | `ProfitSharingRatio.clean` | - | no DB check | AT test_15 | PASS | - |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 136 |
-| PARTIAL | 33 |
+| PASS | 138 |
+| PARTIAL | 31 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

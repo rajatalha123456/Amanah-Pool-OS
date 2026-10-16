@@ -43,3 +43,17 @@ class CollusionIndicatorTests(TestCase):
         self.assertEqual(result["clusters"][0]["cluster_type"], "SHARED_BANK_ACCOUNT")
         self.assertEqual(sorted(result["clusters"][0]["members"]), ["M2", "M4"])
         self.assertIn("not findings", result["disclaimer"])
+
+    def test_duplicate_identities_and_accounts_across_products_are_linked(self):
+        from apps.participants.models import Participant
+
+        Participant.objects.create(tenant=self.tenant, reference="D-1", full_name="Depositor One", participant_class="savings",
+                                   cnic_ntn="35202-1234567-1")
+        Participant.objects.create(tenant=self.tenant, reference="D-2", full_name="Depositor Two", participant_class="savings",
+                                   cnic_ntn="3520212345671", iban=self.members[0].iban)
+        result = detect_fraud_and_collusion_network(self.tenant)
+        kinds = {c["cluster_type"]: sorted(c["members"]) for c in result["clusters"]}
+        self.assertEqual(kinds["SHARED_IDENTITY"], ["Depositor One", "Depositor Two"])
+        self.assertEqual(kinds["SHARED_BANK_ACCOUNT"], ["Depositor Two", "M1"])  # a depositor and a circle member
+        types = {n["ref"]: n["type"] for n in result["graph"]["nodes"]}
+        self.assertEqual((types["D-1"], types["M-1"]), ("PARTICIPANT", "MEMBER"))

@@ -4,7 +4,9 @@ Circle relationship indicators for Risk & Compliance review (BRD Section 9: AI f
 Only recorded data is used:
   * two or more members paid into the same bank account (identical IBAN);
   * two or more members registered with the same e-mail address;
-  * a member who has already received the pot and now has an overdue contribution.
+  * a member who has already received the pot and now has an overdue contribution;
+  * across products (BRD 9, Fraud & Collusion Graph): depositors / investors and circle members sharing an identity
+    number (CNIC/NTN), a bank account or an e-mail address - possible duplicate identities or related accounts.
 
 These are indicators for a person to look into - not findings, accusations or AML conclusions. Nothing is
 inferred, guessed or generated: if the data shows no shared details, nothing is flagged.
@@ -38,14 +40,31 @@ def detect_fraud_and_collusion_network(tenant, pool_id=None):
         ArrearsRecord.objects.filter(member__in=members, status=ArrearsStatus.OVERDUE).values_list("member_id", flat=True)
     )
 
-    by_iban, by_email = defaultdict(list), defaultdict(list)
+    from apps.participants.models import Participant
+
+    participants = Participant.objects.filter(tenant=tenant)
+    if pool_id:
+        participants = participants.filter(accounts__pool_id=pool_id).distinct()
+    participants = list(participants)
+    for p in participants:
+        # The graph treats a participant like a member: same keys, its own node type.
+        p.member_name, p.member_reference, p.payout_position, p.node_type = p.full_name, p.reference, None, "PARTICIPANT"
+        p.pool_label = "depositor / investor"
     for m in members:
+        m.node_type, m.pool_label = "MEMBER", m.pool.name
+    people = members + participants
+
+    by_iban, by_email, by_identity = defaultdict(list), defaultdict(list), defaultdict(list)
+    for m in people:
         iban = (m.iban or "").replace(" ", "").upper()
         if iban:
             by_iban[iban].append(m)
         email = (m.email or "").strip().lower()
         if email:
             by_email[email].append(m)
+        identity = (getattr(m, "cnic_ntn", "") or "").replace("-", "").strip()
+        if identity:
+            by_identity[identity].append(m)
 
     clusters, edges = [], []
     flags = defaultdict(list)
@@ -66,11 +85,17 @@ def detect_fraud_and_collusion_network(tenant, pool_id=None):
         for m in group:
             flags[m.id].append(title)
 
+    for identity, group in by_identity.items():
+        if len(group) > 1:
+            add_cluster(
+                "SHARED_IDENTITY", "HIGH", f"Same identity number ({len(group)} records)",
+                f"Records {', '.join(m.member_reference for m in group)} carry the same CNIC/NTN: a possible duplicate identity.", group,
+            )
     for iban, group in by_iban.items():
         if len(group) > 1:
             add_cluster(
                 "SHARED_BANK_ACCOUNT", "HIGH", f"Same payout account ({len(group)} members)",
-                f"Members {', '.join(m.member_reference for m in group)} have the same IBAN ending {iban[-4:]}.", group,
+                f"Records {', '.join(m.member_reference for m in group)} have the same IBAN ending {iban[-4:]}.", group,
             )
     for email, group in by_email.items():
         if len(group) > 1:
@@ -83,14 +108,14 @@ def detect_fraud_and_collusion_network(tenant, pool_id=None):
             flags[m.id].append("Received the pot and now has an overdue contribution")
 
     nodes = []
-    for m in members:
+    for m in people:
         member_flags = flags.get(m.id, [])
         nodes.append({
-            "id": str(m.id), "label": m.member_name, "ref": m.member_reference, "pool": m.pool.name,
+            "id": str(m.id), "label": m.member_name, "ref": m.member_reference, "pool": m.pool_label,
             "payout_position": m.payout_position, "is_paid_out": m.id in paid_out,
             "risk_score": min(100, 30 * len(member_flags)),
             "risk_tier": "REVIEW" if member_flags else "NONE",
-            "flags": member_flags, "type": "MEMBER",
+            "flags": member_flags, "type": m.node_type,
         })
 
     flagged = sum(1 for n in nodes if n["flags"])
