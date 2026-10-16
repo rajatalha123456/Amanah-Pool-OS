@@ -16,9 +16,10 @@ import { SecurityAuditLog } from "./administration/SecurityAuditLog"
 import { TenantManagement } from "./administration/TenantManagement"
 import { DemoRequests } from "./administration/DemoRequests"
 import { FlagsAndKeys } from "./administration/FlagsAndKeys"
+import { ModelGovernance } from "./ModelGovernance"
 import type { BadgeVariant, UserAdmin, UserCreateResponse } from "../types"
 
-type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs" | "flags-keys" | "enquiries"
+type AdminTab = "audit-log" | "multi-tenant" | "users" | "rule-packs" | "flags-keys" | "ai-models" | "enquiries"
 
 const TABS: { key: AdminTab; label: string; num: string }[] = [
   { key: "audit-log", label: "Security & Audit Log", num: "" },
@@ -26,6 +27,7 @@ const TABS: { key: AdminTab; label: string; num: string }[] = [
   { key: "users", label: "User Administration", num: "" },
   { key: "rule-packs", label: "Jurisdiction & Rule Packs", num: "" },
   { key: "flags-keys", label: "Feature Flags & Encryption Keys", num: "" },
+  { key: "ai-models", label: "AI Model Registry", num: "" },
   { key: "enquiries", label: "Website Enquiries", num: "" },
 ]
 
@@ -343,6 +345,7 @@ export function UserAdministration() {
       {/* Tab 4: Screen 42 Jurisdiction & Rule Packs */}
       {activeTab === "rule-packs" && <JurisdictionRulePacks hideHeader />}
       {activeTab === "flags-keys" && isSuperAdmin && <FlagsAndKeys />}
+      {activeTab === "ai-models" && isSuperAdmin && <ModelGovernance />}
       {activeTab === "enquiries" && isSuperAdmin && <DemoRequests />}
     </div>
   )

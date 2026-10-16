@@ -17,3 +17,9 @@ export async function toggleAIModel(
   })
   return response.data
 }
+
+/** Model inventory (BRD 9): owner, purpose, provenance, validation, retirement and the confidence threshold. */
+export async function updateAIModelInventory(id: number, data: Partial<AIModelRegistry>): Promise<AIModelRegistry> {
+  const response = await apiClient.patch<AIModelRegistry>(`ai/models/${id}/`, data)
+  return response.data
+}

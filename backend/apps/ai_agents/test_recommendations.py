@@ -197,3 +197,21 @@ class DetectorRecordingTests(APITestCase):
             self.assertIn("nothing was posted", rec.output["proposed_action"].lower())
         finally:
             set_current_tenant(None)
+
+
+class KillSwitchReachableTests(APITestCase):
+    """The platform administrator must be able to reach the registry through the real (JWT) path, not only in tests."""
+
+    def test_the_administrator_can_disable_and_document_a_model_with_a_token(self):
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        tenant = Tenant.objects.create(name="KS", code="KS-T", data_residency="PK")
+        admin = User.objects.create_user(email="ks@x.test", password="p", full_name="KS", role=UserRole.PLATFORM_SUPER_ADMIN, tenant=tenant)
+        reg = AIModelRegistry.objects.create(model_name="shariah_copilot_ks", version="1")
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(admin).access_token}", HTTP_X_TENANT_CODE=tenant.code)
+        r = client.patch(f"/api/v1/ai/models/{reg.id}/", {"status": "disabled", "disabled_reason": "drill", "owner": "Risk"}, format="json")
+        self.assertEqual(r.status_code, 200, getattr(r, "data", r.content))
+        self.assertEqual(AIModelRegistry.objects.get(pk=reg.pk).status, "disabled")
+        self.assertEqual(client.get("/api/v1/ai/recommendations/").status_code, 403, "tenant AI records stay closed to the administrator")

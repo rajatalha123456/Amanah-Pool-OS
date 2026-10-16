@@ -62,6 +62,8 @@ ADMIN_ALLOWED = [
     API + r"legal-entities/",
     API + r"products/jurisdiction-rule-packs/",
     API + r"core/audit-log/",
+    # The AI model registry (kill switch and inventory) is platform configuration, not tenant data (BRD 9).
+    API + r"ai/models/",
 ]
 _ADMIN_COMPILED = [re.compile("^" + pattern.lstrip("^")) for pattern in ADMIN_ALLOWED]
 

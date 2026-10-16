@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../api/auth"
-import { fetchAIModels, toggleAIModel } from "../api/aiModels"
+import { fetchAIModels, toggleAIModel, updateAIModelInventory } from "../api/aiModels"
+import { Modal } from "../components/Modal"
 import { extractErrorMessage } from "../api/errors"
 import { Badge } from "../components/Badge"
 import { Button } from "../components/Button"
@@ -22,6 +23,31 @@ export function ModelGovernance() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
   const [pendingId, setPendingId] = useState<number | null>(null)
+  const [editing, setEditing] = useState<AIModelRegistry | null>(null)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+
+  function startEdit(model: AIModelRegistry) {
+    setEditing(model)
+    setDraft({
+      owner: model.owner ?? "", purpose: model.purpose ?? "", provenance: model.provenance ?? "",
+      validation_status: model.validation_status ?? "not_validated", validated_on: model.validated_on ?? "",
+      validation_reference: model.validation_reference ?? "", retirement_date: model.retirement_date ?? "",
+      confidence_threshold: String(model.confidence_threshold ?? "0.800"),
+    })
+  }
+
+  async function saveInventory() {
+    if (!editing) return
+    try {
+      const body: Record<string, string | null> = { ...draft }
+      for (const key of ["validated_on", "retirement_date"]) if (!body[key]) body[key] = null
+      const updated = await updateAIModelInventory(editing.id, body as Partial<AIModelRegistry>)
+      setModels((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setEditing(null)
+    } catch (err) {
+      setError(extractErrorMessage(err, "Unable to save the inventory."))
+    }
+  }
 
   useEffect(() => {
     fetchAIModels()
@@ -61,6 +87,10 @@ export function ModelGovernance() {
     },
     { header: "Retires", accessor: (model) => model.retirement_date ?? "no date" },
     {
+      header: "Inventory",
+      accessor: (model) => (canToggle ? <Button variant="secondary" onClick={() => startEdit(model)}>Edit</Button> : null),
+    },
+    {
       header: "Control",
       accessor: (model) =>
         canToggle ? (
@@ -89,7 +119,39 @@ export function ModelGovernance() {
           <Table columns={columns} data={models} keyField={(model) => model.id} />
         )}
       </Card>
-      <AIRecommendationLog />
+      {editing && (
+        <Modal title={`Inventory - ${editing.model_name}`} onClose={() => setEditing(null)}>
+          <div className="space-y-3">
+            {[["owner", "Owner"], ["purpose", "Purpose"], ["provenance", "Training / source provenance"],
+              ["validation_reference", "Validation reference"], ["confidence_threshold", "Confidence threshold (0-1)"]].map(([k, label]) => (
+              <label key={k} className="block text-sm">
+                {label}
+                <input className="mt-1 w-full rounded border border-white/10 bg-transparent p-2" value={draft[k] ?? ""} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
+              </label>
+            ))}
+            <label className="block text-sm">
+              Validation status
+              <select className="mt-1 w-full rounded border border-white/10 bg-transparent p-2" value={draft.validation_status} onChange={(e) => setDraft({ ...draft, validation_status: e.target.value })}>
+                <option value="not_validated">Not validated</option>
+                <option value="validated">Validated</option>
+                <option value="expired">Validation expired</option>
+              </select>
+            </label>
+            {[["validated_on", "Validated on"], ["retirement_date", "Retirement date"]].map(([k, label]) => (
+              <label key={k} className="block text-sm">
+                {label}
+                <input type="date" className="mt-1 w-full rounded border border-white/10 bg-transparent p-2" value={draft[k] ?? ""} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
+              </label>
+            ))}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button variant="primary" onClick={() => void saveInventory()}>Save</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* The recommendation log is tenant data: not shown to the platform administrator. */}
+      {!canToggle && <AIRecommendationLog />}
     </div>
   )
 }

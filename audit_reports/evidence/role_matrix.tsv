@@ -289,7 +289,7 @@ route	method	role	status
 /api/v1/ai/fraud-collusion/detect/	POST{}	auditor	200
 /api/v1/ai/fraud-collusion/detect/	POST{}	investor_member	403
 /api/v1/ai/fraud-collusion/detect/	POST{}	platform_super_admin	403
-/api/v1/ai/models/	GET	platform_super_admin	403
+/api/v1/ai/models/	GET	platform_super_admin	200
 /api/v1/ai/models/	GET	product_manager	200
 /api/v1/ai/models/	GET	pool_manager	200
 /api/v1/ai/models/	GET	finance_maker	200

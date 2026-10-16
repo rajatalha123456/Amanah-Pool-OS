@@ -4,7 +4,7 @@ BRD Section 9 asks for a kill switch, a safe fallback and a manual operating pro
 Pool OS only recommends: it never issues a ruling, changes a PSR, waives a loss, posts a journal or approves a
 related-party allocation. Switching any service off therefore stops advice, never a business process.
 
-**Kill switch:** Administration (platform administrator) → Model Governance → Disable, with a reason. The change is in the
+**Kill switch:** Administration (platform administrator) → AI Model Registry → Disable, with a reason; the same tab edits the inventory (owner, purpose, provenance, validation, retirement, threshold). The change is in the
 audit log. A disabled service answers "This AI feature is currently disabled" (HTTP 503); nothing is invented.
 
 **Confidence threshold:** per model in the registry (`confidence_threshold`, default 0.800). Outputs below it are counted as

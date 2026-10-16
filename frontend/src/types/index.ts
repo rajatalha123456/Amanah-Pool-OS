@@ -35,6 +35,7 @@ export interface AIModelRegistry {
   validated_on: string | null
   validation_reference: string
   retirement_date: string | null
+  confidence_threshold?: string
 }
 
 export interface LoginResponse {
