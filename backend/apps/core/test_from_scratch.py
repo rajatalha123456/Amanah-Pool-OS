@@ -297,6 +297,10 @@ class FromScratch(APITestCase):
         self.as_("cus001")
         mine = self.call("cus001", "get", "/api/v1/allocation/allocation-runs/my-statements/", expect=200).data
         self.assertTrue(len(mine) >= 1)
+        # BRD 9: the explanation also in Urdu and Arabic, from the signed figures.
+        stmt = mine[0]
+        for lang in ("ur", "ur_roman", "ar"):
+            self.assertIn(str(stmt["profit_allocated"]), stmt["narrative_translations"][lang], lang)
         return rid
 
     def phase_e_community_circle(self):

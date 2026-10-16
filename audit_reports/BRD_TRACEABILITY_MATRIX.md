@@ -132,7 +132,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-093 | 7.3 | High precision; round only at output | Decimal throughout | - | - | AT 11, 12 | PASS | - |
 | R-094 | 7.3 | Residual to disclosed rounding account | engine 365-378; journal | - | - | AT 10; BT journal tie-out | PASS | - |
 | R-095 | 7.3 | No edit to signed run; reversal + linked rerun | model guards, restatement | Restatement wizard | - | BT ImmutabilityTests, RestatementTests | PASS | - |
-| R-096 | 7.3 | Back-dated entries go to an adjustment period unless a restatement is opened | refused in a locked period (stricter than the BRD); routing to an adjustment period is a design decision still open | - | - | BT PeriodLockTests | PARTIAL | P2 |
+| R-096 | 7.3 | Back-dated entries go to an adjustment period unless a restatement is opened | a closed date is refused unless the maker books it in the adjustment period (today), keeping `adjusted_from_date`; restatement path unchanged | Income & Expense form | `IncomeExpenseEvent.adjusted_from_date` | BT core.test_from_scratch | PASS | - |
 
 ## Section 8: Shariah controls
 
@@ -157,7 +157,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-108 | 9 | Cash-flow and liquidity forecast with ranges | `pools/liquidity.py` | Liquidity section | - | BT test_liquidity_forecast (3) | PASS | - |
 | R-109 | 9 | Reconciliation copilot cannot post or write off | `accounting/reconciliation.py` advisory | Reconciliation | - | BT ReconciliationTests; after fix: finding recorded; the copilot only proposes (BT DetectorRecordingTests) | PASS | - |
 | R-110 | 9 | Member risk and hardship without protected-trait inference | `hardship_predictor.py` | Arrears tab | - | none on traits | PASS | P2 |
-| R-111 | 9 | Disclosure generator in Urdu / Arabic / English from signed run only | `allocation/statements.py` template, English | Plain-language card | - | none | PARTIAL | P2 |
+| R-111 | 9 | Disclosure generator in Urdu / Arabic / English from signed run only | `allocation/statements.py` fixed templates (no machine translation) in English, Urdu, Roman Urdu, Arabic from the signed run | Statement view language tabs | `DepositorStatement.narrative_translations` | BT core.test_from_scratch | PASS (Urdu/Arabic wording to be confirmed by a native reviewer) | - |
 | R-112 | 9 | Audit sampling logged and challengeable | `audit_sampler.py` + recommendation record | Reports | `AIRecommendation` | BT recommendations | PASS | - |
 | R-113 | 9 | Fraud and collusion graph; KYC/AML decides | indicators from real data | - | - | BT test_collusion_indicators (2) | PARTIAL (no graph) | P3 |
 | R-114 | 9 | Scenario simulator sandbox cannot alter production | `simulate` endpoints write nothing (ST) | Scenario comparison | - | none asserting no writes | PASS | P2 |
@@ -173,10 +173,10 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
 | R-121 | 10 | Subscription / contribution journal | `post_capital_movement_journal` | Journal batches | `JournalEntry` | BT CapitalJournalTests | PASS | - |
-| R-122 | 10 | Eligible income accrual journal | event posting | - | - | none for accrual receivable | NOT TESTED | P2 |
-| R-123 | 10 | Direct pool expense journal | event posting | - | - | none specific | NOT TESTED | P3 |
+| R-122 | 10 | Eligible income accrual journal | posting an event: Dr Accrued Income Receivable / Cr Pool Income | - | `IncomeExpenseEvent.journal_batch` | BT core.test_from_scratch | PASS | - |
+| R-123 | 10 | Direct pool expense journal | Dr Pool Direct Expense / Cr Pool Expense Payable (pool-chargeable part only) | - | - | BT core.test_from_scratch | PASS | - |
 | R-124 | 10 | Profit allocation journal | `build_allocation_entries` | Journal batches | - | BT tie-out tests | PASS | - |
-| R-125 | 10 | Purification journal (clearing -> charity payable) | purification flow | - | - | none for the journal | NOT TESTED | P2 |
+| R-125 | 10 | Purification journal (clearing -> charity payable) | non-permissible income to clearing; Board approval: clearing -> charity payable; payment: charity payable -> cash | Purification ledger | `PurificationEntry.approval_journal/distribution_journal` | BT core.test_from_scratch | PASS | - |
 | R-126 | 10 | Payout / redemption journal | payout clearing, redemptions | - | - | BT payout clearing, CapitalJournalTests | PASS | - |
 | R-127 | 10 | Provision / write-off journal | provisions | - | - | BT pools.test_provisions | PASS | - |
 | R-128 | 10 | Reversal / recovery | `create_reversal_journal` | - | - | BT RestatementTests | PASS | - |
@@ -273,12 +273,12 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 104 |
-| PARTIAL | 62 |
+| PASS | 109 |
+| PARTIAL | 60 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |
-| NOT TESTED | 4 |
+| NOT TESTED | 1 |
 | NOT APPLICABLE | 2 |
 | **Total** | **186** |
 

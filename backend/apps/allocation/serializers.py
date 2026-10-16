@@ -405,6 +405,7 @@ class DepositorStatementSerializer(serializers.ModelSerializer):
             "profit_allocated",
             "closing_balance",
             "narrative",
+            "narrative_translations",
             "generated_at",
         )
         read_only_fields = fields

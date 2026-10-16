@@ -725,6 +725,7 @@ export interface DepositorStatement {
   profit_allocated: string
   closing_balance: string
   narrative: string
+  narrative_translations?: Partial<Record<"ur" | "ur_roman" | "ar", string>>
   generated_at: string
 }
 

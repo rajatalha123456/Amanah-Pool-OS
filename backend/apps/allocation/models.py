@@ -328,6 +328,8 @@ class DepositorStatement(TenantScopedModel):
     profit_allocated = models.DecimalField(max_digits=18, decimal_places=2)
     closing_balance = models.DecimalField(max_digits=18, decimal_places=2)
     narrative = models.TextField()
+    # The same explanation in Urdu (script and Roman) and Arabic, from the same signed figures (BRD 9 / 14).
+    narrative_translations = models.JSONField(default=dict, blank=True)
     generated_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

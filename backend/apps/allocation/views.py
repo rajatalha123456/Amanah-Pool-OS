@@ -54,7 +54,7 @@ from .serializers import (
     RestatementInputSerializer,
     WeightageBandSerializer,
 )
-from .statements import generate_statement_narrative, statement_balances
+from .statements import generate_statement_narratives, statement_balances
 
 logger = logging.getLogger("apps")
 
@@ -822,7 +822,7 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             profit_allocated = line.allocated_amount
             closing_balance = closing_principal + profit_allocated
 
-            narrative = generate_statement_narrative(
+            narratives = generate_statement_narratives(
                 participant_class=line.participant_class,
                 opening_balance=opening_balance,
                 profit_allocated=profit_allocated,
@@ -844,7 +844,8 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
                     net_deposits=net_deposits,
                     profit_allocated=profit_allocated,
                     closing_balance=closing_balance,
-                    narrative=narrative,
+                    narrative=narratives["en"],
+                    narrative_translations={k: v for k, v in narratives.items() if k != "en"},
                 )
             )
 

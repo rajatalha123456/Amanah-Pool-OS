@@ -121,9 +121,7 @@ export function StatementView() {
               <h2 className="text-sm font-semibold text-ink-primary mb-3 uppercase tracking-wide">
                 Period Narrative
               </h2>
-              <div className="bg-white/5 p-4 rounded text-sm text-ink-primary leading-relaxed">
-                {stmt.narrative}
-              </div>
+              <NarrativeTabs statement={stmt} />
             </div>
 
             <div className="mb-8">
@@ -147,6 +145,47 @@ export function StatementView() {
           }
         }
       `}</style>
+    </div>
+  )
+}
+
+
+const NARRATIVE_LANGS: { key: "en" | "ur" | "ur_roman" | "ar"; label: string; rtl: boolean }[] = [
+  { key: "en", label: "English", rtl: false },
+  { key: "ur", label: "اردو", rtl: true },
+  { key: "ur_roman", label: "Roman Urdu", rtl: false },
+  { key: "ar", label: "العربية", rtl: true },
+]
+
+/** The same signed figures explained in English, Urdu and Arabic (BRD 9, Disclosure Generator). */
+function NarrativeTabs({ statement }: { statement: DepositorStatement }) {
+  const [lang, setLang] = useState<(typeof NARRATIVE_LANGS)[number]["key"]>("en")
+  const translations = statement.narrative_translations ?? {}
+  const available = NARRATIVE_LANGS.filter((l) => l.key === "en" || translations[l.key])
+  const current = available.find((l) => l.key === lang) ?? available[0]
+  const text = current.key === "en" ? statement.narrative : translations[current.key]
+  return (
+    <div>
+      {available.length > 1 && (
+        <div className="mb-2 flex gap-2" role="tablist" aria-label="Narrative language">
+          {available.map((l) => (
+            <button
+              key={l.key}
+              type="button"
+              role="tab"
+              aria-selected={l.key === current.key}
+              onClick={() => setLang(l.key)}
+              className={`rounded px-2 py-1 text-xs ${l.key === current.key ? "bg-emerald-600 text-white" : "bg-white/5 text-ink-secondary"}`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div dir={current.rtl ? "rtl" : "ltr"} lang={current.key === "ar" ? "ar" : current.key === "ur" ? "ur" : "en"}
+        className="bg-white/5 p-4 rounded text-sm text-ink-primary leading-relaxed">
+        {text}
+      </div>
     </div>
   )
 }

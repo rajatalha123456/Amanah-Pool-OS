@@ -57,3 +57,39 @@ def generate_statement_narrative(
         f"on a distributable amount of {allocation_run.distributable_amount} you were allocated "
         f"{profit_allocated} for this period."
     )
+
+
+def generate_statement_narratives(**kwargs):
+    """
+    The same explanation in English, Urdu and Arabic (BRD 9, Disclosure Generator). Every figure comes from the signed
+    run; the Urdu and Arabic sentences are fixed templates (no machine translation), to be confirmed by a native
+    reviewer before customer use.
+    """
+
+    run = kwargs["allocation_run"]
+    who = kwargs.get("participant_name")
+    days = (run.value_date - run.effective_period_start).days + 1
+    start, end = run.effective_period_start, run.value_date
+    weightage, profit, distributable = kwargs["weightage"], kwargs["profit_allocated"], run.distributable_amount
+    average = kwargs.get("average_funds")
+
+    who_ur = who or f"{kwargs['participant_class']} class"
+    funds_ur = f" Is muddat mein aap ke ausat rozana funds {average} thay." if average is not None else ""
+    urdu = (
+        f"{start} se {end} tak {days} din ki muddat mein {who_ur} ne pool mein {weightage}x ke ausat weightage ke saath "
+        f"hissa liya.{funds_ur} Aap ke rozana funds aur manzoor shuda weightage ne taqseem ke qabil munafay mein aap ka "
+        f"hissa tay kiya: {distributable} ke qabil-e-taqseem munafay mein se is muddat ke liye aap ko {profit} mila."
+    )
+    urdu_script = (
+        f"{start} سے {end} تک {days} دن کی مدت میں {who_ur} نے پول میں {weightage}x کے اوسط وزن کے ساتھ حصہ لیا۔"
+        + (f" اس مدت میں آپ کے اوسط یومیہ فنڈز {average} تھے۔" if average is not None else "")
+        + f" آپ کے یومیہ فنڈز اور منظور شدہ وزن نے قابلِ تقسیم منافع میں آپ کا حصہ طے کیا: {distributable} کے قابلِ تقسیم منافع"
+        f" میں سے اس مدت کے لیے آپ کو {profit} ملا۔"
+    )
+    arabic = (
+        f"خلال الفترة من {start} إلى {end} ({days} يومًا) شارك {who_ur} في الوعاء بمتوسط وزن ترجيحي {weightage}x."
+        + (f" بلغ متوسط أموالكم اليومية خلال الفترة {average}." if average is not None else "")
+        + f" حدّدت أموالكم اليومية والوزن المعتمد حصتكم من الربح القابل للتوزيع: من ربح قابل للتوزيع قدره {distributable}"
+        f" خُصّص لكم {profit} عن هذه الفترة."
+    )
+    return {"en": generate_statement_narrative(**kwargs), "ur": urdu_script, "ur_roman": urdu, "ar": arabic}
