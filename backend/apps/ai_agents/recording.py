@@ -105,7 +105,6 @@ def metrics():
             rejected=Count("id", filter=Q(disposition=Disposition.REJECTED)),
             overridden=Count("id", filter=Q(disposition=Disposition.OVERRIDDEN)),
             fallback=Count("id", filter=Q(is_fallback=True)),
-            low_confidence=Count("id", filter=Q(confidence__lt=Decimal("0.8"))),
             avg_confidence=Avg("confidence"),
             avg_latency_ms=Avg("latency_ms"),
         )
@@ -121,6 +120,9 @@ def metrics():
         row["override_rate"] = round((row["rejected"] + row["overridden"]) / decided, 3) if decided else None
         row["fallback_rate"] = round(row["fallback"] / row["total"], 3) if row["total"] else None
         # A flag a person rejected is a false positive: the share of decided outputs that were rejected.
+        threshold = _threshold(row["model_name"])
+        row["confidence_threshold"] = float(threshold)
+        row["low_confidence"] = AIRecommendation.objects.filter(model_name=row["model_name"], confidence__lt=threshold).count()
         row["false_positive_rate"] = round(row["rejected"] / decided, 3) if decided else None
         row["confidence_drift"] = _confidence_drift(row["model_name"])
         result.append(row)
@@ -140,3 +142,10 @@ def _confidence_drift(model_name, days=30):
     if recent is None or earlier is None:
         return None
     return round(float(recent) - float(earlier), 3)
+
+
+def _threshold(model_name):
+    from .models import AIModelRegistry
+
+    row = AIModelRegistry.objects.filter(model_name=model_name).values_list("confidence_threshold", flat=True).first()
+    return row if row is not None else Decimal("0.800")

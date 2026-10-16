@@ -40,8 +40,14 @@ class AIModelRegistrySerializer(serializers.ModelSerializer):
             "validated_on",
             "validation_reference",
             "retirement_date",
+            "confidence_threshold",
         )
         read_only_fields = ("id", "model_name", "version", "disabled_by", "disabled_at")
+
+    def validate_confidence_threshold(self, value):
+        if not (0 < value <= 1):
+            raise serializers.ValidationError("Between 0 and 1.")
+        return value
 
 
 class AIModelRegistryViewSet(

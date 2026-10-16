@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 
 from apps.core.models import TenantScopedModel
@@ -30,6 +32,9 @@ class AIModelRegistry(models.Model):
 	validated_on = models.DateField(null=True, blank=True)
 	validation_reference = models.CharField(max_length=200, blank=True, default="")
 	retirement_date = models.DateField(null=True, blank=True)
+	# AI policy (BRD 5): outputs below this confidence are reported as low-confidence. Every output still needs a human
+	# decision; the threshold never lets an output skip review.
+	confidence_threshold = models.DecimalField(max_digits=4, decimal_places=3, default=Decimal("0.800"))
 	disabled_reason = models.TextField(null=True, blank=True)
 	disabled_by = models.ForeignKey(
 		"accounts.User",

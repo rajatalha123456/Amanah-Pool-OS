@@ -72,7 +72,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-043 | 5 | Reserves: availability, basis, cap, ownership, **approval**, release, disclosure | `ReservePolicyViewSet` create/update by Pool Manager alone, no audit log, balance writable (`allocation/views.py:1019-1032`) | Rule Packs page | `ReservePolicy.current_balance` | AT `evidence/reserve_policy_change.txt` (871,335.74 -> 1.00, HTTP 200); after fix F-01: balance read-only, changes need a different checker (BT test_reserve_balance_cannot_be_set...; AT reserve test) | PASS | - |
 | R-044 | 5 | Governance: decision, quorum, maker-checker, exception SLA, audit frequency, disclosure pack | quorum, plans; no SLA | Shariah Governance | - | BT test_quorum, audit plan | PARTIAL | P2 |
 | R-045 | 5 | Accounting: chart mapping, accrual policy, rounding, posting calendar, close, restatement | mapping + close + restatement | Governance Config | `AccountMapping` | BT matrix_and_chart, period close | PARTIAL (no accrual policy / posting calendar) | P2 |
-| R-046 | 5 | AI policy: models allowed, thresholds, human gates, prohibited actions, retention | registry + kill switch; threshold fixed 0.8 in code | Model Governance | `AIModelRegistry` | BT recommendations | PARTIAL | P2 |
+| R-046 | 5 | AI policy: models allowed, thresholds, human gates, prohibited actions, retention | model registry (allowed models, kill switch), per-model confidence threshold, every output awaits a human disposition, prohibited actions have no code path (`core/test_brd_prohibitions.py`), AI records under retention policies | Model Governance | `AIModelRegistry.confidence_threshold` | BT ai_agents, core.test_brd_prohibitions | PASS | - |
 
 ## Section 6: workflows
 
@@ -166,7 +166,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-117 | 9 | Accuracy, drift, bias, hallucination, override, false-positive metrics | acceptance, override, fallback, false-positive rate, 30-day confidence drift; bias and hallucination cannot be measured automatically (need reviewed samples) | Model Governance | - | BT recommendations | PARTIAL | P2 |
 | R-118 | 9 | Role-based copilot access; no cross-tenant retrieval | tenant header; copilot filter | - | - | copilot test_tenant_isolation; AT role matrix | PASS | - |
 | R-119 | 9 | Approved knowledge base only; paragraph-level citations | copilot service | - | - | live service not running; live check: answers cite document, section and page from the approved corpus; the approved-corpus-only rule is enforced by the copilot service, not re-tested here; no red-team run | PARTIAL | P2 |
-| R-120 | 9 | Kill switch, safe fallback, manual operating procedure | kill switch, fallback; no manual procedure doc | - | - | BT kill switch test, copilot fallback test | PARTIAL | P3 |
+| R-120 | 9 | Kill switch, safe fallback, manual operating procedure | kill switch and fallback per service; manual procedure per service in `docs/AI_MANUAL_PROCEDURES.md` | Model Governance | - | BT ai_agents | PASS | - |
 
 ## Section 10: accounting
 
@@ -214,7 +214,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 |---|---|---|---|---|---|
 | R-146 | 13 | Executive: AUM, distributable profit, yield, liquidity, exceptions, growth, forecast, jurisdiction view | PARTIAL (no growth/forecast/jurisdiction view) | P2 | BT core.test_dashboards; E2E dashboards |
 | R-147 | 13 | Pool manager: asset mix, income, expenses, daily funds, weightages, pending, close readiness | PARTIAL | P3 | E2E role dashboards |
-| R-148 | 13 | Finance: reconciliations, journals, provisions, suspense, residuals, close, restatements | PARTIAL (no suspense) | P3 | E2E |
+| R-148 | 13 | Finance: reconciliations, journals, provisions, suspense, residuals, close, restatements | finance home dashboard has all seven sections (`core/dashboards.py`) | Command Center | PASS | - | BT core.test_dashboards |
 | R-149 | 13 | Shariah: approval queue, exceptions, purification, contract coverage, review plan, finding age | PARTIAL | P3 | E2E |
 | R-150 | 13 | Risk: concentration, liquidity, AML/KYC, related parties, limits, breaches; after fix F-07: limits come from the rule pack; defaults are labelled unconfirmed | PARTIAL | P2 | ST `concentration_engine.py:21-27` |
 | R-151 | 13 | Investor: balance, profit, methodology, transactions, disclosures, tax/Zakat, disputes | PASS | - | E2E investor tests |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 111 |
-| PARTIAL | 58 |
+| PASS | 114 |
+| PARTIAL | 55 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |
