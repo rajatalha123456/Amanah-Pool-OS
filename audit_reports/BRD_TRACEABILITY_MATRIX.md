@@ -212,11 +212,11 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | ID | BRD | Audience | Status | Sev | Evidence |
 |---|---|---|---|---|---|
-| R-146 | 13 | Executive: AUM, distributable profit, yield, liquidity, exceptions, growth, forecast, jurisdiction view | PARTIAL (no growth/forecast/jurisdiction view) | P2 | BT core.test_dashboards; E2E dashboards |
-| R-147 | 13 | Pool manager: asset mix, income, expenses, daily funds, weightages, pending, close readiness | PARTIAL | P3 | E2E role dashboards |
+| R-146 | 13 | Executive: AUM, distributable profit, yield, liquidity, exceptions, growth, forecast, jurisdiction view | executive view on the Command Center for every staff role (`core/dashboards.executive`): funds, 30-day growth, last signed profit and yield, 30-day projection, exceptions, pools by jurisdiction and rule pack; null when there is no source | Command Center | PASS | - | BT core.test_dashboards |
+| R-147 | 13 | Pool manager: asset mix, income, expenses, daily funds, weightages, pending, close readiness | all seven sections incl. weightage bands | Command Center | PASS | - | BT core.test_dashboards |
 | R-148 | 13 | Finance: reconciliations, journals, provisions, suspense, residuals, close, restatements | finance home dashboard has all seven sections (`core/dashboards.py`) | Command Center | PASS | - | BT core.test_dashboards |
-| R-149 | 13 | Shariah: approval queue, exceptions, purification, contract coverage, review plan, finding age | PARTIAL | P3 | E2E |
-| R-150 | 13 | Risk: concentration, liquidity, AML/KYC, related parties, limits, breaches; after fix F-07: limits come from the rule pack; defaults are labelled unconfirmed | PARTIAL | P2 | ST `concentration_engine.py:21-27` |
+| R-149 | 13 | Shariah: approval queue, exceptions, purification, contract coverage, review plan, finding age | all six sections (queue incl. returned rulings) | Command Center | PASS | - | BT core.test_dashboards |
+| R-150 | 13 | Risk: concentration, liquidity, AML/KYC, related parties, limits, breaches; limits come from the rule pack; defaults are labelled unconfirmed | risk dashboard adds concentration breaches and pools projected short of cash | Command Center | PASS (limit defaults still need Risk confirmation) | - | BT core.test_dashboards |
 | R-151 | 13 | Investor: balance, profit, methodology, transactions, disclosures, tax/Zakat, disputes | PASS | - | E2E investor tests |
 | R-152 | 13 | Member: contribution status, schedule, ledger, vote/consent, receipts, hardship | PASS | - | E2E member test |
 | R-153 | 13 | Auditor/regulator: signed runs, versions, reperformance inputs, exceptions, samples, exports | PASS | - | E2E auditor test |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 119 |
-| PARTIAL | 50 |
+| PASS | 123 |
+| PARTIAL | 46 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

@@ -14,9 +14,9 @@ export interface RoleDashboard {
   sections: { title: string; metrics: DashboardMetric[] }[]
 }
 
-export async function fetchRoleDashboard(): Promise<RoleDashboard | null> {
+export async function fetchRoleDashboard(audience?: "executive"): Promise<RoleDashboard | null> {
   try {
-    return (await apiClient.get<RoleDashboard>("dashboard/home/")).data
+    return (await apiClient.get<RoleDashboard>("dashboard/home/", { params: audience ? { audience } : {} })).data
   } catch {
     return null // a role with no staff dashboard
   }

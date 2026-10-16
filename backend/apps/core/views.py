@@ -328,6 +328,15 @@ def home_dashboard_view(request):
 
     from .dashboards import home_dashboard
 
+    if request.query_params.get("audience") == "executive":
+        from django.utils import timezone
+
+        from .dashboards import executive
+
+        if request.user.role in ("investor_member", "platform_super_admin"):
+            raise NotFound("No dashboard is defined for this role.")
+        return Response({"audience": "Executive", "role": request.user.role, "sections": executive(request.user.tenant),
+                         "generated_at": timezone.now().isoformat()})
     data = home_dashboard(request.user)
     if data is None:
         raise NotFound("No dashboard is defined for this role.")

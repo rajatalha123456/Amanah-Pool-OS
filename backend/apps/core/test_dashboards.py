@@ -56,6 +56,18 @@ class DashboardTests(APITestCase):
         self.assertIsNone(metrics["Latest recorded daily funds (PKR)"])  # null, not 0
         self.assertEqual(metrics["Pools awaiting activation"], "0")
 
+    def test_the_executive_view_covers_growth_forecast_and_jurisdiction_without_inventing_figures(self):
+        self.as_role(UserRole.RISK_COMPLIANCE)
+        data = self.client.get(URL, {"audience": "executive"}).data
+        titles = [s["title"] for s in data["sections"]]
+        self.assertEqual(titles, ["Funds and growth", "Profit and yield", "Liquidity and forecast", "Exceptions", "Jurisdiction view (open pools)"])
+        metrics = {m["label"]: m["value"] for s in data["sections"] for m in s["metrics"]}
+        self.assertIsNone(metrics["Funds under management (PKR)"])
+        self.assertIsNone(metrics["Growth over about 30 days"])
+        self.assertIsNone(metrics["Projected funds in 30 days (PKR)"])
+        self.as_role(UserRole.INVESTOR_MEMBER)
+        self.assertEqual(self.client.get(URL, {"audience": "executive"}).status_code, 404)
+
     def test_investors_and_the_platform_admin_have_no_staff_dashboard(self):
         for role in (UserRole.INVESTOR_MEMBER, UserRole.PLATFORM_SUPER_ADMIN):
             with self.subTest(role=role):

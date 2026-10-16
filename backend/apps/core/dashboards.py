@@ -27,7 +27,7 @@ def _count(items):
 # ---- builders (one per audience) ----------------------------------------------------------------------------------------
 def pool_manager(tenant):
     from apps.accounting.models import IncomeExpenseEvent
-    from apps.allocation.models import AllocationRun, ProfitSharingRatio
+    from apps.allocation.models import AllocationRun, ProfitSharingRatio, WeightageBand
     from apps.pools.models import Asset, DailyBalance, PeriodCloseChecklist, Pool, PoolStatus
 
     pools = Pool._base_manager.filter(tenant=tenant)
@@ -52,6 +52,10 @@ def pool_manager(tenant):
         {"title": "Asset mix", "metrics": [
             _m(f"{t.replace('_', ' ').title()} assets (face value, PKR)", total) for t, total in sorted(by_type.items())
         ] or [_m("Assets", None, "none registered")]},
+        {"title": "Weightages", "metrics": [
+            _m("Approved weightage bands in force", _count(WeightageBand._base_manager.filter(tenant=tenant, status="approved"))),
+            _m("Weightage bands in draft", _count(WeightageBand._base_manager.filter(tenant=tenant, status="draft")), attention=True),
+        ]},
         {"title": "Pending items", "metrics": [
             _m("Pools awaiting activation", _count(pools.filter(status__in=[PoolStatus.DRAFT, PoolStatus.PENDING_APPROVAL, PoolStatus.APPROVED])), link="/pools", attention=True),
             _m("Draft profit-sharing ratios", _count(ProfitSharingRatio._base_manager.filter(tenant=tenant, status="draft")), attention=True),
@@ -111,6 +115,7 @@ def shariah(tenant):
     return [
         {"title": "Approval queue", "metrics": [
             _m("Rulings in draft awaiting the Board", _count(ShariahDecision._base_manager.filter(tenant=tenant, status="draft")), link="/shariah-governance", attention=True),
+            _m("Rulings returned to the Secretariat", _count(ShariahDecision._base_manager.filter(tenant=tenant, status="returned")), link="/shariah-governance", attention=True),
             _m("Rulings in force", _count(ShariahDecision._base_manager.filter(tenant=tenant, status="approved"))),
         ]},
         {"title": "Exceptions and purification", "metrics": [
@@ -139,6 +144,7 @@ def risk(tenant):
             _m("High / critical exceptions open", _count(high), link="/risk-compliance", attention=True),
             _m("All open exceptions", _count(ExceptionCase._base_manager.filter(tenant=tenant, status__in=OPEN_EXCEPTION))),
         ]},
+        {"title": "Concentration and liquidity", "metrics": _risk_concentration_and_liquidity(tenant)},
         {"title": "KYC and AML", "metrics": [
             _m("Participants with KYC pending", _count(Participant._base_manager.filter(tenant=tenant, kyc_status="pending")), link="/participants", attention=True),
             _m("Participants with KYC rejected", _count(Participant._base_manager.filter(tenant=tenant, kyc_status="rejected"))),
@@ -203,6 +209,89 @@ def product_manager(tenant):
             _m("Templates in draft", _count(ContractTemplate._base_manager.filter(tenant=tenant, status="draft")), attention=True),
             _m("Approved templates", _count(ContractTemplate._base_manager.filter(tenant=tenant, status="approved"))),
         ]},
+    ]
+
+
+def _risk_concentration_and_liquidity(tenant):
+    from apps.pools.concentration_engine import run_concentration_risk_analysis
+    from apps.pools.liquidity import calculate_liquidity_forecast
+    from apps.pools.models import Pool
+
+    breaches, short = 0, 0
+    for pool in Pool._base_manager.filter(tenant=tenant, status="open"):
+        try:
+            analysis = run_concentration_risk_analysis(pool)
+            breaches += int((analysis.get("breach_summary") or {}).get("breaches_count", 0))
+        except Exception:  # an analysis that cannot run is not a breach; the Risk dashboard shows the details
+            pass
+        forecast = calculate_liquidity_forecast(pool, timezone.localdate())
+        if not forecast["insufficient_data"] and forecast["projected_balance"] is not None and forecast["projected_balance"] < 0:
+            short += 1
+    return [
+        _m("Concentration limits in breach (open pools)", breaches, link="/risk-compliance", attention=True),
+        _m("Open pools projected short of cash in 30 days", short, "trend projection, not a guarantee", attention=True),
+    ]
+
+
+def executive(tenant):
+    """BRD 13, executive: funds, profit and yield, liquidity, exceptions, growth, forecast and a jurisdiction view."""
+    from datetime import timedelta
+
+    from apps.allocation.models import AllocationRun
+    from apps.governance.models import ExceptionCase
+    from apps.pools.liquidity import calculate_liquidity_forecast
+    from apps.pools.models import DailyBalance, Pool
+
+    today = timezone.localdate()
+    balances = DailyBalance._base_manager.filter(tenant=tenant).exclude(status="rejected")
+    latest = balances.order_by("-value_date").values_list("value_date", flat=True).first()
+    funds_now = balances.filter(value_date=latest).aggregate(t=Sum("balance_amount"))["t"] if latest else None
+    earlier_day = (
+        balances.filter(value_date__lte=latest - timedelta(days=30)).order_by("-value_date").values_list("value_date", flat=True).first()
+        if latest else None
+    )
+    funds_then = balances.filter(value_date=earlier_day).aggregate(t=Sum("balance_amount"))["t"] if earlier_day else None
+    growth = (
+        f"{(funds_now - funds_then) / funds_then * 100:.2f}%" if funds_now is not None and funds_then else None
+    )
+    signed = AllocationRun._base_manager.filter(tenant=tenant, status="signed").order_by("-value_date")
+    last = signed.first()
+    yield_text = (
+        f"{last.distributable_amount / last.total_weighted_funds * 100:.4f}%" if last and last.total_weighted_funds else None
+    )
+    open_pools = list(Pool._base_manager.filter(tenant=tenant, status="open").select_related("legal_entity", "rule_pack"))
+    projected, counted = 0, 0
+    for pool in open_pools:
+        forecast = calculate_liquidity_forecast(pool, today)
+        if not forecast["insufficient_data"] and forecast["projected_balance"] is not None:
+            projected += forecast["projected_balance"]
+            counted += 1
+    by_jurisdiction = {}
+    for pool in open_pools:
+        place = getattr(pool.legal_entity, "jurisdiction", None) or "not set"
+        pack = getattr(pool.rule_pack, "code", None) or "no rule pack"
+        key = f"{place} / {pack}"
+        by_jurisdiction[key] = by_jurisdiction.get(key, 0) + 1
+    return [
+        {"title": "Funds and growth", "metrics": [
+            _m("Funds under management (PKR)", funds_now, f"as of {latest}" if latest else "no balances imported"),
+            _m("Growth over about 30 days", growth, f"against {earlier_day}" if earlier_day else "needs 30 days of balances"),
+        ]},
+        {"title": "Profit and yield", "metrics": [
+            _m("Distributable profit of the last signed run (PKR)", last.distributable_amount if last else None,
+               f"{last.pool.code} to {last.value_date}" if last else "no signed run yet"),
+            _m("Yield on weighted funds for that period", yield_text),
+        ]},
+        {"title": "Liquidity and forecast", "metrics": [
+            _m("Projected funds in 30 days (PKR)", projected if counted else None,
+               f"{counted} of {len(open_pools)} open pools have enough history; trend projection, not a guarantee"),
+        ]},
+        {"title": "Exceptions", "metrics": [
+            _m("Open exceptions", _count(ExceptionCase._base_manager.filter(tenant=tenant, status__in=OPEN_EXCEPTION)), link="/shariah-governance", attention=True),
+        ]},
+        {"title": "Jurisdiction view (open pools)", "metrics": [
+            _m(key, count) for key, count in sorted(by_jurisdiction.items())
+        ] or [_m("Open pools", 0)]},
     ]
 
 

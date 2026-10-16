@@ -159,6 +159,7 @@ export function CommandCenter() {
       />
 
       <ControlAlerts />
+      <RoleDashboard audience="executive" />
       <RoleDashboard />
 
       {/* Real Dynamic Backend Stat Cards */}

@@ -6,12 +6,12 @@ import { fetchRoleDashboard, type RoleDashboard as RoleDashboardData } from "../
 const fmt = (v: string) => (/^-?\d+(\.\d+)?$/.test(v) ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }) : v)
 
 /** The signed-in role's own dashboard (BRD 13). Every figure comes from recorded data; "-" means there is no source yet. */
-export function RoleDashboard() {
+export function RoleDashboard({ audience }: { audience?: "executive" } = {}) {
   const [data, setData] = useState<RoleDashboardData | null>(null)
 
   useEffect(() => {
-    void fetchRoleDashboard().then(setData)
-  }, [])
+    void fetchRoleDashboard(audience).then(setData)
+  }, [audience])
 
   if (!data) return null
   return (
