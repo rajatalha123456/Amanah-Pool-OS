@@ -54,6 +54,9 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
         irr_ceiling_pct: 5.0,
         notice_period_days: 30,
         mudarib_share_cap_pct: 20.0,
+        wht_filer_pct: 15.0,
+        wht_non_filer_pct: 30.0,
+        zakat_deduction_pct: 0,
         purification_interval: "monthly",
       },
       null,
@@ -211,27 +214,33 @@ export function JurisdictionRulePacks({ hideHeader }: JurisdictionRulePacksProps
     },
   ]
 
+  // The reserve policy belongs to a pool, so the platform administrator only proposes rule packs.
+  const headerActions = (
+    <div className="flex items-center gap-3">
+      {canManage && (
+        <>
+          {!isAdmin && (
+            <Button variant="secondary" onClick={() => setShowPolicyModal(true)}>
+              + Configure Reserve Policy
+            </Button>
+          )}
+          <Button variant="primary" onClick={() => setShowNewPackModal(true)}>
+            + Add Custom Rule Pack
+          </Button>
+        </>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-6">
+      {hideHeader && headerActions}
       {!hideHeader && (
         <PageHeader
           screenNumber="42"
           title="42. Jurisdiction & Rule Packs"
           subtitle="Regulatory Framework Configurations, Multi-Jurisdiction Islamic Banking Standards, and PER/IRR Ceilings"
-          actions={
-            <div className="flex items-center gap-3">
-              {canManage && (
-                <>
-                  <Button variant="secondary" onClick={() => setShowPolicyModal(true)}>
-                    + Configure Reserve Policy
-                  </Button>
-                  <Button variant="primary" onClick={() => setShowNewPackModal(true)}>
-                    + Add Custom Rule Pack
-                  </Button>
-                </>
-              )}
-            </div>
-          }
+          actions={headerActions}
         />
       )}
 
