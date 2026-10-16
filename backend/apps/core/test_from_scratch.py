@@ -324,6 +324,15 @@ class FromScratch(APITestCase):
         self.call("signatory", "post", f"{base}/approve/", expect=200)
         done = self.call("auditor", "get", f"{base}/", expect=200).data
         self.assertIn(done["status"], ("signed",))
+        # BRD 7: the signed manifest covers inputs, approvers, the balance rows and the journal; a change is detected.
+        check = self.call("auditor", "get", f"{base}/verify-evidence/", expect=200).data
+        self.assertTrue(check["sealed"] and check["evidence_intact"] and check["calculation_intact"], check)
+        from apps.pools.models import DailyBalance
+
+        row = DailyBalance._base_manager.filter(pool_id=pid).first()
+        DailyBalance._base_manager.filter(pk=row.pk).update(balance_amount=row.balance_amount + 1)
+        self.assertFalse(self.call("auditor", "get", f"{base}/verify-evidence/", expect=200).data["evidence_intact"])
+        DailyBalance._base_manager.filter(pk=row.pk).update(balance_amount=row.balance_amount)
         # Statements, then give the first depositor a sign-in of their own (admin creates the user, pool manager links it).
         self.call("maker", "post", f"{base}/generate-statements/", expect=[200, 201])
         self.call("superadmin", "post", "/api/v1/auth/users/", {

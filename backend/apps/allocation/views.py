@@ -702,6 +702,13 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
                 _consume_income_events(run)
                 journal_batch = create_journal_from_allocation(run, posted_by=request.user)
+                from .evidence import compute_evidence_hash
+
+                # Sealed once, at signing (the signed run itself stays immutable for every other field).
+                run.refresh_from_db()
+                AllocationRun._base_manager.filter(pk=run.pk, evidence_hash__isnull=True).update(
+                    evidence_hash=compute_evidence_hash(run)
+                )
         except (ValueError, DjangoValidationError) as exc:
             # JournalIntegrityError / reserve-cap errors block the approval and
             # roll the whole transaction back - nothing is signed or posted.
@@ -808,6 +815,22 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
         )
         events.allocation_rejected(run, request.user, rejection_reason)
         return Response(self.get_serializer(run).data)
+
+    @action(detail=True, methods=["get"], url_path="verify-evidence")
+    def verify_evidence(self, request, pk=None):
+        """Recomputes the signed manifest: did the inputs, approvers, balance rows or journal change since signing?"""
+        from .engine import compute_run_hash
+        from .evidence import compute_evidence_hash
+
+        run = self.get_object()
+        if not run.evidence_hash:
+            return Response({"sealed": False, "detail": "This run was not signed with an evidence manifest."})
+        recomputed = compute_evidence_hash(run)
+        calculation_ok = compute_run_hash(run) == run.calculation_hash
+        return Response({
+            "sealed": True, "evidence_hash": run.evidence_hash, "recomputed": recomputed,
+            "evidence_intact": recomputed == run.evidence_hash, "calculation_intact": calculation_ok,
+        })
 
     @action(detail=True, methods=["post"], url_path="generate-statements")
     def generate_statements(self, request, pk=None):

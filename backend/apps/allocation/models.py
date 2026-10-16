@@ -146,6 +146,9 @@ class AllocationRun(TenantScopedModel):
         max_length=20, choices=AllocationRunStatus.choices, default=AllocationRunStatus.SIMULATED
     )
     calculation_hash = models.CharField(max_length=64, null=True, blank=True)
+    # Sealed at signing: the calculation hash plus approvers, the period's balance rows and the posted journal
+    # (allocation/evidence.py).
+    evidence_hash = models.CharField(max_length=64, null=True, blank=True)
     replaces_run = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,

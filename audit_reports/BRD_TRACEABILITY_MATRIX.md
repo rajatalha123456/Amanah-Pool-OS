@@ -89,7 +89,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-055 | 6.2.2 | Validate control totals, duplicates, value dates, tags, closed periods | import checks | Balance Import | unique (pool, day, account) | BT BalanceImportTests, PeriodLockTests | PASS | - |
 | R-056 | 6.2.3 | Daily funds and weighted balances by product/class | engine | - | - | AT 07, 09 | PASS | - |
 | R-057 | 6.2.4 | Reconcile assets, sources, pool equity, suspense | `accounting/reconciliation.py` | Reconciliation Center | - | BT ReconciliationTests | PARTIAL (no suspense, no live feed) | P2 |
-| R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; recorded as AI recommendations) | Anomaly queue | - | none direct; after fix: recorded with reason code; still a moving-average check after signing, no cross-pool leakage test | PARTIAL | P3 |
+| R-058 | 6.2.12 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` screens each run when the maker submits it (before the check) and again at signing, one case per run, recorded as an AI recommendation | Exception Queue, AI Anomaly Queue | `AIRecommendation` | BT ai_agents.test_recommendations | PASS | - |
 | R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run; after T-02/daily close: signed close required before check and release (BT) | PASS | - |
 | R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack; after rule pack revisions: run seals the pack revision and hash (BT) | PASS | - |
 | R-061 | 6.3.2 | Gross income and permitted direct expenses | `allocation/income.py` | - | - | BT DerivedFromEventsTests | PASS | - |
@@ -117,7 +117,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
-| R-081 | 7 | Deterministic, reproducible; inputs, config version, formulas, overrides, approvers, journals hashed and retained | `engine.py:447-489` hashes inputs totals, snapshot, lines; not the balance rows or journals | Run detail | `calculation_hash` | BT test_stored_hash_matches_recomputation | PARTIAL | P2 |
+| R-081 | 7 | Deterministic, reproducible; inputs, config version, formulas, overrides, approvers, journals hashed and retained | calculation hash at creation (inputs, rule versions, amounts, lines, income source/overrides) plus an evidence hash at signing (calculation hash, approvers, every balance row of the period, the posted journal); `verify-evidence` recomputes both | Run detail / auditor | `AllocationRun.evidence_hash` | BT core.test_from_scratch | PASS | - |
 | R-082 | 7.1 | Daily funds | `_daily_balances` | - | - | AT 07 | PASS | - |
 | R-083 | 7.1 | Weighted funds = funds x approved weightage | engine 229-240 | - | - | AT 02, 09 | PASS | - |
 | R-084 | 7.1 | Participation ratio | engine 340-342 | - | - | AT 01, 02 | PASS | - |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 131 |
-| PARTIAL | 38 |
+| PASS | 133 |
+| PARTIAL | 36 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

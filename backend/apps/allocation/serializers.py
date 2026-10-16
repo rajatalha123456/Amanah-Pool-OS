@@ -208,6 +208,7 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "is_loss",
             "config_snapshot",
             "run_tests",
+            "evidence_hash",
             "status",
             "calculation_hash",
             "replaces_run",
