@@ -83,6 +83,22 @@ class LiquidityForecastApiTests(APITestCase):
         self.assertEqual(Decimal(data["known_outflows"]), Decimal("0"))
         expected_projected = Decimal("1900") + Decimal("100") * 30 - Decimal("0")
         self.assertEqual(Decimal(data["projected_balance"]), expected_projected)
+        # a perfectly steady history has no spread: the range collapses onto the projection
+        self.assertEqual(Decimal(data["projected_low"]), expected_projected)
+        self.assertEqual(Decimal(data["projected_high"]), expected_projected)
+
+    def test_an_uneven_history_gives_a_range_not_a_single_promise(self):
+        for i, amount in enumerate([1000, 1300, 1100, 1500, 1200, 1600, 1400, 1800, 1500, 1900]):
+            DailyBalance.objects.create(
+                tenant=self.tenant, pool=self.investment_pool, participant_class="depositors",
+                value_date=date(2026, 9, 1) + timedelta(days=i), balance_amount=Decimal(amount), status=DailyBalanceStatus.VALIDATED,
+            )
+        data = self.client.get(
+            reverse("pool-liquidity-forecast", args=[str(self.investment_pool.id)]), {"as_of_date": "2026-09-10", "horizon_days": 30}
+        ).data
+        self.assertLess(Decimal(data["projected_low"]), Decimal(data["projected_balance"]))
+        self.assertGreater(Decimal(data["projected_high"]), Decimal(data["projected_balance"]))
+        self.assertIn("not a guarantee", data["range_basis"])
 
     def test_forecast_counts_pending_redemptions_as_outflows(self):
         self._seed_daily_balances(self.investment_pool, date(2026, 9, 1), count=10, starting_amount=Decimal("1000"), daily_increment=Decimal("0"))

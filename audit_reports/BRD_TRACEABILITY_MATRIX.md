@@ -55,7 +55,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-031 | 4 | Community circle: schedules, ballots/rotation, guarantees, late payments, hardship, payout, dissolution | schedule, commit-reveal draw, guarantor record (no fee), arrears, hardship, payout ceremony, closure | Community Circles | `CircleMember.guarantor_*` | BT circles, core.test_from_scratch | PASS | - |
 | R-032 | 4 | Shariah governance: register, policy mapping, pre-launch, exceptions, review and audit | register with quorum; rulings mapped to contract templates (coverage on the Shariah dashboard); pre-launch gates; exceptions with time limits; audit plans | Shariah Governance | - | BT products, governance | PASS | - |
 | R-033 | 4 | Accounting subledger: double entry, chart mapping, close, reversals, suspense, GL export | balanced journals for runs, distributions, events, purification, circles, provisions; chart mapping; period close; reversals; named suspense; controlled GL hand-over (live ERP link is R-137) | Finance & Ledger | `JournalBatch` | BT accounting, core.test_from_scratch | PASS | - |
-| R-034 | 4 | AI & analytics: forecasts, anomaly, extraction, explanation, copilot, scenarios | `ai_agents`, `pools/liquidity.py` | AI & Analytics | `AIRecommendation` | BT ai_agents (13) | PARTIAL | P2 |
+| R-034 | 4 | AI & analytics: forecasts, anomaly, extraction, explanation, copilot, scenarios | liquidity forecast with a 95% range (not a guarantee), anomaly screening, contract extraction, plain-language and multilingual explanations, Shariah copilot with citations, scenario simulator that writes nothing | AI & Analytics, pool detail | `AIRecommendation` | BT ai_agents, pools.test_liquidity_forecast, core.test_brd_prohibitions | PASS | - |
 | R-035 | 4 | Reporting & portal: regulatory, management, statements, disclosures, examiner data room | period report, evidence bundle | Reports, portal | - | BT core.test_period_report; E2E auditor | PARTIAL (no regulatory return formats) | P2 |
 | R-036 | 4 | Integration hub: core banking, GL, KYC, payment rails, market data, e-sign, notifications, BI | simulators only (`core/banking_switch.py`, `cbs_daemon.py`), refused in production | - | - | BT core.test_evidence_and_simulation | MISSING | P1 |
 
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 142 |
-| PARTIAL | 27 |
+| PASS | 143 |
+| PARTIAL | 26 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

@@ -58,6 +58,7 @@ def calculate_liquidity_forecast(pool, as_of_date, horizon_days=30):
     trend_window_start = as_of_date - timedelta(days=TREND_WINDOW_DAYS)
     dates_in_window = sorted(d for d in totals_by_date if d >= trend_window_start)
 
+    deltas = []
     if len(dates_in_window) < 2:
         trend_per_day = Decimal("0")
     else:
@@ -66,6 +67,14 @@ def calculate_liquidity_forecast(pool, as_of_date, horizon_days=30):
             for i in range(1, len(dates_in_window))
         ]
         trend_per_day = sum(deltas) / len(deltas)
+    # BRD 9: "scenario ranges, no guaranteed outcome". The spread of the daily changes gives a plain 95% band around the
+    # projection (normal approximation over the horizon); with fewer than three changes there is no band.
+    if len(deltas) >= 3:
+        mean = trend_per_day
+        variance = sum((d - mean) ** 2 for d in deltas) / (len(deltas) - 1)
+        spread = (Decimal(str(float(variance) ** 0.5)) * Decimal(str(horizon_days ** 0.5)) * Decimal("1.96")).quantize(Decimal("0.01"))
+    else:
+        spread = None
 
     current_balance = totals_by_date[max(totals_by_date)]
 
@@ -99,4 +108,8 @@ def calculate_liquidity_forecast(pool, as_of_date, horizon_days=30):
         "trend_per_day": trend_per_day,
         "known_outflows": known_outflows,
         "projected_balance": projected_balance,
+        "projected_low": (projected_balance - spread) if spread is not None else None,
+        "projected_high": (projected_balance + spread) if spread is not None else None,
+        "range_basis": "95% band from the spread of daily changes; a range, not a guarantee" if spread is not None
+        else "not enough daily changes for a range",
     }

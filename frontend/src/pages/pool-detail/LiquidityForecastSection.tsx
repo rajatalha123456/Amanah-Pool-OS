@@ -45,8 +45,15 @@ export function LiquidityForecastSection({ poolId }: { poolId: string }) {
             knownOutflows={Number(forecast.known_outflows)}
           />
 
+          {forecast.projected_low != null && forecast.projected_high != null && (
+            <p className="text-sm text-ink-primary">
+              Likely range in {forecast.horizon_days} days: PKR {Number(forecast.projected_low).toLocaleString()} to PKR{" "}
+              {Number(forecast.projected_high).toLocaleString()}
+            </p>
+          )}
           <p className="text-xs text-ink-muted">
-            SBP Prudential Regulations buffer model: Daily linear balance regression over {forecast.horizon_days} days factoring verified pending settlement outflows.
+            Trend projection from the recorded daily balances over {forecast.horizon_days} days, less known pending outflows.{" "}
+            {forecast.range_basis ?? ""}. Not a guaranteed outcome.
           </p>
         </div>
       )}

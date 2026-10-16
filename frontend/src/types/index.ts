@@ -1612,6 +1612,9 @@ export interface LiquidityForecast {
   trend_per_day: string | null
   known_outflows: string | null
   projected_balance: string | null
+  projected_low?: string | null
+  projected_high?: string | null
+  range_basis?: string
 }
 
 export interface ReservePolicy {
