@@ -56,7 +56,16 @@ def resolve_limits(pool: Optional[Pool]):
 RATING_NOT_RECORDED = "not recorded"
 
 
+SECTOR_LABELS = {
+    "sovereign": "Sovereign & Public Sector", "real_estate": "Real Estate", "power_energy": "Power & Energy",
+    "textiles": "Textiles", "general": "General Commercial",
+}
+
+
 def _infer_asset_metadata(asset: Asset) -> Dict[str, Any]:
+    recorded = _recorded_asset_metadata(asset)
+    if recorded is not None:
+        return recorded
     desc = (asset.description or "").lower()
     sector, is_sovereign = "General Commercial (inferred)", False
     if "sukuk" in desc or "sovereign" in desc or "government" in desc:
@@ -76,6 +85,22 @@ def _infer_asset_metadata(asset: Asset) -> Dict[str, Any]:
         "rating_agency": None,
         "is_sovereign": is_sovereign,
         "is_related_party": False,
+        "shariah_structure": asset.asset_type.replace("_", " ").title(),
+    }
+
+
+def _recorded_asset_metadata(asset):
+    """The recorded obligor, group and sector of an asset, or None when they were never recorded."""
+    if not (getattr(asset, "sector", "") and getattr(asset, "obligor_name", "")):
+        return None
+    return {
+        "obligor_name": asset.obligor_name,
+        "obligor_group": asset.obligor_group or asset.obligor_name,
+        "sector": SECTOR_LABELS.get(asset.sector, asset.sector),
+        "credit_rating": asset.credit_rating or RATING_NOT_RECORDED,
+        "rating_agency": None,
+        "is_sovereign": asset.sector == "sovereign",
+        "is_related_party": bool(asset.is_related_party),
         "shariah_structure": asset.asset_type.replace("_", " ").title(),
     }
 
@@ -309,7 +334,7 @@ def run_concentration_risk_analysis(pool: Optional[Pool] = None) -> Dict[str, An
         _row("Group of connected obligors", "Exposure to one related group", limits["group_private"], group_max, warn_at_80=False),
         _row("Real estate sector", "Exposure to property-related assets (sector inferred from the asset description)", limits["sector_real_estate"], real_estate_pct),
         _row("Top-5 obligors", "Cumulative concentration in the 5 largest obligors", limits["top5_obligors"], top5_obligors_pct, warn_at_80=False),
-        _row("Related-party exposure", "Exposure flagged as related party (no asset is flagged yet: the field is not recorded)", limits["related_party"], related_party_pct, warn_at_80=False),
+        _row("Related-party exposure", "Exposure to assets recorded as related party", limits["related_party"], related_party_pct, warn_at_80=False),
         {
             "regulation": "Prohibited-sector screen",
             "description": "Not assessed: assets carry no recorded activity / sector classification yet",

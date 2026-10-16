@@ -99,6 +99,17 @@ class Asset(TenantScopedModel):
     description = models.CharField(max_length=255)
     face_value = models.DecimalField(max_digits=18, decimal_places=2)
     maturity_date = models.DateField(null=True, blank=True)
+    # BRD 5 (Assets: eligible sectors, concentration): recorded facts for the concentration limits. When empty the
+    # engine infers them from the description and labels the result "(inferred)".
+    obligor_name = models.CharField(max_length=255, blank=True, default="")
+    obligor_group = models.CharField(max_length=255, blank=True, default="")
+    sector = models.CharField(
+        max_length=20, blank=True, default="",
+        choices=[("sovereign", "Sovereign & public sector"), ("real_estate", "Real estate"), ("power_energy", "Power & energy"),
+                 ("textiles", "Textiles"), ("general", "General commercial")],
+    )
+    is_related_party = models.BooleanField(default=False)
+    credit_rating = models.CharField(max_length=20, blank=True, default="")
     status = models.CharField(max_length=20, choices=AssetStatus.choices, default=AssetStatus.AVAILABLE)
 
     class Meta:

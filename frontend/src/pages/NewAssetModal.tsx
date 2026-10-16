@@ -23,6 +23,11 @@ export function NewAssetModal({ onClose, onCreated }: NewAssetModalProps) {
   const [assetType, setAssetType] = useState(ASSET_TYPES[0].value)
   const [description, setDescription] = useState("")
   const [faceValue, setFaceValue] = useState("")
+  const [obligorName, setObligorName] = useState("")
+  const [obligorGroup, setObligorGroup] = useState("")
+  const [sector, setSector] = useState("")
+  const [isRelatedParty, setIsRelatedParty] = useState(false)
+  const [creditRating, setCreditRating] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -36,6 +41,11 @@ export function NewAssetModal({ onClose, onCreated }: NewAssetModalProps) {
         asset_type: assetType,
         description,
         face_value: faceValue,
+        obligor_name: obligorName,
+        obligor_group: obligorGroup,
+        sector,
+        is_related_party: isRelatedParty,
+        credit_rating: creditRating,
       })
       onCreated(asset)
     } catch (err) {
@@ -104,6 +114,37 @@ export function NewAssetModal({ onClose, onCreated }: NewAssetModalProps) {
             className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none"
           />
         </div>
+
+        <p className="text-xs text-ink-secondary">For the concentration limits. Left empty, obligor and sector are inferred from the description and marked "(inferred)".</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+            Obligor
+            <input type="text" value={obligorName} onChange={(e) => setObligorName(e.target.value)} className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none mt-1" />
+          </label>
+          <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+            Obligor group
+            <input type="text" value={obligorGroup} onChange={(e) => setObligorGroup(e.target.value)} className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none mt-1" />
+          </label>
+          <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+            Sector
+            <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none mt-1">
+              <option value="">Not recorded</option>
+              <option value="sovereign">Sovereign &amp; public sector</option>
+              <option value="real_estate">Real estate</option>
+              <option value="power_energy">Power &amp; energy</option>
+              <option value="textiles">Textiles</option>
+              <option value="general">General commercial</option>
+            </select>
+          </label>
+          <label className="mb-1.5 block text-xs font-semibold tracking-wide text-ink-secondary uppercase">
+            Credit rating
+            <input type="text" value={creditRating} onChange={(e) => setCreditRating(e.target.value)} className="w-full rounded-md border border-white/10 bg-navy-800 px-3 py-2 text-sm text-ink-primary focus:border-emerald-500 focus:outline-none mt-1" />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-ink-secondary">
+          <input type="checkbox" checked={isRelatedParty} onChange={(e) => setIsRelatedParty(e.target.checked)} />
+          The obligor is a related party of the bank
+        </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 

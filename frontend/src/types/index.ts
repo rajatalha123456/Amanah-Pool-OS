@@ -502,6 +502,11 @@ export interface CreateAssetInput {
   description: string
   face_value: string
   maturity_date?: string
+  obligor_name?: string
+  obligor_group?: string
+  sector?: string
+  is_related_party?: boolean
+  credit_rating?: string
 }
 
 export interface AssetAssignment {
