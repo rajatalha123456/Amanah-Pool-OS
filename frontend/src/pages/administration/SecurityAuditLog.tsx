@@ -88,7 +88,8 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
     let critical = 0
     for (const l of filteredLogs) {
       if (l.actor_email) actors.add(l.actor_email)
-      if (["approve", "resolve", "mark_distributed", "suspend_tenant"].includes(l.action)) {
+      // Decisions that release, approve, sign, lock or suspend something.
+      if (/approve|resolve|mark_distributed|suspend|sign|lock|release|certif/i.test(l.action)) {
         critical++
       }
     }
@@ -390,16 +391,18 @@ export function SecurityAuditLog({ hideHeader }: SecurityAuditLogProps) {
               AUDIT TRAIL INTEGRITY
             </p>
             <p className="text-base font-bold text-ink-primary">
-              {filteredLogs.length} Records <span className="text-emerald-400 text-xs">100%</span>
+              {filteredLogs.length} records shown
             </p>
           </div>
           <div>
             <p className="text-[11px] font-semibold text-ink-secondary uppercase">TAMPER PROOF</p>
-            <p className="text-base font-bold text-emerald-400">Append-Only Active</p>
+            <p className="text-base font-bold text-emerald-400">Append-only (entries cannot be edited)</p>
           </div>
           <div>
             <p className="text-[11px] font-semibold text-ink-secondary uppercase">HASH SEAL</p>
-            <p className="text-base font-bold text-emerald-400">SHA-256 Chain OK</p>
+            <p className={`text-base font-bold ${hashChainVerified ? "text-emerald-400" : "text-ink-secondary"}`}>
+              {hashChainVerified ? "SHA-256 chain verified" : "Not checked yet: press Verify Chain Integrity"}
+            </p>
           </div>
         </div>
       </div>
