@@ -120,7 +120,7 @@ Seekhne ka tareeqa: har qadam pehle **parhein**, phir **khud karein**, phir "kya
 - **Kaun:** `pm` banata hai, `board` approve karta hai.
 - **Kyun:** contract template = customer se hone wale muahide ki shakl; product = scheme (jaise "General Depositor Pool"). Dono ko Board ki manzoori chahiye.
 - **Kahan:** **Products & Pools**.
-- **Kya karna hai:** contract template (type Mudarabah Unrestricted, upar wala fatwa jorein). Board se approve. Phir product: naam, code `GEN-DEP`, model **bank_pool**, template, PKR, eligible assets (Murabaha, Ijarah), minimum subscription → **Submit for review**. Board approve kare.
+- **Kya karna hai:** contract template (type Mudarabah Unrestricted, upar wala fatwa jorein). Is type ke **laazmi clauses** (★ wale) bharein: Rab-ul-Maal (kis ka paisa), Mudarib (kaun chalayega), profit ratio, loss bearing clause. Inke baghair Board approve nahi kar sakta. Phir Board se approve. Phir product: naam, code `GEN-DEP`, model **bank_pool**, template, PKR, eligible assets (Murabaha, Ijarah), minimum subscription → **Submit for review**. Board approve kare.
 - **Kya dekhna hai:** PM apna kaam khud approve **nahi** kar sakta.
 
 ---

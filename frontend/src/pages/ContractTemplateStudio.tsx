@@ -479,7 +479,7 @@ function NewContractTemplateForm({
         </div>
 
         <div>
-          <p className={labelClasses}>Standard clause fields</p>
+          <p className={labelClasses}>Standard clause fields (★ = mandatory for this contract type before the Board can approve)</p>
           <div className="flex flex-wrap gap-2">
             {clauseSchema.map((field) => (
               <button
@@ -490,6 +490,7 @@ function NewContractTemplateForm({
                 className="rounded-full border border-white/10 px-3 py-1 text-xs text-ink-secondary hover:border-emerald-500 hover:text-ink-primary"
               >
                 + {field.label}
+                {field.mandatory && <span className="ml-1 text-gold-400">★</span>}
               </button>
             ))}
           </div>

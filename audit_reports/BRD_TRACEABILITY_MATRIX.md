@@ -45,7 +45,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
 | R-023 | 4 | Tenant & Jurisdiction Studio: entities, branches, currencies, calendars, languages, accounting policy, retention | legal entities, branch/timezone/calendar on pool, retention policies | Administration, wizard | `LegalEntity`, `RetentionPolicy` | BT governance.test_retention; E2E wizard | PARTIAL (no accounting-policy object; one currency in practice) | P2 |
-| R-024 | 4 | Product & Contract Studio: templates for Mudarabah/Musharakah/Wakalah/Qard; PSR, weightage, tenure, notice, disclosure rules | `products/*` | Product catalogue, template studio | `ContractTemplate` | BT products.tests | PARTIAL (mandatory-parameter enforcement per template not built) | P2 |
+| R-024 | 4 | Product & Contract Studio: templates for Mudarabah/Musharakah/Wakalah/Qard; PSR, weightage, tenure, notice, disclosure rules | templates of all four types with mandatory parameters per type; product holds notice, gate, minimum, cap, tenure, KYC tier; PSR, weightage and disclosure have their own approval flows | Contract Template Studio, Products | `MANDATORY_PARAMETERS` | BT core.test_from_scratch | PASS | - |
 | R-025 | 4 | Pool lifecycle: draft, review, approved, open, frozen, allocation, closed, archived | `pools/lifecycle.py`, `activation.py` | Pool detail | `Pool.status` | BT pools.test_lifecycle, test_activation_gates | PASS | - |
 | R-026 | 4 | Capital & membership: opening, KYC/KYB, subscriptions, redemptions, contributions, nominees, member limits | participants, investments, circles | Participants, Investments | - | BT redemptions, participation terms | PARTIAL (no KYB; nominee is text) | P2 |
 | R-027 | 4 | Asset assignment: one pool; transfer with effective date, valuation, approval | `pools/asset_rules.py` | Assets tab, transfer modal | `AssetAssignment` | BT pools.test_asset_rules; after fix: transfer needs valuation, basis and a different approver (BT, E2E); ring-fencing still not built | PARTIAL | P3 |
@@ -64,7 +64,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
 | R-037 | 5 | Identity: code, entity, branch, model, currency, timezone, calendar, start/end | `pools/serializers.py:55-64` | New Pool Wizard | `Pool` | E2E "new pool wizard has six steps..." | PASS | - |
-| R-038 | 5 | Contract: type/version, Rab-ul-Maal, Mudarib/partner/agent, PSR, Wakalah fee, loss basis | template + PSR; parties not modelled as entities | wizard step 2 | `ContractTemplate`, `ProfitSharingRatio` | BT wakalah tests | PARTIAL | P2 |
+| R-038 | 5 | Contract: type/version, Rab-ul-Maal, Mudarib/partner/agent, PSR, Wakalah fee, loss basis | type and version on the template; parties, PSR reference, Wakalah fee and loss basis are mandatory clauses per type, checked before Board approval | Contract Template Studio | `ContractTemplate.clauses` | BT core.test_from_scratch | PASS | - |
 | R-039 | 5 | Participation: classes, minimums, tenure, withdrawal, notice, caps, eligibility, KYC tier | `investments/participation.py` | product modal | `Product` fields | BT test_participation_terms (8) | PASS | - |
 | R-040 | 5 | Weightages: tiers, tenor bands, class, effective dates, maximum change, approval | `WeightageBandSerializer` | Weightage section | `WeightageBand` (no min/max constraint) | AT test_16 FAIL (negative weightage accepted); no max-change rule; after fix FIN-02: weightage > 0 in serializer and DB (AT test_16). The BRD 'maximum change' rule is still not built | PASS | - |
 | R-041 | 5 | Assets: eligible contracts/sectors, concentration, liquidity buffer, valuation, transfer, ring-fencing | `concentration_engine.py` hard-codes limits labelled "SBP statutory" | Risk dashboard | - | ST; after fix F-07: limits configurable; sector and obligor data are still inferred | PARTIAL | P2 |
@@ -79,7 +79,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
 | R-047 | 6.1.1 | PM selects jurisdiction and model | wizard + rule pack binding | wizard | - | E2E wizard | PASS | - |
-| R-048 | 6.1.2 | Contract Studio loads approved clauses and mandatory parameters | clauses JSON; no mandatory set | template studio | - | none | PARTIAL | P2 |
+| R-048 | 6.1.2 | Contract Studio loads approved clauses and mandatory parameters | clause schema marks the mandatory parameters of the template's contract type; approval refused while any is empty | Contract Template Studio | - | BT core.test_from_scratch | PASS | - |
 | R-049 | 6.1.3 | AI completeness / conflict / policy-mapping check | deterministic `rule_conflicts` gate only | - | - | BT activation gates | PARTIAL | P2 |
 | R-050 | 6.1.4 | Finance validates mappings; Risk validates limits and disclosures | `governance/config_changes.py` | Governance Config | `ConfigChangeRequest` | BT governance; E2E governance config | PASS | - |
 | R-051 | 6.1.5 | Secretariat review pack; Shariah authority approves / rejects / returns | quorum approve; quorum of rejections rejects; any Board member returns with a note (new review round, earlier votes stop counting); Secretariat edits and resubmits | Fatwa register modal | `ShariahDecision.review_round` | BT core.test_from_scratch | PASS | - |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 123 |
-| PARTIAL | 46 |
+| PASS | 126 |
+| PARTIAL | 43 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

@@ -166,6 +166,11 @@ class FromScratch(APITestCase):
         self.refused("poolmanager", "post", "/api/v1/products/contract-templates/", template)
         ct = self.call("pm", "post", "/api/v1/products/contract-templates/", template, expect=201).data
         self.refused("pm", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/")  # cannot approve own work
+        # BRD 5 / 6.1: the Board cannot approve a template that leaves out the contract's mandatory parameters.
+        self.refused("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/")
+        schema = self.call("pm", "get", f"/api/v1/products/contract-templates/{ct['id']}/clauses-schema/", expect=200).data
+        self.assertEqual({r["key"] for r in schema if r["mandatory"]}, {"rab_ul_maal", "mudarib", "profit_ratio", "loss_bearing_clause"})
+        self.call("pm", "patch", f"/api/v1/products/contract-templates/{ct['id']}/", {"clauses": {"rab_ul_maal": "Depositors", "mudarib": "The bank", "profit_ratio": "Per the approved PSR", "loss_bearing_clause": "Capital providers bear loss except negligence"}}, expect=200)
         self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
 
         product = {"name": "General Depositor Pool", "code": "GEN-DEP", "operating_model": "bank_pool", "contract_template": ct["id"],
@@ -338,7 +343,7 @@ class FromScratch(APITestCase):
         self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
-            "name": "Qard Circle Charter", "contract_type": "qard", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+            "name": "Qard Circle Charter", "contract_type": "qard", "version": "1.0", "clauses": {"parties": "Each member lends to the member whose turn it is", "late_payment_policy": "Reminders and deferral only; no charge"}, "shariah_decision": d}, expect=201).data
         self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
         prod = self.call("pm", "post", "/api/v1/products/products/", {
             "name": "Neighbourhood Circle", "code": "CIRCLE-1", "operating_model": "community_circle", "contract_template": ct["id"],
@@ -422,7 +427,7 @@ class FromScratch(APITestCase):
         self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
-            "name": "Wakalah Circle Charter", "contract_type": "wakalah", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+            "name": "Wakalah Circle Charter", "contract_type": "wakalah", "version": "1.0", "clauses": {"principal": "The members", "agent": "The organizer", "wakalah_fee": "PKR 500 per payout, disclosed", "loss_bearing_clause": "The agent is liable only for negligence"}, "shariah_decision": d}, expect=201).data
         self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
         prod = self.call("pm", "post", "/api/v1/products/products/", {
             "name": "Serviced Circle", "code": "CIRCLE-W", "operating_model": "community_circle", "contract_template": ct["id"],
@@ -480,7 +485,7 @@ class FromScratch(APITestCase):
         self.call("board", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         self.call("board2", "post", f"/api/v1/products/shariah-decisions/{d}/cast-quorum-vote/", vote, expect=200)
         ct = self.call("pm", "post", "/api/v1/products/contract-templates/", {
-            "name": "Investment Mudarabah Charter", "contract_type": "mudarabah_unrestricted", "version": "1.0", "clauses": {}, "shariah_decision": d}, expect=201).data
+            "name": "Investment Mudarabah Charter", "contract_type": "mudarabah_unrestricted", "version": "1.0", "clauses": {"rab_ul_maal": "Depositors", "mudarib": "The bank", "profit_ratio": "Per the approved PSR", "loss_bearing_clause": "Capital providers bear loss except negligence"}, "shariah_decision": d}, expect=201).data
         self.call("board", "post", f"/api/v1/products/contract-templates/{ct['id']}/approve/", expect=200)
         prod = self.call("pm", "post", "/api/v1/products/products/", {
             "name": "Growth Investment Pool", "code": "INV-1", "operating_model": "investment_pool", "contract_template": ct["id"],

@@ -122,6 +122,7 @@ export interface ContractClauseSchemaField {
   key: string
   label: string
   description: string
+  mandatory?: boolean
 }
 
 export interface CreateProductInput {
