@@ -527,6 +527,11 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             validate_maker_checker(maker_user=run.created_by, checker_user=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.message) from exc
+        from .run_tests import failing
+
+        failed_tests = failing(run)
+        if failed_tests:
+            raise ValidationError({"run_tests": failed_tests})
 
         assert_rule_pack_unchanged(run, run.pool)
         if not run.is_restatement:

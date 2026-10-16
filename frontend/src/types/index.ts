@@ -795,6 +795,7 @@ export interface AllocationRun {
   released_at?: string | null
   stages?: ApprovalStage[]
   control_gates?: Array<{ key: string; label: string; passed: boolean }>
+  run_tests?: Array<{ key: string; label: string; status: "pass" | "fail" | "warning" | "info"; detail: string }>
   shariah_signed_off_by: number | null
   shariah_signed_off_at: string | null
   shariah_review_note: string | null

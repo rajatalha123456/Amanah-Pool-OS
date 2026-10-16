@@ -181,6 +181,12 @@ class AllocationRunSerializer(serializers.ModelSerializer):
     shariah_review_required = serializers.BooleanField(read_only=True)
     stages = serializers.SerializerMethodField()
     control_gates = serializers.SerializerMethodField()
+    run_tests = serializers.SerializerMethodField()
+
+    def get_run_tests(self, obj):
+        from .run_tests import run_tests
+
+        return run_tests(obj)
 
     class Meta:
         model = AllocationRun
@@ -201,6 +207,7 @@ class AllocationRunSerializer(serializers.ModelSerializer):
             "rounding_residual",
             "is_loss",
             "config_snapshot",
+            "run_tests",
             "status",
             "calculation_hash",
             "replaces_run",

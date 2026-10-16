@@ -294,6 +294,9 @@ class FromScratch(APITestCase):
         self.assertEqual(rows(), before, "simulate must not write anything")
         run = self.call("maker", "post", "/api/v1/allocation/allocation-runs/", {"pool": pid, "value_date": "2026-01-05", "period_start": "2026-01-01"}, expect=201).data
         rid = run["id"]
+        # BRD 6.3 step 19: tolerance, fairness, negative yield and prior-period tests are on the run before anyone checks it.
+        tests = {t["key"]: t["status"] for t in run["run_tests"]}
+        self.assertEqual(tests, {"tolerance": "pass", "fairness": "pass", "negative_yield": "pass", "prior_period": "info"})
         base = f"/api/v1/allocation/allocation-runs/{rid}"
         self.refused("checker", "post", f"{base}/check/")  # not submitted yet
         self.refused("auditor", "post", f"{base}/submit-for-checking/")

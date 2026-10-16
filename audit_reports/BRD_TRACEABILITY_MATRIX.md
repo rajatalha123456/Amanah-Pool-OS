@@ -89,14 +89,14 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-055 | 6.2.2 | Validate control totals, duplicates, value dates, tags, closed periods | import checks | Balance Import | unique (pool, day, account) | BT BalanceImportTests, PeriodLockTests | PASS | - |
 | R-056 | 6.2.3 | Daily funds and weighted balances by product/class | engine | - | - | AT 07, 09 | PASS | - |
 | R-057 | 6.2.4 | Reconcile assets, sources, pool equity, suspense | `accounting/reconciliation.py` | Reconciliation Center | - | BT ReconciliationTests | PARTIAL (no suspense, no live feed) | P2 |
-| R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; no recommendation record) | Anomaly queue | - | none direct; after fix: recorded with reason code; still a moving-average check after signing, no cross-pool leakage test | PARTIAL | P3 |
+| R-058 | 6.2.5 | AI flags unusual yield, leakage, drift | `anomaly_detector.py` (after signing; recorded as AI recommendations) | Anomaly queue | - | none direct; after fix: recorded with reason code; still a moving-average check after signing, no cross-pool leakage test | PARTIAL | P3 |
 | R-059 | 6.2.6 | Maker resolves exceptions; checker signs daily close | `pools/daily_close.py` exists, but allocation does not require a signed close and uses pending balances (`engine.py:66`) | Daily Close tab | `DailyClose` | BT test_daily_close; AT test_14 FAIL; after fix F-02: pending balances block a run. A signed daily close is still not required before a run; after T-02/daily close: signed close required before check and release (BT) | PASS | - |
 | R-060 | 6.3.1 | Freeze period inputs and configuration versions | snapshot hashes PSR/bands/reserves; rule pack mutable; balances not hashed | - | - | AT patch probe; after fix F-04: rule pack changes are approved and audited; the run hash still does not snapshot the pack; after rule pack revisions: run seals the pack revision and hash (BT) | PASS | - |
 | R-061 | 6.3.2 | Gross income and permitted direct expenses | `allocation/income.py` | - | - | BT DerivedFromEventsTests | PASS | - |
 | R-062 | 6.3.3 | Distributable profit and reserve appropriation | engine 296-338 | - | - | AT 13; BT reserves | PASS | - |
 | R-063 | 6.3.4 | Weightages and weighted participation | engine | - | - | AT 02, 09 | PASS | - |
 | R-064 | 6.3.5 | Allocate; Mudarib share or Wakalah fee; rounding | engine | - | - | AT 10, 17; BT wakalah | PASS | - |
-| R-065 | 6.3.6 | Tolerance, fairness, negative-yield, prior-period tests | residual tolerance; loss path; prior-period only post-signing | - | - | AT 04 | PARTIAL | P2 |
+| R-065 | 6.3.6 | Tolerance, fairness, negative-yield, prior-period tests | `allocation/run_tests.py` on every run: rounding tolerance and proportional fairness (weighted funds for profit, capital for a loss) block the check when failing; negative yield and the prior-period yield comparison are shown (no BRD threshold, none invented) | Run detail | - | BT core.test_from_scratch, allocation suite | PASS | - |
 | R-066 | 6.3.7 | Finance checker **and Shariah reviewer** approve; post journals; issue statements | bank pool: 4-stage ceremony; **investment distributions signed by one finance checker, no Shariah stage** (`investments/distribution_views.py:195-262`); bank-pool Shariah stage switchable by env flag (`allocation/models.py:230-245`) | Ceremony | - | BT DistributionWorkflowTests (checker alone signs); BT ceremony tests; after fix F-06: 4-stage ceremony for distributions (BT DistributionCeremonyTests, 3) | PASS | - |
 | R-067 | 6.4.1 | KYC, suitability, disclosures; signs contract | no e-signature | onboarding tab | - | BT disclosures | PARTIAL | P2 |
 | R-068 | 6.4.2 | Subscription received; units / capital account created | `investments/views.py` | Subscription tab | - | BT CapitalJournalTests | PASS | - |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 110 |
-| PARTIAL | 59 |
+| PASS | 111 |
+| PARTIAL | 58 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

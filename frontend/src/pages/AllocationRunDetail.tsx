@@ -413,6 +413,18 @@ export function AllocationRunDetail() {
               ))}
             </div>
           )}
+          {run.run_tests && (
+            <div className="mt-4 text-xs">
+              <p className="mb-1 font-semibold uppercase text-ink-secondary">Pre-approval tests (BRD 6.3)</p>
+              <ul className="space-y-1">
+                {run.run_tests.map((t) => (
+                  <li key={t.key} className={t.status === "fail" ? "text-red-400" : t.status === "warning" ? "text-amber-300" : t.status === "pass" ? "text-emerald-400" : "text-ink-secondary"}>
+                    {t.status === "pass" ? "✓" : t.status === "fail" ? "✕" : t.status === "warning" ? "!" : "i"} {t.label}: <span className="text-ink-secondary">{t.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       )}
 
