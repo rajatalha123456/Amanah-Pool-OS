@@ -39,6 +39,9 @@ ACCOUNTS = {
     "expense_payable": "Pool Expense Payable",
     "non_permissible_clearing": "Non-permissible Income Clearing",
     "charity_payable": "Charity Payable",
+    # Community circles (BRD Section 10: contribution and payout).
+    "member_payable": "Circle Member Payable",
+    "wakalah_fee_income": "Wakalah Service Fee Income",
     # Amounts that cannot be placed yet, each one a named item (accounting/suspense.py).
     "suspense": "Suspense - Unidentified Items",
 }
@@ -54,7 +57,7 @@ REQUIRED_BY_MODEL = {
         "investor_profit_payable", "settlement_receivable", "redemption_payable", "rounding_account",
         "accrued_income_receivable", "expense_payable", "non_permissible_clearing", "charity_payable",
     ],
-    "community_circle": [],
+    "community_circle": ["pool_cash", "member_payable", "wakalah_fee_income"],
 }
 
 

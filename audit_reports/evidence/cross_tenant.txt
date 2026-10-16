@@ -1,2 +1,2 @@
-tenant A ids checked: {'Pool': 4, 'Participant': 13, 'ParticipantAccount': 12, 'AllocationRun': 4, 'JournalBatch': 13}
+tenant A ids checked: {'Pool': 4, 'Participant': 13, 'ParticipantAccount': 12, 'AllocationRun': 4, 'JournalBatch': 14}
 no cross-tenant access found

@@ -34,6 +34,8 @@ GL_CHART = {
     "expense_payable": ("2103-001", "Pool Expense Payable"),
     "non_permissible_clearing": ("2104-001", "Non-permissible Income Clearing"),
     "charity_payable": ("2104-002", "Charity Payable"),
+    "member_payable": ("2105-001", "Circle Member Payable"),
+    "wakalah_fee_income": ("4102-001", "Wakalah Service Fee Income"),
 }
 
 MATRIX = [

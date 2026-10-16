@@ -337,6 +337,9 @@ class PayoutViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
                     ]
                 ).encode("utf-8")
             ).hexdigest()
+            from apps.accounting.services import post_circle_payout_journal
+
+            payout.journal_batch = post_circle_payout_journal(payout, posted_by=request.user)
             payout.save()
 
             payout.member.status = CircleMemberStatus.PAID_OUT
@@ -850,16 +853,21 @@ class CircleMemberViewSet(
             raise ValidationError(f"{member.member_reference} already has a contribution for cycle {cycle_number}.")
         assert_period_open(member.pool, contribution_date, what="a contribution")
 
-        contribution = Contribution.objects.create(
-            tenant=member.tenant,
-            member=member,
-            amount=amount,
-            contribution_date=contribution_date,
-            cycle_number=cycle_number,
-            status=ContributionStatus.RECEIVED,
-            payment_reference=payment_reference,
-            recorded_by=request.user,
-        )
+        from apps.accounting.services import post_circle_contribution_journal
+
+        with transaction.atomic():
+            contribution = Contribution.objects.create(
+                tenant=member.tenant,
+                member=member,
+                amount=amount,
+                contribution_date=contribution_date,
+                cycle_number=cycle_number,
+                status=ContributionStatus.RECEIVED,
+                payment_reference=payment_reference,
+                recorded_by=request.user,
+            )
+            contribution.journal_batch = post_circle_contribution_journal(contribution, posted_by=request.user)
+            contribution.save(update_fields=["journal_batch", "updated_at"])
 
         log_action(
             tenant=member.tenant,

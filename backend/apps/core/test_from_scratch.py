@@ -400,6 +400,13 @@ class FromScratch(APITestCase):
         self.refused("poolmanager", "post", "/api/v1/circles/closures/close/", {"pool": pid})
         closed = self.call("checker", "post", "/api/v1/circles/closures/close/", {"pool": pid}, expect=200).data
         self.assertEqual(closed["difference"], "0.00", preview)
+        # BRD 10: every contribution and payout is journalled; the circle's member payable is cleared at the end.
+        from apps.circles.models import Contribution, Payout
+
+        self.assertFalse(Contribution._base_manager.filter(member__pool_id=pid, journal_batch__isnull=True).exists())
+        self.assertFalse(Payout._base_manager.filter(pool_id=pid, journal_batch__isnull=True).exists())
+        tb = self.call("checker", "get", f"/api/v1/accounting/trial-balance/?pool={pid}", expect=200).data
+        self.assertTrue(tb.get("balanced", True), tb)
         return pid, members
 
     def phase_e2_wakalah_circle(self):

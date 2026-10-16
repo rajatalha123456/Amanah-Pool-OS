@@ -358,3 +358,27 @@ def post_purification_journal(entry, stage, posted_by=None, on_date=None):
         tenant=entry.tenant, pool=entry.pool, on_date=on_date or entry.identified_date, posted_by=posted_by,
         debits=[(debit, entry.amount, "")], credits=[(credit, entry.amount, "")],
     )
+
+
+def post_circle_contribution_journal(contribution, posted_by=None):
+    """BRD Section 10, contribution: Dr Pool Cash / Cr Circle Member Payable (the pot is owed to the members)."""
+    pool = contribution.member.pool
+    return post_adjustment_journal(
+        tenant=contribution.tenant, pool=pool, on_date=contribution.contribution_date, posted_by=posted_by,
+        debits=[("pool_cash", contribution.amount, "")], credits=[("member_payable", contribution.amount, "")],
+    )
+
+
+def post_circle_payout_journal(payout, posted_by=None):
+    """
+    BRD Section 10, payout: Dr Circle Member Payable / Cr Pool Cash for what the member receives, and for an approved
+    Wakalah fee Dr Circle Member Payable / Cr Wakalah Service Fee Income. Together they clear the whole pot.
+    """
+    debits = [("member_payable", payout.amount, "")]
+    credits = [("pool_cash", payout.amount, "")]
+    if payout.service_fee and Decimal(payout.service_fee) > 0:
+        debits.append(("member_payable", payout.service_fee, ""))
+        credits.append(("wakalah_fee_income", payout.service_fee, ""))
+    return post_adjustment_journal(
+        tenant=payout.tenant, pool=payout.pool, on_date=payout.payout_date, posted_by=posted_by, debits=debits, credits=credits,
+    )

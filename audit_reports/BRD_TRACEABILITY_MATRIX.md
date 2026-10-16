@@ -111,7 +111,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-077 | 6.5.4 | Collect and reconcile; arrears trigger respectful reminders | `circles/reminders.py` | Arrears tab | - | BT test_reminders, test_arrears | PASS | - |
 | R-078 | 6.5.5 | Eligibility gate before payout | `circles/payouts.py` | Payout ceremony | - | BT test_payout_workflow (14) | PASS | - |
 | R-079 | 6.5.6 | Transparent ledger, receipts, schedule changes | member portal | portal | - | BT test_member_portal; E2E member | PASS | - |
-| R-080 | 6.5.7 | Final reconciliation, surplus/shortfall, approved closure | `circles/closure.py` | - | - | BT closure tests | PARTIAL (surplus/shortfall not journalled) | P2 |
+| R-080 | 6.5.34 | Final reconciliation, surplus/shortfall, approved closure | `circles/closure.py`: collected = disbursed + disclosed fees, any difference needs a resolution note, a finance checker closes; contributions and payouts are journalled (BRD 10) so the member payable clears | Closure tab | `Contribution/Payout.journal_batch` | BT circles, core.test_from_scratch | PASS | - |
 
 ## Section 7: engine
 
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 118 |
-| PARTIAL | 51 |
+| PASS | 119 |
+| PARTIAL | 50 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

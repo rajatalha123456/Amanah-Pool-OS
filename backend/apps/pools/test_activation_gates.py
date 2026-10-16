@@ -210,7 +210,7 @@ class ActivationGateTests(ActivationBase):
             status.HTTP_403_FORBIDDEN,
         )
 
-    def test_community_circle_needs_no_economics_or_chart(self):
+    def test_community_circle_needs_no_economics_but_its_own_chart(self):
         self.product.operating_model = "community_circle"
         self.product.save()
         template = self.product.contract_template
@@ -220,6 +220,9 @@ class ActivationGateTests(ActivationBase):
         ApprovalMatrixRule.objects.create(
             tenant=self.tenant, action="payout_approve", role=UserRole.FINANCE_CHECKER, max_amount=None
         )
+        # Contributions and payouts are journalled (BRD 10), so the circle's three accounts must be mapped first.
+        self.assertNotEqual(self.open_pool().status_code, status.HTTP_200_OK)
+        self.add_mapping(["pool_cash", "member_payable", "wakalah_fee_income"])
         self.assertEqual(self.open_pool().status_code, status.HTTP_200_OK)
 
 

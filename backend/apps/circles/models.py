@@ -95,6 +95,7 @@ class Contribution(TenantScopedModel):
     # How the money was received (bank / Raast reference); required for a recorded receipt.
     payment_reference = models.CharField(max_length=100, blank=True, default="")
     recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    journal_batch = models.ForeignKey("accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+")
 
     class Meta:
         constraints = [
@@ -127,6 +128,7 @@ class Payout(TenantScopedModel):
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     # The disclosed Wakalah service fee withheld from this pot (0 under Qard); amount + service_fee = pot collected.
     service_fee = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    journal_batch = models.ForeignKey("accounting.JournalBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="+")
     payout_date = models.DateField()
     status = models.CharField(max_length=20, choices=PayoutStatus.choices, default=PayoutStatus.PENDING)
     requested_by = models.ForeignKey(
