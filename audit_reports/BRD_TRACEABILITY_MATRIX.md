@@ -17,7 +17,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | ID | BRD | Requirement | Backend evidence | Frontend evidence | Database evidence | Test evidence | Status | Sev |
 |---|---|---|---|---|---|---|---|---|
-| R-001 | 1 | AI must not independently issue a Shariah ruling | `ai_agents/services/*` read-only; `contract_analyzer.py:106-116` disclaimer | Copilot page shows citations | `AIRecommendation` | BT ai_agents.test_recommendations; copilot runtime BLOCKED (service down) | PARTIAL | P2 |
+| R-001 | 1 | AI must not independently issue a Shariah ruling | AI writes only `AIRecommendation`; rulings need the Board quorum; the contract analyzer can only report "no issue detected / potential violations / needs review", never "compliant", whatever the model says | Copilot, Contract Studio ("AI screening, not a Shariah ruling") | `AIRecommendation` | BT core.test_evidence_and_simulation, test_quorum | PASS | - |
 | R-002 | 1 | AI must not change an approved PSR | no AI path writes PSR (ST); PSR immutable once approved | - | `ProfitSharingRatio` | BT core.test_access_control `test_approved_economics_and_rulings_are_immutable` | PASS | - |
 | R-003 | 1 | AI must not waive a loss | no AI path to `negligence.py` / distribution (ST) | - | - | none | PASS | P3 |
 | R-004 | 1 | AI must not post a journal | `ai_agents` imports no accounting service (ST, grep) | - | - | none | PASS | P3 |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 126 |
-| PARTIAL | 43 |
+| PASS | 127 |
+| PARTIAL | 42 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

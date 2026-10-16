@@ -622,10 +622,10 @@ function AIContractAnalyzerModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-3 rounded-lg border border-white/10 bg-navy-950/60 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-ink-primary uppercase tracking-wider">
-                Analysis Verdict:
+                AI screening (not a Shariah ruling):
               </span>
-              <Badge variant={analysis.shariah_verdict === "COMPLIANT" ? "emerald" : "gold"}>
-                {analysis.shariah_verdict}
+              <Badge variant={analysis.shariah_verdict === "NO_ISSUE_DETECTED" ? "emerald" : "gold"}>
+                {analysis.shariah_verdict.replace(/_/g, " ").toLowerCase()}
               </Badge>
             </div>
 

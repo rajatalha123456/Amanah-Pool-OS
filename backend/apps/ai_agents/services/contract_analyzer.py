@@ -19,7 +19,7 @@ Extract these exact fields:
 6. "profit_calculation_frequency": e.g. "Daily funds, monthly distribution"
 7. "loss_absorption_mechanism": 1-2 sentence description of who absorbs capital loss
 8. "prohibited_terms_detected": list of strings (e.g. ["Capital guarantee clause violates AAOIFI Mudarabah Standard 13", "Fixed interest uplift prohibited"]), empty list [] if clean.
-9. "shariah_verdict": "COMPLIANT" if clean, or "CONTAINS_POTENTIAL_VIOLATIONS" if prohibited terms found.
+9. "shariah_verdict": "NO_ISSUE_DETECTED" if no prohibited term was found, or "CONTAINS_POTENTIAL_VIOLATIONS" if one was. This is a screening result, never a ruling.
 10. "confidence_score": number between 0.0 and 1.0 (e.g. 0.96)
 11. "clauses": list of extracted clause objects: [{"clause_code": "CL-01", "clause_title": "...", "content": "..."}]
 
@@ -131,6 +131,12 @@ def _with_review_flags(result: dict, source: str) -> dict:
     # The confidence is what the model says about itself, so it can be wrong or planted by the document. It is shown, but
     # it never decides whether a person must look: an extraction that touches Shariah terms is always reviewed.
     result["confidence_is_model_reported"] = True
+    # BRD 1: AI may not issue a Shariah ruling. Whatever the model wrote, the field only ever says whether its screening
+    # found a potential issue; "compliant" is a word only the Shariah Board uses.
+    found = bool(result.get("prohibited_terms_detected")) or result.get("shariah_verdict") == "CONTAINS_POTENTIAL_VIOLATIONS"
+    result["shariah_verdict"] = "CONTAINS_POTENTIAL_VIOLATIONS" if found else (
+        "REQUIRES_HUMAN_REVIEW" if source != "shariah_copilot_llm" else "NO_ISSUE_DETECTED"
+    )
     result["requires_human_review"] = True
     result["disclaimer"] = "AI-assisted extraction only; it is not a Shariah ruling and must be confirmed by a qualified reviewer."
     return result

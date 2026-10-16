@@ -157,6 +157,7 @@ class SimulationLabelTests(SimpleTestCase):
             result = analyze_contract_text(hostile, "TENANT-X", "42", "product_manager")
         self.assertTrue(result["requires_human_review"], "a high model-reported confidence cleared the human review")
         self.assertTrue(result["confidence_is_model_reported"])
+        self.assertNotEqual(result["shariah_verdict"], "COMPLIANT", "AI must not issue a ruling (BRD 1)")
         sent = post.call_args.kwargs["json"]["question"]
         self.assertEqual(sent.count("</contract_text>"), 1, "the document closed the data tag")
         self.assertEqual(post.call_args.kwargs["headers"]["X-User-Role"], "product")  # the copilot's name for the caller's role

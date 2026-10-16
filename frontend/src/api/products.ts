@@ -62,7 +62,7 @@ export interface ContractAnalysisResult {
   profit_calculation_frequency: string
   loss_absorption_mechanism: string
   prohibited_terms_detected: string[]
-  shariah_verdict: "COMPLIANT" | "CONTAINS_POTENTIAL_VIOLATIONS"
+  shariah_verdict: "NO_ISSUE_DETECTED" | "CONTAINS_POTENTIAL_VIOLATIONS" | "REQUIRES_HUMAN_REVIEW"
   confidence_score: number
   clauses: { clause_code: string; clause_title: string; content: string }[]
 }
