@@ -224,6 +224,14 @@ class FromScratch(APITestCase):
             ids[ref] = self.call("poolmanager", "post", "/api/v1/participants/participants/", body, expect=201).data["id"]
             self.refused("maker", "post", f"/api/v1/participants/participants/{ids[ref]}/verify-kyc/", {"note": "x"})
             self.call("risk", "post", f"/api/v1/participants/participants/{ids[ref]}/verify-kyc/", {"note": "ID checked"}, expect=200)
+        # A company participant is verified on its registration (KYB): the number is required.
+        company = {"reference": "CORP-001", "full_name": "Training Traders Pvt Ltd", "participant_class": "savings",
+                   "participant_type": "company", "tax_status": "filer"}
+        self.refused("poolmanager", "post", "/api/v1/participants/participants/", company)
+        corp = self.call("poolmanager", "post", "/api/v1/participants/participants/", {**company, "registration_number": "SECP-0000001",
+                         "nominee_name": "Board-appointed nominee", "nominee_relationship": "Director"}, expect=201).data
+        self.assertEqual((corp["participant_type"], corp["registration_number"]), ("company", "SECP-0000001"))
+
         # C2. Each person gets an account in the pool.
         for n, (ref, *_rest) in enumerate(people, start=1):
             self.call("poolmanager", "post", "/api/v1/participants/accounts/", {

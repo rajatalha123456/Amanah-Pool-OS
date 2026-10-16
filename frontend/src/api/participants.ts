@@ -42,6 +42,11 @@ export interface NewParticipant {
   iban?: string
   bank_name?: string
   tax_status?: string
+  participant_type?: string
+  registration_number?: string
+  nominee_name?: string
+  nominee_cnic?: string
+  nominee_relationship?: string
 }
 
 export async function createParticipant(body: NewParticipant): Promise<Participant> {

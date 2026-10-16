@@ -46,7 +46,7 @@ export function ParticipantRegistry() {
   const setField = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   function openDialog(d: NonNullable<typeof dialog>) {
-    setForm({ tax_status: "filer", opened_date: new Date().toISOString().slice(0, 10) })
+    setForm({ tax_status: "filer", participant_type: "individual", opened_date: new Date().toISOString().slice(0, 10) })
     setFormError("")
     setDialog(d)
     if (d.kind === "account") void fetchPools().then(setPools).catch(() => setPools([]))
@@ -59,7 +59,9 @@ export function ParticipantRegistry() {
         await createParticipant({
           reference: field("reference"), full_name: field("full_name"), participant_class: field("participant_class"),
           email: field("email"), cnic_ntn: field("cnic_ntn"), iban: field("iban"), bank_name: field("bank_name"),
-          tax_status: field("tax_status"),
+          tax_status: field("tax_status"), participant_type: field("participant_type") || "individual",
+          registration_number: field("registration_number"), nominee_name: field("nominee_name"),
+          nominee_cnic: field("nominee_cnic"), nominee_relationship: field("nominee_relationship"),
         })
       } else if (dialog.kind === "account") {
         await createParticipantAccount({
@@ -189,6 +191,25 @@ export function ParticipantRegistry() {
               <>
                 {[["reference", "Reference"], ["full_name", "Full name"], ["participant_class", "Class (e.g. Retail Regular)"],
                   ["email", "Email"], ["cnic_ntn", "CNIC / NTN"], ["iban", "IBAN"], ["bank_name", "Bank name"]].map(([k, label]) => (
+                  <label key={k} className="block text-sm">
+                    {label}
+                    <input className="mt-1 w-full rounded border border-line bg-transparent p-2" value={field(k)} onChange={(e) => setField(k, e.target.value)} />
+                  </label>
+                ))}
+                <label className="block text-sm">
+                  Type
+                  <select className="mt-1 w-full rounded border border-line bg-transparent p-2" value={field("participant_type")} onChange={(e) => setField("participant_type", e.target.value)}>
+                    <option value="individual">Individual (KYC)</option>
+                    <option value="company">Company (KYB)</option>
+                  </select>
+                </label>
+                {field("participant_type") === "company" && (
+                  <label className="block text-sm">
+                    Company registration number (required for KYB)
+                    <input className="mt-1 w-full rounded border border-line bg-transparent p-2" value={field("registration_number")} onChange={(e) => setField("registration_number", e.target.value)} />
+                  </label>
+                )}
+                {[["nominee_name", "Nominee name"], ["nominee_cnic", "Nominee CNIC"], ["nominee_relationship", "Nominee relationship"]].map(([k, label]) => (
                   <label key={k} className="block text-sm">
                     {label}
                     <input className="mt-1 w-full rounded border border-line bg-transparent p-2" value={field(k)} onChange={(e) => setField(k, e.target.value)} />

@@ -4,6 +4,13 @@ from .models import Participant, ParticipantAccount
 
 
 class ParticipantSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        kind = attrs.get("participant_type", getattr(self.instance, "participant_type", "individual"))
+        registration = attrs.get("registration_number", getattr(self.instance, "registration_number", ""))
+        if kind == "company" and not str(registration or "").strip():
+            raise serializers.ValidationError({"registration_number": ["A company needs its registration number for KYB."]})
+        return attrs
+
     class Meta:
         model = Participant
         fields = (
@@ -11,6 +18,10 @@ class ParticipantSerializer(serializers.ModelSerializer):
             "tenant",
             "reference",
             "full_name",
+            "participant_type",
+            "registration_number",
+            "nominee_cnic",
+            "nominee_relationship",
             "participant_class",
             "kyc_status",
             "cnic_ntn",

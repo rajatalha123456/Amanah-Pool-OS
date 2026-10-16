@@ -50,6 +50,13 @@ class Participant(TenantScopedModel):
     zakat_exempt = models.BooleanField(default=False)
     default_channel = models.CharField(max_length=10, choices=PayoutChannel.choices, default=PayoutChannel.RAAST)
     nominee_name = models.CharField(max_length=255, blank=True, default="")
+    nominee_cnic = models.CharField(max_length=30, blank=True, default="")
+    nominee_relationship = models.CharField(max_length=50, blank=True, default="")
+    # BRD 4 (KYC/KYB): a company is verified on its registration (KYB) by the same Risk decision as a person's KYC.
+    participant_type = models.CharField(
+        max_length=10, choices=[("individual", "Individual"), ("company", "Company")], default="individual"
+    )
+    registration_number = models.CharField(max_length=50, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     user = models.OneToOneField(
         "accounts.User",
