@@ -141,6 +141,25 @@ class FromScratch(APITestCase):
         self.assertEqual(done.data["status"], "approved")
         decision_id = decision["id"]
 
+        # BRD 6.1: the Shariah authority may also return or reject. A returned draft goes back to the Secretariat; votes
+        # of the earlier round stop counting. A quorum of rejections rejects it for good.
+        other = self.call("secretariat", "post", "/api/v1/products/shariah-decisions/", {**ruling, "decision_code": "FATWA-T-002"}, expect=201).data
+        o = f"/api/v1/products/shariah-decisions/{other['id']}/"
+        self.call("board", "post", o + "cast-quorum-vote/", vote, expect=200)
+        self.refused("board2", "post", o + "return-for-revision/", {})  # a reason is required
+        self.refused("secretariat", "post", o + "return-for-revision/", {"note": "x"})
+        back = self.call("board2", "post", o + "return-for-revision/", {"note": "Cite the SBP circular as well"}, expect=200).data
+        self.assertEqual((back["status"], back["review_round"]), ("returned", 2))
+        self.refused("board3", "post", o + "cast-quorum-vote/", vote)  # nothing to vote on while it is with the Secretariat
+        self.call("secretariat", "patch", o, {"fiqh_reference": "AAOIFI SS 13; SBP IBD circular"}, expect=200)
+        self.call("secretariat", "post", o + "resubmit/", expect=200)
+        again = self.call("board", "post", o + "cast-quorum-vote/", vote, expect=200).data
+        self.assertEqual(again["status"], "draft", "the first-round vote no longer counts, so one new vote is not a quorum")
+        no = {"vote": "reject", "fiqh_opinion_notes": "Not convinced"}
+        self.call("board2", "post", o + "cast-quorum-vote/", no, expect=200)
+        done = self.call("board3", "post", o + "cast-quorum-vote/", no, expect=200).data
+        self.assertEqual(done["status"], "rejected")
+
         # B2. The Product Manager drafts the contract template and the product; the Board approves both.
         template = {"name": "Unrestricted Mudarabah Charter", "contract_type": "mudarabah_unrestricted", "version": "1.0",
                     "clauses": {}, "shariah_decision": decision_id}

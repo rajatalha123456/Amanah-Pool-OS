@@ -82,7 +82,7 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 | R-048 | 6.1.2 | Contract Studio loads approved clauses and mandatory parameters | clauses JSON; no mandatory set | template studio | - | none | PARTIAL | P2 |
 | R-049 | 6.1.3 | AI completeness / conflict / policy-mapping check | deterministic `rule_conflicts` gate only | - | - | BT activation gates | PARTIAL | P2 |
 | R-050 | 6.1.4 | Finance validates mappings; Risk validates limits and disclosures | `governance/config_changes.py` | Governance Config | `ConfigChangeRequest` | BT governance; E2E governance config | PASS | - |
-| R-051 | 6.1.5 | Secretariat review pack; Shariah authority approves / rejects / returns | approve/reject; no "return" | - | - | BT products | PARTIAL | P3 |
+| R-051 | 6.1.5 | Secretariat review pack; Shariah authority approves / rejects / returns | quorum approve; quorum of rejections rejects; any Board member returns with a note (new review round, earlier votes stop counting); Secretariat edits and resubmits | Fatwa register modal | `ShariahDecision.review_round` | BT core.test_from_scratch | PASS | - |
 | R-052 | 6.1.6 | Checker activates with future effective timestamp | `pools/views.py` open by checker/signatory | Pool detail | - | BT activation gates | PASS | - |
 | R-053 | 6.1.7 | Seal configuration version; publish disclosures | `config_snapshot.py`, `disclosures.py` | - | `PoolVersion`, `PoolDisclosure` | BT test_disclosures (8) | PASS | - |
 | R-054 | 6.2.1 | Import balances, income, expenses, provisions, transfers | manual import; CBS simulated | Balance Import | - | BT BalanceImportTests | PARTIAL | P2 |
@@ -273,8 +273,8 @@ row quotes a table cell. Screen inventory (BRD 15, 58 screens) is traced row by 
 
 | Status | Count |
 |---|---|
-| PASS | 109 |
-| PARTIAL | 60 |
+| PASS | 110 |
+| PARTIAL | 59 |
 | FAIL | 0 |
 | MISSING | 8 |
 | BLOCKED | 6 |

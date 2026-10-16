@@ -51,3 +51,16 @@ export async function castShariahQuorumVote(
   return response.data
 }
 
+
+
+/** BRD 6.1: a Board member returns the review pack to the Secretariat with what must change. */
+export async function returnShariahDecision(decisionId: string, note: string): Promise<ShariahDecision> {
+  const response = await apiClient.post<ShariahDecision>(`products/shariah-decisions/${decisionId}/return-for-revision/`, { note })
+  return response.data
+}
+
+/** The Secretariat sends the revised draft back to the Board; voting starts again. */
+export async function resubmitShariahDecision(decisionId: string): Promise<ShariahDecision> {
+  const response = await apiClient.post<ShariahDecision>(`products/shariah-decisions/${decisionId}/resubmit/`)
+  return response.data
+}

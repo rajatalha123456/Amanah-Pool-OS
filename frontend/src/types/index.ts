@@ -1451,6 +1451,8 @@ export interface ShariahQuorumSummary {
 }
 
 export interface ShariahDecision {
+  review_round?: number
+  return_note?: string
   scope?: string
   supersedes?: string | null
   id: string
@@ -1464,7 +1466,7 @@ export interface ShariahDecision {
   description: string
   mandatory_caveats?: string | null
   fatwa_arabic_text?: string | null
-  status: "draft" | "approved" | "superseded"
+  status: "draft" | "returned" | "rejected" | "approved" | "superseded"
   effective_date: string
   expiry_date?: string | null
   document_url?: string | null

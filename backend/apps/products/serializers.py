@@ -16,6 +16,7 @@ class ShariahQuorumVoteSerializer(serializers.ModelSerializer):
             "decision_vote",
             "fiqh_concurrence_notes",
             "digital_signature_hash",
+            "review_round",
             "voted_at",
             "signatory_user",
             "signatory_user_name",
@@ -75,11 +76,15 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
             "updated_at",
             "quorum_votes",
             "quorum_summary",
+            "review_round",
+            "return_note",
         )
         read_only_fields = (
             "id",
             "tenant",
             "status",
+            "review_round",
+            "return_note",
             "created_by",
             "created_by_name",
             "approved_by",
@@ -102,7 +107,7 @@ class ShariahDecisionSerializer(serializers.ModelSerializer):
         return None
 
     def get_quorum_summary(self, obj):
-        votes = obj.quorum_votes.all()
+        votes = [v for v in obj.quorum_votes.all() if v.review_round == obj.review_round]  # only the current round counts
         approvals = sum(1 for v in votes if v.decision_vote == "approve")
         rejections = sum(1 for v in votes if v.decision_vote == "reject")
         from .shariah import board_size, quorum_required

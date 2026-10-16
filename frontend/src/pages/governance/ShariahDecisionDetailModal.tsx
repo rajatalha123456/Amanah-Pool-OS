@@ -4,7 +4,7 @@ import { Button } from "../../components/Button"
 import { Badge } from "../../components/Badge"
 import { Spinner } from "../../components/Spinner"
 import { useAuth } from "../../api/auth"
-import { approveShariahDecision, castShariahQuorumVote } from "../../api/shariahGovernance"
+import { approveShariahDecision, castShariahQuorumVote, resubmitShariahDecision, returnShariahDecision } from "../../api/shariahGovernance"
 import { extractErrorMessage } from "../../api/errors"
 import type { BadgeVariant, ShariahDecision } from "../../types"
 
@@ -24,6 +24,10 @@ function decisionStatusBadgeVariant(status: string): BadgeVariant {
       return "gold"
     case "superseded":
       return "neutral"
+    case "returned":
+      return "gold"
+    case "rejected":
+      return "navy"
     default:
       return "neutral"
   }
@@ -95,6 +99,19 @@ export function ShariahDecisionDetailModal({
       setError(extractErrorMessage(err, "Unable to approve this decision."))
     } finally {
       setIsApproving(false)
+    }
+  }
+
+  const [returnNote, setReturnNote] = useState("")
+
+  async function act(run: () => Promise<ShariahDecision>, failure: string) {
+    setError("")
+    try {
+      const updated = await run()
+      setDecision(updated)
+      onApproved(updated)
+    } catch (err) {
+      setError(extractErrorMessage(err, failure))
     }
   }
 
@@ -256,7 +273,31 @@ export function ShariahDecisionDetailModal({
           </div>
 
           {/* Cast Scholar Signature Form / CTA */}
-          {decision.status !== "approved" && isBoardMember && (
+          {decision.status === "returned" && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200">
+              <p className="font-semibold">Returned to the Secretariat (review round {decision.review_round})</p>
+              <p className="mt-1">{decision.return_note}</p>
+              {user?.role === "shariah_secretariat" && (
+                <Button variant="primary" className="mt-2 text-xs" onClick={() => act(() => resubmitShariahDecision(decision.id), "Unable to resubmit.")}>
+                  Resubmit to the Board
+                </Button>
+              )}
+            </div>
+          )}
+
+          {isDraft && isBoardMember && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex-1 text-xs text-ink-secondary">
+                Return to the Secretariat (what must change)
+                <input className="mt-1 w-full rounded border border-white/10 bg-navy-800 p-2 text-xs text-ink-primary" value={returnNote} onChange={(e) => setReturnNote(e.target.value)} />
+              </label>
+              <Button variant="secondary" className="text-xs" onClick={() => act(() => returnShariahDecision(decision.id, returnNote), "Unable to return this ruling.")}>
+                Return for revision
+              </Button>
+            </div>
+          )}
+
+          {isDraft && isBoardMember && (
             <div className="pt-2 border-t border-white/8">
               {!showSignForm ? (
                 <Button

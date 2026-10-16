@@ -5,6 +5,9 @@ from apps.core.models import TenantScopedModel
 
 class ShariahDecisionStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
+    # BRD 6.1: the Shariah authority approves, rejects or returns the review pack.
+    RETURNED = "returned", "Returned to the Secretariat"
+    REJECTED = "rejected", "Rejected"
     APPROVED = "approved", "Approved"
     SUPERSEDED = "superseded", "Superseded"
 
@@ -85,6 +88,9 @@ class ShariahDecision(TenantScopedModel):
         related_name="approved_shariah_decisions",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
+    # Each return to the Secretariat opens a new review round; only the votes of the current round count.
+    review_round = models.PositiveIntegerField(default=1)
+    return_note = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"{self.decision_code} - {self.title}"
@@ -251,6 +257,7 @@ class ShariahQuorumVote(TenantScopedModel):
         max_length=20, choices=QuorumVoteDecision.choices, default=QuorumVoteDecision.APPROVE
     )
     fiqh_concurrence_notes = models.TextField(blank=True, default="")
+    review_round = models.PositiveIntegerField(default=1)
     digital_signature_hash = models.CharField(max_length=64)
     voted_at = models.DateTimeField(auto_now_add=True)
     signatory_user = models.ForeignKey(

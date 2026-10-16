@@ -43,8 +43,10 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsAuthenticated(), HasAnyRole(["shariah_board", "shariah_secretariat"])()]
-        if self.action in ("approve", "cast_quorum_vote"):
+        if self.action in ("approve", "cast_quorum_vote", "return_for_revision"):
             return [IsAuthenticated(), IsStrictShariahBoard()]
+        if self.action == "resubmit":
+            return [IsAuthenticated(), HasAnyRole(["shariah_secretariat", "shariah_board"])()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -63,8 +65,8 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        if serializer.instance.status != ShariahDecisionStatus.DRAFT:
-            raise ValidationError("An approved Shariah decision cannot be edited; issue a new decision instead.")
+        if serializer.instance.status not in (ShariahDecisionStatus.DRAFT, ShariahDecisionStatus.RETURNED):
+            raise ValidationError("Only a draft or a returned decision can be edited; issue a new decision instead.")
         instance = serializer.save()
         log_action(
             tenant=instance.tenant,
@@ -135,6 +137,41 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
         )
         return Response(self.get_serializer(decision).data)
 
+    @action(detail=True, methods=["post"], url_path="return-for-revision")
+    def return_for_revision(self, request, pk=None):
+        """BRD 6.1: a Board member returns the review pack to the Secretariat with what must change."""
+        decision = self.get_object()
+        note = str(request.data.get("note") or "").strip()
+        if decision.status != ShariahDecisionStatus.DRAFT:
+            raise ValidationError(f"Only a ruling under review can be returned (this one is {decision.status}).")
+        if not note:
+            raise ValidationError({"note": ["Say what the Secretariat must change."]})
+        decision.status = ShariahDecisionStatus.RETURNED
+        decision.return_note = note
+        decision.review_round += 1  # votes already cast belong to the earlier round and no longer count
+        decision.save(update_fields=["status", "return_note", "review_round", "updated_at"])
+        log_action(
+            tenant=decision.tenant, actor=request.user, action="shariah_decision_returned", model_name="ShariahDecision",
+            object_id=str(decision.id), changes={"status": {"before": "draft", "after": "returned"}}, reason=note,
+            request=request,
+        )
+        return Response(self.get_serializer(decision).data)
+
+    @action(detail=True, methods=["post"])
+    def resubmit(self, request, pk=None):
+        """The Secretariat sends the revised draft back to the Board; voting starts again."""
+        decision = self.get_object()
+        if decision.status != ShariahDecisionStatus.RETURNED:
+            raise ValidationError(f"Only a returned ruling can be resubmitted (this one is {decision.status}).")
+        decision.status = ShariahDecisionStatus.DRAFT
+        decision.save(update_fields=["status", "updated_at"])
+        log_action(
+            tenant=decision.tenant, actor=request.user, action="shariah_decision_resubmitted", model_name="ShariahDecision",
+            object_id=str(decision.id), changes={"status": {"before": "returned", "after": "draft"}, "round": decision.review_round},
+            request=request,
+        )
+        return Response(self.get_serializer(decision).data)
+
     @action(detail=True, methods=["post"], url_path="cast-quorum-vote")
     def cast_quorum_vote(self, request, pk=None):
         from .shariah import board_size, quorum_required
@@ -155,7 +192,8 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
             raise ValidationError({"fiqh_opinion_notes": ["Record the reasoning for your vote."]})
         if decision.created_by_id == request.user.id:
             raise ValidationError("Maker-checker: the member who drafted this ruling cannot vote on it.")
-        if decision.quorum_votes.filter(signatory_user=request.user).exists():
+        current_round = decision.quorum_votes.filter(review_round=decision.review_round)
+        if current_round.filter(signatory_user=request.user).exists():
             raise ValidationError("You have already voted on this ruling.")
         if board_size(decision.tenant_id) < 2:
             raise ValidationError("A quorum needs at least two active Shariah Board members in this tenant.")
@@ -171,12 +209,23 @@ class ShariahDecisionViewSet(viewsets.ModelViewSet):
             scholar_title=scholar_title,
             decision_vote=vote,
             fiqh_concurrence_notes=fiqh_notes,
+            review_round=decision.review_round,
             digital_signature_hash=sig_hash,
             signatory_user=request.user if request.user.is_authenticated else None,
         )
 
-        approvals = decision.quorum_votes.filter(decision_vote="approve").count()
+        approvals = current_round.filter(decision_vote="approve").count()
+        rejections = current_round.filter(decision_vote="reject").count()
         required = quorum_required(decision.tenant_id)
+        if rejections >= required:
+            decision.status = ShariahDecisionStatus.REJECTED
+            decision.save(update_fields=["status", "updated_at"])
+            log_action(
+                tenant=decision.tenant, actor=request.user, action="shariah_quorum_rejected", model_name="ShariahDecision",
+                object_id=str(decision.id), changes={"status": {"before": "draft", "after": "rejected"}, "rejections": rejections},
+                reason=f"Shariah Board quorum of {required} rejected the ruling.", request=request,
+            )
+            return Response(self.get_serializer(decision).data)
         if approvals >= required and decision.status != ShariahDecisionStatus.APPROVED:
             decision.status = ShariahDecisionStatus.APPROVED
             decision.approved_by = request.user
