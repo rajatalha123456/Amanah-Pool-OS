@@ -163,6 +163,24 @@ class DetectorRecordingTests(APITestCase):
             self.assertTrue(rec.requires_human_review)
             self.assertIn("exception_case_id", rec.output)
             self.assertEqual(rec.requested_by_id, signatory.id)
+            self.assertTrue(check_for_anomalies(latest, signatory))  # already flagged: no second case for the same run
+            from apps.governance.models import ExceptionCase
+
+            self.assertEqual(ExceptionCase._base_manager.filter(source_object_id=str(latest.id)).count(), 1)
+
+            # BRD 6.2 step 12: a run is screened when the maker submits it, before anyone checks or approves it.
+            maker = User.objects.filter(tenant=tenant, role="finance_maker").first()
+            submitted = AllocationRun._base_manager.create(
+                tenant=tenant, pool=pool, value_date=date(2025, 3, 1), gross_income=Decimal("1000.00"),
+                distributable_amount=Decimal("90.00"), total_weighted_funds=Decimal("90.00"),
+                depositor_pool_share=Decimal("90.00"), mudarib_share=Decimal("0.00"), status="simulated", created_by=maker,
+            )
+            self.client.force_authenticate(user=maker)
+            self.client.defaults["HTTP_X_TENANT_CODE"] = tenant.code
+            response = self.client.post(f"/api/v1/allocation/allocation-runs/{submitted.id}/submit-for-checking/")
+            set_current_tenant(tenant)
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertTrue(ExceptionCase._base_manager.filter(source_object_id=str(submitted.id)).exists())
 
             # a GL / sub-ledger mismatch is recorded by the reconciliation copilot
             batch = JournalBatch._base_manager.filter(tenant=tenant, allocation_run__isnull=False).first()

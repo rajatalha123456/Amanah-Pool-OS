@@ -1,6 +1,6 @@
 """
-Rule-based (v1) anomaly detection for AllocationRun, run when a run is
-signed (apps.allocation.views.AllocationRunViewSet.approve). Compares the
+Rule-based (v1) anomaly detection for AllocationRun, run when the maker submits the run for checking (BRD 6.2 step 12:
+before anyone approves it) and again when it is signed. Compares the
 just-signed run's profit margin and per-participant-class allocation ratios
 against the trailing 5-run average for the same pool; flags a deviation of
 40% or more as an ExceptionCase for Risk & Compliance to triage.
@@ -49,6 +49,14 @@ def check_for_anomalies(allocation_run: AllocationRun, user=None) -> bool:
 
     if not is_ai_model_enabled("allocation_anomaly_detector"):
         return False
+
+    # Already flagged at submission: one case per run, not one per stage.
+    from apps.governance.models import ExceptionCase
+
+    if ExceptionCase._base_manager.filter(
+        source_module="allocation", source_object_id=str(allocation_run.id), title__startswith="Unusual allocation pattern"
+    ).exists():
+        return True
 
     baseline_runs = list(
         AllocationRun.objects.filter(

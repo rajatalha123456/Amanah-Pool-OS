@@ -497,6 +497,10 @@ class AllocationRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
         run.status = AllocationRunStatus.PENDING_APPROVAL
         run.save(update_fields=["status", "updated_at"])
+        # BRD 6.2 step 12: unusual yield or allocation drift is flagged before the checker looks at the run.
+        from .anomaly_detector import check_for_anomalies
+
+        check_for_anomalies(run, request.user)
         log_action(
             tenant=run.tenant,
             actor=request.user,
